@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import logo from "./logo.svg";
 import "./App.css";
 import axios from "axios";
-import { GItem, ItemName, StatType } from "adventureland";
+import { GItem, ItemName, StatType, CharacterType } from "adventureland";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -10,9 +10,16 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
+import Chip from "@mui/material/Chip";
+import Divider from '@mui/material/Divider';
 
 function App() {
-  const [G, setG] = useState<{ items?: { [T in ItemName]: GItem } }>({});
+  const [G, setG] = useState<{
+    items?: {
+      [T in ItemName]: GItem;
+    };
+    classes?: { [T in CharacterType]: any };
+  }>({});
 
   useEffect(() => {
     axios
@@ -59,7 +66,7 @@ function App() {
       id: "class",
       numeric: true,
       label: "Class",
-      component: (x: string[]) => x ? x.join(",") : '',
+      component: (x: string[]) => (x ? x.join(",") : ""),
     },
     {
       id: "type",
@@ -94,6 +101,20 @@ function App() {
       })
     : [];
 
+  const classes = G.classes
+    ? Object.entries(G.classes).map(([className, item]) => {
+        return className;
+      })
+    : [];
+  const itemTypes = [...new Set(G.items ? Object.values(G.items).map(i => i.type) : [])]
+  // TODO: filtering, by class, by type, by stat properties (search field?)
+  // was thinking filters could be pills at least some of them?
+
+  const filterByClass = (x: any) => {
+    // TODO: we should toggle filters on / off
+    console.log(x);
+  };
+
   return (
     <div className="App">
       {/* <header className="App-header">
@@ -110,8 +131,20 @@ function App() {
           Learn React
         </a>
       </header> */}
+      {classes.map((c) => (
+        <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
+      ))}
+      <Divider sx={{marginTop: 2, marginBottom: 2}} />
+      {itemTypes.map((c) => (
+        <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
+      ))}
       <TableContainer component={Paper}>
-        <Table stickyHeader sx={{ minWidth: 650 }} size="small" aria-label="a dense table">
+        <Table
+          stickyHeader
+          sx={{ minWidth: 650 }}
+          size="small"
+          aria-label="a dense table"
+        >
           <TableHead>
             <TableRow>
               <TableCell>itemName</TableCell>
@@ -136,7 +169,10 @@ function App() {
                 {columns.map((c) => {
                   const property = (row as any)[c.id];
                   return (
-                    <TableCell key={row.itemName+c.id} align={c.numeric ? "right" : "left"}>
+                    <TableCell
+                      key={row.itemName + c.id}
+                      align={c.numeric ? "right" : "left"}
+                    >
                       {c.component ? c.component(property) : property}
                     </TableCell>
                   );
