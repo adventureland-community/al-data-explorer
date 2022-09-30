@@ -12,6 +12,7 @@ import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
 import Divider from '@mui/material/Divider';
+import { GearPlanner } from "./GearPlanner";
 
 function App() {
   const [G, setG] = useState<{
@@ -117,6 +118,7 @@ function App() {
 
   return (
     <div className="App">
+      <GearPlanner />
       {/* <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
         <p>
