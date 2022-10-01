@@ -65,4 +65,5 @@ export type GData = {
   };
   imagesets: any;
   positions: any;
+  version:number;
 };

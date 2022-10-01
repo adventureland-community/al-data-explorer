@@ -192,6 +192,8 @@ function App() {
             </TableBody>
           </Table>
         </TableContainer> */}
+        <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
+        data v{G.version}
       </div>
     </GDataContext.Provider>
   );
