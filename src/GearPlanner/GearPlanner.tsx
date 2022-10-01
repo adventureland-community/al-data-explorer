@@ -56,6 +56,7 @@ import {
   GItems,
   MainStatType,
 } from "../GDataContext";
+import { ItemImage } from "../ItemImage";
 import { GearSelectDialog, RowItem } from "./GearSelectDialog";
 
 // TODO: Defense table against specific mobs
@@ -65,54 +66,12 @@ type SelectedCharacterClass = {
 
 export function GearPlanner() {
   const G = useContext(GDataContext);
+  
   /**
    * EAR HAT EAR AMULET
    * MH CHEST OH CAPE
    * RING LEG RING ORB
    * BELT BOOTS HAND ELIXIR
-   */
-
-  /**
-   * https://adventure.land/images/tiles/items/pack_20vt8.png
-   * 40x40
-   * G.imagesets
-   * pack_20:
-load: true
-rows: 64
-file: "/images/tiles/items/pack_20vt8.png"
-columns: 16
-size: 20
-
-function item_container(item,actual) in html.js
-
-    var pack=G.imagesets[G.positions[item.skin][0]||"pack_20"],
-    x=G.positions[item.skin][1],
-    y=G.positions[item.skin][2];
-
-		var scale=size/pack.size
-	html+="<div style='overflow: hidden; height: "+(size)+"px; width: "+(size)+"px;'>";
-    html+="<img style='width: "+(pack.columns*pack.size*scale)+"px; height: "+(pack.rows*pack.size*scale)+"px; margin-top: -"+(y*size)+"px; margin-left: -"+(x*size)+"px;' src='"+pack.file+"' draggable='false' />";
-    html+="</div>";
-   *
-   *
-   * 
-   * hat <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -0px; opacity: 0.5;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * ear <img style="width: 640px; height: 2560px; margin-top: -680px; margin-left: -200px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * amulet <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -480px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   *
-   * mh <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -200px; opacity: 0.36;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * chest <img style="width: 640px; height: 2560px; margin-top: -40px; margin-left: -240px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * oh <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -240px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * cape <img style="width: 640px; height: 2560px; margin-top: -240px; margin-left: -160px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   *
-   * pants <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -80px; opacity: 0.5;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * ring <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -520px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * orb <img style="width: 640px; height: 2560px; margin-top: -1000px; margin-left: -80px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   *
-   * belt <img style="width: 640px; height: 2560px; margin-top: -120px; margin-left: -160px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * shoes <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -120px; opacity: 0.5;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * gloves <img style="width: 640px; height: 2560px; margin-top: -80px; margin-left: -400px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * elixir <img style="width: 640px; height: 2560px; margin-top: -1080px; margin-left: -0px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
    */
 
   // TODO: data for each gear slot with selected item, lvl, stats increases, and such.
@@ -124,6 +83,10 @@ function item_container(item,actual) in html.js
   const [selectedClass, setSelectedClass] = useState<SelectedCharacterClass>();
 
   const [level, setLevel] = useState(49); // TODO: find a sane default level
+
+  if (!G) {
+    return <>WAITING!</>;
+  }
 
   const onShowAvailableGear = (slot: SlotType) => {
     setSelectedGearSlot(slot);
@@ -228,10 +191,14 @@ function item_container(item,actual) in html.js
         <Grid item xs={12}>
           <table>
             {Object.entries(gear).map(([slot, itemInfo]) => {
-              // TODO: look up gItem? or should we
+              if(!itemInfo){
+                return (<></>)
+              }
+              const gItem = G.items[itemInfo.name]
               return (
                 <tr key={`list${slot}`}>
-                  <td>{itemInfo.name}</td>
+                  <td><ItemImage itemName={gItem.id} /></td>
+                  <td>{gItem.name}</td>
                 </tr>
               );
             })}
@@ -329,8 +296,8 @@ export function StatsPanel({
       <Grid item xs={3}>
         <Divider textAlign="left">GENERAL</Divider>
         <List>
-          <ListItem>hp:{stats.hp}</ListItem>
-          <ListItem>mp:{stats.mp}</ListItem>
+          <ListItem>hp: {stats.hp}</ListItem>
+          <ListItem>mp: {stats.mp}</ListItem>
           {mainStatTypes.map((stat) => (
             <ListItem
               key={`stat_${stat}`}
@@ -351,7 +318,7 @@ export function StatsPanel({
         <List>
           {offenseStatTypes.map((stat) => (
             <ListItem key={`stat_${stat}`}>
-              {stat}:{stats[stat]}
+              {stat}: {stats[stat]}
             </ListItem>
           ))}
         </List>
@@ -361,7 +328,7 @@ export function StatsPanel({
         <List>
           {defenseStatTypes.map((stat) => (
             <ListItem key={`stat_${stat}`}>
-              {stat}:{stats[stat]}
+              {stat}: {stats[stat]}
             </ListItem>
           ))}
         </List>
@@ -371,7 +338,7 @@ export function StatsPanel({
         <List>
           {otherStatTypes.map((stat) => (
             <ListItem key={`stat_${stat}`}>
-              {stat}:{stats[stat]}
+              {stat}: {stats[stat]}
             </ListItem>
           ))}
         </List>

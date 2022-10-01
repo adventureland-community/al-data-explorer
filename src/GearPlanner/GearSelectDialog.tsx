@@ -13,6 +13,7 @@ import {
 import { SlotType, ItemType, ItemName, GItem } from "adventureland";
 import { useState } from "react";
 import { GItems } from "../GDataContext";
+import { ItemImage } from "../ItemImage";
 export type RowItem = { itemName: ItemName } & GItem;
 
 export function GearSelectDialog({
@@ -59,7 +60,7 @@ export function GearSelectDialog({
             ...item,
           };
 
-          return row;
+          return row as RowItem;
         })
     : [];
 
@@ -126,7 +127,7 @@ export function GearSelectDialog({
             >
               <TableHead>
                 <TableRow>
-                  <TableCell>itemName</TableCell>
+                  <TableCell></TableCell>
                   {columns.map((c) => {
                     return (
                       <TableCell
@@ -151,9 +152,10 @@ export function GearSelectDialog({
                         "&:last-child td, &:last-child th": { border: 0 },
                       }}
                     >
-                      <TableCell component="th" scope="row">
-                        {row.itemName}
+                      <TableCell component="td" scope="row">
+                        <ItemImage itemName={row.itemName} />
                       </TableCell>
+                      {/* <TableCell component="th" scope="row"> */}
                       {columns.map((c) => {
                         const property = (row as any)[c.id];
                         return (

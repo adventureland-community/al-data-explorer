@@ -18,7 +18,8 @@ import { GData, GDataContext } from "./GDataContext";
 
 
 function App() {
-  const [G, setG] = useState<GData>({});
+  const [G, setG] = useState<GData>();
+  
 
   // TODO: move to GDataContext
   useEffect(() => {
@@ -36,6 +37,11 @@ function App() {
         // always executed
       });
   });
+
+  if (!G) {
+    return <>WAITING!</>;
+  }
+  
 
   const statType: StatType[] = [
     "armor",
