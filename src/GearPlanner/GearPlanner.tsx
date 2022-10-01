@@ -19,10 +19,14 @@
 import {
   Box,
   Chip,
+  Container,
   Dialog,
   DialogContent,
   DialogTitle,
+  Divider,
   Grid,
+  List,
+  ListItem,
   Modal,
   Paper,
   Slider,
@@ -162,9 +166,9 @@ function item_container(item,actual) in html.js
   };
 
   return (
-    <>
+    <Container>
       <Grid container rowSpacing={1}>
-        <Grid item xs={10}>
+        <Grid item xs={12}>
           {classes.map((c) => (
             <Chip
               label={c.className}
@@ -218,20 +222,20 @@ function item_container(item,actual) in html.js
             </div>
           </div>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={6}>
           <StatsPanel selectedCharacterClass={selectedClass} level={level} />
         </Grid>
         <Grid item xs={12}>
-        <table>
-          {Object.entries(gear).map(([slot, itemInfo]) => {
-            // TODO: look up gItem? or should we
-            return (
-              <tr key={`list${slot}`}>
-                <td>{itemInfo.name}</td>
-              </tr>
-            );
-          })}
-        </table>
+          <table>
+            {Object.entries(gear).map(([slot, itemInfo]) => {
+              // TODO: look up gItem? or should we
+              return (
+                <tr key={`list${slot}`}>
+                  <td>{itemInfo.name}</td>
+                </tr>
+              );
+            })}
+          </table>
         </Grid>
       </Grid>
       {/* TODO: highlight / mark currently selected item? */}
@@ -240,7 +244,7 @@ function item_container(item,actual) in html.js
         items={G.items}
         onSelectGear={onSelectGear}
       />
-    </>
+    </Container>
   );
 }
 
@@ -280,16 +284,28 @@ export function StatsPanel({
   level: number;
 }) {
   const G = useContext(GDataContext);
-  // str increases hp & armor
-  // int increases mp & resistance
-  // dex increases attack & run speed
-  // vit increases hp proportional to level
+
   // TODO: determine stats for character
-  const stats: { [T in StatType]?: number } = {};
+  let stats: { [T in StatType]?: number } = {};
   // https://discord.com/channels/238332476743745536/238332476743745536/1008354654939263076
   // so it is probably 1*lstat to 40 and 3*lstat after
   const mainStatTypes: MainStatType[] = ["dex", "int", "vit", "str", "for"];
+  // heal?
+  const defenseStatTypes: StatType[] = ["resistance", "armor"];
+  const offenseStatTypes: StatType[] = ["frequency", "attack"]; // is range offensive?
+  const otherStatTypes: StatType[] = [
+    "speed",
+    "range",
+    "mp_cost",
+    "mp_reduction" /*, "goldm", "xpm", "luckm"*/,
+  ];
+  // "miss", "reflection", "lifesteal", "manasteal","rpiercing", "apiercing", "crit", "critdamage", "dreturn", "xrange"
+  // "pnresistance", "fireresistance", "fzresistance", "stun", "blast", "explosion"
+  // "courage", "mcourage", "pcourage", "fear", "pzazz"
+
   if (selectedCharacterClass) {
+    stats = { ...stats, ...selectedCharacterClass };
+
     for (const stat of mainStatTypes) {
       stats[stat] = calculateMainStatByLevel(
         stat,
@@ -299,25 +315,68 @@ export function StatsPanel({
     }
   }
 
+  // TODO: str increases hp & armor
+  // TODO: int increases mp & resistance
+  // TODO: dex increases attack & run speed
+  // TODO: vit increases hp proportional to level
+  // TODO: mh, oh doublehand causes stat changes as well for the class.
+
   // TODO: apply gear stats
   // TODO: handle upgrades / compounding
   // TODO: render stats.
   return (
-    <>
-      {mainStatTypes.map((stat) => (
-        <div
-          key={`stat_${stat}`}
-          style={{
-            fontWeight:
-              selectedCharacterClass?.main_stat === stat ? "bold" : "normal",
-          }}
-        >
-          {stat}:{stats[stat]}
-        </div>
-      ))}
-      {/* <div>hp:{selectedCharacterClass?.hp}</div>
-      <div>mp:{selectedCharacterClass?.mp}</div> */}
-    </>
+    <Grid container>
+      <Grid item xs={3}>
+        <Divider textAlign="left">GENERAL</Divider>
+        <List>
+          <ListItem>hp:{stats.hp}</ListItem>
+          <ListItem>mp:{stats.mp}</ListItem>
+          {mainStatTypes.map((stat) => (
+            <ListItem
+              key={`stat_${stat}`}
+              style={{
+                fontWeight:
+                  selectedCharacterClass?.main_stat === stat
+                    ? "bold"
+                    : "normal",
+              }}
+            >
+              {stat}:{stats[stat]}
+            </ListItem>
+          ))}
+        </List>
+      </Grid>
+      <Grid item xs={3}>
+        <Divider textAlign="left">OFFENSE</Divider>
+        <List>
+          {offenseStatTypes.map((stat) => (
+            <ListItem key={`stat_${stat}`}>
+              {stat}:{stats[stat]}
+            </ListItem>
+          ))}
+        </List>
+      </Grid>
+      <Grid item xs={3}>
+        <Divider textAlign="left">DEFENSE</Divider>
+        <List>
+          {defenseStatTypes.map((stat) => (
+            <ListItem key={`stat_${stat}`}>
+              {stat}:{stats[stat]}
+            </ListItem>
+          ))}
+        </List>
+      </Grid>
+      <Grid item xs={3}>
+        <Divider textAlign="left">OTHER</Divider>
+        <List>
+          {otherStatTypes.map((stat) => (
+            <ListItem key={`stat_${stat}`}>
+              {stat}:{stats[stat]}
+            </ListItem>
+          ))}
+        </List>
+      </Grid>
+    </Grid>
   );
 }
 
