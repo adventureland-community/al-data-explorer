@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { createContext, useEffect, useState } from "react";
 import logo from "./logo.svg";
 import "./App.css";
 import axios from "axios";
@@ -11,17 +11,16 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
-import Divider from '@mui/material/Divider';
+import Divider from "@mui/material/Divider";
 import { GearPlanner } from "./GearPlanner";
+import { GData, GDataContext } from "./GDataContext";
+
+
 
 function App() {
-  const [G, setG] = useState<{
-    items?: {
-      [T in ItemName]: GItem;
-    };
-    classes?: { [T in CharacterType]: any };
-  }>({});
+  const [G, setG] = useState<GData>({});
 
+  // TODO: move to GDataContext
   useEffect(() => {
     axios
       .get("data.json")
@@ -107,7 +106,9 @@ function App() {
         return className;
       })
     : [];
-  const itemTypes = [...new Set(G.items ? Object.values(G.items).map(i => i.type) : [])]
+  const itemTypes = [
+    ...new Set(G.items ? Object.values(G.items).map((i) => i.type) : []),
+  ];
   // TODO: filtering, by class, by type, by stat properties (search field?)
   // was thinking filters could be pills at least some of them?
 
@@ -117,9 +118,10 @@ function App() {
   };
 
   return (
-    <div className="App">
-      <GearPlanner />
-      {/* <header className="App-header">
+    <GDataContext.Provider value={G}>
+      <div className="App">
+        <GearPlanner />
+        {/* <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
         <p>
           Edit <code>src/App.tsx</code> and save to reload.
@@ -133,58 +135,58 @@ function App() {
           Learn React
         </a>
       </header> */}
-      {classes.map((c) => (
-        <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
-      ))}
-      <Divider sx={{marginTop: 2, marginBottom: 2}} />
-      {itemTypes.map((c) => (
-        <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
-      ))}
-      <TableContainer component={Paper}>
-        <Table
-          stickyHeader
-          sx={{ minWidth: 650 }}
-          size="small"
-          aria-label="a dense table"
-        >
-          <TableHead>
-            <TableRow>
-              <TableCell>itemName</TableCell>
-              {columns.map((c) => {
-                return (
-                  <TableCell key={c.id} align={c.numeric ? "right" : "left"}>
-                    {c.label}
-                  </TableCell>
-                );
-              })}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow
-                key={row.itemName}
-                sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-              >
-                <TableCell component="th" scope="row">
-                  {row.itemName}
-                </TableCell>
+        {classes.map((c) => (
+          <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
+        ))}
+        <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
+        {itemTypes.map((c) => (
+          <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
+        ))}
+        <TableContainer component={Paper}>
+          <Table
+            stickyHeader
+            sx={{ minWidth: 650 }}
+            size="small"
+            aria-label="a dense table"
+          >
+            <TableHead>
+              <TableRow>
+                <TableCell>itemName</TableCell>
                 {columns.map((c) => {
-                  const property = (row as any)[c.id];
                   return (
-                    <TableCell
-                      key={row.itemName + c.id}
-                      align={c.numeric ? "right" : "left"}
-                    >
-                      {c.component ? c.component(property) : property}
+                    <TableCell key={c.id} align={c.numeric ? "right" : "left"}>
+                      {c.label}
                     </TableCell>
                   );
                 })}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      {/* <table style={{ width: "100%" }}>
+            </TableHead>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow
+                  key={row.itemName}
+                  sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
+                >
+                  <TableCell component="th" scope="row">
+                    {row.itemName}
+                  </TableCell>
+                  {columns.map((c) => {
+                    const property = (row as any)[c.id];
+                    return (
+                      <TableCell
+                        key={row.itemName + c.id}
+                        align={c.numeric ? "right" : "left"}
+                      >
+                        {c.component ? c.component(property) : property}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        {/* <table style={{ width: "100%" }}>
         <tr>
           <th>name</th>
           {columns.map((c) => {
@@ -204,7 +206,8 @@ function App() {
             );
           })}
       </table> */}
-    </div>
+      </div>
+    </GDataContext.Provider>
   );
 }
 

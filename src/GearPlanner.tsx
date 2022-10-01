@@ -5,6 +5,14 @@
 // TODO: Stats
 // TODO: Attack table against specific mobs
 // TODO: TrackTrix
+// TODO: render item icon
+// TODO: source - where does it drop?
+// TODO: quality filter?
+// TODO: tooltip on hover with item details https://mui.com/material-ui/react-tooltip/
+// TODO: set items
+// TODO: filter for properties? e.g. mluck
+// TODO: clicking an item allows you to choose a different item
+// TODO: there should be a tab where you can choose enchants, lvls and such?
 
 import {
   Box,
@@ -31,35 +39,37 @@ import {
   SlotType,
 } from "adventureland";
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
+import { GDataContext, GItems } from "./GDataContext";
 
 // TODO: Defense table against specific mobs
-type GItems = {
-  [T in ItemName]: GItem;
-};
+
 
 export function GearPlanner() {
   // TODO: can we share this data and logic across the entire app in a global scope somehow?
-  const [G, setG] = useState<{
-    items?: GItems;
-    classes?: { [T in CharacterType]: any };
-  }>({});
+  // https://reactjs.org/docs/context.html can be used to share from app and all the way down
+  // https://www.w3schools.com/react/react_usecontext.asp
+//   const [G, setG] = useState<{
+//     items?: GItems;
+//     classes?: { [T in CharacterType]: any };
+//   }>({});
 
-  useEffect(() => {
-    axios
-      .get("data.json")
-      .then(function (response) {
-        // handle success
-        setG(response.data);
-      })
-      .catch(function (error) {
-        // handle error
-        console.log(error);
-      })
-      .then(function () {
-        // always executed
-      });
-  });
+//   useEffect(() => {
+//     axios
+//       .get("data.json")
+//       .then(function (response) {
+//         // handle success
+//         setG(response.data);
+//       })
+//       .catch(function (error) {
+//         // handle error
+//         console.log(error);
+//       })
+//       .then(function () {
+//         // always executed
+//       });
+//   });
+    const G = useContext(GDataContext)
   /**
    * EAR HAT EAR AMULET
    * MH CHEST OH CAPE
@@ -70,7 +80,27 @@ export function GearPlanner() {
   /**
    * https://adventure.land/images/tiles/items/pack_20vt8.png
    * 40x40
+   * G.imagesets
+   * pack_20:
+load: true
+rows: 64
+file: "/images/tiles/items/pack_20vt8.png"
+columns: 16
+size: 20
+
+function item_container(item,actual) in html.js
+
+    var pack=G.imagesets[G.positions[item.skin][0]||"pack_20"],
+    x=G.positions[item.skin][1],
+    y=G.positions[item.skin][2];
+
+		var scale=size/pack.size
+	html+="<div style='overflow: hidden; height: "+(size)+"px; width: "+(size)+"px;'>";
+    html+="<img style='width: "+(pack.columns*pack.size*scale)+"px; height: "+(pack.rows*pack.size*scale)+"px; margin-top: -"+(y*size)+"px; margin-left: -"+(x*size)+"px;' src='"+pack.file+"' draggable='false' />";
+    html+="</div>";
    *
+   *
+   * 
    * hat <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -0px; opacity: 0.5;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
    * ear <img style="width: 640px; height: 2560px; margin-top: -680px; margin-left: -200px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
    * amulet <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -480px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
