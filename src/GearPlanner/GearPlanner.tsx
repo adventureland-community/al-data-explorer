@@ -126,6 +126,12 @@ function item_container(item,actual) in html.js
         name: row.itemName,
       };
     }
+    else if(equippedItem.name !== row.itemName){
+      gear[slot] = {
+        name: row.itemName,
+      };
+    }
+    
   };
 
   const classes = G.classes
@@ -186,6 +192,7 @@ function item_container(item,actual) in html.js
           );
         })}
       </table>
+      {/* TODO: highlight / mark currently selected item? */}
       <GearSelectDialog
         slot={selectedGearSlot}
         items={G.items}
@@ -232,6 +239,9 @@ export function StatsPanel({
   // int increases mp & resistance
   // dex increases attack & run speed
   // vit increases hp proportional to level
+  // TODO: determine stats for character
+  // TODO: apply gear stats
+  // TODO: render stats.
   return (
     <>
       <div>I AM GONNA BE A STATS BOX for {selectedCharacterClass ? selectedCharacterClass.className : ''}</div>
