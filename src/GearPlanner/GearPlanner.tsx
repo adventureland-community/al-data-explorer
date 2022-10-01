@@ -18,6 +18,7 @@
 
 import {
   Box,
+  Chip,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -42,10 +43,13 @@ import {
 } from "adventureland";
 import axios from "axios";
 import React, { useContext, useEffect, useState } from "react";
-import { GDataContext, GItems } from "../GDataContext";
+import { CharacterTypeData, GDataContext, GItems } from "../GDataContext";
 import { GearSelectDialog, RowItem } from "./GearSelectDialog";
 
 // TODO: Defense table against specific mobs
+type SelectedCharacterClass = {
+  className: CharacterType;
+} & CharacterTypeData;
 
 export function GearPlanner() {
   const G = useContext(GDataContext);
@@ -104,18 +108,48 @@ function item_container(item,actual) in html.js
   const [selectedGearSlot, setSelectedGearSlot] = useState<SlotType | false>(
     false
   );
+ 
+  const [selectedClass, setSelectedClass] = useState<SelectedCharacterClass>();
 
   const onShowAvailableGear = (slot: SlotType) => {
     setSelectedGearSlot(slot);
-  }
+  };
 
-  const onSelectGear = (slot:SlotType, row?: RowItem) => {
-    console.log(slot, row)
+  const onSelectGear = (slot: SlotType, row?: RowItem) => {
+    console.log(slot, row);
     setSelectedGearSlot(false);
-  }
+    if (!row) return;
+
+    let equippedItem = gear[slot];
+    if (!equippedItem) {
+      gear[slot] = {
+        name: row.itemName,
+      };
+    }
+  };
+
+  const classes = G.classes
+    ? Object.entries(G.classes).map(([className, item]) => {
+        // item.mainhand seems to define valid mainhand types and their impact.
+        // item.offhand does the same
+        // item.doublehand defines twohanded weapons
+        // then we have a bunch of stat attributes
+        // resistance, frequency, mcourage, speed, armor, range, attack, hp, pcourage, mp_cost, courage, mp, output, main_stat
+        // there is also .stats that contain dex,int,vit,str,for
+        // .lstats I presume defines the gains per lvl
+        return { className, ...item } as SelectedCharacterClass;
+      })
+    : [];
 
   return (
     <>
+      {classes.map((c) => (
+        <Chip
+          label={c.className}
+          variant={selectedClass && selectedClass.className == c.className ? "filled" : "outlined"}  
+          onClick={() => setSelectedClass(c)}
+        />
+      ))}
       <div>
         <div>
           <GearSlot onClick={onShowAvailableGear} slot="earring1" />
@@ -142,7 +176,21 @@ function item_container(item,actual) in html.js
           <GearSlot onClick={onShowAvailableGear} slot="elixir" />
         </div>
       </div>
-      <GearSelectDialog slot={selectedGearSlot} items={G.items} onSelectGear={onSelectGear} />
+      <StatsPanel selectedCharacterClass={selectedClass} />
+      <table>
+        {Object.entries(gear).map(([slot, itemInfo]) => {
+          return (
+            <tr key={`list${slot}`}>
+              <td>{itemInfo.name}</td>
+            </tr>
+          );
+        })}
+      </table>
+      <GearSelectDialog
+        slot={selectedGearSlot}
+        items={G.items}
+        onSelectGear={onSelectGear}
+      />
     </>
   );
 }
@@ -169,6 +217,26 @@ export function GearSlot({
           display: "inline-block",
         }}
       ></div>
+    </>
+  );
+}
+
+// we need character class, level, gear
+// buffs? mluck?
+export function StatsPanel({
+  selectedCharacterClass,
+}: {
+  selectedCharacterClass?: SelectedCharacterClass;
+}) {
+  // str increases hp & armor
+  // int increases mp & resistance
+  // dex increases attack & run speed
+  // vit increases hp proportional to level
+  return (
+    <>
+      <div>I AM GONNA BE A STATS BOX for {selectedCharacterClass ? selectedCharacterClass.className : ''}</div>
+      <div>hp:{selectedCharacterClass?.hp}</div>
+      <div>mp:{selectedCharacterClass?.mp}</div>
     </>
   );
 }

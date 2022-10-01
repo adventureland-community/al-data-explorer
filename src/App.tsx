@@ -135,9 +135,9 @@ function App() {
           Learn React
         </a>
       </header> */}
-        {classes.map((c) => (
+        {/* {classes.map((c) => (
           <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
-        ))}
+        ))} */}
         <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
         {/* {itemTypes.map((c) => (
           <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
