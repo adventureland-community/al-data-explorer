@@ -27,6 +27,7 @@ export function ItemImage({ itemName }: { itemName: ItemName }) {
           height: `${pack.rows * pack.size * scale}px`,
           marginTop: `-${y*size}px`,
           marginLeft: `-${x*size}px`,
+          imageRendering: 'pixelated' // Thanks to StormSurge for making the sprites render crisp
         }}
         src={`https://adventure.land${pack.file}`}
       />
