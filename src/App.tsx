@@ -12,7 +12,7 @@ import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
-import { GearPlanner } from "./GearPlanner";
+import { GearPlanner } from "./GearPlanner/GearPlanner";
 import { GData, GDataContext } from "./GDataContext";
 
 
@@ -139,10 +139,10 @@ function App() {
           <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
         ))}
         <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
-        {itemTypes.map((c) => (
+        {/* {itemTypes.map((c) => (
           <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
-        ))}
-        <TableContainer component={Paper}>
+        ))} */}
+        {/* <TableContainer component={Paper}>
           <Table
             stickyHeader
             sx={{ minWidth: 650 }}
@@ -185,27 +185,7 @@ function App() {
               ))}
             </TableBody>
           </Table>
-        </TableContainer>
-        {/* <table style={{ width: "100%" }}>
-        <tr>
-          <th>name</th>
-          {columns.map((c) => {
-            return <td>{c}</td>;
-          })}
-        </tr>
-        {G.items &&
-          Object.entries(G.items).map(([itemName, item]) => {
-            return (
-              <tr key={itemName}>
-                <td>{itemName}</td>
-                {columns.map((c) => {
-                  const property = (item as any)[c];
-                  return <td>{property}</td>;
-                })}
-              </tr>
-            );
-          })}
-      </table> */}
+        </TableContainer> */}
       </div>
     </GDataContext.Provider>
   );
