@@ -9,8 +9,11 @@ export function ItemImage({ itemName }: { itemName: ItemName }) {
     return <></>; // TODO: render broken image
   }
 
+  // function item_container(item,actual) in html.js
   const gItem = G.items[itemName];
-  const skinPositions = G.positions[gItem.skin];
+  const skinPositions = G.positions[gItem.skin] ?? G.positions["placeholder"];
+  // TODO: some items don't have a skin? helmets it would seem, mages hood
+  if(!skinPositions){ return (<img alt={itemName}/>)}
   const pack = G.imagesets[skinPositions[0] || "pack_20"];
   const x = skinPositions[1];
   const y = skinPositions[2];
