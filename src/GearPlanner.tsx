@@ -67,6 +67,29 @@ export function GearPlanner() {
    * BELT BOOTS HAND ELIXIR
    */
 
+  /**
+   * https://adventure.land/images/tiles/items/pack_20vt8.png
+   * 40x40
+   * 
+   * hat <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -0px; opacity: 0.5;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * ear <img style="width: 640px; height: 2560px; margin-top: -680px; margin-left: -200px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * amulet <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -480px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * 
+   * mh <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -200px; opacity: 0.36;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * chest <img style="width: 640px; height: 2560px; margin-top: -40px; margin-left: -240px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * oh <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -240px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * cape <img style="width: 640px; height: 2560px; margin-top: -240px; margin-left: -160px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * 
+   * pants <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -80px; opacity: 0.5;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * ring <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -520px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * orb <img style="width: 640px; height: 2560px; margin-top: -1000px; margin-left: -80px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * 
+   * belt <img style="width: 640px; height: 2560px; margin-top: -120px; margin-left: -160px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * shoes <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -120px; opacity: 0.5;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * gloves <img style="width: 640px; height: 2560px; margin-top: -80px; margin-left: -400px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   * elixir <img style="width: 640px; height: 2560px; margin-top: -1080px; margin-left: -0px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
+   */
+
   // TODO: data for each gear slot with selected item, lvl, stats increases, and such.
   const [gear, setGear] = useState<{ [slot in SlotType]?: ItemInfo }>({});
 
@@ -121,11 +144,21 @@ export function GearSlot({ slot, items }: { slot: SlotType; items?: GItems }) {
     overflow: "scroll",
   };
 
-  const validType = slot.replace("1", "").replace("2", "") as ItemType;
+  // TODO: valid type for mainhand depends on class and other things
+  let validTypes = [slot.replace("1", "").replace("2", "")] as ItemType[];
+
+  switch (slot) {
+    case "mainhand":
+        validTypes = ["weapon"]
+        break;
+    case "offhand":
+        validTypes = ["misc_offhand", "shield", "source", "quiver"]
+        break;
+  }
 
   const rows = items
     ? Object.entries(items)
-        .filter(([itemName, item]) => item.type === validType)
+        .filter(([itemName, item]) => validTypes.some(x => x === item.type))
         .map(([itemName, item]) => {
           const row = {
             itemName,
@@ -148,11 +181,11 @@ export function GearSlot({ slot, items }: { slot: SlotType; items?: GItems }) {
       label: "Class",
       component: (x: string[]) => (x ? x.join(",") : ""),
     },
-    {
-      id: "type",
-      numeric: true,
-      label: "Type",
-    },
+    // {
+    //   id: "type",
+    //   numeric: true,
+    //   label: "Type",
+    // },
     {
       id: "wtype",
       numeric: true,
@@ -205,7 +238,7 @@ export function GearSlot({ slot, items }: { slot: SlotType; items?: GItems }) {
         aria-labelledby="scroll-dialog-title"
         aria-describedby="scroll-dialog-description"
       >
-        <DialogTitle id="scroll-dialog-title"> Choose {validType}</DialogTitle>
+        <DialogTitle id="scroll-dialog-title"> Choose {slot}</DialogTitle>
         <DialogContent dividers>
           <Paper sx={{ width: "100%", overflow: "hidden" }}>
             <TableContainer>
