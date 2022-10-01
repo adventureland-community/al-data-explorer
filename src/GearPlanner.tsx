@@ -70,20 +70,20 @@ export function GearPlanner() {
   /**
    * https://adventure.land/images/tiles/items/pack_20vt8.png
    * 40x40
-   * 
+   *
    * hat <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -0px; opacity: 0.5;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
    * ear <img style="width: 640px; height: 2560px; margin-top: -680px; margin-left: -200px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
    * amulet <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -480px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * 
+   *
    * mh <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -200px; opacity: 0.36;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
    * chest <img style="width: 640px; height: 2560px; margin-top: -40px; margin-left: -240px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
    * oh <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -240px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
    * cape <img style="width: 640px; height: 2560px; margin-top: -240px; margin-left: -160px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * 
+   *
    * pants <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -80px; opacity: 0.5;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
    * ring <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -520px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
    * orb <img style="width: 640px; height: 2560px; margin-top: -1000px; margin-left: -80px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
-   * 
+   *
    * belt <img style="width: 640px; height: 2560px; margin-top: -120px; margin-left: -160px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
    * shoes <img style="width: 640px; height: 2560px; margin-top: -1240px; margin-left: -120px; opacity: 0.5;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
    * gloves <img style="width: 640px; height: 2560px; margin-top: -80px; margin-left: -400px; opacity: 0.4;" src="/images/tiles/items/pack_20vt8.png" draggable="false">
@@ -149,16 +149,16 @@ export function GearSlot({ slot, items }: { slot: SlotType; items?: GItems }) {
 
   switch (slot) {
     case "mainhand":
-        validTypes = ["weapon"]
-        break;
+      validTypes = ["weapon"];
+      break;
     case "offhand":
-        validTypes = ["misc_offhand", "shield", "source", "quiver"]
-        break;
+      validTypes = ["misc_offhand", "shield", "source", "quiver"];
+      break;
   }
-
+  type RowItem = { itemName: ItemName } & GItem;
   const rows = items
     ? Object.entries(items)
-        .filter(([itemName, item]) => validTypes.some(x => x === item.type))
+        .filter(([itemName, item]) => validTypes.some((x) => x === item.type))
         .map(([itemName, item]) => {
           const row = {
             itemName,
@@ -217,6 +217,11 @@ export function GearSlot({ slot, items }: { slot: SlotType; items?: GItems }) {
     setPage(0);
   };
 
+  const onSelectItem = (event: React.MouseEvent<unknown>, row: RowItem) => {
+    console.log("selected", row);
+    setOpen(false);
+  };
+
   return (
     <>
       <div
@@ -268,6 +273,8 @@ export function GearSlot({ slot, items }: { slot: SlotType; items?: GItems }) {
                     // .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                     .map((row) => (
                       <TableRow
+                        hover
+                        onClick={(event) => onSelectItem(event, row as RowItem)}
                         key={row.itemName}
                         sx={{
                           "&:last-child td, &:last-child th": { border: 0 },
