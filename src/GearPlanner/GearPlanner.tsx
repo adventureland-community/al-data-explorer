@@ -1,6 +1,6 @@
 // https://classic.wowhead.com/gear-planner/druid/night-elf
 // TODO: Character selector
-// TODO: level slider
+// TODO: level slider G.levels has 200 entries in it https://mui.com/material-ui/react-slider/
 // TODO: gear selector
 // TODO: Stats
 // TODO: Attack table against specific mobs
@@ -22,8 +22,10 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  Grid,
   Modal,
   Paper,
+  Slider,
   Table,
   TableBody,
   TableCell,
@@ -40,10 +42,16 @@ import {
   ItemName,
   ItemType,
   SlotType,
+  StatType,
 } from "adventureland";
 import axios from "axios";
 import React, { useContext, useEffect, useState } from "react";
-import { CharacterTypeData, GDataContext, GItems } from "../GDataContext";
+import {
+  CharacterTypeData,
+  GDataContext,
+  GItems,
+  MainStatType,
+} from "../GDataContext";
 import { GearSelectDialog, RowItem } from "./GearSelectDialog";
 
 // TODO: Defense table against specific mobs
@@ -108,8 +116,10 @@ function item_container(item,actual) in html.js
   const [selectedGearSlot, setSelectedGearSlot] = useState<SlotType | false>(
     false
   );
- 
+
   const [selectedClass, setSelectedClass] = useState<SelectedCharacterClass>();
+
+  const [level, setLevel] = useState(49); // TODO: find a sane default level
 
   const onShowAvailableGear = (slot: SlotType) => {
     setSelectedGearSlot(slot);
@@ -125,13 +135,11 @@ function item_container(item,actual) in html.js
       gear[slot] = {
         name: row.itemName,
       };
-    }
-    else if(equippedItem.name !== row.itemName){
+    } else if (equippedItem.name !== row.itemName) {
       gear[slot] = {
         name: row.itemName,
       };
     }
-    
   };
 
   const classes = G.classes
@@ -147,51 +155,85 @@ function item_container(item,actual) in html.js
       })
     : [];
 
+  const onLevelSliderChange = (event: Event, value: number | number[]) => {
+    if (typeof value === "number") {
+      setLevel(value);
+    }
+  };
+
   return (
     <>
-      {classes.map((c) => (
-        <Chip
-          label={c.className}
-          variant={selectedClass && selectedClass.className == c.className ? "filled" : "outlined"}  
-          onClick={() => setSelectedClass(c)}
-        />
-      ))}
-      <div>
-        <div>
-          <GearSlot onClick={onShowAvailableGear} slot="earring1" />
-          <GearSlot onClick={onShowAvailableGear} slot="helmet" />
-          <GearSlot onClick={onShowAvailableGear} slot="earring2" />
-          <GearSlot onClick={onShowAvailableGear} slot="amulet" />
-        </div>
-        <div>
-          <GearSlot onClick={onShowAvailableGear} slot="mainhand" />
-          <GearSlot onClick={onShowAvailableGear} slot="chest" />
-          <GearSlot onClick={onShowAvailableGear} slot="offhand" />
-          <GearSlot onClick={onShowAvailableGear} slot="cape" />
-        </div>
-        <div>
-          <GearSlot onClick={onShowAvailableGear} slot="ring1" />
-          <GearSlot onClick={onShowAvailableGear} slot="pants" />
-          <GearSlot onClick={onShowAvailableGear} slot="ring2" />
-          <GearSlot onClick={onShowAvailableGear} slot="orb" />
-        </div>
-        <div>
-          <GearSlot onClick={onShowAvailableGear} slot="belt" />
-          <GearSlot onClick={onShowAvailableGear} slot="shoes" />
-          <GearSlot onClick={onShowAvailableGear} slot="gloves" />
-          <GearSlot onClick={onShowAvailableGear} slot="elixir" />
-        </div>
-      </div>
-      <StatsPanel selectedCharacterClass={selectedClass} />
-      <table>
-        {Object.entries(gear).map(([slot, itemInfo]) => {
-          return (
-            <tr key={`list${slot}`}>
-              <td>{itemInfo.name}</td>
-            </tr>
-          );
-        })}
-      </table>
+      <Grid container rowSpacing={1}>
+        <Grid item xs={10}>
+          {classes.map((c) => (
+            <Chip
+              label={c.className}
+              variant={
+                selectedClass && selectedClass.className === c.className
+                  ? "filled"
+                  : "outlined"
+              }
+              onClick={() => setSelectedClass(c)}
+            />
+          ))}
+          <Slider
+            aria-label="Level"
+            // defaultValue={level}
+            value={level}
+            // getAriaValueText={() => level.toString()}
+            // valueLabelDisplay="auto"
+            valueLabelDisplay="on"
+            step={1}
+            marks
+            min={1}
+            max={200} // G.levels last entry.
+            onChange={onLevelSliderChange}
+          />
+        </Grid>
+        <Grid item xs={6}>
+          <div>
+            <div>
+              <GearSlot onClick={onShowAvailableGear} slot="earring1" />
+              <GearSlot onClick={onShowAvailableGear} slot="helmet" />
+              <GearSlot onClick={onShowAvailableGear} slot="earring2" />
+              <GearSlot onClick={onShowAvailableGear} slot="amulet" />
+            </div>
+            <div>
+              <GearSlot onClick={onShowAvailableGear} slot="mainhand" />
+              <GearSlot onClick={onShowAvailableGear} slot="chest" />
+              <GearSlot onClick={onShowAvailableGear} slot="offhand" />
+              <GearSlot onClick={onShowAvailableGear} slot="cape" />
+            </div>
+            <div>
+              <GearSlot onClick={onShowAvailableGear} slot="ring1" />
+              <GearSlot onClick={onShowAvailableGear} slot="pants" />
+              <GearSlot onClick={onShowAvailableGear} slot="ring2" />
+              <GearSlot onClick={onShowAvailableGear} slot="orb" />
+            </div>
+            <div>
+              <GearSlot onClick={onShowAvailableGear} slot="belt" />
+              <GearSlot onClick={onShowAvailableGear} slot="shoes" />
+              <GearSlot onClick={onShowAvailableGear} slot="gloves" />
+              <GearSlot onClick={onShowAvailableGear} slot="elixir" />
+            </div>
+          </div>
+        </Grid>
+        <Grid item xs={4}>
+          <StatsPanel selectedCharacterClass={selectedClass} level={level} />
+        </Grid>
+        <Grid item xs={12}>
+        <table>
+          {Object.entries(gear).map(([slot, itemInfo]) => {
+            // TODO: look up gItem? or should we
+            return (
+              <tr key={`list${slot}`}>
+                <td>{itemInfo.name}</td>
+              </tr>
+            );
+          })}
+        </table>
+        </Grid>
+      </Grid>
       {/* TODO: highlight / mark currently selected item? */}
       <GearSelectDialog
         slot={selectedGearSlot}
@@ -232,21 +274,77 @@ export function GearSlot({
 // buffs? mluck?
 export function StatsPanel({
   selectedCharacterClass,
+  level,
 }: {
   selectedCharacterClass?: SelectedCharacterClass;
+  level: number;
 }) {
+  const G = useContext(GDataContext);
   // str increases hp & armor
   // int increases mp & resistance
   // dex increases attack & run speed
   // vit increases hp proportional to level
   // TODO: determine stats for character
+  const stats: { [T in StatType]?: number } = {};
+  // https://discord.com/channels/238332476743745536/238332476743745536/1008354654939263076
+  // so it is probably 1*lstat to 40 and 3*lstat after
+  const mainStatTypes: MainStatType[] = ["dex", "int", "vit", "str", "for"];
+  if (selectedCharacterClass) {
+    for (const stat of mainStatTypes) {
+      stats[stat] = calculateMainStatByLevel(
+        stat,
+        level,
+        selectedCharacterClass
+      );
+    }
+  }
+
   // TODO: apply gear stats
+  // TODO: handle upgrades / compounding
   // TODO: render stats.
   return (
     <>
-      <div>I AM GONNA BE A STATS BOX for {selectedCharacterClass ? selectedCharacterClass.className : ''}</div>
-      <div>hp:{selectedCharacterClass?.hp}</div>
-      <div>mp:{selectedCharacterClass?.mp}</div>
+      {mainStatTypes.map((stat) => (
+        <div
+          key={`stat_${stat}`}
+          style={{
+            fontWeight:
+              selectedCharacterClass?.main_stat === stat ? "bold" : "normal",
+          }}
+        >
+          {stat}:{stats[stat]}
+        </div>
+      ))}
+      {/* <div>hp:{selectedCharacterClass?.hp}</div>
+      <div>mp:{selectedCharacterClass?.mp}</div> */}
     </>
   );
 }
+
+const calculateMainStatByLevel = (
+  stat: MainStatType,
+  level: number,
+  characterClass: SelectedCharacterClass
+) => {
+  const base = characterClass.stats[stat];
+  const scaling = characterClass.lstats[stat];
+  // TODO: need to investiage this formula.
+  return (
+    base +
+    Math.min(level, 40) * scaling +
+    (Math.max(40, level) - 40) * 3 * scaling
+  );
+  // return base + (level * scaling)
+  // naked lvl 49 merchant returns str 6 dex 27 int 70 vit 15 for 0
+  // Rising — Today at 22:33
+  // merchants have 2 breakpoints, at lvl40 and lvl60
+  // between 40-60 they get twice the scaling, from 60 onward 4 times the scaling
+};
+
+// Rising
+// function stat_from_level(stat,lvl,ctype){
+//   //Only for non merchant characters
+//   const base = G.classes[ctype].stats[stat]
+//   const scaling = G.classes[ctype].lstats[stat]
+//   return base + Math.min(lvl,40)*scaling + (Math.max(40,lvl)-40)*3*scaling
+// }

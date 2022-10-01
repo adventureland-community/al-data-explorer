@@ -10,7 +10,7 @@ import {
   TableCell,
   TableBody,
 } from "@mui/material";
-import { SlotType, ItemType, ItemName, GItem, ItemInfo } from "adventureland";
+import { SlotType, ItemType, ItemName, GItem } from "adventureland";
 import { useState } from "react";
 import { GItems } from "../GDataContext";
 export type RowItem = { itemName: ItemName } & GItem;
