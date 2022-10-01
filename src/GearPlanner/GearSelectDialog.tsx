@@ -14,16 +14,19 @@ import { SlotType, ItemType, ItemName, GItem } from "adventureland";
 import { useState } from "react";
 import { GItems } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
+import { SelectedCharacterClass } from "./types";
 export type RowItem = { itemName: ItemName } & GItem;
 
 export function GearSelectDialog({
   slot,
   items,
   onSelectGear,
+  selectedCharacterClass,
 }: {
   slot: SlotType | false;
   items?: GItems;
   onSelectGear: (slot: SlotType, item?: RowItem) => void;
+  selectedCharacterClass?: SelectedCharacterClass;
 }) {
   const [open, setOpen] = useState(false);
   // const handleOpen = () => setOpen(true);
@@ -53,7 +56,11 @@ export function GearSelectDialog({
 
   const rows = items
     ? Object.entries(items)
-        .filter(([itemName, item]) => validTypes.some((x) => x === item.type))
+        .filter(([itemName, item]) => {
+            const validType = validTypes.some((x) => x === item.type)
+            const validClass = selectedCharacterClass ? !item.class || item.class.some(x => x === selectedCharacterClass.className)  : true;
+            return validType && validClass;
+        })
         .map(([itemName, item]) => {
           const row = {
             itemName,

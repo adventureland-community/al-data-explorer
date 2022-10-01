@@ -58,11 +58,10 @@ import {
 } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
 import { GearSelectDialog, RowItem } from "./GearSelectDialog";
+import { SelectedCharacterClass } from "./types";
 
 // TODO: Defense table against specific mobs
-type SelectedCharacterClass = {
-  className: CharacterType;
-} & CharacterTypeData;
+
 
 export function GearPlanner() {
   const G = useContext(GDataContext);
@@ -80,6 +79,7 @@ export function GearPlanner() {
     false
   );
 
+  // TODO: what if you switch to a class that can not have the item selected equipped?
   const [selectedClass, setSelectedClass] = useState<SelectedCharacterClass>();
 
   const [level, setLevel] = useState(49); // TODO: find a sane default level
@@ -211,6 +211,7 @@ export function GearPlanner() {
         slot={selectedGearSlot}
         items={G.items}
         onSelectGear={onSelectGear}
+        selectedCharacterClass={selectedClass}
       />
     </Container>
   );
