@@ -194,10 +194,11 @@ export function GearPlanner() {
               if(!itemInfo){
                 return (<></>)
               }
-              const gItem = G.items[itemInfo.name]
+              const itemName = itemInfo.name;
+              const gItem = G.items[itemName]
               return (
                 <tr key={`list${slot}`}>
-                  <td><ItemImage itemName={gItem.id} /></td>
+                  <td><ItemImage itemName={itemName} /></td>
                   <td>{gItem.name}</td>
                 </tr>
               );
