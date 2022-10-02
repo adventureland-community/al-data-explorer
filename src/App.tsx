@@ -206,7 +206,7 @@ function App() {
             </Table>
           </TableContainer> */}
           <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
-          data v{G.version}
+          data v{G.version} | {new Date(G.timestamp).toLocaleString()}
         </div>
       </GDataContext.Provider>
     </ThemeProvider>

@@ -8,9 +8,10 @@ export function updateData() {
       // handle success
       const js = response.data.trim();
       const data = js.substring(6, js.length - 1);
-    //   const json = JSON.parse(data);
+      const json = JSON.parse(data);
+      json.timestamp = new Date()
 
-      writeFileSync(join(__dirname, "public/data.json"), data, { flag: "w" });
+      writeFileSync(join(__dirname, "public/data.json"), JSON.stringify(json), { flag: "w" });
     })
     .catch(function (error) {
       // handle error
