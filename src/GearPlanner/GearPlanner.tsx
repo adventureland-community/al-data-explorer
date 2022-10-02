@@ -57,6 +57,7 @@ import {
   MainStatType,
 } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
+import { ItemTooltip } from "../ItemTooltip";
 import { GearSelectDialog, RowItem } from "./GearSelectDialog";
 import { SelectedCharacterClass } from "./types";
 
@@ -186,7 +187,7 @@ export function GearPlanner() {
           </div>
         </Grid>
         <Grid item xs={6}>
-          <StatsPanel selectedCharacterClass={selectedClass} level={level} />
+          <StatsPanel selectedCharacterClass={selectedClass} level={level} gear={gear} />
         </Grid>
         <Grid item xs={12}>
           <table>
@@ -197,10 +198,12 @@ export function GearPlanner() {
               const itemName = itemInfo.name;
               const gItem = G.items[itemName]
               return (
+                <ItemTooltip itemName={itemName}>
                 <tr key={`list${slot}`}>
                   <td><ItemImage itemName={itemName} /></td>
                   <td>{gItem.name}</td>
                 </tr>
+                </ItemTooltip>
               );
             })}
           </table>
@@ -212,6 +215,7 @@ export function GearPlanner() {
         items={G.items}
         onSelectGear={onSelectGear}
         selectedCharacterClass={selectedClass}
+        
       />
     </Container>
   );
@@ -248,9 +252,11 @@ export function GearSlot({
 export function StatsPanel({
   selectedCharacterClass,
   level,
+  gear,
 }: {
   selectedCharacterClass?: SelectedCharacterClass;
   level: number;
+  gear:{ [slot in SlotType]?: ItemInfo };
 }) {
   const G = useContext(GDataContext);
 

@@ -14,6 +14,7 @@ import { SlotType, ItemType, ItemName, GItem } from "adventureland";
 import { useState } from "react";
 import { GItems } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
+import { ItemTooltip } from "../ItemTooltip";
 import { SelectedCharacterClass } from "./types";
 export type RowItem = { itemName: ItemName } & GItem;
 
@@ -57,9 +58,12 @@ export function GearSelectDialog({
   const rows = items
     ? Object.entries(items)
         .filter(([itemName, item]) => {
-            const validType = validTypes.some((x) => x === item.type)
-            const validClass = selectedCharacterClass ? !item.class || item.class.some(x => x === selectedCharacterClass.className)  : true;
-            return validType && validClass;
+          const validType = validTypes.some((x) => x === item.type);
+          const validClass = selectedCharacterClass
+            ? !item.class ||
+              item.class.some((x) => x === selectedCharacterClass.className)
+            : true;
+          return validType && validClass;
         })
         .map(([itemName, item]) => {
           const row = {
@@ -151,30 +155,32 @@ export function GearSelectDialog({
                 {rows
                   // .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((row) => (
-                    <TableRow
-                      hover
-                      onClick={(event) => onSelectItem(event, row as RowItem)}
-                      key={row.itemName}
-                      sx={{
-                        "&:last-child td, &:last-child th": { border: 0 },
-                      }}
-                    >
-                      <TableCell component="td" scope="row">
-                        <ItemImage itemName={row.itemName} />
-                      </TableCell>
-                      {/* <TableCell component="th" scope="row"> */}
-                      {columns.map((c) => {
-                        const property = (row as any)[c.id];
-                        return (
-                          <TableCell
-                            key={row.itemName + c.id}
-                            align={c.numeric ? "right" : "left"}
-                          >
-                            {c.component ? c.component(property) : property}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
+                    <ItemTooltip itemName={row.itemName}>
+                      <TableRow
+                        hover
+                        onClick={(event) => onSelectItem(event, row as RowItem)}
+                        key={row.itemName}
+                        sx={{
+                          "&:last-child td, &:last-child th": { border: 0 },
+                        }}
+                      >
+                        <TableCell component="td" scope="row">
+                          <ItemImage itemName={row.itemName} />
+                        </TableCell>
+                        {/* <TableCell component="th" scope="row"> */}
+                        {columns.map((c) => {
+                          const property = (row as any)[c.id];
+                          return (
+                            <TableCell
+                              key={row.itemName + c.id}
+                              align={c.numeric ? "right" : "left"}
+                            >
+                              {c.component ? c.component(property) : property}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    </ItemTooltip>
                   ))}
               </TableBody>
             </Table>
