@@ -405,7 +405,7 @@ export function StatsPanel({
       <Grid item xs={3}>
         <Divider textAlign="left">OTHER</Divider>
         <Table size="small" aria-label="a dense table">
-          {otherStatTypes.map((stat) => (
+          {otherStatTypes.filter(stat => stats[stat]).map((stat) => (
             <TableRow>
               <TableCell key={`stat_${stat}`}>{stat}</TableCell>
               <TableCell align={"right"}>{stats[stat]}</TableCell>
