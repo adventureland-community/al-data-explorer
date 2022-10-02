@@ -39,7 +39,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import DeleteIcon from '@mui/icons-material/Delete'
+import DeleteIcon from "@mui/icons-material/Delete";
 import {
   CharacterType,
   GItem,
@@ -130,9 +130,9 @@ export function GearPlanner() {
     }
   };
 
-  const onRemoveGear = (slot:SlotType) => {
-    delete gear[slot]
-  }
+  const onRemoveGear = (slot: SlotType) => {
+    delete gear[slot];
+  };
 
   return (
     <Container>
@@ -213,7 +213,11 @@ export function GearPlanner() {
                       <ItemImage itemName={itemName} />
                     </td>
                     <td>{gItem.name}</td>
-                    <td><DeleteIcon onClick={()=> onRemoveGear(slot as SlotType)} /></td>
+                    <td>
+                      <DeleteIcon
+                        onClick={() => onRemoveGear(slot as SlotType)}
+                      />
+                    </td>
                   </tr>
                 </ItemTooltip>
               );
@@ -315,6 +319,19 @@ export function StatsPanel({
     });
   }
 
+  Object.entries(stats)
+    .filter(([stat, value]) => {
+      return (
+        !mainStatTypes.some((x) => x === stat) &&
+        !defenseStatTypes.some((x) => x === stat) &&
+        !offenseStatTypes.some((x) => x === stat) &&
+        !otherStatTypes.some((x) => x === stat) &&
+        stat !== "hp" && stat !== "mp" && stat !== "g" &&
+        typeof value === "number"
+      );
+    })
+    .forEach(([stat, value]) => otherStatTypes.push(stat as unknown as StatType));
+
   // TODO: str increases hp & armor
   // TODO: int increases mp & resistance
   // TODO: dex increases attack & run speed
@@ -324,6 +341,10 @@ export function StatsPanel({
   // TODO: apply gear stats
   // TODO: handle upgrades / compounding
   // TODO: render stats.
+  // Pre lvl 60 chars have a newcomers buff as well.
+
+  // stat
+  // extra_stat
   return (
     <Grid container>
       <Grid item xs={3}>
