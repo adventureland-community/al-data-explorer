@@ -163,7 +163,7 @@ export function GearPlanner() {
             onChange={onLevelSliderChange}
           />
         </Grid>
-        <Grid item xs={6}>
+        <Grid item xs={4}>
           <div>
             <div>
               <GearSlot onClick={onShowAvailableGear} slot="earring1" />
@@ -191,7 +191,7 @@ export function GearPlanner() {
             </div>
           </div>
         </Grid>
-        <Grid item xs={6}>
+        <Grid item xs={8}>
           <StatsPanel
             selectedCharacterClass={selectedClass}
             level={level}
@@ -199,7 +199,7 @@ export function GearPlanner() {
           />
         </Grid>
         <Grid item xs={12}>
-          <table>
+          <Table size="small" aria-label="a dense table">
             {Object.entries(gear).map(([slot, itemInfo]) => {
               if (!itemInfo) {
                 return <></>;
@@ -208,21 +208,21 @@ export function GearPlanner() {
               const gItem = G.items[itemName];
               return (
                 <ItemTooltip itemName={itemName}>
-                  <tr key={`list${slot}`}>
-                    <td>
-                      <ItemImage itemName={itemName} />
-                    </td>
-                    <td>{gItem.name}</td>
-                    <td>
+                  <TableRow hover key={`list${slot}`}>
+                    <TableCell width={25}>
                       <DeleteIcon
                         onClick={() => onRemoveGear(slot as SlotType)}
                       />
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell width={40}>
+                      <ItemImage itemName={itemName} />
+                    </TableCell>
+                    <TableCell>{gItem.name}</TableCell>
+                  </TableRow>
                 </ItemTooltip>
               );
             })}
-          </table>
+          </Table>
         </Grid>
       </Grid>
       {/* TODO: highlight / mark currently selected item? */}
@@ -326,11 +326,15 @@ export function StatsPanel({
         !defenseStatTypes.some((x) => x === stat) &&
         !offenseStatTypes.some((x) => x === stat) &&
         !otherStatTypes.some((x) => x === stat) &&
-        stat !== "hp" && stat !== "mp" && stat !== "g" &&
+        stat !== "hp" &&
+        stat !== "mp" &&
+        stat !== "g" &&
         typeof value === "number"
       );
     })
-    .forEach(([stat, value]) => otherStatTypes.push(stat as unknown as StatType));
+    .forEach(([stat, value]) =>
+      otherStatTypes.push(stat as unknown as StatType)
+    );
 
   // TODO: str increases hp & armor
   // TODO: int increases mp & resistance
@@ -349,53 +353,65 @@ export function StatsPanel({
     <Grid container>
       <Grid item xs={3}>
         <Divider textAlign="left">GENERAL</Divider>
-        <List>
-          <ListItem>hp: {stats.hp}</ListItem>
-          <ListItem>mp: {stats.mp}</ListItem>
+        <Table size="small" aria-label="a dense table">
+          <TableRow>
+            <TableCell>hp</TableCell>
+            <TableCell align={"right"}>{stats.hp}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>mp</TableCell>
+            <TableCell align={"right"}>{stats.mp}</TableCell>
+          </TableRow>
           {mainStatTypes.map((stat) => (
-            <ListItem
-              key={`stat_${stat}`}
-              style={{
-                fontWeight:
-                  selectedCharacterClass?.main_stat === stat
-                    ? "bold"
-                    : "normal",
-              }}
-            >
-              {stat}:{stats[stat]}
-            </ListItem>
+            <TableRow>
+              <TableCell
+                key={`stat_${stat}`}
+                style={{
+                  fontWeight:
+                    selectedCharacterClass?.main_stat === stat
+                      ? "bold"
+                      : "normal",
+                }}
+              >
+                {stat}
+              </TableCell>
+              <TableCell align={"right"}>{stats[stat]}</TableCell>
+            </TableRow>
           ))}
-        </List>
+        </Table>
       </Grid>
       <Grid item xs={3}>
         <Divider textAlign="left">OFFENSE</Divider>
-        <List>
+        <Table size="small" aria-label="a dense table">
           {offenseStatTypes.map((stat) => (
-            <ListItem key={`stat_${stat}`}>
-              {stat}: {stats[stat]}
-            </ListItem>
+            <TableRow>
+              <TableCell key={`stat_${stat}`}>{stat}</TableCell>
+              <TableCell align={"right"}>{stats[stat]}</TableCell>
+            </TableRow>
           ))}
-        </List>
+        </Table>
       </Grid>
       <Grid item xs={3}>
         <Divider textAlign="left">DEFENSE</Divider>
-        <List>
+        <Table size="small" aria-label="a dense table">
           {defenseStatTypes.map((stat) => (
-            <ListItem key={`stat_${stat}`}>
-              {stat}: {stats[stat]}
-            </ListItem>
+            <TableRow>
+              <TableCell key={`stat_${stat}`}>{stat}</TableCell>
+              <TableCell align={"right"}>{stats[stat]}</TableCell>
+            </TableRow>
           ))}
-        </List>
+        </Table>
       </Grid>
       <Grid item xs={3}>
         <Divider textAlign="left">OTHER</Divider>
-        <List>
+        <Table size="small" aria-label="a dense table">
           {otherStatTypes.map((stat) => (
-            <ListItem key={`stat_${stat}`}>
-              {stat}: {stats[stat]}
-            </ListItem>
+            <TableRow>
+              <TableCell key={`stat_${stat}`}>{stat}</TableCell>
+              <TableCell align={"right"}>{stats[stat]}</TableCell>
+            </TableRow>
           ))}
-        </List>
+        </Table>
       </Grid>
     </Grid>
   );
