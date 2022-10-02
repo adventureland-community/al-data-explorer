@@ -14,12 +14,22 @@ import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import { GearPlanner } from "./GearPlanner/GearPlanner";
 import { GData, GDataContext } from "./GDataContext";
+import { createTheme, CssBaseline, ThemeProvider, useMediaQuery } from "@mui/material";
 
 
 
 function App() {
   const [G, setG] = useState<GData>();
-  
+  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
+  const theme = React.useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: prefersDarkMode ? 'dark' : 'light',
+        },
+      }),
+    [prefersDarkMode],
+  );
 
   // TODO: move to GDataContext
   useEffect(() => {
@@ -124,78 +134,82 @@ function App() {
   };
 
   return (
-    <GDataContext.Provider value={G}>
-      <div className="App">
-        <GearPlanner />
-        {/* <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header> */}
-        {/* {classes.map((c) => (
-          <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
-        ))} */}
-        <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
-        {/* {itemTypes.map((c) => (
-          <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
-        ))} */}
-        {/* <TableContainer component={Paper}>
-          <Table
-            stickyHeader
-            sx={{ minWidth: 650 }}
-            size="small"
-            aria-label="a dense table"
+    <ThemeProvider theme={theme}>
+       <CssBaseline />
+       {/* <Routes /> */}
+      <GDataContext.Provider value={G}>
+        <div className="App">
+          <GearPlanner />
+          {/* <header className="App-header">
+          <img src={logo} className="App-logo" alt="logo" />
+          <p>
+            Edit <code>src/App.tsx</code> and save to reload.
+          </p>
+          <a
+            className="App-link"
+            href="https://reactjs.org"
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            <TableHead>
-              <TableRow>
-                <TableCell>itemName</TableCell>
-                {columns.map((c) => {
-                  return (
-                    <TableCell key={c.id} align={c.numeric ? "right" : "left"}>
-                      {c.label}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow
-                  key={row.itemName}
-                  sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-                >
-                  <TableCell component="th" scope="row">
-                    {row.itemName}
-                  </TableCell>
+            Learn React
+          </a>
+        </header> */}
+          {/* {classes.map((c) => (
+            <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
+          ))} */}
+          <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
+          {/* {itemTypes.map((c) => (
+            <Chip label={c} variant="outlined" onClick={() => filterByClass(c)} />
+          ))} */}
+          {/* <TableContainer component={Paper}>
+            <Table
+              stickyHeader
+              sx={{ minWidth: 650 }}
+              size="small"
+              aria-label="a dense table"
+            >
+              <TableHead>
+                <TableRow>
+                  <TableCell>itemName</TableCell>
                   {columns.map((c) => {
-                    const property = (row as any)[c.id];
                     return (
-                      <TableCell
-                        key={row.itemName + c.id}
-                        align={c.numeric ? "right" : "left"}
-                      >
-                        {c.component ? c.component(property) : property}
+                      <TableCell key={c.id} align={c.numeric ? "right" : "left"}>
+                        {c.label}
                       </TableCell>
                     );
                   })}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer> */}
-        <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
-        data v{G.version}
-      </div>
-    </GDataContext.Provider>
+              </TableHead>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow
+                    key={row.itemName}
+                    sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
+                  >
+                    <TableCell component="th" scope="row">
+                      {row.itemName}
+                    </TableCell>
+                    {columns.map((c) => {
+                      const property = (row as any)[c.id];
+                      return (
+                        <TableCell
+                          key={row.itemName + c.id}
+                          align={c.numeric ? "right" : "left"}
+                        >
+                          {c.component ? c.component(property) : property}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer> */}
+          <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
+          data v{G.version}
+        </div>
+      </GDataContext.Provider>
+    </ThemeProvider>
   );
 }
 
