@@ -15,6 +15,7 @@ export function ItemTooltip({
   if (!G) return <></>;
 
   const gItem = G.items[itemName];
+  if (!gItem) return <></>;
   // what about items with enchants and such, then we need an item instance, not just the itemname
   // TODO: handle level and render correct stats for upgrade / compound
   return (

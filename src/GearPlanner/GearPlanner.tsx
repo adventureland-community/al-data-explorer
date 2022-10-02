@@ -39,6 +39,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import DeleteIcon from '@mui/icons-material/Delete'
 import {
   CharacterType,
   GItem,
@@ -58,15 +59,15 @@ import {
 } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
 import { ItemTooltip } from "../ItemTooltip";
+import { calculateItemStatsByLevel } from "../Utils";
 import { GearSelectDialog, RowItem } from "./GearSelectDialog";
 import { SelectedCharacterClass } from "./types";
 
 // TODO: Defense table against specific mobs
 
-
 export function GearPlanner() {
   const G = useContext(GDataContext);
-  
+
   /**
    * EAR HAT EAR AMULET
    * MH CHEST OH CAPE
@@ -129,6 +130,10 @@ export function GearPlanner() {
     }
   };
 
+  const onRemoveGear = (slot:SlotType) => {
+    delete gear[slot]
+  }
+
   return (
     <Container>
       <Grid container rowSpacing={1}>
@@ -187,22 +192,29 @@ export function GearPlanner() {
           </div>
         </Grid>
         <Grid item xs={6}>
-          <StatsPanel selectedCharacterClass={selectedClass} level={level} gear={gear} />
+          <StatsPanel
+            selectedCharacterClass={selectedClass}
+            level={level}
+            gear={gear}
+          />
         </Grid>
         <Grid item xs={12}>
           <table>
             {Object.entries(gear).map(([slot, itemInfo]) => {
-              if(!itemInfo){
-                return (<></>)
+              if (!itemInfo) {
+                return <></>;
               }
               const itemName = itemInfo.name;
-              const gItem = G.items[itemName]
+              const gItem = G.items[itemName];
               return (
                 <ItemTooltip itemName={itemName}>
-                <tr key={`list${slot}`}>
-                  <td><ItemImage itemName={itemName} /></td>
-                  <td>{gItem.name}</td>
-                </tr>
+                  <tr key={`list${slot}`}>
+                    <td>
+                      <ItemImage itemName={itemName} />
+                    </td>
+                    <td>{gItem.name}</td>
+                    <td><DeleteIcon onClick={()=> onRemoveGear(slot as SlotType)} /></td>
+                  </tr>
                 </ItemTooltip>
               );
             })}
@@ -215,7 +227,6 @@ export function GearPlanner() {
         items={G.items}
         onSelectGear={onSelectGear}
         selectedCharacterClass={selectedClass}
-        
       />
     </Container>
   );
@@ -256,9 +267,12 @@ export function StatsPanel({
 }: {
   selectedCharacterClass?: SelectedCharacterClass;
   level: number;
-  gear:{ [slot in SlotType]?: ItemInfo };
+  gear: { [slot in SlotType]?: ItemInfo };
 }) {
   const G = useContext(GDataContext);
+  if (!G) {
+    return <></>;
+  }
 
   // TODO: determine stats for character
   let stats: { [T in StatType]?: number } = {};
@@ -288,6 +302,17 @@ export function StatsPanel({
         selectedCharacterClass
       );
     }
+  }
+
+  for (const [slot, itemInfo] of Object.entries(gear)) {
+    const itemName = itemInfo.name;
+    const gItem = G.items[itemName];
+    // TODO: what about special achievements on items?
+    const itemStats = calculateItemStatsByLevel(gItem, itemInfo.level);
+    Object.entries(itemStats).forEach(([key, value]) => {
+      const stat = key as StatType;
+      stats[stat] = (stats[stat] ?? 0) + value;
+    });
   }
 
   // TODO: str increases hp & armor
