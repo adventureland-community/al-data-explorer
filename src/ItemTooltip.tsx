@@ -2,12 +2,15 @@ import { Tooltip, TooltipProps } from "@mui/material";
 import { ItemName } from "adventureland";
 import { useContext } from "react";
 import { GDataContext } from "./GDataContext";
+import { calculateItemStatsByLevel } from "./Utils";
 
 export function ItemTooltip({
   itemName,
+  level,
   children,
 }: {
   itemName: ItemName;
+  level?: number;
   children: React.ReactElement<any, any>;
 }) {
   const G = useContext(GDataContext);
@@ -18,6 +21,7 @@ export function ItemTooltip({
   if (!gItem) return <></>;
   // what about items with enchants and such, then we need an item instance, not just the itemname
   // TODO: handle level and render correct stats for upgrade / compound
+  const stats = calculateItemStatsByLevel(gItem, level);
   return (
     <Tooltip
       followCursor
@@ -26,7 +30,7 @@ export function ItemTooltip({
         <>
           {itemName}
           <br />
-          {Object.entries(gItem).map(([key, value]) => {
+          {Object.entries(stats).map(([key, value]) => {
             if (typeof value === "number") {
               return (
                 <>

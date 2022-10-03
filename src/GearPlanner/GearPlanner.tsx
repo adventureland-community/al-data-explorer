@@ -62,6 +62,7 @@ import { ItemTooltip } from "../ItemTooltip";
 import { calculateItemStatsByLevel } from "../Utils";
 import { GearSelectDialog, RowItem } from "./GearSelectDialog";
 import { SelectedCharacterClass } from "./types";
+import { ItemInstance } from "./ItemInstance";
 
 // TODO: Defense table against specific mobs
 
@@ -103,10 +104,12 @@ export function GearPlanner() {
     if (!equippedItem) {
       gear[slot] = {
         name: row.itemName,
+        level: row.level,
       };
     } else if (equippedItem.name !== row.itemName) {
       gear[slot] = {
         name: row.itemName,
+        level: row.level,
       };
     }
   };
@@ -207,7 +210,7 @@ export function GearPlanner() {
               const itemName = itemInfo.name;
               const gItem = G.items[itemName];
               return (
-                <ItemTooltip itemName={itemName}>
+                <ItemTooltip itemName={itemName} level={itemInfo.level}>
                   <TableRow hover key={`list${slot}`}>
                     <TableCell width={25}>
                       <DeleteIcon
@@ -215,7 +218,8 @@ export function GearPlanner() {
                       />
                     </TableCell>
                     <TableCell width={40}>
-                      <ItemImage itemName={itemName} />
+                      <ItemInstance itemInfo={itemInfo} />
+                      {/* <ItemImage itemName={itemName} /> */}
                     </TableCell>
                     <TableCell>{gItem.name}</TableCell>
                   </TableRow>
@@ -405,12 +409,14 @@ export function StatsPanel({
       <Grid item xs={3}>
         <Divider textAlign="left">OTHER</Divider>
         <Table size="small" aria-label="a dense table">
-          {otherStatTypes.filter(stat => stats[stat]).map((stat) => (
-            <TableRow>
-              <TableCell key={`stat_${stat}`}>{stat}</TableCell>
-              <TableCell align={"right"}>{stats[stat]}</TableCell>
-            </TableRow>
-          ))}
+          {otherStatTypes
+            .filter((stat) => stats[stat])
+            .map((stat) => (
+              <TableRow>
+                <TableCell key={`stat_${stat}`}>{stat}</TableCell>
+                <TableCell align={"right"}>{stats[stat]}</TableCell>
+              </TableRow>
+            ))}
         </Table>
       </Grid>
     </Grid>

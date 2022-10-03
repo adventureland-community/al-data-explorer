@@ -9,14 +9,18 @@ import {
   TableRow,
   TableCell,
   TableBody,
+  Input,
+  Slider,
+  Typography,
 } from "@mui/material";
 import { SlotType, ItemType, ItemName, GItem } from "adventureland";
 import { useState } from "react";
 import { GItems } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
 import { ItemTooltip } from "../ItemTooltip";
+import { ItemInstance } from "./ItemInstance";
 import { SelectedCharacterClass } from "./types";
-export type RowItem = { itemName: ItemName } & GItem;
+export type RowItem = { itemName: ItemName; level?: number } & GItem;
 
 export function GearSelectDialog({
   slot,
@@ -30,6 +34,8 @@ export function GearSelectDialog({
   selectedCharacterClass?: SelectedCharacterClass;
 }) {
   const [open, setOpen] = useState(false);
+  const [level, setLevel] = useState<number | undefined>(undefined);
+
   // const handleOpen = () => setOpen(true);
   const handleClose = () => {
     setOpen(false);
@@ -68,6 +74,7 @@ export function GearSelectDialog({
         .map(([itemName, item]) => {
           const row = {
             itemName,
+            level,
             ...item,
           };
 
@@ -116,6 +123,14 @@ export function GearSelectDialog({
     },
   ];
 
+  const onLevelSliderChange = (event: Event, value: number | number[]) => {
+    if (typeof value === "number") {
+      setLevel(value);
+    } else {
+      setLevel(undefined);
+    }
+  };
+
   return (
     <Dialog
       fullWidth
@@ -127,7 +142,24 @@ export function GearSelectDialog({
       aria-describedby="scroll-dialog-description"
     >
       <DialogTitle id="scroll-dialog-title"> Choose {slot}</DialogTitle>
+
       <DialogContent dividers>
+        {/* // TODO: custom steps +X and so forth */}
+        <Typography gutterBottom>Level</Typography>
+        <Slider
+          aria-label="Level"
+          // defaultValue={level}
+          value={level}
+          // getAriaValueText={() => level.toString()}
+          // valueLabelDisplay="auto"
+          valueLabelDisplay="on"
+          step={1}
+          marks
+          min={0}
+          max={15} // should variate this
+          onChange={onLevelSliderChange}
+          style={{marginTop: 25}}
+        />
         <Paper sx={{ width: "100%", overflow: "hidden" }}>
           <TableContainer>
             <Table
@@ -155,7 +187,7 @@ export function GearSelectDialog({
                 {rows
                   // .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((row) => (
-                    <ItemTooltip itemName={row.itemName}>
+                    <ItemTooltip itemName={row.itemName} level={level}>
                       <TableRow
                         hover
                         onClick={(event) => onSelectItem(event, row as RowItem)}
@@ -165,7 +197,9 @@ export function GearSelectDialog({
                         }}
                       >
                         <TableCell component="td" scope="row">
-                          <ItemImage itemName={row.itemName} />
+                          <ItemInstance
+                            itemInfo={{ name: row.itemName, level }}
+                          />
                         </TableCell>
                         {/* <TableCell component="th" scope="row"> */}
                         {columns.map((c) => {
