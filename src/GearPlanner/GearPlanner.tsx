@@ -111,6 +111,8 @@ export function GearPlanner() {
         name: row.itemName,
         level: row.level,
       };
+    } else if (equippedItem.level !== row.level) {
+      equippedItem.level = row.level;
     }
   };
 
@@ -169,28 +171,80 @@ export function GearPlanner() {
         <Grid item xs={4}>
           <div>
             <div>
-              <GearSlot onClick={onShowAvailableGear} slot="earring1" />
-              <GearSlot onClick={onShowAvailableGear} slot="helmet" />
-              <GearSlot onClick={onShowAvailableGear} slot="earring2" />
-              <GearSlot onClick={onShowAvailableGear} slot="amulet" />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="earring1"
+              />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="helmet"
+              />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="earring2"
+              />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="amulet"
+              />
             </div>
             <div>
-              <GearSlot onClick={onShowAvailableGear} slot="mainhand" />
-              <GearSlot onClick={onShowAvailableGear} slot="chest" />
-              <GearSlot onClick={onShowAvailableGear} slot="offhand" />
-              <GearSlot onClick={onShowAvailableGear} slot="cape" />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="mainhand"
+              />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="chest"
+              />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="offhand"
+              />
+              <GearSlot gear={gear} onClick={onShowAvailableGear} slot="cape" />
             </div>
             <div>
-              <GearSlot onClick={onShowAvailableGear} slot="ring1" />
-              <GearSlot onClick={onShowAvailableGear} slot="pants" />
-              <GearSlot onClick={onShowAvailableGear} slot="ring2" />
-              <GearSlot onClick={onShowAvailableGear} slot="orb" />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="ring1"
+              />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="pants"
+              />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="ring2"
+              />
+              <GearSlot gear={gear} onClick={onShowAvailableGear} slot="orb" />
             </div>
             <div>
-              <GearSlot onClick={onShowAvailableGear} slot="belt" />
-              <GearSlot onClick={onShowAvailableGear} slot="shoes" />
-              <GearSlot onClick={onShowAvailableGear} slot="gloves" />
-              <GearSlot onClick={onShowAvailableGear} slot="elixir" />
+              <GearSlot gear={gear} onClick={onShowAvailableGear} slot="belt" />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="shoes"
+              />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="gloves"
+              />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="elixir"
+              />
             </div>
           </div>
         </Grid>
@@ -244,24 +298,54 @@ export function GearPlanner() {
 export function GearSlot({
   slot,
   onClick,
+  gear,
 }: {
   slot: SlotType;
   onClick: (slot: SlotType) => void;
+  gear: { [slot in SlotType]?: ItemInfo };
 }) {
   // TODO: valid type for mainhand depends on class and other things
 
+  const itemInfo = gear[slot];
+  let itemName: ItemName = `shade_${slot
+    .replace("1", "")
+    .replace("2", "")}` as ItemName;
+
+  switch (slot) {
+    case "orb":
+      itemName = "shade20_orb" as ItemName;
+      break;
+    case "elixir":
+      itemName = "shade20_elixir" as ItemName;
+      break;
+    case "cape":
+      itemName = "shade20_cape" as ItemName;
+      break;
+  }
+
   return (
     <>
-      <div
+      <Box
         onClick={() => onClick(slot)}
         title={slot}
-        style={{
+        sx={{
           width: 50,
           height: 50,
           border: "1px solid black",
           display: "inline-block",
+          alignItems: "center",
+          justifyContent: "center",
+          paddingTop: 0.5,
+          paddingLeft: 0.5,
         }}
-      ></div>
+      >
+        {/* TODO: opacity on backdrop item */}
+        {itemInfo ? (
+          <ItemInstance itemInfo={itemInfo} />
+        ) : (
+          <ItemImage itemName={itemName} opacity={0.25} />
+        )}
+      </Box>
     </>
   );
 }

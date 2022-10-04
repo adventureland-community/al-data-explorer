@@ -2,7 +2,7 @@ import { ItemName } from "adventureland";
 import { useContext } from "react";
 import { GDataContext } from "./GDataContext";
 
-export function ItemImage({ itemName }: { itemName: ItemName }) {
+export function ItemImage({ itemName, opacity }: { itemName: ItemName, opacity?:number }) {
   const G = useContext(GDataContext);
 
   if (!G) {
@@ -11,17 +11,17 @@ export function ItemImage({ itemName }: { itemName: ItemName }) {
 
   // function item_container(item,actual) in html.js
   const gItem = G.items[itemName];
-  const skinPositions = G.positions[gItem.skin] ?? G.positions["placeholder"];
+  const skinPositions = G.positions[gItem?.skin ?? itemName] ?? G.positions["placeholder"];
   // TODO: some items don't have a skin? helmets it would seem, mages hood
   if(!skinPositions){ return (<img alt={itemName}/>)}
   const pack = G.imagesets[skinPositions[0] || "pack_20"];
   const x = skinPositions[1];
   const y = skinPositions[2];
-  const size = gItem.size || 40;
+  const size = gItem?.size ?? 40;
   const scale = size / pack.size;
   return (
     <div
-      style={{ overflow: "hidden", height: `${size}px`, width: `${size}px` }}
+      style={{ overflow: "hidden", height: `${size}px`, width: `${size}px`, opacity:opacity??1 }}
     >
       <img
         alt={itemName}
