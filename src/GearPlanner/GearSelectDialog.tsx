@@ -36,6 +36,9 @@ export function GearSelectDialog({
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState<number | undefined>(undefined);
 
+  // http://localhost:3000/?gear=N4Ig5gpghgTiBcoDGUAOEGgHZQLYfhACMV0QAaEAGwgDcIqEBGAX0rCoHt6BnTEHPgQgAFlCwATTgDNcASwlQ+lGvUbxWlGHKxgATP0EEQSAC7aepzlgwq6DBAGYWbE1SU8AcnmMB3WNqccHZqCHoArCxAA
+  // TODO: decompress sharelink
+
   // const handleOpen = () => setOpen(true);
   const handleClose = () => {
     setOpen(false);

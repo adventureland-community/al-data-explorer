@@ -15,6 +15,9 @@
 // TODO: there should be a tab where you can choose enchants, lvls and such?
 // TODO: sharable links store state in url https://stackoverflow.com/a/41924535/28145
 // https://medium.com/swlh/using-react-hooks-to-sync-your-component-state-with-the-url-query-string-81ccdfcb174f
+// https://garrett-bodley.medium.com/encoding-data-inside-of-a-url-query-string-f286b7e20465
+// https://www.npmjs.com/package/lz-string
+// https://www.anycodings.com/questions/how-to-compress-url-parameters
 
 import {
   Box,
@@ -63,6 +66,8 @@ import { calculateItemStatsByLevel } from "../Utils";
 import { GearSelectDialog, RowItem } from "./GearSelectDialog";
 import { SelectedCharacterClass } from "./types";
 import { ItemInstance } from "./ItemInstance";
+import LZString from "lz-string";
+import { ShareLinkButton } from "./ShareLinkButton";
 
 // TODO: Defense table against specific mobs
 
@@ -167,6 +172,7 @@ export function GearPlanner() {
             max={200} // G.levels last entry.
             onChange={onLevelSliderChange}
           />
+          <ShareLinkButton gear={gear} characterClass={selectedClass} level={level} />
         </Grid>
         <Grid item xs={4}>
           <div>
@@ -325,9 +331,10 @@ export function GearSlot({
 
   return (
     <>
+      {/* <ItemTooltip itemName={itemName} level={itemInfo?.level}> */}
       <Box
         onClick={() => onClick(slot)}
-        title={slot}
+        title={itemInfo ? itemInfo.name : slot}
         sx={{
           width: 50,
           height: 50,
@@ -339,13 +346,16 @@ export function GearSlot({
           paddingLeft: 0.5,
         }}
       >
-        {/* TODO: opacity on backdrop item */}
+        {/* tooltip aint working */}
         {itemInfo ? (
+          // <ItemTooltip itemName={itemName} level={itemInfo?.level}>
           <ItemInstance itemInfo={itemInfo} />
         ) : (
+          // </ItemTooltip>
           <ItemImage itemName={itemName} opacity={0.25} />
         )}
       </Box>
+      {/* </ItemTooltip> */}
     </>
   );
 }
@@ -534,3 +544,4 @@ const calculateMainStatByLevel = (
 //   const scaling = G.classes[ctype].lstats[stat]
 //   return base + Math.min(lvl,40)*scaling + (Math.max(40,lvl)-40)*3*scaling
 // }
+

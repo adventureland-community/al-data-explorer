@@ -15,10 +15,10 @@ export function ItemTooltip({
 }) {
   const G = useContext(GDataContext);
 
-  if (!G) return <></>;
+  if (!G) return <>{children}</>;
 
   const gItem = G.items[itemName];
-  if (!gItem) return <></>;
+  if (!gItem) return <>{children}</>;
   // what about items with enchants and such, then we need an item instance, not just the itemname
   // TODO: handle level and render correct stats for upgrade / compound
   const stats = calculateItemStatsByLevel(gItem, level);
