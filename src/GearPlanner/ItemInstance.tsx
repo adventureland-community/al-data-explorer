@@ -37,15 +37,45 @@ export function ItemInstance({ itemInfo }: { itemInfo: ItemInfo }) {
   //       itemInfo.level = level;
   //     }
   //   };
+
+  let level = itemInfo.level?.toString();
+  if (gItem.upgrade) {
+    switch (itemInfo.level) {
+      case 12:
+        level = "+Z";
+        break;
+      case 11:
+        level = "+Y";
+        break;
+      case 10:
+        level = "+X";
+        break;
+    }
+  } else if (gItem.compound) {
+    switch (itemInfo.level) {
+      case 7:
+        level = "+R";
+        break;
+      case 6:
+        level = "+S";
+        break;
+      case 5:
+        level = "+V";
+        break;
+    }
+  }
+
   return (
     <div style={{ position: "relative" }}>
       <ItemImage itemName={itemName}></ItemImage>
       {(gItem.upgrade || gItem.compound) && itemInfo.level ? (
         <Box sx={levelStyle}>
-          {itemInfo.level}
+          {level}
           {/* <Input value={itemInfo.level} onChange={onChangeLevel}></Input> */}
         </Box>
-      ) : ''}
+      ) : (
+        ""
+      )}
     </div>
   );
 }
