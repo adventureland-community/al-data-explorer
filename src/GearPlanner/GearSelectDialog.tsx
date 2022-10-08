@@ -1,3 +1,7 @@
+// TODO: search for items by name
+// TODO: search for property by name
+// TODO: filters for properties
+// TODO: render source of item, buy,exchange, so forth
 import {
   Dialog,
   DialogTitle,
@@ -61,8 +65,12 @@ export function GearSelectDialog({
       break;
     case "offhand":
       validTypes = ["misc_offhand", "shield", "source", "quiver"];
+      // TODO: rogues and perhaps other characters can dual wield crab claws for example
       break;
   }
+
+  // TODO: upgrade or compound property depending on type, we need to modify the slider range
+  // rings  compound, earrings, source
 
   const rows = items
     ? Object.entries(items)
@@ -159,7 +167,7 @@ export function GearSelectDialog({
           step={1}
           marks
           min={0}
-          max={15} // should variate this
+          max={12} // TODO: should variate this depending on item type
           onChange={onLevelSliderChange}
           style={{marginTop: 25}}
         />

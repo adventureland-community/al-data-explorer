@@ -5,19 +5,18 @@
 // TODO: Stats
 // TODO: Attack table against specific mobs
 // TODO: TrackTrix
-// TODO: render item icon
 // TODO: source - where does it drop?
 // TODO: quality filter?
 // TODO: tooltip on hover with item details https://mui.com/material-ui/react-tooltip/
 // TODO: set items
 // TODO: filter for properties? e.g. mluck
-// TODO: clicking an item allows you to choose a different item
 // TODO: there should be a tab where you can choose enchants, lvls and such?
 // TODO: sharable links store state in url https://stackoverflow.com/a/41924535/28145
 // https://medium.com/swlh/using-react-hooks-to-sync-your-component-state-with-the-url-query-string-81ccdfcb174f
 // https://garrett-bodley.medium.com/encoding-data-inside-of-a-url-query-string-f286b7e20465
 // https://www.npmjs.com/package/lz-string
 // https://www.anycodings.com/questions/how-to-compress-url-parameters
+// TODO: Persist to localstorage
 
 import {
   Box,

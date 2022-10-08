@@ -1,50 +1,93 @@
 import { GItem, StatType } from "adventureland";
 
-export const calculateItemStatsByLevel = (gItem: GItem, level?: number) => {
+export const calculateItemStatsByLevel = (
+  def: GItem,
+  itemLevel?: number,
+  statType?: StatType
+) => {
+  // TODO: should be an object resembling ItemInfo, an actual item.
   const stats: { [T in StatType]?: number } = {};
   // TODO: base stats from item
   // compound / upgrade contains the stats gained for each level
-  Object.entries(gItem).forEach(([key, value]) => {
+  Object.entries(def).forEach(([key, value]) => {
     const stat = key as StatType;
     // just add all numbers as a stat, can probably verify stat types later, or hardcode them.
     if (typeof value === "number") {
-      stats[stat] = value;
+      stats[stat] = value; 
     }
   });
 
-  const upgradeDefinition = { ...gItem.upgrade, ...gItem.compound };
+  // TODO: shiny, glitched, titles outside level loop
 
-  if (level && level > 0) {
-    let multiplier = 1;
-    if (gItem.upgrade) {
-      if (level === 7) multiplier = 1.25;
-      if (level === 8) multiplier = 1.5;
-      if (level === 9) multiplier = 2;
-      if (level === 10) multiplier = 3;
-      if (level === 11) multiplier = 1.25;
-      if (level === 12) multiplier = 1.25;
-    } else if (gItem.compound) {
-      if (level === 5) multiplier = 1.25;
-      if (level === 6) multiplier = 1.5;
-      if (level === 7) multiplier = 2;
-      if (level >= 8) multiplier = 3;
+  if (def.upgrade || def.compound) {
+    const u_def = def.upgrade || def.compound;
+
+    // TODO: some items can't go above a certain level.. e.g. wanderers cap goes to lvl 13
+
+    for (let level = 1; level <= (itemLevel ?? 0); level++) {
+      let multiplier = 1;
+      if (def.upgrade) {
+        if (level === 7) multiplier = 1.25;
+        if (level === 8) multiplier = 1.5;
+        if (level === 9) multiplier = 2;
+        if (level === 10) multiplier = 3;
+        if (level === 11) multiplier = 1.25;
+        if (level === 12) multiplier = 1.25;
+      } else if (def.compound) {
+        if (level === 5) multiplier = 1.25;
+        if (level === 6) multiplier = 1.5;
+        if (level === 7) multiplier = 2;
+        if (level >= 8) multiplier = 3;
+      }
+
+      let p: StatType;
+      for (p in u_def) {
+        const value = u_def ? u_def[p] ?? 0 : 0;
+        if (p === "stat") {
+          stats[p] = (stats[p] ?? 0) + Math.round(value * multiplier);
+          if (level >= 7) stats[p] = (stats[p] ?? 0) + 1;
+        } else {
+          stats[p] = (stats[p] ?? 0) + value * multiplier;
+        }
+      }
     }
+  }
 
-    Object.entries(upgradeDefinition).forEach(([key, value]) => {
-      const stat = key as StatType;
-      ////if(stat=="stat") prop[p]+=round(u_def[p]*multiplier);
-      ////else prop[p]+=u_def[p]*multiplier; // for weapons with float improvements [04/08/16]
-      ////if(p=="stat" && i>=7) prop.stat++;
+  if (itemLevel === 10 && def.tier && def.tier >= 3) {
+    stats.stat = (stats.stat ?? 0) + 2;
+  }
 
-      stats[stat] = (stats[stat] ?? 0) + value * multiplier;
-      // TODO +7 helmet seems to scale differently, stats is 9 instead of 8
-      // it seems like when the item goes high grade it scales x 2
-      // grades are located in grades array
-      // +8 has 12 stats that is 2 x 2 + 8
-      // rare +9 helmet has 15 stats, now it's *3 increments of stats.
-      // assume that each grade is multipled by index + 1
-      // something is definately funky.
-    });
+  // TODO: Legacy
+
+  // Round stat properties
+  let p: StatType;
+  for (p in stats) {
+    const shouldRoundValue = ![
+      "evasion",
+      "miss",
+      "reflection",
+      "dreturn",
+      "lifesteal",
+      "manasteal",
+      "attr0",
+      "attr1",
+      "crit",
+      "critdamage",
+      "set",
+      "class",
+      "breaks",
+    ].some((x) => x === p);
+
+    if (shouldRoundValue) {
+      const value = stats[p];
+      stats[p] = value ? Math.round(value) : 0;
+    }
+  }
+
+  // Add stats modifier
+  if (def.stat && statType) {
+    const multiplier = stat_type_multiplier[statType] ?? 0;
+    stats[statType] = (stats[statType] ?? 0) + (stats.stat ?? 0) * multiplier;
   }
 
   /**
@@ -71,6 +114,81 @@ export const calculateItemStatsByLevel = (gItem: GItem, level?: number) => {
    */
 
   return stats;
+};
+
+const statTypes: string[] /*StatType[] */ = [
+  "gold",
+  "luck",
+  "xp",
+  "int",
+  "str",
+  "dex",
+  "vit",
+  "for",
+  "charisma",
+  "cuteness",
+  "awesomeness",
+  "bling",
+  "hp",
+  "mp",
+  "attack",
+  "range",
+  "armor",
+  "resistance",
+  "pnresistance",
+  "firesistance",
+  "fzresistance",
+  "stun",
+  "blast",
+  "explosion",
+  "breaks",
+  "stat",
+  "speed",
+  "level",
+  "evasion",
+  "miss",
+  "reflection",
+  "lifesteal",
+  "manasteal",
+  "attr0",
+  "attr1",
+  "rpiercing",
+  "apiercing",
+  "crit",
+  "critdamage",
+  "dreturn",
+  "frequency",
+  "mp_cost",
+  "mp_reduction",
+  "output",
+  "courage",
+  "mcourage",
+  "pcourage",
+];
+
+const stat_type_multiplier: { [T in StatType]?: number } = {
+  gold: 0.5,
+  luck: 1,
+  xp: 0.5,
+  int: 1,
+  str: 1,
+  dex: 1,
+  vit: 1,
+  for: 1,
+  armor: 2.25,
+  resistance: 2.25,
+  speed: 0.325,
+  evasion: 0.325,
+  reflection: 0.15,
+  lifesteal: 0.15,
+  manasteal: 0.04,
+  rpiercing: 2.25,
+  apiercing: 2.25,
+  crit: 0.125,
+  dreturn: 0.5,
+  frequency: 0.325,
+  mp_cost: -0.6,
+  output: 0.175,
 };
 
 // function adopt_extras(def,ex)
