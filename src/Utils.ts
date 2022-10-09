@@ -1,10 +1,55 @@
 import { GItem, StatType } from "adventureland";
 
-export const calculateItemStatsByLevel = (
+export function getMaxLevel(gItem: { upgrade?: any; compound?: any }) {
+  if (gItem.upgrade) {
+    return 12;
+  }
+
+  if (gItem.compound) {
+    return 7;
+  }
+}
+
+export function getLevelString(gItem: GItem, level?: number) {
+  if (gItem.upgrade) {
+    const maxLevel = getMaxLevel(gItem);
+    level = maxLevel ? Math.min(level ?? 0, maxLevel) : level;
+
+    switch (level) {
+      case 12:
+        return "+Z";
+      case 11:
+        return "+Y";
+      case 10:
+        return "+X";
+      default:
+        return level;
+    }
+  }
+
+  if (gItem.compound) {
+    if (level && level > 7) {
+      level = 7;
+    }
+
+    switch (level) {
+      case 7:
+        return "+R";
+      case 6:
+        return "+S";
+      case 5:
+        return "+V";
+      default:
+        return level;
+    }
+  }
+}
+
+export function calculateItemStatsByLevel(
   def: GItem,
   itemLevel?: number,
   statType?: StatType
-) => {
+) {
   // TODO: should be an object resembling ItemInfo, an actual item.
   const stats: { [T in StatType]?: number } = {};
   // TODO: base stats from item
@@ -13,7 +58,7 @@ export const calculateItemStatsByLevel = (
     const stat = key as StatType;
     // just add all numbers as a stat, can probably verify stat types later, or hardcode them.
     if (typeof value === "number") {
-      stats[stat] = value; 
+      stats[stat] = value;
     }
   });
 
@@ -114,7 +159,7 @@ export const calculateItemStatsByLevel = (
    */
 
   return stats;
-};
+}
 
 const statTypes: string[] /*StatType[] */ = [
   "gold",

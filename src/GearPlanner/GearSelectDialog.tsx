@@ -22,6 +22,7 @@ import { useState } from "react";
 import { GItems } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
 import { ItemTooltip } from "../ItemTooltip";
+import { getMaxLevel } from "../Utils";
 import { ItemInstance } from "./ItemInstance";
 import { SelectedCharacterClass } from "./types";
 export type RowItem = { itemName: ItemName; level?: number } & GItem;
@@ -38,7 +39,7 @@ export function GearSelectDialog({
   selectedCharacterClass?: SelectedCharacterClass;
 }) {
   const [open, setOpen] = useState(false);
-  const [level, setLevel] = useState<number | undefined>(undefined);
+  const [level, setLevel] = useState<number>(0);
 
   // http://localhost:3000/?gear=N4Ig5gpghgTiBcoDGUAOEGgHZQLYfhACMV0QAaEAGwgDcIqEBGAX0rCoHt6BnTEHPgQgAFlCwATTgDNcASwlQ+lGvUbxWlGHKxgATP0EEQSAC7aepzlgwq6DBAGYWbE1SU8AcnmMB3WNqccHZqCHoArCxAA
   // TODO: decompress sharelink
@@ -82,11 +83,14 @@ export function GearSelectDialog({
             : true;
           return validType && validClass;
         })
-        .map(([itemName, item]) => {
+        .map(([itemName, gItem]) => {
+          const maxLevel = getMaxLevel(gItem);
+          const itemLevel = maxLevel ? Math.min(level, maxLevel) : level;
+
           const row = {
             itemName,
-            level,
-            ...item,
+            level: itemLevel,
+            ...gItem,
           };
 
           return row as RowItem;
@@ -138,7 +142,7 @@ export function GearSelectDialog({
     if (typeof value === "number") {
       setLevel(value);
     } else {
-      setLevel(undefined);
+      setLevel(0);
     }
   };
 
@@ -169,7 +173,7 @@ export function GearSelectDialog({
           min={0}
           max={12} // TODO: should variate this depending on item type
           onChange={onLevelSliderChange}
-          style={{marginTop: 25}}
+          style={{ marginTop: 25 }}
         />
         <Paper sx={{ width: "100%", overflow: "hidden" }}>
           <TableContainer>
@@ -197,36 +201,48 @@ export function GearSelectDialog({
               <TableBody>
                 {rows
                   // .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((row) => (
-                    <ItemTooltip itemName={row.itemName} level={level}>
-                      <TableRow
-                        hover
-                        onClick={(event) => onSelectItem(event, row as RowItem)}
-                        key={row.itemName}
-                        sx={{
-                          "&:last-child td, &:last-child th": { border: 0 },
-                        }}
-                      >
-                        <TableCell component="td" scope="row">
-                          <ItemInstance
-                            itemInfo={{ name: row.itemName, level }}
-                          />
-                        </TableCell>
-                        {/* <TableCell component="th" scope="row"> */}
-                        {columns.map((c) => {
-                          const property = (row as any)[c.id];
-                          return (
-                            <TableCell
-                              key={row.itemName + c.id}
-                              align={c.numeric ? "right" : "left"}
-                            >
-                              {c.component ? c.component(property) : property}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    </ItemTooltip>
-                  ))}
+                  .map((row) => {
+                    const maxLevel = getMaxLevel(row);
+                    const itemLevel = maxLevel
+                      ? Math.min(level ?? 0, maxLevel)
+                      : level;
+
+                    return (
+                      <ItemTooltip itemName={row.itemName} level={itemLevel}>
+                        <TableRow
+                          hover
+                          onClick={(event) =>
+                            onSelectItem(event, row as RowItem)
+                          }
+                          key={row.itemName}
+                          sx={{
+                            "&:last-child td, &:last-child th": { border: 0 },
+                          }}
+                        >
+                          <TableCell component="td" scope="row">
+                            <ItemInstance
+                              itemInfo={{
+                                name: row.itemName,
+                                level: itemLevel,
+                              }}
+                            />
+                          </TableCell>
+                          {/* <TableCell component="th" scope="row"> */}
+                          {columns.map((c) => {
+                            const property = (row as any)[c.id];
+                            return (
+                              <TableCell
+                                key={row.itemName + c.id}
+                                align={c.numeric ? "right" : "left"}
+                              >
+                                {c.component ? c.component(property) : property}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      </ItemTooltip>
+                    );
+                  })}
               </TableBody>
             </Table>
           </TableContainer>

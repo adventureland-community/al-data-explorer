@@ -3,6 +3,7 @@ import { ItemInfo } from "adventureland";
 import { ChangeEvent, useContext } from "react";
 import { GDataContext } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
+import { getLevelString } from "../Utils";
 
 export function ItemInstance({ itemInfo }: { itemInfo: ItemInfo }) {
   const G = useContext(GDataContext);
@@ -38,39 +39,14 @@ export function ItemInstance({ itemInfo }: { itemInfo: ItemInfo }) {
   //     }
   //   };
 
-  let level = itemInfo.level?.toString();
-  if (gItem.upgrade) {
-    switch (itemInfo.level) {
-      case 12:
-        level = "+Z";
-        break;
-      case 11:
-        level = "+Y";
-        break;
-      case 10:
-        level = "+X";
-        break;
-    }
-  } else if (gItem.compound) {
-    switch (itemInfo.level) {
-      case 7:
-        level = "+R";
-        break;
-      case 6:
-        level = "+S";
-        break;
-      case 5:
-        level = "+V";
-        break;
-    }
-  }
+  let levelString = getLevelString(gItem, itemInfo.level);
 
   return (
     <div style={{ position: "relative" }}>
       <ItemImage itemName={itemName}></ItemImage>
       {(gItem.upgrade || gItem.compound) && itemInfo.level ? (
         <Box sx={levelStyle}>
-          {level}
+          {levelString}
           {/* <Input value={itemInfo.level} onChange={onChangeLevel}></Input> */}
         </Box>
       ) : (
