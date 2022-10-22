@@ -465,11 +465,15 @@ export function StatsPanel({
         <Table size="small" aria-label="a dense table">
           <TableRow>
             <TableCell>hp</TableCell>
-            <TableCell align={"right"}>{Math.round(stats.hp ?? 0)}</TableCell>
+            <TableCell align={"right"} title={stats.hp?.toString() ?? ""}>
+              {Math.round(stats.hp ?? 0)}
+            </TableCell>
           </TableRow>
           <TableRow>
             <TableCell>mp</TableCell>
-            <TableCell align={"right"}>{Math.round(stats.mp ?? 0)}</TableCell>
+            <TableCell align={"right"} title={stats.mp?.toString() ?? ""}>
+              {Math.round(stats.mp ?? 0)}
+            </TableCell>
           </TableRow>
           {mainStatTypes.map((stat) => (
             <TableRow>
@@ -484,7 +488,7 @@ export function StatsPanel({
               >
                 {stat}
               </TableCell>
-              <TableCell align={"right"}>
+              <TableCell align={"right"} title={stats[stat]?.toString() ?? ""}>
                 {Math.round(stats[stat] ?? 0)}
               </TableCell>
             </TableRow>
@@ -497,7 +501,7 @@ export function StatsPanel({
           {offenseStatTypes.map((stat) => (
             <TableRow>
               <TableCell key={`stat_${stat}`}>{stat}</TableCell>
-              <TableCell align={"right"}>
+              <TableCell align={"right"} title={stats[stat]?.toString() ?? ""}>
                 {Math.round(stats[stat] ?? 0)}
               </TableCell>
             </TableRow>
@@ -510,7 +514,7 @@ export function StatsPanel({
           {defenseStatTypes.map((stat) => (
             <TableRow>
               <TableCell key={`stat_${stat}`}>{stat}</TableCell>
-              <TableCell align={"right"}>
+              <TableCell align={"right"} title={stats[stat]?.toString() ?? ""}>
                 {Math.round(stats[stat] ?? 0)}
               </TableCell>
             </TableRow>
@@ -525,7 +529,7 @@ export function StatsPanel({
             .map((stat) => (
               <TableRow>
                 <TableCell key={`stat_${stat}`}>{stat}</TableCell>
-                <TableCell align={"right"}>
+                <TableCell align={"right"} title={stats[stat]?.toString() ?? ""}>
                   {Math.round(stats[stat] ?? 0)}
                 </TableCell>
               </TableRow>
