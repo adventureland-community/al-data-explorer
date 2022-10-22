@@ -43,7 +43,9 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
+  CharacterEntity,
   CharacterType,
+  Entity,
   GItem,
   ItemInfo,
   ItemName,
@@ -55,13 +57,17 @@ import axios from "axios";
 import React, { useContext, useEffect, useState } from "react";
 import {
   CharacterTypeData,
+  GData,
   GDataContext,
   GItems,
   MainStatType,
 } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
 import { ItemTooltip } from "../ItemTooltip";
-import { calculateItemStatsByLevel } from "../Utils";
+import {
+  calculateItemStatsByLevel,
+  modifyPlayerStatsByAttributes,
+} from "../Utils";
 import { GearSelectDialog, RowItem } from "./GearSelectDialog";
 import { SelectedCharacterClass } from "./types";
 import { ItemInstance } from "./ItemInstance";
@@ -171,7 +177,11 @@ export function GearPlanner() {
             max={200} // G.levels last entry.
             onChange={onLevelSliderChange}
           />
-          <ShareLinkButton gear={gear} characterClass={selectedClass} level={level} />
+          <ShareLinkButton
+            gear={gear}
+            characterClass={selectedClass}
+            level={level}
+          />
         </Grid>
         <Grid item xs={4}>
           <div>
@@ -412,7 +422,7 @@ export function StatsPanel({
     const itemStats = calculateItemStatsByLevel(gItem, itemInfo.level);
     Object.entries(itemStats).forEach(([key, value]) => {
       const stat = key as StatType;
-      stats[stat] = (stats[stat] ?? 0) + value;
+      stats[stat] = (stats[stat] ?? 0) + (value ?? 0);
     });
   }
 
@@ -432,6 +442,8 @@ export function StatsPanel({
     .forEach(([stat, value]) =>
       otherStatTypes.push(stat as unknown as StatType)
     );
+
+  modifyPlayerStatsByAttributes(level, stats);
 
   // TODO: str increases hp & armor
   // TODO: int increases mp & resistance
@@ -453,11 +465,11 @@ export function StatsPanel({
         <Table size="small" aria-label="a dense table">
           <TableRow>
             <TableCell>hp</TableCell>
-            <TableCell align={"right"}>{stats.hp}</TableCell>
+            <TableCell align={"right"}>{Math.round(stats.hp ?? 0)}</TableCell>
           </TableRow>
           <TableRow>
             <TableCell>mp</TableCell>
-            <TableCell align={"right"}>{stats.mp}</TableCell>
+            <TableCell align={"right"}>{Math.round(stats.mp ?? 0)}</TableCell>
           </TableRow>
           {mainStatTypes.map((stat) => (
             <TableRow>
@@ -472,7 +484,9 @@ export function StatsPanel({
               >
                 {stat}
               </TableCell>
-              <TableCell align={"right"}>{stats[stat]}</TableCell>
+              <TableCell align={"right"}>
+                {Math.round(stats[stat] ?? 0)}
+              </TableCell>
             </TableRow>
           ))}
         </Table>
@@ -483,7 +497,9 @@ export function StatsPanel({
           {offenseStatTypes.map((stat) => (
             <TableRow>
               <TableCell key={`stat_${stat}`}>{stat}</TableCell>
-              <TableCell align={"right"}>{stats[stat]}</TableCell>
+              <TableCell align={"right"}>
+                {Math.round(stats[stat] ?? 0)}
+              </TableCell>
             </TableRow>
           ))}
         </Table>
@@ -494,7 +510,9 @@ export function StatsPanel({
           {defenseStatTypes.map((stat) => (
             <TableRow>
               <TableCell key={`stat_${stat}`}>{stat}</TableCell>
-              <TableCell align={"right"}>{stats[stat]}</TableCell>
+              <TableCell align={"right"}>
+                {Math.round(stats[stat] ?? 0)}
+              </TableCell>
             </TableRow>
           ))}
         </Table>
@@ -507,7 +525,9 @@ export function StatsPanel({
             .map((stat) => (
               <TableRow>
                 <TableCell key={`stat_${stat}`}>{stat}</TableCell>
-                <TableCell align={"right"}>{stats[stat]}</TableCell>
+                <TableCell align={"right"}>
+                  {Math.round(stats[stat] ?? 0)}
+                </TableCell>
               </TableRow>
             ))}
         </Table>
@@ -524,11 +544,12 @@ const calculateMainStatByLevel = (
   const base = characterClass.stats[stat];
   const scaling = characterClass.lstats[stat];
   // TODO: need to investiage this formula.
-  return (
-    base +
-    Math.min(level, 40) * scaling +
-    (Math.max(40, level) - 40) * 3 * scaling
-  );
+  return base + scaling * level;
+  // return (
+  //   base +
+  //   Math.min(level, 40) * scaling +
+  //   (Math.max(40, level) - 40) * 3 * scaling
+  // );
   // return base + (level * scaling)
   // naked lvl 49 merchant returns str 6 dex 27 int 70 vit 15 for 0
   // Rising — Today at 22:33
@@ -543,4 +564,3 @@ const calculateMainStatByLevel = (
 //   const scaling = G.classes[ctype].lstats[stat]
 //   return base + Math.min(lvl,40)*scaling + (Math.max(40,lvl)-40)*3*scaling
 // }
-

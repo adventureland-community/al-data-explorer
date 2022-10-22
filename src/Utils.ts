@@ -1,4 +1,5 @@
-import { GItem, StatType } from "adventureland";
+import { CharacterEntity, GItem, StatType } from "adventureland";
+import { GData } from "./GDataContext";
 
 export function getMaxLevel(gItem: { upgrade?: any; compound?: any }) {
   if (gItem.upgrade) {
@@ -66,8 +67,6 @@ export function calculateItemStatsByLevel(
 
   if (def.upgrade || def.compound) {
     const u_def = def.upgrade || def.compound;
-
-    // TODO: some items can't go above a certain level.. e.g. wanderers cap goes to lvl 13
 
     for (let level = 1; level <= (itemLevel ?? 0); level++) {
       let multiplier = 1;
@@ -440,3 +439,186 @@ const stat_type_multiplier: { [T in StatType]?: number } = {
 // 	prop_cache[prop_key]=prop;
 // 	return prop;
 // }
+
+// from wizard screenshot
+/**
+ There are caps at certain stat calculations, might want to highlight them in the gear planner
+ */
+function wizard_calc_stats(player: CharacterEntity, G: GData) {
+  let player_attack = 0; // no idea what this value is
+  let item_attack = 0; // no idea what this value is
+  if (
+    player.slots.mainhand &&
+    player.slots.offhand &&
+    G.items[player.slots.mainhand.name].wtype == "stars" &&
+    G.items[player.slots.offhand.name].wtype != "stars"
+  ) {
+    item_attack /= 3.0;
+  }
+
+  if (player.slots.cape && player.slots.cape.name == "stealthcape") {
+    // player.stealth = true;
+  }
+
+  item_attack = Math.max(item_attack, 5); // technically there is a max wrapper function, I assume it just wraps math
+
+  if (player.ctype == "paladin") {
+    // player_attack += item_attack * (player.str / 20.0 + player.int / 40.0);
+    // player.pcourage += Math.round(player.str/30+player.int/30)
+  } else {
+    // player.attack = player.a_attack
+  }
+
+  if (player.ctype == "priest") {
+    player.attack *= 1.6;
+    // player.mcourage += Math.round(player.int/30)
+  }
+
+  if (player.ctype == "warrior") {
+    // player.courage += Math.round(player.str/30)
+  }
+
+  // player.speed =
+  //   Math.min(player.dex, 256) / 32.0 +
+  //   Math.min(player.str, 256) / 64.0 +
+  //   Math.min(player.level, 40) / 10.0 +
+  //   Math.max(0, Math.min(player.level - 40, 20)) / 15.0 +
+  //   Math.max(0, Math.min(86, player.level - 60)) / 16.0;
+
+  // player.aggro_diff = player.bling / 100 - player.cuteness / 100;
+
+  // player.max_hp += player.str * 21 + player.vit * (48 + player.leel / 3.0);
+  // player.max_hp = Math.max(1, player.max_hp)
+
+  // player.max_mp += player.int * 15 + player.level * 5;
+
+  // player.armor +=
+  //   Math.min(player.str, 160) + Math.max(0, player.str - 160) * 0.25;
+
+  // player.resistance +=
+  //   Math.min(player.int, 180) + Math.max(0, player.int - 180) * 0.25;
+
+  // player.frequency +=
+  //   Math.min(player.level, 80) / 164.0 +
+  //   Math.min(160, player.dex) / 640.0 +
+  //   Math.max(player.dex - 160) / 925.0 +
+  //   player.int / 1575.0;
+
+  // player.attack_ms = Math.round(1000.0/player.frequency)
+}
+
+export function modifyPlayerStatsByAttributes(
+  level: number,
+  player: {
+    [T in StatType]?: number;
+  }
+) {
+  // TODO: hp shows as 644, but my stat recording was 624, where does the extra 20 come from?
+  player.hp = calculatePlayerMaxHealthPoint({
+    max_hp: player.hp ?? 0,
+    str: player.str ?? 0,
+    vit: player.vit ?? 0,
+    level,
+  });
+
+  // TODO: recording shows 55, but calculation is 59, where i the extra 4 from?
+  player.mp = calculatePlayerMaxManaPoint({
+    level,
+    max_mp: player.mp ?? 0,
+    int: player.int ?? 0,
+  });
+
+  player.frequency = calculatePlayerFrequency({
+    level,
+    frequency: player.frequency ?? 0,
+    dex: player.dex ?? 0,
+    int: player.int ?? 0,
+  });
+
+  player.armor = calculatePlayerArmor({
+    armor: player.armor ?? 0,
+    str: player.str ?? 0,
+  });
+
+  player.resistance = calculatePlayerResistance({
+    resistance: player.resistance ?? 0,
+    int: player.int ?? 0,
+  });
+
+  // todo: speed
+  player.speed =
+    (player.speed ?? 0) +
+    calculatePlayerSpeed({
+      dex: player.dex ?? 0,
+      str: player.str ?? 0,
+      level,
+    });
+}
+
+export function calculatePlayerFrequency(player: {
+  frequency: number;
+  level: number;
+  dex: number;
+  int: number;
+}) {
+  return (
+    player.frequency +
+    Math.min(player.level, 80) / 164.0 +
+    Math.min(160, player.dex) / 640.0 +
+    Math.max(player.dex - 160) / 925.0 +
+    player.int / 1575.0
+  );
+}
+
+export function calculatePlayerResistance(player: {
+  resistance: number;
+  int: number;
+}) {
+  return (
+    player.resistance +
+    Math.min(player.int, 180) +
+    Math.max(0, player.int - 180) * 0.25
+  );
+}
+export function calculatePlayerArmor(player: { armor: number; str: number }) {
+  return (
+    player.armor +
+    Math.min(player.str, 160) +
+    Math.max(0, player.str - 160) * 0.25
+  );
+}
+export function calculatePlayerMaxHealthPoint(player: {
+  /** the current hp from items giving hp directly, and base class */
+  max_hp: number;
+  str: number;
+  vit: number;
+  level: number;
+}) {
+  return Math.max(
+    1,
+    player.max_hp + player.str * 21 + player.vit * (48 + player.level / 3.0)
+  );
+}
+
+export function calculatePlayerMaxManaPoint(player: {
+  /** the current max_mp from items giving hp directly, and base class */
+  max_mp: number;
+  level: number;
+  int: number;
+}) {
+  return player.max_mp + player.int * 15 + player.level * 5;
+}
+
+export function calculatePlayerSpeed(player: {
+  dex: number;
+  str: number;
+  level: number;
+}) {
+  return (
+    Math.min(player.dex, 256) / 32.0 +
+    Math.min(player.str, 256) / 64.0 +
+    Math.min(player.level, 40) / 10.0 +
+    Math.max(0, Math.min(player.level - 40, 20)) / 15.0 +
+    Math.max(0, Math.min(86, player.level - 60)) / 16.0
+  );
+}
