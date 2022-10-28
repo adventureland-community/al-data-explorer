@@ -35,8 +35,14 @@ function App() {
     [prefersDarkMode]
   );
 
+  console.log("AppRedraw");
+
   // TODO: move to GDataContext
   useEffect(() => {
+    if (G) {
+      return;
+    }
+    console.log("getting data.json");
     axios
       .get("data.json")
       .then(function (response) {
@@ -75,66 +81,66 @@ function App() {
     "vit",
   ];
   // const columns = ["name", "g", ...statType];
-  const columns = [
-    {
-      id: "name",
-      numeric: false,
-      label: "Name",
-    },
-    {
-      id: "class",
-      numeric: true,
-      label: "Class",
-      component: (x: string[]) => (x ? x.join(",") : ""),
-    },
-    {
-      id: "type",
-      numeric: true,
-      label: "Type",
-    },
-    {
-      id: "wtype",
-      numeric: true,
-      label: "W Type", // Merge with type?
-    },
-    {
-      id: "tier",
-      numeric: true,
-      label: "Tier",
-    },
-    {
-      id: "armor",
-      numeric: true,
-      label: "Armor",
-    },
-  ];
+  // const columns = [
+  //   {
+  //     id: "name",
+  //     numeric: false,
+  //     label: "Name",
+  //   },
+  //   {
+  //     id: "class",
+  //     numeric: true,
+  //     label: "Class",
+  //     component: (x: string[]) => (x ? x.join(",") : ""),
+  //   },
+  //   {
+  //     id: "type",
+  //     numeric: true,
+  //     label: "Type",
+  //   },
+  //   {
+  //     id: "wtype",
+  //     numeric: true,
+  //     label: "W Type", // Merge with type?
+  //   },
+  //   {
+  //     id: "tier",
+  //     numeric: true,
+  //     label: "Tier",
+  //   },
+  //   {
+  //     id: "armor",
+  //     numeric: true,
+  //     label: "Armor",
+  //   },
+  // ];
   // console.log(G.items);
-  const rows = G.items
-    ? Object.entries(G.items).map(([itemName, item]) => {
-        const row = {
-          itemName,
-          ...item,
-        };
+  // const rows = G.items
+  //   ? Object.entries(G.items).map(([itemName, item]) => {
+  //       const row = {
+  //         itemName,
+  //         ...item,
+  //       };
 
-        return row;
-      })
-    : [];
+  //       return row;
+  //     })
+  //   : [];
 
-  const classes = G.classes
-    ? Object.entries(G.classes).map(([className, item]) => {
-        return className;
-      })
-    : [];
-  const itemTypes = [
-    ...new Set(G.items ? Object.values(G.items).map((i) => i.type) : []),
-  ];
-  // TODO: filtering, by class, by type, by stat properties (search field?)
-  // was thinking filters could be pills at least some of them?
+  // const classes = G.classes
+  //   ? Object.entries(G.classes).map(([className, item]) => {
+  //       return className;
+  //     })
+  //   : [];
+  // const itemTypes = [
+  //   ...new Set(G.items ? Object.values(G.items).map((i) => i.type) : []),
+  // ];
+  // // TODO: filtering, by class, by type, by stat properties (search field?)
+  // // was thinking filters could be pills at least some of them?
 
-  const filterByClass = (x: any) => {
-    // TODO: we should toggle filters on / off
-    console.log(x);
-  };
+  // const filterByClass = (x: any) => {
+  //   // TODO: we should toggle filters on / off
+  //   console.log(x);
+  // };
 
   return (
     <ThemeProvider theme={theme}>
@@ -211,7 +217,7 @@ function App() {
             </Table>
           </TableContainer> */}
           <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
-          data v{G.version} | {new Date(G.timestamp).toLocaleString()}
+          data v{G?.version} | {G ? new Date(G.timestamp).toLocaleString() : ""}
         </div>
       </GDataContext.Provider>
     </ThemeProvider>
@@ -234,11 +240,11 @@ function useRouteMatch(patterns: readonly string[]) {
 
 function Menu() {
   const routeMatch = useRouteMatch(["/", "/market", "/gear"]);
-  const currentTab = routeMatch?.pattern?.path;
+  // const currentTab = routeMatch?.pattern?.path;
+  const currentTab = "/market";
 
   return (
-    <Tabs value={currentTab} centered sx={{marginBottom: '15px'}}>
-      <Tab label="Home" value="/" to="/" component={RouterLink} />
+    <Tabs value={currentTab} centered sx={{ marginBottom: "15px" }}>
       <Tab label="Market" value="/market" to="/market" component={RouterLink} />
       <Tab
         label="Gear Planner"

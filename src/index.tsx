@@ -5,8 +5,10 @@ import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import { createBrowserRouter, RouterProvider, Route } from "react-router-dom";
 import { GearPlanner } from "./GearPlanner/GearPlanner";
+import { Market } from "./Market/Market";
 
 // TODO: https://reactrouter.com/en/main/start/tutorial#handling-not-found-errors
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -15,6 +17,10 @@ const router = createBrowserRouter([
       {
         path: "gear",
         element: <GearPlanner />,
+      },
+      {
+        path: "market",
+        element: <Market />,
       },
     ],
   },
