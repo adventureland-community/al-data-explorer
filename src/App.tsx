@@ -2,33 +2,37 @@ import React, { createContext, useEffect, useState } from "react";
 import logo from "./logo.svg";
 import "./App.css";
 import axios from "axios";
-import { GItem, ItemName, StatType, CharacterType } from "adventureland";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import Paper from "@mui/material/Paper";
-import Chip from "@mui/material/Chip";
+import { StatType } from "adventureland";
 import Divider from "@mui/material/Divider";
 import { GearPlanner } from "./GearPlanner/GearPlanner";
 import { GData, GDataContext } from "./GDataContext";
-import { createTheme, CssBaseline, ThemeProvider, useMediaQuery } from "@mui/material";
-
-
+import {
+  createTheme,
+  CssBaseline,
+  Link,
+  Tab,
+  Tabs,
+  ThemeProvider,
+  useMediaQuery,
+} from "@mui/material";
+import {
+  Outlet,
+  Link as RouterLink,
+  useLocation,
+  matchPath,
+} from "react-router-dom";
 
 function App() {
   const [G, setG] = useState<GData>();
-  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
+  const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const theme = React.useMemo(
     () =>
       createTheme({
         palette: {
-          mode: prefersDarkMode ? 'dark' : 'light',
+          mode: prefersDarkMode ? "dark" : "light",
         },
       }),
-    [prefersDarkMode],
+    [prefersDarkMode]
   );
 
   // TODO: move to GDataContext
@@ -51,7 +55,6 @@ function App() {
   if (!G) {
     return <>WAITING!</>;
   }
-  
 
   const statType: StatType[] = [
     "armor",
@@ -135,11 +138,13 @@ function App() {
 
   return (
     <ThemeProvider theme={theme}>
-       <CssBaseline />
-       {/* <Routes /> */}
+      <CssBaseline />
+      {/* <Routes /> */}
       <GDataContext.Provider value={G}>
         <div className="App">
-          <GearPlanner />
+          <Menu />
+          {/* Actually render the page here */}
+          <Outlet />
           {/* <header className="App-header">
           <img src={logo} className="App-logo" alt="logo" />
           <p>
@@ -210,6 +215,38 @@ function App() {
         </div>
       </GDataContext.Provider>
     </ThemeProvider>
+  );
+}
+
+function useRouteMatch(patterns: readonly string[]) {
+  const { pathname } = useLocation();
+
+  for (let i = 0; i < patterns.length; i += 1) {
+    const pattern = patterns[i];
+    const possibleMatch = matchPath(pattern, pathname);
+    if (possibleMatch !== null) {
+      return possibleMatch;
+    }
+  }
+
+  return null;
+}
+
+function Menu() {
+  const routeMatch = useRouteMatch(["/", "/market", "/gear"]);
+  const currentTab = routeMatch?.pattern?.path;
+
+  return (
+    <Tabs value={currentTab} centered sx={{marginBottom: '15px'}}>
+      <Tab label="Home" value="/" to="/" component={RouterLink} />
+      <Tab label="Market" value="/market" to="/market" component={RouterLink} />
+      <Tab
+        label="Gear Planner"
+        value="/gear"
+        to="/gear"
+        component={RouterLink}
+      />
+    </Tabs>
   );
 }
 
