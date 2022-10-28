@@ -49,6 +49,7 @@
   "devDependencies": {
     "@types/lz-string": "^1.3.34",
     "adventureland": "github:adventureland-community/typed-adventureland",
+    "prettier": "^2.7.1",
     "ts-node": "^10.9.1"
   }
 }
