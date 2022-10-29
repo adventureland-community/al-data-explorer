@@ -131,7 +131,7 @@ export function Market() {
       </Typography>
       <Divider />
       <Search doSearch={filterDataBySearch} />
-      <Table size="small">
+      <Table stickyHeader  size="small">
         <TableHead>
           <TableRow>
             <TableCell component="th" align="center" colSpan={2}></TableCell>
