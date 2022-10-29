@@ -1,6 +1,9 @@
 import {
+  Box,
   Button,
+  Collapse,
   Divider,
+  IconButton,
   Input,
   Table,
   TableBody,
@@ -22,6 +25,8 @@ import axios from "axios";
 import { useContext, useEffect, useState } from "react";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../GearPlanner/ItemInstance";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 
 export function Market() {
   const G = useContext(GDataContext);
@@ -106,6 +111,8 @@ export function Market() {
     setItems({});
   };
 
+  console.log(filteredItems);
+
   let rows: Array<{
     level: number;
     itemName: ItemName;
@@ -121,8 +128,6 @@ export function Market() {
   // TODO: sort by level as well
   rows = rows.sort((a, b) => a.itemName.localeCompare(b.itemName));
 
-  console.log("rows", rows);
-
   return (
     <>
       <Button onClick={onRefreshData}>Refresh Data</Button>
@@ -131,10 +136,10 @@ export function Market() {
       </Typography>
       <Divider />
       <Search doSearch={filterDataBySearch} />
-      <Table stickyHeader  size="small">
+      <Table stickyHeader size="small">
         <TableHead>
           <TableRow>
-            <TableCell component="th" align="center" colSpan={2}></TableCell>
+            <TableCell component="th" align="center" colSpan={3}></TableCell>
             <TableCell component="th" align="center" colSpan={5}>
               Buying
             </TableCell>
@@ -143,6 +148,7 @@ export function Market() {
             </TableCell>
           </TableRow>
           <TableRow>
+            <TableCell></TableCell>
             <TableCell component="th">Item</TableCell>
             <TableCell component="th">Name</TableCell>
 
@@ -194,10 +200,15 @@ function TradeItemRow({
   prices: BuySellItemPrices;
 }) {
   const G = useContext(GDataContext);
+
+  const [showDetails, setShowDetails] = useState<boolean>(false);
+
   const gItem = G?.items[itemName];
   // TODO: should this be an accordian instead? or do we want a nested table
   // https://mui.com/material-ui/react-table/#column-grouping a group for buy vs sell?
   // collapse https://mui.com/material-ui/react-table/#collapsible-table
+
+  // When rendering individual merchant prices, we could render a row relative to gItem price?
 
   const RenderShortNumber = (number?: number) => {
     if (number) {
@@ -220,7 +231,10 @@ function TradeItemRow({
   }) => {
     if (price) {
       return (
-        <TableCell component="td" title={price.toLocaleString() + " " + merchant}>
+        <TableCell
+          component="td"
+          title={price.toLocaleString() + " " + merchant}
+        >
           {abbreviateNumber(price)}
         </TableCell>
       );
@@ -231,36 +245,132 @@ function TradeItemRow({
 
   const buyerCount = Object.keys(prices.buying.merchants).length;
   const sellerCount = Object.keys(prices.selling.merchants).length;
+
+  // TODO: collapse by price, in case the same price exists
+  const buyItems = Object.entries(prices.buying.merchants)
+    .flatMap(([merchantName, merchant]) =>
+      merchant.items.map((x) => ({ merchantName, ...x }))
+    )
+    .sort((a, b) => (b.price ?? 0) - (a.price ?? 0)); // sort descending, we want to sell most expensive
+
+  const sellItems = Object.entries(prices.selling.merchants)
+    .flatMap(([merchantName, merchant]) =>
+      merchant.items.map((x) => ({ merchantName, ...x }))
+    )
+    .sort((a, b) => (a.price ?? 0) - (b.price ?? 0)); // sort ascending, we want to buy the cheapest
+
+  const maxDetailIndex = Math.max(buyItems.length, sellItems.length);
+
+  const detailRows: Array<{
+    buy: { merchantName: string; q?: number; price?: number };
+    sell: { merchantName: string; q?: number; price?: number };
+  }> = [];
+
+  for (let index = 0; index < maxDetailIndex; index++) {
+    const buy = buyItems[index];
+    const sell = sellItems[index];
+    detailRows.push({ buy, sell });
+  }
+
   return (
-    <TableRow
-      hover
-      sx={{
-        "&:last-child td, &:last-child th": { border: 0 },
-      }}
-    >
-      <TableCell>{itemName}</TableCell>
-      <TableCell>
-        <ItemInstance
-          itemInfo={{
-            name: itemName,
-            level: level,
-          }}
-        />
-        <span style={{ marginLeft: "15px" }}>{gItem?.name}</span>
-      </TableCell>
-      {/* buy averages, total items */}
-      <TableCell component="td">{buyerCount ? buyerCount : ""}</TableCell>
-      {RenderShortNumber(prices.buying.amount)}
-      {RenderShortPriceWithMerchantName(prices.buying.minPrice)}
-      {RenderShortPriceWithMerchantName(prices.buying.maxPrice)}
-      {RenderShortNumber(prices.buying.avgPrice)}
-      {/* sell averages, total items. */}
-      <TableCell>{sellerCount ? sellerCount : ""}</TableCell>
-      {RenderShortNumber(prices.selling.amount)}
-      {RenderShortPriceWithMerchantName(prices.selling.minPrice)}
-      {RenderShortPriceWithMerchantName(prices.selling.maxPrice)}
-      {RenderShortNumber(prices.selling.avgPrice)}
-    </TableRow>
+    <>
+      <TableRow
+        onClick={() => setShowDetails(!showDetails)}
+        hover
+        // sx={{
+        //   "&:last-child td, &:last-child th": { border: 0 },
+        // }}
+        sx={{ "& > *": { borderBottom: "unset" } }}
+      >
+        <TableCell>
+          <IconButton aria-label="expand row" size="small">
+            {showDetails ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+          </IconButton>
+        </TableCell>
+        <TableCell>{itemName}</TableCell>
+        <TableCell>
+          <ItemInstance
+            itemInfo={{
+              name: itemName,
+              level: level,
+            }}
+          />
+          <span style={{ marginLeft: "15px" }}>{gItem?.name}</span>
+        </TableCell>
+        {/* buy averages, total items */}
+        <TableCell component="td">{buyerCount ? buyerCount : ""}</TableCell>
+        {RenderShortNumber(prices.buying.amount)}
+        {RenderShortPriceWithMerchantName(prices.buying.minPrice)}
+        {RenderShortPriceWithMerchantName(prices.buying.maxPrice)}
+        {RenderShortNumber(prices.buying.avgPrice)}
+        {/* sell averages, total items. */}
+        <TableCell>{sellerCount ? sellerCount : ""}</TableCell>
+        {RenderShortNumber(prices.selling.amount)}
+        {RenderShortPriceWithMerchantName(prices.selling.minPrice)}
+        {RenderShortPriceWithMerchantName(prices.selling.maxPrice)}
+        {RenderShortNumber(prices.selling.avgPrice)}
+      </TableRow>
+      <TableRow>
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={13}>
+          <Collapse in={showDetails} timeout="auto" unmountOnExit>
+            <Box sx={{ margin: 1 }}>
+              {/* <Typography variant="h6" gutterBottom component="div">
+                Details
+              </Typography> */}
+              <Table size="small" aria-label="purchases">
+                <TableHead>
+                  <TableRow>
+                    <TableCell
+                      component="th"
+                      align="center"
+                      colSpan={3}
+                    ></TableCell>
+                    <TableCell component="th" align="center" colSpan={3}>
+                      Buying
+                    </TableCell>
+                    <TableCell component="th" align="center" colSpan={3}>
+                      Selling
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell colSpan={3} />
+                    {/* Buying */}
+                    <TableCell>Merchant</TableCell>
+                    <TableCell>Quantitiy</TableCell>
+                    <TableCell>Price</TableCell>
+                    {/* selling */}
+                    <TableCell>Merchant</TableCell>
+                    <TableCell>Quantitiy</TableCell>
+                    <TableCell>Price</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {detailRows.map(({ buy, sell }, index) => {
+                    return (
+                      <TableRow key={"details" + itemName + index}>
+                        <TableCell colSpan={3} />
+
+                        <TableCell component="td">
+                          {buy?.merchantName}
+                        </TableCell>
+                        {RenderShortNumber(buy?.q)}
+                        {RenderShortNumber(buy?.price)}
+
+                        <TableCell component="td">
+                          {sell?.merchantName}
+                        </TableCell>
+                        {RenderShortNumber(sell?.q)}
+                        {RenderShortNumber(sell?.price)}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Box>
+          </Collapse>
+        </TableCell>
+      </TableRow>
+    </>
   );
 }
 
