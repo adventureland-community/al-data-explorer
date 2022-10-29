@@ -1,4 +1,6 @@
 import {
+  Button,
+  Divider,
   Input,
   Table,
   TableBody,
@@ -22,8 +24,8 @@ import { GDataContext } from "../GDataContext";
 export function Market() {
   const G = useContext(GDataContext);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
-
   const [filteredMerchants, setFilteredMerchants] = useState<Merchant[]>([]);
+  const [lastRefresh, setLastRefresh] = useState<Date | undefined>(undefined);
 
   console.log("market redraw");
   useEffect(() => {
@@ -34,7 +36,10 @@ export function Market() {
 
     if (sessionStorageMerchants) {
       console.log("fetching data from session");
-      setMerchants(JSON.parse(sessionStorageMerchants));
+      const parsed = JSON.parse(sessionStorageMerchants);
+      setLastRefresh(new Date(parsed.timestamp));
+
+      setMerchants(parsed.merchants);
       setFilteredMerchants([...merchants].reverse());
       return;
     }
@@ -44,8 +49,12 @@ export function Market() {
       .get("https://aldata.earthiverse.ca/merchants")
       .then(function (response) {
         // handle success
+        setLastRefresh(new Date());
         setMerchants(response.data);
-        sessionStorage.setItem("merchants", JSON.stringify(response.data));
+        sessionStorage.setItem(
+          "merchants",
+          JSON.stringify({ timestamp: new Date(), merchants: response.data })
+        );
       })
       .catch(function (error) {
         // handle error
@@ -96,8 +105,18 @@ export function Market() {
     setFilteredMerchants(result);
   };
 
+  const onRefreshData = () => {
+    sessionStorage.removeItem("merchants");
+    setMerchants([]);
+  };
+
   return (
     <>
+      <Button onClick={onRefreshData}>Refresh Data</Button>
+      <Typography variant="subtitle2">
+        <>{lastRefresh?.toLocaleString()}</>
+      </Typography>
+      <Divider />
       <Search doSearch={filterDataBySearch} />
       {filteredMerchants.map((merchant) => {
         const ms = new Date().getTime() - new Date(merchant.lastSeen).getTime();
@@ -149,18 +168,22 @@ export function Market() {
 
 function Search({ doSearch }: { doSearch: (search: string) => void }) {
   const [search, setSearch] = useState("");
+  const [changed, setChanged] = useState(false);
 
   const onSearch = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const value = e.target.value;
     console.log(value);
+    setChanged(true);
     setSearch(value);
   };
 
   useEffect(() => {
-    const timeOutId = setTimeout(() => doSearch(search), 500);
-    return () => clearTimeout(timeOutId);
+    if (changed) {
+      const timeOutId = setTimeout(() => doSearch(search), 500);
+      return () => clearTimeout(timeOutId);
+    }
   }, [search]);
 
   return (
