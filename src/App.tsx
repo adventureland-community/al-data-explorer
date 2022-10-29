@@ -56,7 +56,7 @@ function App() {
       .then(function () {
         // always executed
       });
-  });
+  }, [G]);
 
   if (!G) {
     return <>WAITING!</>;
