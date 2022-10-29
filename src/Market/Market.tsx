@@ -99,7 +99,12 @@ export function Market() {
       const item = items[itemName];
       if (item) {
         const gItem = G?.items[itemName];
-        if (itemName.indexOf(search) > -1) {
+        const itemNameMatches = itemName.toLowerCase().indexOf(search.toLowerCase()) > -1;
+        const gItemNameMatches = gItem
+          ? gItem.name.toLowerCase().indexOf(search.toLowerCase()) > -1
+          : false;
+
+        if (itemNameMatches || gItemNameMatches) {
           result[itemName] = item;
         }
       }
@@ -138,46 +143,46 @@ export function Market() {
       </Typography>
       <Divider />
       <Search doSearch={filterDataBySearch} />
-        <Table stickyHeader size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell align="center" colSpan={3}></TableCell>
-              <TableCell align="center" colSpan={5}>
-                Buying
-              </TableCell>
-              <TableCell align="center" colSpan={5}>
-                Selling
-              </TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell></TableCell>
-              <TableCell>Item</TableCell>
-              <TableCell>Name</TableCell>
+      <Table stickyHeader size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell align="center" colSpan={3}></TableCell>
+            <TableCell align="center" colSpan={5}>
+              Buying
+            </TableCell>
+            <TableCell align="center" colSpan={5}>
+              Selling
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell></TableCell>
+            <TableCell>Item</TableCell>
+            <TableCell>Name</TableCell>
 
-              <TableCell># Buyers</TableCell>
-              <TableCell>Quantity</TableCell>
-              <TableCell>Min</TableCell>
-              <TableCell>Max</TableCell>
-              <TableCell>Avg</TableCell>
+            <TableCell># Buyers</TableCell>
+            <TableCell>Quantity</TableCell>
+            <TableCell>Min</TableCell>
+            <TableCell>Max</TableCell>
+            <TableCell>Avg</TableCell>
 
-              <TableCell># Sellers</TableCell>
-              <TableCell>Quantity</TableCell>
-              <TableCell>Min</TableCell>
-              <TableCell>Max</TableCell>
-              <TableCell>Avg</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map(({ level, itemName, prices }) => (
-              <TradeItemRow
-                key={itemName + level}
-                level={level}
-                itemName={itemName}
-                prices={prices}
-              />
-            ))}
-          </TableBody>
-        </Table>
+            <TableCell># Sellers</TableCell>
+            <TableCell>Quantity</TableCell>
+            <TableCell>Min</TableCell>
+            <TableCell>Max</TableCell>
+            <TableCell>Avg</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map(({ level, itemName, prices }) => (
+            <TradeItemRow
+              key={itemName + level}
+              level={level}
+              itemName={itemName}
+              prices={prices}
+            />
+          ))}
+        </TableBody>
+      </Table>
       {/* {filteredMerchants.map((merchant) => {
         const ms = new Date().getTime() - new Date(merchant.lastSeen).getTime();
         const timeago = msToTime(ms);
