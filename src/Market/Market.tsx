@@ -25,9 +25,11 @@ import { ItemInstance } from "../GearPlanner/ItemInstance";
 
 export function Market() {
   const G = useContext(GDataContext);
-  const [merchants, setMerchants] = useState<Merchant[]>([]);
-  const [filteredMerchants, setFilteredMerchants] = useState<Merchant[]>([]);
   const [lastRefresh, setLastRefresh] = useState<Date | undefined>(undefined);
+  //   const [merchants, setMerchants] = useState<Merchant[]>([]);
+
+  const [items, setItems] = useState<ItemsByNameAndLevel>({});
+  const [filteredItems, setFilteredItems] = useState<ItemsByNameAndLevel>({});
 
   console.log("market redraw");
   useEffect(() => {
@@ -40,9 +42,11 @@ export function Market() {
       console.log("fetching data from session");
       const parsed = JSON.parse(sessionStorageMerchants);
       setLastRefresh(new Date(parsed.timestamp));
-      console.dir(groupItemsByNameAndLevel(parsed.merchants));
-      setMerchants(parsed.merchants);
-      setFilteredMerchants([...merchants].reverse());
+      const groupedItems = groupItemsByNameAndLevel(parsed.merchants);
+      setItems(groupedItems);
+      setFilteredItems(groupedItems);
+      //   setMerchants(parsed.merchants);
+
       return;
     }
 
@@ -52,7 +56,9 @@ export function Market() {
       .then(function (response) {
         // handle success
         setLastRefresh(new Date());
-        setMerchants(response.data);
+        const groupedItems = groupItemsByNameAndLevel(response.data);
+        setItems(groupedItems);
+        setFilteredItems(groupedItems);
         sessionStorage.setItem(
           "merchants",
           JSON.stringify({ timestamp: new Date(), merchants: response.data })
@@ -65,7 +71,7 @@ export function Market() {
       .then(function () {
         // always executed
       });
-  }, [merchants.length]);
+  }, []);
 
   // TODO: restructure the data to be per item, per level, with buyers and sellers
   // TODO: render each item as an accordion, with min,max and average price for buying and selling
@@ -81,41 +87,71 @@ export function Market() {
   const filterDataBySearch = (search: string) => {
     console.log("search triggered filterDataBySearch", search);
     if (!search) {
-      setFilteredMerchants([...merchants].reverse());
+      setFilteredItems(items);
       return;
     }
 
-    const result: Merchant[] = [];
-    const merchantsByLastSeen = [...merchants].reverse();
-    for (const merchant of merchantsByLastSeen) {
-      const clonedMerchant = { ...merchant };
-      clonedMerchant.slots = {};
-      let hasItem = false;
+    const result: ItemsByNameAndLevel = {};
 
-      let tradeSlot: TradeSlotType;
-      for (tradeSlot in merchant.slots) {
-        const item = merchant.slots[tradeSlot];
-        if (item) {
-          const gItem = G?.items[item.name];
-          if (item.name.indexOf(search) > -1) {
-            hasItem = true;
-            clonedMerchant.slots[tradeSlot] = item;
-          }
+    let itemName: ItemName;
+    for (itemName in items) {
+      const item = items[itemName];
+      if (item) {
+        const gItem = G?.items[itemName];
+        if (itemName.indexOf(search) > -1) {
+          result[itemName] = item;
         }
-      }
-
-      if (hasItem) {
-        result.push(clonedMerchant);
       }
     }
 
-    setFilteredMerchants(result);
+    // const result: Merchant[] = [];
+    // const merchantsByLastSeen = [...merchants].reverse();
+    // for (const merchant of merchantsByLastSeen) {
+    //   const clonedMerchant = { ...merchant };
+    //   clonedMerchant.slots = {};
+    //   let hasItem = false;
+
+    //   let tradeSlot: TradeSlotType;
+    //   for (tradeSlot in merchant.slots) {
+    //     const item = merchant.slots[tradeSlot];
+    //     if (item) {
+    //       const gItem = G?.items[item.name];
+    //       if (item.name.indexOf(search) > -1) {
+    //         hasItem = true;
+    //         clonedMerchant.slots[tradeSlot] = item;
+    //       }
+    //     }
+    //   }
+
+    //   if (hasItem) {
+    //     result.push(clonedMerchant);
+    //   }
+    // }
+
+    setFilteredItems(result);
   };
 
   const onRefreshData = () => {
     sessionStorage.removeItem("merchants");
-    setMerchants([]);
+    setItems({});
   };
+
+  let rows: Array<{
+    level: number;
+    itemName: ItemName;
+    prices: BuySellItemPrices;
+  }> = [];
+  Object.entries(filteredItems).forEach(([key, levels]) => {
+    const itemName = key as ItemName;
+    for (const level in levels) {
+      const prices = levels[level];
+      rows.push({ level: Number(level), itemName, prices });
+    }
+  });
+  // TODO: sort by level as well
+  rows = rows.sort((a, b) => a.itemName.localeCompare(b.itemName));
+
+  console.log("rows", rows);
 
   return (
     <>
@@ -125,7 +161,46 @@ export function Market() {
       </Typography>
       <Divider />
       <Search doSearch={filterDataBySearch} />
-      {filteredMerchants.map((merchant) => {
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell component="th" align="center" colSpan={2}></TableCell>
+            <TableCell component="th" align="center" colSpan={4}>
+              Buying
+            </TableCell>
+            <TableCell component="th" align="center" colSpan={4}>
+              Selling
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell component="th">Item</TableCell>
+            <TableCell component="th">Name</TableCell>
+
+            <TableCell component="th"># Buyers</TableCell>
+            <TableCell component="th">Quantity</TableCell>
+            <TableCell component="th">Min</TableCell>
+            <TableCell component="th">Max</TableCell>
+            <TableCell component="th">Avg</TableCell>
+
+            <TableCell component="th"># Sellers</TableCell>
+            <TableCell component="th">Quantity</TableCell>
+            <TableCell component="th">Min</TableCell>
+            <TableCell component="th">Max</TableCell>
+            <TableCell component="th">Avg</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map(({ level, itemName, prices }) => (
+            <TradeItemRow
+              key={itemName + level}
+              level={level}
+              itemName={itemName}
+              prices={prices}
+            />
+          ))}
+        </TableBody>
+      </Table>
+      {/* {filteredMerchants.map((merchant) => {
         const ms = new Date().getTime() - new Date(merchant.lastSeen).getTime();
         const timeago = msToTime(ms);
         return (
@@ -178,8 +253,88 @@ export function Market() {
             </Table>
           </div>
         );
-      })}
+      })} */}
     </>
+  );
+}
+
+function TradeItemRow({
+  level,
+  itemName,
+  prices,
+}: {
+  level: number;
+  itemName: ItemName;
+  prices: BuySellItemPrices;
+}) {
+  const G = useContext(GDataContext);
+  const gItem = G?.items[itemName];
+  // TODO: should this be an accordian instead? or do we want a nested table
+  // https://mui.com/material-ui/react-table/#column-grouping a group for buy vs sell?
+  // collapse https://mui.com/material-ui/react-table/#collapsible-table
+
+  const RenderShortNumber = (number?: number) => {
+    if (number) {
+      return (
+        <TableCell component="td" title={number.toString()}>
+          {abbreviateNumber(number)}
+        </TableCell>
+      );
+    }
+
+    return <TableCell component="td"></TableCell>;
+  };
+
+  const RenderShortPriceWithMerchantName = ({
+    merchant,
+    price,
+  }: {
+    merchant?: string;
+    price: number;
+  }) => {
+    if (price) {
+      return (
+        <TableCell component="td" title={price.toString() + " " + merchant}>
+          {abbreviateNumber(price)}
+        </TableCell>
+      );
+    }
+
+    return <TableCell component="td"></TableCell>;
+  };
+
+  const buyerCount = Object.keys(prices.buying.merchants).length;
+  const sellerCount = Object.keys(prices.buying.merchants).length;
+  return (
+    <TableRow
+      hover
+      sx={{
+        "&:last-child td, &:last-child th": { border: 0 },
+      }}
+    >
+      <TableCell>{itemName}</TableCell>
+      <TableCell>
+        <ItemInstance
+          itemInfo={{
+            name: itemName,
+            level: level,
+          }}
+        />
+        <span style={{ marginLeft: "15px" }}>{gItem?.name}</span>
+      </TableCell>
+      {/* buy averages, total items */}
+      <TableCell component="td">{buyerCount}</TableCell>
+      {RenderShortNumber(prices.buying.amount)}
+      {RenderShortPriceWithMerchantName(prices.buying.minPrice)}
+      {RenderShortPriceWithMerchantName(prices.buying.maxPrice)}
+      {RenderShortNumber(prices.buying.avgPrice)}
+      {/* sell averages, total items. */}
+      <TableCell>{sellerCount}</TableCell>
+      {RenderShortNumber(prices.selling.amount)}
+      {RenderShortPriceWithMerchantName(prices.selling.minPrice)}
+      {RenderShortPriceWithMerchantName(prices.selling.maxPrice)}
+      {RenderShortNumber(prices.selling.avgPrice)}
+    </TableRow>
   );
 }
 
@@ -221,33 +376,30 @@ function Overview({ merchants }: { merchants: Merchant[] }) {
   return <>hello world</>;
 }
 
+type ItemPrices = {
+  amount: number;
+  minPrice: { merchant?: string; price: number };
+  maxPrice: { merchant?: string; price: number };
+  avgPrice: number;
+  merchants: {
+    [merchantName: string]: {
+      merchant: { id: string; lastSeen: string };
+      items: ItemInfo[];
+    };
+  };
+};
+
+type BuySellItemPrices = {
+  buying: ItemPrices;
+  selling: ItemPrices;
+};
+
+type ItemsByNameAndLevel = {
+  [T in ItemName]?: BuySellItemPrices[]; // index is equal to level
+};
+
 function groupItemsByNameAndLevel(merchants: Merchant[]) {
-  const result: {
-    [T in ItemName]?: Array<{
-      buying: {
-        minPrice: number;
-        maxPrice: number;
-        avgPrice: number;
-        merchants: {
-          [merchantName: string]: {
-            merchant: { id: string; lastSeen: string };
-            items: ItemInfo[];
-          };
-        };
-      };
-      selling: {
-        minPrice: number;
-        maxPrice: number;
-        avgPrice: number;
-        merchants: {
-          [merchantName: string]: {
-            merchant: { id: string; lastSeen: string };
-            items: ItemInfo[];
-          };
-        };
-      };
-    }>; // index is equal to level
-  } = {};
+  const result: ItemsByNameAndLevel = {};
 
   for (const merchant of merchants) {
     let tradeSlot: TradeSlotType;
@@ -264,8 +416,20 @@ function groupItemsByNameAndLevel(merchants: Merchant[]) {
 
         if (!itemPricesByLevel) {
           itemPricesByLevel = itemPrices[level] = {
-            buying: { minPrice: 0, maxPrice: 0, avgPrice: 0, merchants: {} },
-            selling: { minPrice: 0, maxPrice: 0, avgPrice: 0, merchants: {} },
+            buying: {
+              amount: 0,
+              minPrice: { price: 0 },
+              maxPrice: { price: 0 },
+              avgPrice: 0,
+              merchants: {},
+            },
+            selling: {
+              amount: 0,
+              minPrice: { price: 0 },
+              maxPrice: { price: 0 },
+              avgPrice: 0,
+              merchants: {},
+            },
           };
         }
 
@@ -273,17 +437,36 @@ function groupItemsByNameAndLevel(merchants: Merchant[]) {
           ? "buying"
           : "selling";
 
-        let itemsByMerchant =
-          itemPricesByLevel[buyingOrSelling].merchants[merchant.id];
+        let itemsByBuyingOrSelling = itemPricesByLevel[buyingOrSelling];
+        let itemsByMerchant = itemsByBuyingOrSelling.merchants[merchant.id];
         if (!itemsByMerchant) {
           const { id, lastSeen } = merchant;
-          itemsByMerchant = itemPricesByLevel[buyingOrSelling].merchants[
-            merchant.id
-          ] = {
+
+          if (item.price) {
+            if (
+              itemsByBuyingOrSelling.minPrice.price == 0 ||
+              itemsByBuyingOrSelling.minPrice.price > item.price
+            ) {
+              itemsByBuyingOrSelling.minPrice.merchant = id;
+              itemsByBuyingOrSelling.minPrice.price = item.price;
+            }
+
+            if (
+              itemsByBuyingOrSelling.maxPrice.price == 0 ||
+              itemsByBuyingOrSelling.maxPrice.price < item.price
+            ) {
+              itemsByBuyingOrSelling.maxPrice.merchant = id;
+              itemsByBuyingOrSelling.maxPrice.price = item.price;
+            }
+          }
+
+          itemsByMerchant = itemsByBuyingOrSelling.merchants[merchant.id] = {
             merchant: { id, lastSeen },
             items: [],
           };
         }
+
+        itemsByBuyingOrSelling.amount += item.q ?? 1;
 
         itemsByMerchant.items.push(item);
       }
