@@ -40,7 +40,7 @@ export function Market() {
       console.log("fetching data from session");
       const parsed = JSON.parse(sessionStorageMerchants);
       setLastRefresh(new Date(parsed.timestamp));
-
+      console.dir(groupItemsByNameAndLevel(parsed.merchants));
       setMerchants(parsed.merchants);
       setFilteredMerchants([...merchants].reverse());
       return;
@@ -223,23 +223,74 @@ function Overview({ merchants }: { merchants: Merchant[] }) {
 
 function groupItemsByNameAndLevel(merchants: Merchant[]) {
   const result: {
-    [T in ItemName]?: [
-      {
-        buying: {
-          minPrice: number;
-          maxPrice: number;
-          avgPrice: number;
-          merchants: { [merchantName: string]: ItemInfo[] };
+    [T in ItemName]?: Array<{
+      buying: {
+        minPrice: number;
+        maxPrice: number;
+        avgPrice: number;
+        merchants: {
+          [merchantName: string]: {
+            merchant: { id: string; lastSeen: string };
+            items: ItemInfo[];
+          };
         };
-        selling: {
-          minPrice: number;
-          maxPrice: number;
-          avgPrice: number;
-          merchants: { [merchantName: string]: ItemInfo[] };
+      };
+      selling: {
+        minPrice: number;
+        maxPrice: number;
+        avgPrice: number;
+        merchants: {
+          [merchantName: string]: {
+            merchant: { id: string; lastSeen: string };
+            items: ItemInfo[];
+          };
         };
-      }
-    ]; // index is equal to level
+      };
+    }>; // index is equal to level
   } = {};
+
+  for (const merchant of merchants) {
+    let tradeSlot: TradeSlotType;
+    for (tradeSlot in merchant.slots) {
+      const item = merchant.slots[tradeSlot];
+      if (item) {
+        let itemPrices = result[item.name];
+        if (!itemPrices) {
+          itemPrices = result[item.name] = [];
+        }
+        const level = item.level ?? 0;
+
+        let itemPricesByLevel = itemPrices[level];
+
+        if (!itemPricesByLevel) {
+          itemPricesByLevel = itemPrices[level] = {
+            buying: { minPrice: 0, maxPrice: 0, avgPrice: 0, merchants: {} },
+            selling: { minPrice: 0, maxPrice: 0, avgPrice: 0, merchants: {} },
+          };
+        }
+
+        let buyingOrSelling: "buying" | "selling" = item.b
+          ? "buying"
+          : "selling";
+
+        let itemsByMerchant =
+          itemPricesByLevel[buyingOrSelling].merchants[merchant.id];
+        if (!itemsByMerchant) {
+          const { id, lastSeen } = merchant;
+          itemsByMerchant = itemPricesByLevel[buyingOrSelling].merchants[
+            merchant.id
+          ] = {
+            merchant: { id, lastSeen },
+            items: [],
+          };
+        }
+
+        itemsByMerchant.items.push(item);
+      }
+    }
+  }
+
+  // TODO: loop result and summarize prices
 
   return result;
 }
