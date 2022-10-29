@@ -202,7 +202,7 @@ function TradeItemRow({
   const RenderShortNumber = (number?: number) => {
     if (number) {
       return (
-        <TableCell component="td" title={number.toString()}>
+        <TableCell component="td" title={number.toLocaleString()}>
           {abbreviateNumber(number)}
         </TableCell>
       );
@@ -220,7 +220,7 @@ function TradeItemRow({
   }) => {
     if (price) {
       return (
-        <TableCell component="td" title={price.toString() + " " + merchant}>
+        <TableCell component="td" title={price.toLocaleString() + " " + merchant}>
           {abbreviateNumber(price)}
         </TableCell>
       );
