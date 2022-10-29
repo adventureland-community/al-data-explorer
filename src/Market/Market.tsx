@@ -5,9 +5,11 @@ import {
   Divider,
   IconButton,
   Input,
+  Paper,
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
   TextField,
@@ -136,46 +138,46 @@ export function Market() {
       </Typography>
       <Divider />
       <Search doSearch={filterDataBySearch} />
-      <Table stickyHeader size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell component="th" align="center" colSpan={3}></TableCell>
-            <TableCell component="th" align="center" colSpan={5}>
-              Buying
-            </TableCell>
-            <TableCell component="th" align="center" colSpan={5}>
-              Selling
-            </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell></TableCell>
-            <TableCell component="th">Item</TableCell>
-            <TableCell component="th">Name</TableCell>
+        <Table stickyHeader size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell align="center" colSpan={3}></TableCell>
+              <TableCell align="center" colSpan={5}>
+                Buying
+              </TableCell>
+              <TableCell align="center" colSpan={5}>
+                Selling
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell></TableCell>
+              <TableCell>Item</TableCell>
+              <TableCell>Name</TableCell>
 
-            <TableCell component="th"># Buyers</TableCell>
-            <TableCell component="th">Quantity</TableCell>
-            <TableCell component="th">Min</TableCell>
-            <TableCell component="th">Max</TableCell>
-            <TableCell component="th">Avg</TableCell>
+              <TableCell># Buyers</TableCell>
+              <TableCell>Quantity</TableCell>
+              <TableCell>Min</TableCell>
+              <TableCell>Max</TableCell>
+              <TableCell>Avg</TableCell>
 
-            <TableCell component="th"># Sellers</TableCell>
-            <TableCell component="th">Quantity</TableCell>
-            <TableCell component="th">Min</TableCell>
-            <TableCell component="th">Max</TableCell>
-            <TableCell component="th">Avg</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map(({ level, itemName, prices }) => (
-            <TradeItemRow
-              key={itemName + level}
-              level={level}
-              itemName={itemName}
-              prices={prices}
-            />
-          ))}
-        </TableBody>
-      </Table>
+              <TableCell># Sellers</TableCell>
+              <TableCell>Quantity</TableCell>
+              <TableCell>Min</TableCell>
+              <TableCell>Max</TableCell>
+              <TableCell>Avg</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.map(({ level, itemName, prices }) => (
+              <TradeItemRow
+                key={itemName + level}
+                level={level}
+                itemName={itemName}
+                prices={prices}
+              />
+            ))}
+          </TableBody>
+        </Table>
       {/* {filteredMerchants.map((merchant) => {
         const ms = new Date().getTime() - new Date(merchant.lastSeen).getTime();
         const timeago = msToTime(ms);
@@ -320,15 +322,11 @@ function TradeItemRow({
               <Table size="small" aria-label="purchases">
                 <TableHead>
                   <TableRow>
-                    <TableCell
-                      component="th"
-                      align="center"
-                      colSpan={3}
-                    ></TableCell>
-                    <TableCell component="th" align="center" colSpan={3}>
+                    <TableCell align="center" colSpan={3}></TableCell>
+                    <TableCell align="center" colSpan={3}>
                       Buying
                     </TableCell>
-                    <TableCell component="th" align="center" colSpan={3}>
+                    <TableCell align="center" colSpan={3}>
                       Selling
                     </TableCell>
                   </TableRow>
