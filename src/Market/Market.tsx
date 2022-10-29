@@ -148,7 +148,7 @@ export function Market() {
                       }}
                     >
                       <TableCell>{item.b ? "Buying" : "Selling"}</TableCell>
-                      <TableCell>{price}</TableCell>
+                      <TableCell title={item.price?.toString()}>{price}</TableCell>
                       <TableCell>{item.q}</TableCell>
                       <TableCell>{item.name}</TableCell>
                       <TableCell>
@@ -194,6 +194,14 @@ function Search({ doSearch }: { doSearch: (search: string) => void }) {
       autoComplete="off"
     />
   );
+}
+
+function Overview({ merchants }: { merchants: Merchant[] }) {
+  // TODO: extract out all items by item name and level
+  // store each price per merchant
+  // TODO: calculate lowest, highest and average price.
+  // TODO: do this for buying vs selling
+  return <>hello world</>;
 }
 
 type Merchant = {
