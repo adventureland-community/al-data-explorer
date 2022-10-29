@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import {
   ItemInfo,
+  ItemName,
   MapName,
   ServerIdentifier,
   ServerRegion,
@@ -20,6 +21,7 @@ import {
 import axios from "axios";
 import { useContext, useEffect, useState } from "react";
 import { GDataContext } from "../GDataContext";
+import { ItemInstance } from "../GearPlanner/ItemInstance";
 
 export function Market() {
   const G = useContext(GDataContext);
@@ -64,6 +66,11 @@ export function Market() {
         // always executed
       });
   }, [merchants.length]);
+
+  // TODO: restructure the data to be per item, per level, with buyers and sellers
+  // TODO: render each item as an accordion, with min,max and average price for buying and selling
+  // TODO: store stats for items every time you refresh and new data is present for a merchant
+
   // TODO: a search, filtering everything by search
   // TODO: should we group items by merchant, or should we group it differently?
   // TODO: let's just recreate the marketplace as an initial attempt
@@ -148,11 +155,21 @@ export function Market() {
                       }}
                     >
                       <TableCell>{item.b ? "Buying" : "Selling"}</TableCell>
-                      <TableCell title={item.price?.toString()}>{price}</TableCell>
+                      <TableCell title={item.price?.toString()}>
+                        {price}
+                      </TableCell>
                       <TableCell>{item.q}</TableCell>
                       <TableCell>{item.name}</TableCell>
                       <TableCell>
-                        {item.level ? "+" + item.level : ""} {gItem?.name}
+                        <ItemInstance
+                          itemInfo={{
+                            name: item.name,
+                            level: item.level,
+                          }}
+                        />
+                        <span style={{ marginLeft: "15px" }}>
+                          {gItem?.name}
+                        </span>
                       </TableCell>
                     </TableRow>
                   );
@@ -202,6 +219,29 @@ function Overview({ merchants }: { merchants: Merchant[] }) {
   // TODO: calculate lowest, highest and average price.
   // TODO: do this for buying vs selling
   return <>hello world</>;
+}
+
+function groupItemsByNameAndLevel(merchants: Merchant[]) {
+  const result: {
+    [T in ItemName]?: [
+      {
+        buying: {
+          minPrice: number;
+          maxPrice: number;
+          avgPrice: number;
+          merchants: { [merchantName: string]: ItemInfo[] };
+        };
+        selling: {
+          minPrice: number;
+          maxPrice: number;
+          avgPrice: number;
+          merchants: { [merchantName: string]: ItemInfo[] };
+        };
+      }
+    ]; // index is equal to level
+  } = {};
+
+  return result;
 }
 
 type Merchant = {

@@ -42,7 +42,7 @@ export function ItemInstance({ itemInfo }: { itemInfo: ItemInfo }) {
   let levelString = getLevelString(gItem, itemInfo.level);
 
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative", display: "inline-block", verticalAlign: 'inherit' }}>
       <ItemImage itemName={itemName}></ItemImage>
       {(gItem.upgrade || gItem.compound) && itemInfo.level ? (
         <Box sx={levelStyle}>
