@@ -1,9 +1,12 @@
 import {
+  Input,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
+  TextField,
+  Typography,
 } from "@mui/material";
 import {
   ItemInfo,
@@ -20,6 +23,8 @@ export function Market() {
   const G = useContext(GDataContext);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
 
+  const [filteredMerchants, setFilteredMerchants] = useState<Merchant[]>([]);
+
   console.log("market redraw");
   useEffect(() => {
     // TODO: should probably cache this somehow, perhaps track diffs in localstorage?
@@ -30,6 +35,7 @@ export function Market() {
     if (sessionStorageMerchants) {
       console.log("fetching data from session");
       setMerchants(JSON.parse(sessionStorageMerchants));
+      setFilteredMerchants([...merchants].reverse());
       return;
     }
 
@@ -55,25 +61,59 @@ export function Market() {
 
   // TODO: group by filter?
   // TODO: tooltip on hove with assorted calculations?
-  const merchantsByLastSeen = [...merchants].reverse();
+
+  const filterDataBySearch = (search: string) => {
+    console.log("search triggered filterDataBySearch", search);
+    if (!search) {
+      setFilteredMerchants([...merchants].reverse());
+      return;
+    }
+
+    const result: Merchant[] = [];
+    const merchantsByLastSeen = [...merchants].reverse();
+    for (const merchant of merchantsByLastSeen) {
+      const clonedMerchant = { ...merchant };
+      clonedMerchant.slots = {};
+      let hasItem = false;
+
+      let tradeSlot: TradeSlotType;
+      for (tradeSlot in merchant.slots) {
+        const item = merchant.slots[tradeSlot];
+        if (item) {
+          const gItem = G?.items[item.name];
+          if (item.name.indexOf(search) > -1) {
+            hasItem = true;
+            clonedMerchant.slots[tradeSlot] = item;
+          }
+        }
+      }
+
+      if (hasItem) {
+        result.push(clonedMerchant);
+      }
+    }
+
+    setFilteredMerchants(result);
+  };
+
   return (
     <>
-      {merchantsByLastSeen.map((merchant) => {
+      <Search doSearch={filterDataBySearch} />
+      {filteredMerchants.map((merchant) => {
         const ms = new Date().getTime() - new Date(merchant.lastSeen).getTime();
         const timeago = msToTime(ms);
         return (
-          <div key={merchant.id}>
-            <span>
-              {merchant.id} {timeago} Ago
-            </span>
+          <div key={merchant.id} style={{ textAlign: "left", padding: "5px" }}>
+            <Typography variant="h4">{merchant.id}</Typography>
+            <Typography variant="subtitle1">{timeago} Ago</Typography>
             <Table size="small">
               <TableHead>
                 <TableRow>
                   <TableCell width="100px;"></TableCell>
+                  <TableCell width="100px;">Price</TableCell>
                   <TableCell width="50px;">Quantity</TableCell>
                   <TableCell width="50px;">Item</TableCell>
                   <TableCell>Item Name</TableCell>
-                  <TableCell>Price</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -89,12 +129,12 @@ export function Market() {
                       }}
                     >
                       <TableCell>{item.b ? "Buying" : "Selling"}</TableCell>
+                      <TableCell>{price}</TableCell>
                       <TableCell>{item.q}</TableCell>
                       <TableCell>{item.name}</TableCell>
                       <TableCell>
                         {item.level ? "+" + item.level : ""} {gItem?.name}
                       </TableCell>
-                      <TableCell>{price}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -107,6 +147,32 @@ export function Market() {
   );
 }
 
+function Search({ doSearch }: { doSearch: (search: string) => void }) {
+  const [search, setSearch] = useState("");
+
+  const onSearch = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const value = e.target.value;
+    console.log(value);
+    setSearch(value);
+  };
+
+  useEffect(() => {
+    const timeOutId = setTimeout(() => doSearch(search), 500);
+    return () => clearTimeout(timeOutId);
+  }, [search]);
+
+  return (
+    <Input
+      id="search"
+      placeholder="Search"
+      onChange={onSearch}
+      autoComplete="off"
+    />
+  );
+}
+
 type Merchant = {
   /** name of the merchant */
   id: string;
@@ -114,7 +180,7 @@ type Merchant = {
   map: MapName;
   serverIdentifier: ServerIdentifier;
   serverRegion: ServerRegion;
-  slots: { [T in TradeSlotType]: ItemInfo };
+  slots: { [T in TradeSlotType]?: ItemInfo };
   x: number;
   y: number;
 };
@@ -144,7 +210,7 @@ function abbreviateNumber(number?: number) {
   var tier = (Math.log10(Math.abs(number)) / 3) | 0;
 
   // if zero, we don't need a suffix
-  if (tier == 0) return number;
+  if (tier === 0) return number;
 
   // get suffix and determine scale
   var suffix = SI_SYMBOL[tier];
