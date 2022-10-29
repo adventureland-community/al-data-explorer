@@ -73,16 +73,10 @@ export function Market() {
       });
   }, []);
 
-  // TODO: restructure the data to be per item, per level, with buyers and sellers
-  // TODO: render each item as an accordion, with min,max and average price for buying and selling
   // TODO: store stats for items every time you refresh and new data is present for a merchant
 
-  // TODO: a search, filtering everything by search
-  // TODO: should we group items by merchant, or should we group it differently?
-  // TODO: let's just recreate the marketplace as an initial attempt
-
   // TODO: group by filter?
-  // TODO: tooltip on hove with assorted calculations?
+  // TODO: tooltip on hover with assorted calculations?
 
   const filterDataBySearch = (search: string) => {
     console.log("search triggered filterDataBySearch", search);
@@ -103,30 +97,6 @@ export function Market() {
         }
       }
     }
-
-    // const result: Merchant[] = [];
-    // const merchantsByLastSeen = [...merchants].reverse();
-    // for (const merchant of merchantsByLastSeen) {
-    //   const clonedMerchant = { ...merchant };
-    //   clonedMerchant.slots = {};
-    //   let hasItem = false;
-
-    //   let tradeSlot: TradeSlotType;
-    //   for (tradeSlot in merchant.slots) {
-    //     const item = merchant.slots[tradeSlot];
-    //     if (item) {
-    //       const gItem = G?.items[item.name];
-    //       if (item.name.indexOf(search) > -1) {
-    //         hasItem = true;
-    //         clonedMerchant.slots[tradeSlot] = item;
-    //       }
-    //     }
-    //   }
-
-    //   if (hasItem) {
-    //     result.push(clonedMerchant);
-    //   }
-    // }
 
     setFilteredItems(result);
   };
@@ -165,10 +135,10 @@ export function Market() {
         <TableHead>
           <TableRow>
             <TableCell component="th" align="center" colSpan={2}></TableCell>
-            <TableCell component="th" align="center" colSpan={4}>
+            <TableCell component="th" align="center" colSpan={5}>
               Buying
             </TableCell>
-            <TableCell component="th" align="center" colSpan={4}>
+            <TableCell component="th" align="center" colSpan={5}>
               Selling
             </TableCell>
           </TableRow>
@@ -207,50 +177,6 @@ export function Market() {
           <div key={merchant.id} style={{ textAlign: "left", padding: "5px" }}>
             <Typography variant="h4">{merchant.id}</Typography>
             <Typography variant="subtitle1">{timeago} Ago</Typography>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell width="100px;"></TableCell>
-                  <TableCell width="100px;">Price</TableCell>
-                  <TableCell width="50px;">Quantity</TableCell>
-                  <TableCell width="50px;">Item</TableCell>
-                  <TableCell>Item Name</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {Object.entries(merchant.slots).map(([slot, item]) => {
-                  const gItem = G?.items[item.name];
-                  const price = abbreviateNumber(item.price);
-                  return (
-                    <TableRow
-                      key={merchant.id + slot}
-                      hover
-                      sx={{
-                        "&:last-child td, &:last-child th": { border: 0 },
-                      }}
-                    >
-                      <TableCell>{item.b ? "Buying" : "Selling"}</TableCell>
-                      <TableCell title={item.price?.toString()}>
-                        {price}
-                      </TableCell>
-                      <TableCell>{item.q}</TableCell>
-                      <TableCell>{item.name}</TableCell>
-                      <TableCell>
-                        <ItemInstance
-                          itemInfo={{
-                            name: item.name,
-                            level: item.level,
-                          }}
-                        />
-                        <span style={{ marginLeft: "15px" }}>
-                          {gItem?.name}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
           </div>
         );
       })} */}
@@ -304,7 +230,7 @@ function TradeItemRow({
   };
 
   const buyerCount = Object.keys(prices.buying.merchants).length;
-  const sellerCount = Object.keys(prices.buying.merchants).length;
+  const sellerCount = Object.keys(prices.selling.merchants).length;
   return (
     <TableRow
       hover
@@ -323,13 +249,13 @@ function TradeItemRow({
         <span style={{ marginLeft: "15px" }}>{gItem?.name}</span>
       </TableCell>
       {/* buy averages, total items */}
-      <TableCell component="td">{buyerCount}</TableCell>
+      <TableCell component="td">{buyerCount ? buyerCount : ""}</TableCell>
       {RenderShortNumber(prices.buying.amount)}
       {RenderShortPriceWithMerchantName(prices.buying.minPrice)}
       {RenderShortPriceWithMerchantName(prices.buying.maxPrice)}
       {RenderShortNumber(prices.buying.avgPrice)}
       {/* sell averages, total items. */}
-      <TableCell>{sellerCount}</TableCell>
+      <TableCell>{sellerCount ? sellerCount : ""}</TableCell>
       {RenderShortNumber(prices.selling.amount)}
       {RenderShortPriceWithMerchantName(prices.selling.minPrice)}
       {RenderShortPriceWithMerchantName(prices.selling.maxPrice)}
@@ -444,7 +370,7 @@ function groupItemsByNameAndLevel(merchants: Merchant[]) {
 
           if (item.price) {
             if (
-              itemsByBuyingOrSelling.minPrice.price == 0 ||
+              itemsByBuyingOrSelling.minPrice.price === 0 ||
               itemsByBuyingOrSelling.minPrice.price > item.price
             ) {
               itemsByBuyingOrSelling.minPrice.merchant = id;
@@ -452,7 +378,7 @@ function groupItemsByNameAndLevel(merchants: Merchant[]) {
             }
 
             if (
-              itemsByBuyingOrSelling.maxPrice.price == 0 ||
+              itemsByBuyingOrSelling.maxPrice.price === 0 ||
               itemsByBuyingOrSelling.maxPrice.price < item.price
             ) {
               itemsByBuyingOrSelling.maxPrice.merchant = id;
