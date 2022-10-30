@@ -43,23 +43,14 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
-  CharacterEntity,
-  CharacterType,
   Entity,
-  GItem,
   ItemInfo,
-  ItemName,
-  ItemType,
-  SlotType,
   StatType,
 } from "adventureland";
 import axios from "axios";
 import React, { useContext, useEffect, useState } from "react";
 import {
-  CharacterTypeData,
-  GData,
   GDataContext,
-  GItems,
   MainStatType,
 } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
@@ -73,6 +64,8 @@ import { SelectedCharacterClass } from "./types";
 import { ItemInstance } from "./ItemInstance";
 import LZString from "lz-string";
 import { ShareLinkButton } from "./ShareLinkButton";
+import { SlotType } from "adventureland/dist/src/entities/slots";
+import { ItemKey } from "adventureland/dist/src/types/GTypes/items";
 
 // TODO: Defense table against specific mobs
 
@@ -322,19 +315,19 @@ export function GearSlot({
   // TODO: valid type for mainhand depends on class and other things
 
   const itemInfo = gear[slot];
-  let itemName: ItemName = `shade_${slot
+  let itemName: ItemKey = `shade_${slot
     .replace("1", "")
-    .replace("2", "")}` as ItemName;
+    .replace("2", "")}` as ItemKey;
 
   switch (slot) {
     case "orb":
-      itemName = "shade20_orb" as ItemName;
+      itemName = "shade20_orb" as ItemKey;
       break;
     case "elixir":
-      itemName = "shade20_elixir" as ItemName;
+      itemName = "shade20_elixir" as ItemKey;
       break;
     case "cape":
-      itemName = "shade20_cape" as ItemName;
+      itemName = "shade20_cape" as ItemKey;
       break;
   }
 

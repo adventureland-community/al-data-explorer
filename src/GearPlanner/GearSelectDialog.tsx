@@ -17,7 +17,8 @@ import {
   Slider,
   Typography,
 } from "@mui/material";
-import { SlotType, ItemType, ItemName, GItem } from "adventureland";
+import { SlotType } from "adventureland/dist/src/entities/slots";
+import { GItem, ItemKey, ItemType } from "adventureland/dist/src/types/GTypes/items";
 import { useState } from "react";
 import { GItems } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
@@ -25,7 +26,7 @@ import { ItemTooltip } from "../ItemTooltip";
 import { getMaxLevel } from "../Utils";
 import { ItemInstance } from "./ItemInstance";
 import { SelectedCharacterClass } from "./types";
-export type RowItem = { itemName: ItemName; level?: number } & GItem;
+export type RowItem = { itemName: ItemKey; level?: number } & GItem;
 
 export function GearSelectDialog({
   slot,

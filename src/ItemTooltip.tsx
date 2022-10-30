@@ -1,5 +1,5 @@
 import { Tooltip, TooltipProps } from "@mui/material";
-import { ItemName } from "adventureland";
+import { ItemKey } from "adventureland/dist/src/types/GTypes/items";
 import { useContext } from "react";
 import { GDataContext } from "./GDataContext";
 import { calculateItemStatsByLevel } from "./Utils";
@@ -9,7 +9,7 @@ export function ItemTooltip({
   level,
   children,
 }: {
-  itemName: ItemName;
+  itemName: ItemKey;
   level?: number;
   children: React.ReactElement<any, any>;
 }) {

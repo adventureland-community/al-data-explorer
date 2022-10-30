@@ -15,20 +15,16 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import {
-  ItemInfo,
-  ItemName,
-  MapName,
-  ServerIdentifier,
-  ServerRegion,
-  TradeSlotType,
-} from "adventureland";
+import { ItemInfo, TradeItemInfo } from "adventureland";
 import axios from "axios";
 import { useContext, useEffect, useState } from "react";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../GearPlanner/ItemInstance";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import { ItemKey } from "adventureland/dist/src/types/GTypes/items";
+import { TradeSlotType } from "adventureland/dist/src/entities/slots";
+import { MapKey } from "adventureland/dist/src/types/GTypes/maps";
 
 export function Market() {
   const G = useContext(GDataContext);
@@ -98,7 +94,7 @@ export function Market() {
 
     const result: ItemsByNameAndLevel = {};
 
-    let itemName: ItemName;
+    let itemName: ItemKey;
     for (itemName in items) {
       const item = items[itemName];
       if (item) {
@@ -126,11 +122,11 @@ export function Market() {
 
   let rows: Array<{
     level: number;
-    itemName: ItemName;
+    itemName: ItemKey;
     prices: BuySellItemPrices;
   }> = [];
   Object.entries(filteredItems).forEach(([key, levels]) => {
-    const itemName = key as ItemName;
+    const itemName = key as ItemKey;
     for (const level in levels) {
       const prices = levels[level];
       rows.push({ level: Number(level), itemName, prices });
@@ -207,7 +203,7 @@ function TradeItemRow({
   prices,
 }: {
   level: number;
-  itemName: ItemName;
+  itemName: ItemKey;
   prices: BuySellItemPrices;
 }) {
   const G = useContext(GDataContext);
@@ -427,7 +423,7 @@ type ItemPrices = {
   merchants: {
     [merchantName: string]: {
       merchant: { id: string; lastSeen: string };
-      items: ItemInfo[];
+      items: TradeItemInfo[];
     };
   };
 };
@@ -438,7 +434,7 @@ type BuySellItemPrices = {
 };
 
 type ItemsByNameAndLevel = {
-  [T in ItemName]?: BuySellItemPrices[]; // index is equal to level
+  [T in ItemKey]?: BuySellItemPrices[]; // index is equal to level
 };
 
 function groupItemsByNameAndLevel(merchants: Merchant[]) {
@@ -525,10 +521,10 @@ type Merchant = {
   /** name of the merchant */
   id: string;
   lastSeen: string;
-  map: MapName;
-  serverIdentifier: ServerIdentifier;
-  serverRegion: ServerRegion;
-  slots: { [T in TradeSlotType]?: ItemInfo };
+  map: MapKey;
+  serverIdentifier: string; //ServerIdentifier;
+  serverRegion: string; //ServerRegion;
+  slots: { [T in TradeSlotType]?: TradeItemInfo };
   x: number;
   y: number;
 };

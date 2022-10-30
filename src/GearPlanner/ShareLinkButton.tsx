@@ -5,7 +5,8 @@ import {
   DialogTitle,
   Input,
 } from "@mui/material";
-import { SlotType, ItemInfo } from "adventureland";
+import { ItemInfo } from "adventureland";
+import { SlotType } from "adventureland/dist/src/entities/slots";
 import LZString from "lz-string";
 import { useState } from "react";
 import { SelectedCharacterClass } from "./types";

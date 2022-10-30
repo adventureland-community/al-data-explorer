@@ -5,7 +5,7 @@ import axios from "axios";
 import { StatType } from "adventureland";
 import Divider from "@mui/material/Divider";
 import { GearPlanner } from "./GearPlanner/GearPlanner";
-import { GData, GDataContext } from "./GDataContext";
+import { CustomGData, GDataContext } from "./GDataContext";
 import {
   createTheme,
   CssBaseline,
@@ -23,7 +23,7 @@ import {
 } from "react-router-dom";
 
 function App() {
-  const [G, setG] = useState<GData>();
+  const [G, setG] = useState<CustomGData>();
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const theme = React.useMemo(
     () =>

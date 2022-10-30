@@ -1,5 +1,6 @@
-import { CharacterEntity, GItem, StatType } from "adventureland";
-import { GData } from "./GDataContext";
+import { CharacterEntity, StatType } from "adventureland";
+import { GData } from "adventureland/dist/src/types/GTypes";
+import { GItem } from "adventureland/dist/src/types/GTypes/items";
 
 export function getMaxLevel(gItem: { upgrade?: any; compound?: any }) {
   if (gItem.upgrade) {
@@ -66,7 +67,8 @@ export function calculateItemStatsByLevel(
   // TODO: shiny, glitched, titles outside level loop
 
   if (def.upgrade || def.compound) {
-    const u_def = def.upgrade || def.compound;
+    const u_def: { [T in StatType]?: number } =
+      def.upgrade ?? def.compound ?? {};
 
     for (let level = 1; level <= (itemLevel ?? 0); level++) {
       let multiplier = 1;

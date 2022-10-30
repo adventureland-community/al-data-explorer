@@ -1,6 +1,5 @@
-import { CharacterType } from "adventureland";
-import { CharacterTypeData } from "../GDataContext";
+import { ClassKey, GClass } from "adventureland/dist/src/types/GTypes/classes";
 
 export type SelectedCharacterClass = {
-    className: CharacterType;
-  } & CharacterTypeData;
+    className: ClassKey;
+  } & GClass;
