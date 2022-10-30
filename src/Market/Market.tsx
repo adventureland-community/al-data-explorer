@@ -57,7 +57,11 @@ export function Market() {
       return;
     }
 
-    console.log("fetching data");
+    getMerchantData();
+  }, []);
+
+  const getMerchantData = () => {
+    console.log("fetching merchant data ");
     axios
       .get("https://aldata.earthiverse.ca/merchants")
       .then(function (response) {
@@ -78,7 +82,7 @@ export function Market() {
       .then(function () {
         // always executed
       });
-  }, []);
+  };
 
   // TODO: store stats for items every time you refresh and new data is present for a merchant
 
@@ -99,7 +103,8 @@ export function Market() {
       const item = items[itemName];
       if (item) {
         const gItem = G?.items[itemName];
-        const itemNameMatches = itemName.toLowerCase().indexOf(search.toLowerCase()) > -1;
+        const itemNameMatches =
+          itemName.toLowerCase().indexOf(search.toLowerCase()) > -1;
         const gItemNameMatches = gItem
           ? gItem.name.toLowerCase().indexOf(search.toLowerCase()) > -1
           : false;
@@ -114,8 +119,7 @@ export function Market() {
   };
 
   const onRefreshData = () => {
-    sessionStorage.removeItem("merchants");
-    setItems({});
+    getMerchantData();
   };
 
   console.log(filteredItems);
@@ -564,5 +568,11 @@ function abbreviateNumber(number?: number) {
   var scaled = number / scale;
 
   // format number and add suffix
-  return scaled.toFixed(1) + suffix;
+  //   return scaled.toFixed(1) + suffix;
+  return (
+    scaled.toLocaleString(undefined, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }) + suffix
+  );
 }
