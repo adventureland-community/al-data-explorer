@@ -20,6 +20,8 @@
 
 import {
   Box,
+  Card,
+  CardContent,
   Chip,
   Container,
   Dialog,
@@ -42,17 +44,10 @@ import {
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  Entity,
-  ItemInfo,
-  StatType,
-} from "adventureland";
+import { Entity, ItemInfo, StatType } from "adventureland";
 import axios from "axios";
 import React, { useContext, useEffect, useState } from "react";
-import {
-  GDataContext,
-  MainStatType,
-} from "../GDataContext";
+import { GDataContext, MainStatType } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
 import { ItemTooltip } from "../ItemTooltip";
 import {
@@ -68,6 +63,43 @@ import { SlotType } from "adventureland/dist/src/entities/slots";
 import { ItemKey } from "adventureland/dist/src/types/GTypes/items";
 
 // TODO: Defense table against specific mobs
+
+// TODO: validation method to validate equipped gear against selected class.
+function Info() {
+  return (
+    <Card>
+      <CardContent>
+        <Typography component="div" sx={{ textAlign: "left", marginBottom: 5 }}>
+          This gear planner is a work in progress and in early alpha stage.
+          <br />
+          You can currently select items on each equipment slot, you can also
+          export your selection but it has no uses.
+        </Typography>
+        <Typography variant="h5" component="div" sx={{ textAlign: "left" }}>
+          Planned:
+        </Typography>
+        <ul style={{ textAlign: "left" }}>
+          <li>calculate correct stat gains by level</li>
+          <li>search items by name</li>
+          <li>search items by attributes/stats</li>
+          <li>stat scrolls on items with stat</li>
+          <li>save loadout to localstorage</li>
+          <li>export loadout</li>
+          <li>import loadout</li>
+          <li>better item tooltips</li>
+          <li>
+            compare gain / loss with currently equipped item on item tooltip
+            when selecting new
+          </li>
+          <li>set items</li>
+          <li>titles</li>
+          <li>tracktrix</li>
+          <li>compare loadout</li>
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function GearPlanner() {
   const G = useContext(GDataContext);
@@ -298,6 +330,7 @@ export function GearPlanner() {
         onSelectGear={onSelectGear}
         selectedCharacterClass={selectedClass}
       />
+      <Info />
     </Container>
   );
 }
@@ -346,6 +379,7 @@ export function GearSlot({
           justifyContent: "center",
           paddingTop: 0.5,
           paddingLeft: 0.5,
+          cursor: "pointer",
         }}
       >
         {/* tooltip aint working */}
@@ -522,7 +556,10 @@ export function StatsPanel({
             .map((stat) => (
               <TableRow>
                 <TableCell key={`stat_${stat}`}>{stat}</TableCell>
-                <TableCell align={"right"} title={stats[stat]?.toString() ?? ""}>
+                <TableCell
+                  align={"right"}
+                  title={stats[stat]?.toString() ?? ""}
+                >
                   {Math.round(stats[stat] ?? 0)}
                 </TableCell>
               </TableRow>
