@@ -18,7 +18,13 @@ import {
   Typography,
 } from "@mui/material";
 import { SlotType } from "adventureland/dist/src/entities/slots";
-import { GItem, ItemKey, ItemType } from "adventureland/dist/src/types/GTypes/items";
+import {
+  GItem,
+  ItemKey,
+  ItemType,
+  OffhandType,
+  WeaponType,
+} from "adventureland/dist/src/types/GTypes/items";
 import { useState } from "react";
 import { GItems } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
@@ -60,13 +66,26 @@ export function GearSelectDialog({
   let validTypes = slot
     ? [slot.replace("1", "").replace("2", "")]
     : ([] as ItemType[]);
+  // selectedCharacterClass.doublehand contains weapons considered double handed for the class
 
+  let validWeaponTypes: Array<WeaponType | OffhandType> = [];
   switch (slot) {
     case "mainhand":
       validTypes = ["weapon"];
+      validWeaponTypes = selectedCharacterClass
+        ? (Object.keys(selectedCharacterClass.mainhand) as WeaponType[])
+        : [];
       break;
     case "offhand":
-      validTypes = ["misc_offhand", "shield", "source", "quiver"];
+      // validTypes = ["misc_offhand", "shield", "source", "quiver"];
+      // rogues has misc_offhand, dagger,stars,fist this is a mix of item type and weapon type
+      validTypes = selectedCharacterClass
+        ? Object.keys(selectedCharacterClass.offhand)
+        : [];
+      validWeaponTypes = selectedCharacterClass
+        ? (Object.keys(selectedCharacterClass.offhand) as OffhandType[])
+        : [];
+
       // TODO: rogues and perhaps other characters can dual wield crab claws for example
       break;
   }
@@ -77,12 +96,18 @@ export function GearSelectDialog({
   const rows = items
     ? Object.entries(items)
         .filter(([itemName, item]) => {
-          const validType = validTypes.some((x) => x === item.type);
+          const validType =
+            validTypes.some((x) => x === item.type) ||
+            (item.wtype && item.type === "weapon");
+          const validWeaponType = item.wtype
+            ? validWeaponTypes.some((x) => x === item.wtype)
+            : true;
           const validClass = selectedCharacterClass
             ? !item.class ||
               item.class.some((x) => x === selectedCharacterClass.className)
             : true;
-          return validType && validClass;
+
+          return validType && validWeaponType && validClass;
         })
         .map(([itemName, gItem]) => {
           const maxLevel = getMaxLevel(gItem);
@@ -117,11 +142,11 @@ export function GearSelectDialog({
       label: "Class",
       component: (x: string[]) => (x ? x.join(",") : ""),
     },
-    // {
-    //   id: "type",
-    //   numeric: true,
-    //   label: "Type",
-    // },
+    {
+      id: "type",
+      numeric: true,
+      label: "Type",
+    },
     {
       id: "wtype",
       numeric: true,
@@ -220,7 +245,7 @@ export function GearSelectDialog({
                             "&:last-child td, &:last-child th": { border: 0 },
                           }}
                         >
-                          <TableCell component="td" scope="row">
+                          <TableCell component="td" scope="row" width="50px">
                             <ItemInstance
                               itemInfo={{
                                 name: row.itemName,
