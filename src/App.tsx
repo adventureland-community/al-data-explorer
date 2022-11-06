@@ -5,7 +5,7 @@ import axios from "axios";
 import { StatType } from "adventureland";
 import Divider from "@mui/material/Divider";
 import { GearPlanner } from "./GearPlanner/GearPlanner";
-import { CustomGData, GDataContext } from "./GDataContext";
+import { base_gold, CustomGData, GDataContext } from "./GDataContext";
 import {
   createTheme,
   CssBaseline,
@@ -47,7 +47,7 @@ function App() {
       .get("data.json")
       .then(function (response) {
         // handle success
-        setG(response.data);
+        setG({...response.data, base_gold});
       })
       .catch(function (error) {
         // handle error
@@ -239,11 +239,12 @@ function useRouteMatch(patterns: readonly string[]) {
 }
 
 function Menu() {
-  const routeMatch = useRouteMatch(["/", "/market", "/gear"]);
+  const routeMatch = useRouteMatch(["/", "/market", "/gear", "/monsters"]);
   const currentTab = routeMatch?.pattern?.path ?? "/market";
 
   return (
     <Tabs value={currentTab} centered sx={{ marginBottom: "15px" }}>
+      <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
       <Tab label="Market" value="/market" to="/market" component={RouterLink} />
       <Tab
         label="Gear Planner"
