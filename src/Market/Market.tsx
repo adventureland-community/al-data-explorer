@@ -1,6 +1,8 @@
 import {
   Box,
   Button,
+  Card,
+  CardContent,
   Collapse,
   Divider,
   IconButton,
@@ -25,6 +27,24 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import { ItemKey } from "adventureland/dist/src/types/GTypes/items";
 import { TradeSlotType } from "adventureland/dist/src/entities/slots";
 import { MapKey } from "adventureland/dist/src/types/GTypes/maps";
+
+function Info() {
+  return (
+    <Card sx={{ marginBottom: 2 }}>
+      <CardContent>
+        <Typography component="div">
+          This page shows market data from adventureland merchants using the
+          merchant endpoint from{" "}
+          <a href="https://aldata.earthiverse.ca">earthiverse's aldata</a>
+          <br />
+          You can search for items, separating searches by either space or
+          comma. Press REFRESH DATA to refresh the data from the merchant
+          endpoint.
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function Market() {
   const G = useContext(GDataContext);
@@ -102,7 +122,7 @@ export function Market() {
 
     const itemNameMatchesSearch = (search: string) =>
       itemName.toLowerCase().indexOf(search) > -1;
-      
+
     let itemName: ItemKey;
     for (itemName in items) {
       const item = items[itemName];
@@ -145,6 +165,7 @@ export function Market() {
 
   return (
     <>
+      <Info />
       <Button onClick={onRefreshData}>Refresh Data</Button>
       <Typography variant="subtitle2">
         <>{lastRefresh?.toLocaleString()}</>
