@@ -380,6 +380,7 @@ export function GearSlot({
           paddingTop: 0.5,
           paddingLeft: 0.5,
           cursor: "pointer",
+          "&:hover": { border: "1px solid white" }, // TODO: theme support
         }}
       >
         {/* tooltip aint working */}
