@@ -172,6 +172,7 @@ export function GearPlanner() {
 
   const onRemoveGear = (slot: SlotType) => {
     delete gear[slot];
+    setGear({ ...gear });
   };
 
   return (
@@ -308,6 +309,7 @@ export function GearPlanner() {
                   <TableRow hover key={`list${slot}`}>
                     <TableCell width={25}>
                       <DeleteIcon
+                        style={{ cursor: "pointer" }}
                         onClick={() => onRemoveGear(slot as SlotType)}
                       />
                     </TableCell>
