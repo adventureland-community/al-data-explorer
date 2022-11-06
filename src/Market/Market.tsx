@@ -92,15 +92,23 @@ export function Market() {
       return;
     }
 
+    search = search.toLowerCase();
+
+    const itemNames: string[] = [];
+    itemNames.push(...search.split(" "));
+    itemNames.push(...search.split(","));
+
     const result: ItemsByNameAndLevel = {};
 
+    const itemNameMatchesSearch = (search: string) =>
+      itemName.toLowerCase().indexOf(search) > -1;
+      
     let itemName: ItemKey;
     for (itemName in items) {
       const item = items[itemName];
       if (item) {
         const gItem = G?.items[itemName];
-        const itemNameMatches =
-          itemName.toLowerCase().indexOf(search.toLowerCase()) > -1;
+        const itemNameMatches = itemNames.some(itemNameMatchesSearch);
         const gItemNameMatches = gItem
           ? gItem.name.toLowerCase().indexOf(search.toLowerCase()) > -1
           : false;
