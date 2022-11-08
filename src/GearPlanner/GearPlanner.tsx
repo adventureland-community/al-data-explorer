@@ -61,6 +61,8 @@ import LZString from "lz-string";
 import { ShareLinkButton } from "./ShareLinkButton";
 import { SlotType } from "adventureland/dist/src/entities/slots";
 import { ItemKey } from "adventureland/dist/src/types/GTypes/items";
+import { SaveLinkButton } from "./SaveLinkButton";
+import { LoadLinkButton } from "./LoadLinkButton";
 
 // TODO: Defense table against specific mobs
 
@@ -82,6 +84,7 @@ function Info() {
           <li>calculate correct stat gains by level</li>
           <li>search items by name</li>
           <li>search items by attributes/stats</li>
+          <li>handle doublehand items</li>
           <li>stat scrolls on items with stat</li>
           <li>save loadout to localstorage</li>
           <li>export loadout</li>
@@ -203,11 +206,18 @@ export function GearPlanner() {
             max={200} // G.levels last entry.
             onChange={onLevelSliderChange}
           />
-          <ShareLinkButton
+          {/* <ShareLinkButton
             gear={gear}
             characterClass={selectedClass}
             level={level}
-          />
+          /> */}
+          {/* TODO: import button */}
+          <SaveLinkButton
+            gear={gear}
+            characterClass={selectedClass}
+            level={level}
+          /> 
+          {/* <LoadLinkButton load={loadSavedCharacter}/>  */}
         </Grid>
         <Grid item xs={4}>
           <div>
