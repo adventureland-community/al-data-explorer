@@ -216,7 +216,7 @@ export function GearPlanner() {
             gear={gear}
             characterClass={selectedClass}
             level={level}
-          /> 
+          />
           {/* <LoadLinkButton load={loadSavedCharacter}/>  */}
         </Grid>
         <Grid item xs={4}>
@@ -453,6 +453,7 @@ export function StatsPanel({
         selectedCharacterClass
       );
     }
+    console.log("main stats", stats);
   }
 
   for (const [slot, itemInfo] of Object.entries(gear)) {
@@ -591,7 +592,7 @@ const calculateMainStatByLevel = (
   const base = characterClass.stats[stat];
   const scaling = characterClass.lstats[stat];
   // TODO: need to investiage this formula.
-  return base + scaling * level;
+  return base + Math.floor(scaling * level); // flooring seems to give a correct stat for a lvl 12 warrior for vitality.
   // return (
   //   base +
   //   Math.min(level, 40) * scaling +
