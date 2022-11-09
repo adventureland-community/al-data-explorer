@@ -55,7 +55,7 @@ import {
   modifyPlayerStatsByAttributes,
 } from "../Utils";
 import { GearSelectDialog, RowItem } from "./GearSelectDialog";
-import { SelectedCharacterClass } from "./types";
+import { SavedLoadout, SelectedCharacterClass } from "./types";
 import { ItemInstance } from "./ItemInstance";
 import LZString from "lz-string";
 import { ShareLinkButton } from "./ShareLinkButton";
@@ -178,6 +178,13 @@ export function GearPlanner() {
     setGear({ ...gear });
   };
 
+  const onLoadSavedLoadout = (name: string, data: SavedLoadout) => {
+    console.log("loaded", name); // TODO: store this saved loadout in a variable we can use later when saving again
+    setLevel(data.level);
+    setGear(data.gear);
+    setSelectedClass(classes.find(c => c.className === data.classKey))
+  };
+
   return (
     <Container>
       <Grid container rowSpacing={1}>
@@ -217,7 +224,7 @@ export function GearPlanner() {
             characterClass={selectedClass}
             level={level}
           />
-          {/* <LoadLinkButton load={loadSavedCharacter}/>  */}
+          <LoadLinkButton load={onLoadSavedLoadout} />
         </Grid>
         <Grid item xs={4}>
           <div>
@@ -453,7 +460,7 @@ export function StatsPanel({
         selectedCharacterClass
       );
     }
-    console.log("main stats", stats);
+    // console.log("main stats", stats);
   }
 
   for (const [slot, itemInfo] of Object.entries(gear)) {

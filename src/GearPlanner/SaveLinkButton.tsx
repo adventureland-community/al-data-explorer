@@ -7,18 +7,11 @@ import {
 } from "@mui/material";
 import { ItemInfo } from "adventureland";
 import { SlotType } from "adventureland/dist/src/entities/slots";
-import { ClassKey } from "adventureland/dist/src/types/GTypes/classes";
-import LZString from "lz-string";
+// import LZString from "lz-string";
 import { useRef, useState } from "react";
-import { SelectedCharacterClass } from "./types";
+import { SavedLoadouts, SelectedCharacterClass } from "./types";
 
-type SavedLoadout = {
-  [key: string]: {
-    gear: { [slot in SlotType]?: ItemInfo };
-    classKey: ClassKey | undefined;
-    level: number;
-  };
-};
+
 export function SaveLinkButton({
   gear,
   characterClass,
@@ -33,7 +26,7 @@ export function SaveLinkButton({
   const loadOutRef = useRef<HTMLInputElement>(null);
 
   const onSaveLoadout = () => {
-    let loadouts: SavedLoadout = {};
+    let loadouts: SavedLoadouts = {};
     const loadoutString = localStorage.getItem("loadouts") ?? "";
     if (loadoutString) {
       loadouts = JSON.parse(loadoutString);
