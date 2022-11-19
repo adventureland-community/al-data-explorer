@@ -1,31 +1,23 @@
 import {
-  Badge,
   Button,
   Card,
-  Chip,
+  CardContent,
   Dialog,
   DialogContent,
   DialogTitle,
-  Grid,
   Input,
-  List,
-  ListItem,
-  ListItemButton,
   Stack,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
+  Typography,
 } from "@mui/material";
-import { ItemInfo } from "adventureland";
-import { SlotType } from "adventureland/dist/src/entities/slots";
-import { ClassKey } from "adventureland/dist/src/types/GTypes/classes";
 import axios from "axios";
-import LZString from "lz-string";
 import { useRef, useState } from "react";
 import { CLASS_COLOR } from "../constants";
-import { SavedLoadout, SavedLoadouts, SelectedCharacterClass } from "./types";
+import { SavedLoadout, SavedLoadouts } from "./types";
 
 export function ImportLinkButton({
   load,
@@ -36,13 +28,6 @@ export function ImportLinkButton({
   const [loadouts, setLoadouts] = useState<SavedLoadouts>({});
 
   const characterNameRef = useRef<HTMLInputElement>(null);
-
-  // let loadouts: SavedLoadouts = {};
-  // const loadoutString = localStorage.getItem("loadouts") ?? "";
-  // if (loadoutString) {
-  //   loadouts = JSON.parse(loadoutString);
-  //   // TODO: what if a loadout with that name already exists? warn before override?
-  // }
 
   const onSelectLoadout = (name: string, data: SavedLoadout) => {
     load(name, data);
@@ -64,7 +49,7 @@ export function ImportLinkButton({
       );
       const html = response.data;
       const match = html.match(singleCharacterRegex);
-      console.log("match", match);
+      // console.log("match", match);
       const name = match.groups.name;
       const gear = JSON.parse(match.groups.slots);
       const classKey = match.groups.class.trim().toLowerCase();
@@ -103,7 +88,7 @@ export function ImportLinkButton({
           const gear = JSON.parse(match.groups.slots);
           const classKey = match.groups.class.trim().toLowerCase();
           const level = Number(match.groups.level.trim());
-          console.log(match, classKey, level, gear);
+          // console.log(match, classKey, level, gear);
           alLoadouts[name] = {
             gear,
             classKey,
@@ -122,6 +107,13 @@ export function ImportLinkButton({
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
         <DialogTitle id="scroll-dialog-title"> Import</DialogTitle>
         <DialogContent>
+          <Card sx={{ marginBottom: 5 }}>
+            <CardContent>
+              <Typography component="div">
+                Here you can extract characters directly from adventure.land
+              </Typography>
+            </CardContent>
+          </Card>
           <Input
             inputRef={characterNameRef}
             placeholder="character name"
@@ -159,7 +151,8 @@ export function ImportLinkButton({
 
                 // console.log(key, data, classColor, CLASS_COLOR);
                 return (
-                  <TableRow hover
+                  <TableRow
+                    hover
                     key={key}
                     onClick={() => onSelectLoadout(key, data)}
                     sx={{
