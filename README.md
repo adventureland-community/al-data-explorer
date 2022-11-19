@@ -7,6 +7,11 @@ It currently contains
 - A market data renderer (what merchant is selling what?)
 - A list of monsters
 
+# Contributing
+We welcome any enhancements and additions to the different tools as well as new tools. Simply make a PR with a solid description and we will look it over and accept the changes.
+
+Later we might look into a voting system that can automate accepting PRs so this project becomes entirely community driven.
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
