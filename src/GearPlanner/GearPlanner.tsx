@@ -64,6 +64,7 @@ import { ItemKey } from "adventureland/dist/src/types/GTypes/items";
 import { SaveLinkButton } from "./SaveLinkButton";
 import { LoadLinkButton } from "./LoadLinkButton";
 import { ImportLinkButton } from "./ImportLinkButton";
+import { CLASS_COLOR } from "../constants";
 
 // TODO: Defense table against specific mobs
 
@@ -183,24 +184,36 @@ export function GearPlanner() {
     console.log("loaded", name); // TODO: store this saved loadout in a variable we can use later when saving again
     setLevel(data.level);
     setGear(data.gear);
-    setSelectedClass(classes.find(c => c.className === data.classKey))
+    setSelectedClass(classes.find((c) => c.className === data.classKey));
   };
 
   return (
     <Container>
       <Grid container rowSpacing={1}>
         <Grid item xs={12}>
-          {classes.map((c) => (
-            <Chip
-              label={c.className}
-              variant={
-                selectedClass && selectedClass.className === c.className
-                  ? "filled"
-                  : "outlined"
-              }
-              onClick={() => setSelectedClass(c)}
-            />
-          ))}
+          {classes.map((c) => {
+            const classColor = CLASS_COLOR[c.className]
+              .toString()
+              .replace("0x", "#");
+
+            const sx =
+              (selectedClass && selectedClass.className === c.className)
+                ? { backgroundColor: classColor }
+                : { borderColor: classColor, color: classColor };
+
+            return (
+              <Chip
+                label={c.className}
+                variant={
+                  selectedClass && selectedClass.className === c.className
+                    ? "filled"
+                    : "outlined"
+                }
+                sx={sx}
+                onClick={() => setSelectedClass(c)}
+              />
+            );
+          })}
           <Slider
             aria-label="Level"
             // defaultValue={level}
@@ -603,7 +616,7 @@ const calculateMainStatByLevel = (
   // TODO: need to investiage this formula.
   return base + Math.floor(scaling * level); // flooring seems to give a correct stat for a lvl 12 warrior for vitality.
 
-  // 
+  //
 
   // return (
   //   base +
@@ -624,7 +637,6 @@ const calculateMainStatByLevel = (
 //   const scaling = G.classes[ctype].lstats[stat]
 //   return base + Math.min(lvl,40)*scaling + (Math.max(40,lvl)-40)*3*scaling
 // }
-
 
 /**
  * merchant
