@@ -12,7 +12,7 @@ We welcome any enhancements and additions to the different tools as well as new 
 
 Later we might look into a voting system that can automate accepting PRs so this project becomes entirely community driven.
 
-# Getting Started with Create React App
+# Getting Started
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
@@ -26,6 +26,8 @@ This project was bootstrapped with [Create React App](https://github.com/faceboo
 ## data.js
 Most of the tools opreate on the data from `https://adventure.land/data.js` and as such you will need to run the following command to download and convert it to json
  - `npx ts-node update-data.ts`
+
+ Then you just run `npm start` to host it locally.
 
 ## Available Scripts
 
