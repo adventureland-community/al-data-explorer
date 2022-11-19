@@ -39,8 +39,26 @@ export function StatsPanel({
   // so it is probably 1*lstat to 40 and 3*lstat after
   const mainStatTypes: MainStatType[] = ["dex", "int", "vit", "str", "for"];
   // heal?
-  const defenseStatTypes: StatType[] = ["resistance", "armor"];
-  const offenseStatTypes: StatType[] = ["frequency", "attack"]; // is range offensive?
+  const defenseStatTypes: StatType[] = [
+    "resistance",
+    "armor",
+    "mcourage",
+    "pcourage",
+    "courage",
+    "reflection",
+    "lifesteal",
+    "manasteal",
+  ] as StatType[];
+
+  const offenseStatTypes: StatType[] = [
+    "frequency",
+    "attack",
+    "apiercing",
+    "rpiercing",
+    "crit",
+    "critdamage",
+  ] as StatType[]; // is range offensive?
+
   const otherStatTypes: StatType[] = [
     "speed",
     "range",
@@ -85,6 +103,7 @@ export function StatsPanel({
         stat !== "hp" &&
         stat !== "mp" &&
         stat !== "g" &&
+        stat !== "tier" &&
         typeof value === "number"
       );
     })
