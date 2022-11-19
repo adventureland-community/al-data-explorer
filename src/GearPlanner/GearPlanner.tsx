@@ -63,6 +63,7 @@ import { SlotType } from "adventureland/dist/src/entities/slots";
 import { ItemKey } from "adventureland/dist/src/types/GTypes/items";
 import { SaveLinkButton } from "./SaveLinkButton";
 import { LoadLinkButton } from "./LoadLinkButton";
+import { ImportLinkButton } from "./ImportLinkButton";
 
 // TODO: Defense table against specific mobs
 
@@ -225,6 +226,7 @@ export function GearPlanner() {
             level={level}
           />
           <LoadLinkButton load={onLoadSavedLoadout} />
+          <ImportLinkButton load={onLoadSavedLoadout} />
         </Grid>
         <Grid item xs={4}>
           <div>
@@ -600,6 +602,9 @@ const calculateMainStatByLevel = (
   const scaling = characterClass.lstats[stat];
   // TODO: need to investiage this formula.
   return base + Math.floor(scaling * level); // flooring seems to give a correct stat for a lvl 12 warrior for vitality.
+
+  // 
+
   // return (
   //   base +
   //   Math.min(level, 40) * scaling +
@@ -619,3 +624,21 @@ const calculateMainStatByLevel = (
 //   const scaling = G.classes[ctype].lstats[stat]
 //   return base + Math.min(lvl,40)*scaling + (Math.max(40,lvl)-40)*3*scaling
 // }
+
+
+/**
+ * merchant
+base 
+  dex: 4
+  int: 12
+  vit: 1
+  str: 1
+  for: 0
+
+lstats
+  dex: 0.4
+  int: 1
+  vit: 0.25
+  str: 0.1
+  for: 0
+ */

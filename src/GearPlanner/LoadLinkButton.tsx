@@ -36,7 +36,7 @@ export function LoadLinkButton({
     <>
       <Button onClick={() => setOpen(true)}>Load</Button>
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
-        <DialogTitle id="scroll-dialog-title"> Share</DialogTitle>
+        <DialogTitle id="scroll-dialog-title"> Load</DialogTitle>
         <DialogContent>
           <List>
             {Object.entries(loadouts).map(([key, data]) => (
