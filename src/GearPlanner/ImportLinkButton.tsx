@@ -17,6 +17,7 @@ import {
 import axios from "axios";
 import { useRef, useState } from "react";
 import { CLASS_COLOR } from "../constants";
+import { SavedLoadoutTable } from "./SavedLoadoutsTable";
 import { SavedLoadout, SavedLoadouts } from "./types";
 
 export function ImportLinkButton({
@@ -135,41 +136,10 @@ export function ImportLinkButton({
               Extract ALL public character
             </Button>
           </Stack>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Level</TableCell>
-                <TableCell>Class</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {Object.entries(loadouts).map(([key, data]) => {
-                const classColor = data.classKey
-                  ? CLASS_COLOR[data.classKey].toString().replace("0x", "#")
-                  : "primary";
-
-                // console.log(key, data, classColor, CLASS_COLOR);
-                return (
-                  <TableRow
-                    hover
-                    key={key}
-                    onClick={() => onSelectLoadout(key, data)}
-                    sx={{
-                      backgroundColor: classColor,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <TableCell>{key}</TableCell>
-                    <TableCell>{data.level}</TableCell>
-                    <TableCell>{data.classKey}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <SavedLoadoutTable loadouts={loadouts} onSelectLoadout={onSelectLoadout} />
         </DialogContent>
       </Dialog>
     </>
   );
 }
+

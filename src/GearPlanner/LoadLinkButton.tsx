@@ -12,6 +12,7 @@ import { SlotType } from "adventureland/dist/src/entities/slots";
 import { ClassKey } from "adventureland/dist/src/types/GTypes/classes";
 import LZString from "lz-string";
 import { useState } from "react";
+import { SavedLoadoutTable } from "./SavedLoadoutsTable";
 import { SavedLoadout, SavedLoadouts, SelectedCharacterClass } from "./types";
 
 export function LoadLinkButton({
@@ -38,13 +39,10 @@ export function LoadLinkButton({
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
         <DialogTitle id="scroll-dialog-title"> Load</DialogTitle>
         <DialogContent>
-          <List>
-            {Object.entries(loadouts).map(([key, data]) => (
-              <ListItem onClick={() => onSelectLoadout(key, data)}>
-                {key}
-              </ListItem>
-            ))}
-          </List>
+          <SavedLoadoutTable
+            loadouts={loadouts}
+            onSelectLoadout={onSelectLoadout}
+          />
         </DialogContent>
       </Dialog>
     </>
