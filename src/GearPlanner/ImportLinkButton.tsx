@@ -1,11 +1,22 @@
 import {
+  Badge,
   Button,
+  Card,
+  Chip,
   Dialog,
   DialogContent,
   DialogTitle,
+  Grid,
   Input,
   List,
   ListItem,
+  ListItemButton,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
 } from "@mui/material";
 import { ItemInfo } from "adventureland";
 import { SlotType } from "adventureland/dist/src/entities/slots";
@@ -13,6 +24,7 @@ import { ClassKey } from "adventureland/dist/src/types/GTypes/classes";
 import axios from "axios";
 import LZString from "lz-string";
 import { useRef, useState } from "react";
+import { CLASS_COLOR } from "../constants";
 import { SavedLoadout, SavedLoadouts, SelectedCharacterClass } from "./types";
 
 export function ImportLinkButton({
@@ -55,9 +67,9 @@ export function ImportLinkButton({
       console.log("match", match);
       const name = match.groups.name;
       const gear = JSON.parse(match.groups.slots);
-      const classKey = match.groups.class.trim();
-      const level = match.groups.level.trim();
-      console.log(match, classKey, level, gear);
+      const classKey = match.groups.class.trim().toLowerCase();
+      const level = Number(match.groups.level.trim());
+      // console.log(match, classKey, level, gear);
       setLoadouts({
         [name]: {
           gear,
@@ -89,8 +101,8 @@ export function ImportLinkButton({
         if (match) {
           const name = match.groups.name as string;
           const gear = JSON.parse(match.groups.slots);
-          const classKey = match.groups.class.trim();
-          const level = match.groups.level.trim();
+          const classKey = match.groups.class.trim().toLowerCase();
+          const level = Number(match.groups.level.trim());
           console.log(match, classKey, level, gear);
           alLoadouts[name] = {
             gear,
@@ -108,25 +120,61 @@ export function ImportLinkButton({
     <>
       <Button onClick={() => setOpen(true)}>IMPORT</Button>
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
-        <DialogTitle id="scroll-dialog-title"> Share</DialogTitle>
+        <DialogTitle id="scroll-dialog-title"> Import</DialogTitle>
         <DialogContent>
           <Input
             inputRef={characterNameRef}
             placeholder="character name"
+            sx={{ width: "100%", marginBottom: "5px" }}
           ></Input>
-          <Button onClick={() => onExtractSingleCharacter()}>
-            Extract character
-          </Button>
-          <Button onClick={() => onExtractAllPublicCharacter()}>
-            Extract ALL public character
-          </Button>
-          <List>
-            {Object.entries(loadouts).map(([key, data]) => (
-              <ListItem key={key} onClick={() => onSelectLoadout(key, data)}>
-                {key}
-              </ListItem>
-            ))}
-          </List>
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="contained"
+              onClick={() => onExtractSingleCharacter()}
+              title="extract the character with the exact name"
+            >
+              Extract character
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => onExtractAllPublicCharacter()}
+              title="extract all public characters from this name"
+            >
+              Extract ALL public character
+            </Button>
+          </Stack>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Level</TableCell>
+                <TableCell>Class</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {Object.entries(loadouts).map(([key, data]) => {
+                const classColor = data.classKey
+                  ? CLASS_COLOR[data.classKey].toString().replace("0x", "#")
+                  : "primary";
+
+                // console.log(key, data, classColor, CLASS_COLOR);
+                return (
+                  <TableRow hover
+                    key={key}
+                    onClick={() => onSelectLoadout(key, data)}
+                    sx={{
+                      backgroundColor: classColor,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <TableCell>{key}</TableCell>
+                    <TableCell>{data.level}</TableCell>
+                    <TableCell>{data.classKey}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </DialogContent>
       </Dialog>
     </>
