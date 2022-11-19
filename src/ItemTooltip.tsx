@@ -33,9 +33,9 @@ export function ItemTooltip({
           {Object.entries(stats).map(([key, value]) => {
             if (typeof value === "number") {
               return (
-                <>
+                <span key={key}>
                   {key}: {value} <br />
-                </>
+                </span>
               );
             }
           })}
