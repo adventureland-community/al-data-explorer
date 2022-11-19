@@ -34,6 +34,7 @@ import {
   Modal,
   Paper,
   Slider,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -191,29 +192,36 @@ export function GearPlanner() {
     <Container>
       <Grid container rowSpacing={1}>
         <Grid item xs={12}>
-          {classes.map((c) => {
-            const classColor = CLASS_COLOR[c.className]
-              .toString()
-              .replace("0x", "#");
+          <Stack
+            direction="row"
+            spacing={2}
+            alignItems="center"
+            justifyContent="center"
+          >
+            {classes.map((c) => {
+              const classColor = CLASS_COLOR[c.className]
+                .toString()
+                .replace("0x", "#");
 
-            const sx =
-              (selectedClass && selectedClass.className === c.className)
-                ? { backgroundColor: classColor }
-                : { borderColor: classColor, color: classColor };
+              const sx =
+                selectedClass && selectedClass.className === c.className
+                  ? { backgroundColor: classColor }
+                  : { borderColor: classColor, color: classColor };
 
-            return (
-              <Chip
-                label={c.className}
-                variant={
-                  selectedClass && selectedClass.className === c.className
-                    ? "filled"
-                    : "outlined"
-                }
-                sx={sx}
-                onClick={() => setSelectedClass(c)}
-              />
-            );
-          })}
+              return (
+                <Chip
+                  label={c.className}
+                  variant={
+                    selectedClass && selectedClass.className === c.className
+                      ? "filled"
+                      : "outlined"
+                  }
+                  sx={sx}
+                  onClick={() => setSelectedClass(c)}
+                />
+              );
+            })}
+          </Stack>
           <Slider
             aria-label="Level"
             // defaultValue={level}
