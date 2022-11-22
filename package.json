@@ -50,8 +50,8 @@
   },
   "devDependencies": {
     "@types/lz-string": "^1.3.34",
-    "adventureland": "file:typed-adventureland-0.0.2.tgz",
     "prettier": "^2.7.1",
-    "ts-node": "^10.9.1"
+    "ts-node": "^10.9.1",
+    "typed-adventureland": "^0.0.6"
   }
 }
