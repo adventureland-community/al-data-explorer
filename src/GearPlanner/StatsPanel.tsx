@@ -89,6 +89,7 @@ export function StatsPanel({
                 stat !== "hp" &&
                 stat !== "mp" &&
                 stat !== "g" &&
+                stat !== "s" &&
                 stat !== "tier" &&
                 typeof value === "number"
             );
