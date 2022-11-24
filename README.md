@@ -21,7 +21,7 @@ This project was bootstrapped with [Create React App](https://github.com/faceboo
 - download the code
 - run `npm run build | npm run pack`
 - copy the produced .tgz to the root of this project and run the below command to install the types
-`npm install --save-dev adventureland@typed-adventureland-0.0.2.tgz`
+`npm install --save-dev adventureland@typed-adventureland-<version>.tgz`
 
 ## data.js
 Most of the tools opreate on the data from `https://adventure.land/data.js` and as such you will need to run the following command to download and convert it to json
