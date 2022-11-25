@@ -6,7 +6,6 @@ import {
     Collapse,
     Divider,
     IconButton,
-    Input,
     Paper,
     Table,
     TableBody,
@@ -27,6 +26,7 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import { ItemKey } from "typed-adventureland";
 import { TradeSlotType } from "typed-adventureland";
 import { MapKey } from "typed-adventureland";
+import { Search } from "../Shared/Search";
 
 function Info() {
     return (
@@ -395,27 +395,6 @@ function TradeItemRow({
             </TableRow>
         </>
     );
-}
-
-function Search({ doSearch }: { doSearch: (search: string) => void }) {
-    const [search, setSearch] = useState("");
-    const [changed, setChanged] = useState(false);
-
-    const onSearch = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const value = e.target.value;
-        console.log(value);
-        setChanged(true);
-        setSearch(value);
-    };
-
-    useEffect(() => {
-        if (changed) {
-            const timeOutId = setTimeout(() => doSearch(search), 500);
-            return () => clearTimeout(timeOutId);
-        }
-    }, [search]);
-
-    return <Input id="search" placeholder="Search" onChange={onSearch} autoComplete="off" />;
 }
 
 function Overview({ merchants }: { merchants: Merchant[] }) {
