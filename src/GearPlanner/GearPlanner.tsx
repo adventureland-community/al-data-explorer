@@ -278,7 +278,7 @@ export function GearPlanner() {
                                 const itemName = itemInfo.name;
                                 const gItem = G.items[itemName];
                                 return (
-                                    <ItemTooltip itemName={itemName} level={itemInfo.level}>
+                                    <ItemTooltip key={`tooltip${slot}`} itemName={itemName} level={itemInfo.level}>
                                         <TableRow hover key={`list${slot}`}>
                                             <TableCell width={25}>
                                                 <DeleteIcon

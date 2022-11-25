@@ -16,6 +16,7 @@ import { GDataContext, MainStatType } from "../GDataContext";
 import {
   calculateItemStatsByLevel,
   modifyPlayerStatsByAttributes,
+  addItemSetStats,
 } from "../Utils";
 import { SelectedCharacterClass } from "./types";
 
@@ -94,6 +95,8 @@ export function StatsPanel({
       stats[stat] = (stats[stat] ?? 0) + (value ?? 0);
     });
   }
+
+  addItemSetStats(G, stats,gear);
 
   Object.entries(stats)
     .filter(([stat, value]) => {

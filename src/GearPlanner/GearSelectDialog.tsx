@@ -123,7 +123,7 @@ export function GearSelectDialog({
             );
             // TODO: search in lvl up and set items.
             
-            console.log('filtering by search',itemNameMatches, gItemNameMatches, attributeMatchesSearch);
+            // console.log('filtering by search',itemNameMatches, gItemNameMatches, attributeMatchesSearch);
             if(itemNameMatches || gItemNameMatches){
               validSearch = true;
             }

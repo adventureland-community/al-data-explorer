@@ -1,235 +1,283 @@
-import { CharacterEntity, StatType } from "typed-adventureland";
+import {
+  CharacterEntity,
+  ItemInfo,
+  SetKey,
+  SlotType,
+  StatType,
+} from "typed-adventureland";
 import { GData } from "typed-adventureland";
 import { GItem } from "typed-adventureland";
+import { CustomGData } from "./GDataContext";
 
 export function getMaxLevel(gItem: { upgrade?: any; compound?: any }) {
-    if (gItem.upgrade) {
-        return 12;
-    }
+  if (gItem.upgrade) {
+    return 12;
+  }
 
-    if (gItem.compound) {
-        return 7;
-    }
+  if (gItem.compound) {
+    return 7;
+  }
 }
 
 export function getLevelString(gItem: GItem, level?: number) {
-    if (gItem.upgrade) {
-        const maxLevel = getMaxLevel(gItem);
-        level = maxLevel ? Math.min(level ?? 0, maxLevel) : level;
+  if (gItem.upgrade) {
+    const maxLevel = getMaxLevel(gItem);
+    level = maxLevel ? Math.min(level ?? 0, maxLevel) : level;
 
-        switch (level) {
-            case 12:
-                return "+Z";
-            case 11:
-                return "+Y";
-            case 10:
-                return "+X";
-            default:
-                return level;
-        }
+    switch (level) {
+      case 12:
+        return "+Z";
+      case 11:
+        return "+Y";
+      case 10:
+        return "+X";
+      default:
+        return level;
+    }
+  }
+
+  if (gItem.compound) {
+    if (level && level > 7) {
+      level = 7;
     }
 
-    if (gItem.compound) {
-        if (level && level > 7) {
-            level = 7;
-        }
-
-        switch (level) {
-            case 7:
-                return "+R";
-            case 6:
-                return "+S";
-            case 5:
-                return "+V";
-            default:
-                return level;
-        }
+    switch (level) {
+      case 7:
+        return "+R";
+      case 6:
+        return "+S";
+      case 5:
+        return "+V";
+      default:
+        return level;
     }
+  }
 }
 
-export function calculateItemStatsByLevel(def: GItem, itemLevel?: number, statType?: StatType) {
-    // TODO: should be an object resembling ItemInfo, an actual item.
-    const stats: { [T in StatType]?: number } = {};
-    // TODO: base stats from item
-    // compound / upgrade contains the stats gained for each level
-    Object.entries(def).forEach(([key, value]) => {
-        const stat = key as StatType;
-        // just add all numbers as a stat, can probably verify stat types later, or hardcode them.
-        if (typeof value === "number") {
-            stats[stat] = value;
+export function calculateItemStatsByLevel(
+  def: GItem,
+  itemLevel?: number,
+  statType?: StatType
+) {
+  // TODO: should be an object resembling ItemInfo, an actual item.
+  const stats: { [T in StatType]?: number } = {};
+  // TODO: base stats from item
+  // compound / upgrade contains the stats gained for each level
+  Object.entries(def).forEach(([key, value]) => {
+    const stat = key as StatType;
+    // just add all numbers as a stat, can probably verify stat types later, or hardcode them.
+    if (typeof value === "number") {
+      stats[stat] = value;
+    }
+  });
+
+  // TODO: shiny, glitched, titles outside level loop
+
+  if (def.upgrade || def.compound) {
+    const u_def: { [T in StatType]?: number } =
+      def.upgrade ?? def.compound ?? {};
+
+    for (let level = 1; level <= (itemLevel ?? 0); level++) {
+      let multiplier = 1;
+      if (def.upgrade) {
+        if (level === 7) multiplier = 1.25;
+        if (level === 8) multiplier = 1.5;
+        if (level === 9) multiplier = 2;
+        if (level === 10) multiplier = 3;
+        if (level === 11) multiplier = 1.25;
+        if (level === 12) multiplier = 1.25;
+      } else if (def.compound) {
+        if (level === 5) multiplier = 1.25;
+        if (level === 6) multiplier = 1.5;
+        if (level === 7) multiplier = 2;
+        if (level >= 8) multiplier = 3;
+      }
+
+      let p: StatType;
+      for (p in u_def) {
+        const value = u_def ? u_def[p] ?? 0 : 0;
+        if (p === "stat") {
+          stats[p] = (stats[p] ?? 0) + Math.round(value * multiplier);
+          if (level >= 7) stats[p] = (stats[p] ?? 0) + 1;
+        } else {
+          stats[p] = (stats[p] ?? 0) + value * multiplier;
         }
-    });
+      }
+    }
+  }
 
-    // TODO: shiny, glitched, titles outside level loop
+  if (itemLevel === 10 && def.tier && def.tier >= 3) {
+    stats.stat = (stats.stat ?? 0) + 2;
+  }
 
-    if (def.upgrade || def.compound) {
-        const u_def: { [T in StatType]?: number } = def.upgrade ?? def.compound ?? {};
+  // TODO: Legacy
 
-        for (let level = 1; level <= (itemLevel ?? 0); level++) {
-            let multiplier = 1;
-            if (def.upgrade) {
-                if (level === 7) multiplier = 1.25;
-                if (level === 8) multiplier = 1.5;
-                if (level === 9) multiplier = 2;
-                if (level === 10) multiplier = 3;
-                if (level === 11) multiplier = 1.25;
-                if (level === 12) multiplier = 1.25;
-            } else if (def.compound) {
-                if (level === 5) multiplier = 1.25;
-                if (level === 6) multiplier = 1.5;
-                if (level === 7) multiplier = 2;
-                if (level >= 8) multiplier = 3;
-            }
+  // Round stat properties
+  let p: StatType;
+  for (p in stats) {
+    const shouldRoundValue = ![
+      "evasion",
+      "miss",
+      "reflection",
+      "dreturn",
+      "lifesteal",
+      "manasteal",
+      "attr0",
+      "attr1",
+      "crit",
+      "critdamage",
+      "set",
+      "class",
+      "breaks",
+    ].some((x) => x === p);
 
-            let p: StatType;
-            for (p in u_def) {
-                const value = u_def ? u_def[p] ?? 0 : 0;
-                if (p === "stat") {
-                    stats[p] = (stats[p] ?? 0) + Math.round(value * multiplier);
-                    if (level >= 7) stats[p] = (stats[p] ?? 0) + 1;
-                } else {
-                    stats[p] = (stats[p] ?? 0) + value * multiplier;
-                }
-            }
+    if (shouldRoundValue) {
+      const value = stats[p];
+      stats[p] = value ? Math.round(value) : 0;
+    }
+  }
+
+  // Add stats modifier
+  if (def.stat && statType) {
+    const multiplier = stat_type_multiplier[statType] ?? 0;
+    stats[statType] = (stats[statType] ?? 0) + (stats.stat ?? 0) * multiplier;
+  }
+
+  /**
+   * 0 <= 15 loops if compound or upgrade
+   * if(calculate_item_grade(G.items[name],{level:i})==4) break;
+   * seems to break if item grade is 4
+   * html+="<div style='display: inline-block; margin: 5px'>"+render_item("html",{item:G.items[name],actual:{level:i,name:name},guide:true})+"</div>";
+   * notice a level is supplied to the render_item method
+   *
+   * if(item.upgrade && prop.level==12) item_name+=" +Z";
+   * else if(item.upgrade && prop.level==11) item_name+=" +Y";
+   * else if(item.upgrade && prop.level==10) item_name+=" +X";
+   * else if(item.compound && prop.level==7) item_name+=" +R";
+   * else if(item.compound && prop.level==6) item_name+=" +S";
+   * else if(item.compound && prop.level==5) item_name+=" +V";
+   * else item_name+=" +"+prop.level;
+   *
+   * var prop=args.prop||calculate_item_properties(actual||{},{def:item,'class':window.character&&character.ctype,'map':window.character&&character.map}),grade=calculate_item_grade(item,actual||{});
+   * calculate_item_properties resides in common_functions
+   *
+   *
+   *
+   *
+   */
+
+  return stats;
+}
+
+export function addItemSetStats(
+  G: CustomGData,
+  stats: { [T in StatType]?: number },
+  gear: { [slot in SlotType]?: ItemInfo }
+) {
+  const equippedSetCount: { [key in SetKey]?: number } = {};
+  for (const [slot, itemInfo] of Object.entries(gear)) {
+    // console.log(slot, itemInfo);
+    const itemName = itemInfo.name;
+    const gItem = G.items[itemName];
+    if (gItem.set) {
+      equippedSetCount[gItem.set] = (equippedSetCount[gItem.set] ?? 0) + 1;
+    //   console.log(gItem.set, equippedSetCount[gItem.set]);
+    }
+  }
+
+  // iterate sets and their quantity to apply stats
+  for (const [setKey, equippedCount] of Object.entries(equippedSetCount)) {
+    const gSet = G.sets[setKey as SetKey];
+
+    // console.log(setKey, equippedCount);
+    // A character can have a total of 16 items equipped, everyone potentially giving a stat increase
+    for (let index = 1; index <= 16; index++) {
+      if (equippedCount >= index) {
+        const setStats = gSet[index] as any; // typed as any because setStats does not have an index signature.
+        for (const stat in setStats) {
+          const value = setStats[stat];
+        //   console.log(setKey, index, stat, value);
+          stats[stat as StatType] =
+            (stats[stat as StatType] ?? 0) + (value ?? 0);
         }
+      }
     }
-
-    if (itemLevel === 10 && def.tier && def.tier >= 3) {
-        stats.stat = (stats.stat ?? 0) + 2;
-    }
-
-    // TODO: Legacy
-
-    // Round stat properties
-    let p: StatType;
-    for (p in stats) {
-        const shouldRoundValue = ![
-            "evasion",
-            "miss",
-            "reflection",
-            "dreturn",
-            "lifesteal",
-            "manasteal",
-            "attr0",
-            "attr1",
-            "crit",
-            "critdamage",
-            "set",
-            "class",
-            "breaks",
-        ].some((x) => x === p);
-
-        if (shouldRoundValue) {
-            const value = stats[p];
-            stats[p] = value ? Math.round(value) : 0;
-        }
-    }
-
-    // Add stats modifier
-    if (def.stat && statType) {
-        const multiplier = stat_type_multiplier[statType] ?? 0;
-        stats[statType] = (stats[statType] ?? 0) + (stats.stat ?? 0) * multiplier;
-    }
-
-    /**
-     * 0 <= 15 loops if compound or upgrade
-     * if(calculate_item_grade(G.items[name],{level:i})==4) break;
-     * seems to break if item grade is 4
-     * html+="<div style='display: inline-block; margin: 5px'>"+render_item("html",{item:G.items[name],actual:{level:i,name:name},guide:true})+"</div>";
-     * notice a level is supplied to the render_item method
-     *
-     * if(item.upgrade && prop.level==12) item_name+=" +Z";
-     * else if(item.upgrade && prop.level==11) item_name+=" +Y";
-     * else if(item.upgrade && prop.level==10) item_name+=" +X";
-     * else if(item.compound && prop.level==7) item_name+=" +R";
-     * else if(item.compound && prop.level==6) item_name+=" +S";
-     * else if(item.compound && prop.level==5) item_name+=" +V";
-     * else item_name+=" +"+prop.level;
-     *
-     * var prop=args.prop||calculate_item_properties(actual||{},{def:item,'class':window.character&&character.ctype,'map':window.character&&character.map}),grade=calculate_item_grade(item,actual||{});
-     * calculate_item_properties resides in common_functions
-     *
-     *
-     *
-     *
-     */
-
-    return stats;
+  }
 }
 
 const statTypes: string[] /*StatType[] */ = [
-    "gold",
-    "luck",
-    "xp",
-    "int",
-    "str",
-    "dex",
-    "vit",
-    "for",
-    "charisma",
-    "cuteness",
-    "awesomeness",
-    "bling",
-    "hp",
-    "mp",
-    "attack",
-    "range",
-    "armor",
-    "resistance",
-    "pnresistance",
-    "firesistance",
-    "fzresistance",
-    "stun",
-    "blast",
-    "explosion",
-    "breaks",
-    "stat",
-    "speed",
-    "level",
-    "evasion",
-    "miss",
-    "reflection",
-    "lifesteal",
-    "manasteal",
-    "attr0",
-    "attr1",
-    "rpiercing",
-    "apiercing",
-    "crit",
-    "critdamage",
-    "dreturn",
-    "frequency",
-    "mp_cost",
-    "mp_reduction",
-    "output",
-    "courage",
-    "mcourage",
-    "pcourage",
+  "gold",
+  "luck",
+  "xp",
+  "int",
+  "str",
+  "dex",
+  "vit",
+  "for",
+  "charisma",
+  "cuteness",
+  "awesomeness",
+  "bling",
+  "hp",
+  "mp",
+  "attack",
+  "range",
+  "armor",
+  "resistance",
+  "pnresistance",
+  "firesistance",
+  "fzresistance",
+  "stun",
+  "blast",
+  "explosion",
+  "breaks",
+  "stat",
+  "speed",
+  "level",
+  "evasion",
+  "miss",
+  "reflection",
+  "lifesteal",
+  "manasteal",
+  "attr0",
+  "attr1",
+  "rpiercing",
+  "apiercing",
+  "crit",
+  "critdamage",
+  "dreturn",
+  "frequency",
+  "mp_cost",
+  "mp_reduction",
+  "output",
+  "courage",
+  "mcourage",
+  "pcourage",
 ];
 
 const stat_type_multiplier: { [T in StatType]?: number } = {
-    gold: 0.5,
-    luck: 1,
-    xp: 0.5,
-    int: 1,
-    str: 1,
-    dex: 1,
-    vit: 1,
-    for: 1,
-    armor: 2.25,
-    resistance: 2.25,
-    speed: 0.325,
-    evasion: 0.325,
-    reflection: 0.15,
-    lifesteal: 0.15,
-    manasteal: 0.04,
-    rpiercing: 2.25,
-    apiercing: 2.25,
-    crit: 0.125,
-    dreturn: 0.5,
-    frequency: 0.325,
-    mp_cost: -0.6,
-    output: 0.175,
+  gold: 0.5,
+  luck: 1,
+  xp: 0.5,
+  int: 1,
+  str: 1,
+  dex: 1,
+  vit: 1,
+  for: 1,
+  armor: 2.25,
+  resistance: 2.25,
+  speed: 0.325,
+  evasion: 0.325,
+  reflection: 0.15,
+  lifesteal: 0.15,
+  manasteal: 0.04,
+  rpiercing: 2.25,
+  apiercing: 2.25,
+  crit: 0.125,
+  dreturn: 0.5,
+  frequency: 0.325,
+  mp_cost: -0.6,
+  output: 0.175,
 };
 
 // function adopt_extras(def,ex)
@@ -442,162 +490,180 @@ const stat_type_multiplier: { [T in StatType]?: number } = {
  There are caps at certain stat calculations, might want to highlight them in the gear planner
  */
 function wizard_calc_stats(player: CharacterEntity, G: GData) {
-    let player_attack = 0; // no idea what this value is
-    let item_attack = 0; // no idea what this value is
-    if (
-        player.slots.mainhand &&
-        player.slots.offhand &&
-        G.items[player.slots.mainhand.name].wtype == "stars" &&
-        G.items[player.slots.offhand.name].wtype != "stars"
-    ) {
-        item_attack /= 3.0;
-    }
+  let player_attack = 0; // no idea what this value is
+  let item_attack = 0; // no idea what this value is
+  if (
+    player.slots.mainhand &&
+    player.slots.offhand &&
+    G.items[player.slots.mainhand.name].wtype == "stars" &&
+    G.items[player.slots.offhand.name].wtype != "stars"
+  ) {
+    item_attack /= 3.0;
+  }
 
-    if (player.slots.cape && player.slots.cape.name == "stealthcape") {
-        // player.stealth = true;
-    }
+  if (player.slots.cape && player.slots.cape.name == "stealthcape") {
+    // player.stealth = true;
+  }
 
-    item_attack = Math.max(item_attack, 5); // technically there is a max wrapper function, I assume it just wraps math
+  item_attack = Math.max(item_attack, 5); // technically there is a max wrapper function, I assume it just wraps math
 
-    if (player.ctype == "paladin") {
-        // player_attack += item_attack * (player.str / 20.0 + player.int / 40.0);
-        // player.pcourage += Math.round(player.str/30+player.int/30)
-    } else {
-        // player.attack = player.a_attack
-    }
+  if (player.ctype == "paladin") {
+    // player_attack += item_attack * (player.str / 20.0 + player.int / 40.0);
+    // player.pcourage += Math.round(player.str/30+player.int/30)
+  } else {
+    // player.attack = player.a_attack
+  }
 
-    if (player.ctype == "priest") {
-        player.attack *= 1.6;
-        // player.mcourage += Math.round(player.int/30)
-    }
+  if (player.ctype == "priest") {
+    player.attack *= 1.6;
+    // player.mcourage += Math.round(player.int/30)
+  }
 
-    if (player.ctype == "warrior") {
-        // player.courage += Math.round(player.str/30)
-    }
+  if (player.ctype == "warrior") {
+    // player.courage += Math.round(player.str/30)
+  }
 
-    // player.speed =
-    //   Math.min(player.dex, 256) / 32.0 +
-    //   Math.min(player.str, 256) / 64.0 +
-    //   Math.min(player.level, 40) / 10.0 +
-    //   Math.max(0, Math.min(player.level - 40, 20)) / 15.0 +
-    //   Math.max(0, Math.min(86, player.level - 60)) / 16.0;
+  // player.speed =
+  //   Math.min(player.dex, 256) / 32.0 +
+  //   Math.min(player.str, 256) / 64.0 +
+  //   Math.min(player.level, 40) / 10.0 +
+  //   Math.max(0, Math.min(player.level - 40, 20)) / 15.0 +
+  //   Math.max(0, Math.min(86, player.level - 60)) / 16.0;
 
-    // player.aggro_diff = player.bling / 100 - player.cuteness / 100;
+  // player.aggro_diff = player.bling / 100 - player.cuteness / 100;
 
-    // player.max_hp += player.str * 21 + player.vit * (48 + player.leel / 3.0);
-    // player.max_hp = Math.max(1, player.max_hp)
+  // player.max_hp += player.str * 21 + player.vit * (48 + player.leel / 3.0);
+  // player.max_hp = Math.max(1, player.max_hp)
 
-    // player.max_mp += player.int * 15 + player.level * 5;
+  // player.max_mp += player.int * 15 + player.level * 5;
 
-    // player.armor +=
-    //   Math.min(player.str, 160) + Math.max(0, player.str - 160) * 0.25;
+  // player.armor +=
+  //   Math.min(player.str, 160) + Math.max(0, player.str - 160) * 0.25;
 
-    // player.resistance +=
-    //   Math.min(player.int, 180) + Math.max(0, player.int - 180) * 0.25;
+  // player.resistance +=
+  //   Math.min(player.int, 180) + Math.max(0, player.int - 180) * 0.25;
 
-    // player.frequency +=
-    //   Math.min(player.level, 80) / 164.0 +
-    //   Math.min(160, player.dex) / 640.0 +
-    //   Math.max(player.dex - 160) / 925.0 +
-    //   player.int / 1575.0;
+  // player.frequency +=
+  //   Math.min(player.level, 80) / 164.0 +
+  //   Math.min(160, player.dex) / 640.0 +
+  //   Math.max(player.dex - 160) / 925.0 +
+  //   player.int / 1575.0;
 
-    // player.attack_ms = Math.round(1000.0/player.frequency)
+  // player.attack_ms = Math.round(1000.0/player.frequency)
 }
 
 export function modifyPlayerStatsByAttributes(
-    level: number,
-    player: {
-        [T in StatType]?: number;
-    },
+  level: number,
+  player: {
+    [T in StatType]?: number;
+  }
 ) {
-    // TODO: hp shows as 644, but my stat recording was 624, where does the extra 20 come from?
-    player.hp = calculatePlayerMaxHealthPoint({
-        max_hp: player.hp ?? 0,
-        str: player.str ?? 0,
-        vit: player.vit ?? 0,
-        level,
-    });
+  // TODO: hp shows as 644, but my stat recording was 624, where does the extra 20 come from?
+  player.hp = calculatePlayerMaxHealthPoint({
+    max_hp: player.hp ?? 0,
+    str: player.str ?? 0,
+    vit: player.vit ?? 0,
+    level,
+  });
 
-    // TODO: recording shows 55, but calculation is 59, where i the extra 4 from?
-    player.mp = calculatePlayerMaxManaPoint({
-        level,
-        max_mp: player.mp ?? 0,
-        int: player.int ?? 0,
-    });
+  // TODO: recording shows 55, but calculation is 59, where i the extra 4 from?
+  player.mp = calculatePlayerMaxManaPoint({
+    level,
+    max_mp: player.mp ?? 0,
+    int: player.int ?? 0,
+  });
 
-    player.frequency = calculatePlayerFrequency({
-        level,
-        frequency: player.frequency ?? 0,
-        dex: player.dex ?? 0,
-        int: player.int ?? 0,
-    });
+  player.frequency = calculatePlayerFrequency({
+    level,
+    frequency: player.frequency ?? 0,
+    dex: player.dex ?? 0,
+    int: player.int ?? 0,
+  });
 
-    player.armor = calculatePlayerArmor({
-        armor: player.armor ?? 0,
-        str: player.str ?? 0,
-    });
+  player.armor = calculatePlayerArmor({
+    armor: player.armor ?? 0,
+    str: player.str ?? 0,
+  });
 
-    player.resistance = calculatePlayerResistance({
-        resistance: player.resistance ?? 0,
-        int: player.int ?? 0,
-    });
+  player.resistance = calculatePlayerResistance({
+    resistance: player.resistance ?? 0,
+    int: player.int ?? 0,
+  });
 
-    // todo: speed
-    player.speed =
-        (player.speed ?? 0) +
-        calculatePlayerSpeed({
-            dex: player.dex ?? 0,
-            str: player.str ?? 0,
-            level,
-        });
+  // todo: speed
+  player.speed =
+    (player.speed ?? 0) +
+    calculatePlayerSpeed({
+      dex: player.dex ?? 0,
+      str: player.str ?? 0,
+      level,
+    });
 }
 
 export function calculatePlayerFrequency(player: {
-    frequency: number;
-    level: number;
-    dex: number;
-    int: number;
+  frequency: number;
+  level: number;
+  dex: number;
+  int: number;
 }) {
-    return (
-        player.frequency +
-        Math.min(player.level, 80) / 164.0 +
-        Math.min(160, player.dex) / 640.0 +
-        Math.max(player.dex - 160) / 925.0 +
-        player.int / 1575.0
-    );
+  return (
+    player.frequency +
+    Math.min(player.level, 80) / 164.0 +
+    Math.min(160, player.dex) / 640.0 +
+    Math.max(player.dex - 160) / 925.0 +
+    player.int / 1575.0
+  );
 }
 
-export function calculatePlayerResistance(player: { resistance: number; int: number }) {
-    return player.resistance + Math.min(player.int, 180) + Math.max(0, player.int - 180) * 0.25;
+export function calculatePlayerResistance(player: {
+  resistance: number;
+  int: number;
+}) {
+  return (
+    player.resistance +
+    Math.min(player.int, 180) +
+    Math.max(0, player.int - 180) * 0.25
+  );
 }
 export function calculatePlayerArmor(player: { armor: number; str: number }) {
-    return player.armor + Math.min(player.str, 160) + Math.max(0, player.str - 160) * 0.25;
+  return (
+    player.armor +
+    Math.min(player.str, 160) +
+    Math.max(0, player.str - 160) * 0.25
+  );
 }
 export function calculatePlayerMaxHealthPoint(player: {
-    /** the current hp from items giving hp directly, and base class */
-    max_hp: number;
-    str: number;
-    vit: number;
-    level: number;
+  /** the current hp from items giving hp directly, and base class */
+  max_hp: number;
+  str: number;
+  vit: number;
+  level: number;
 }) {
-    return Math.max(1, player.max_hp + player.str * 21 + player.vit * (48 + player.level / 3.0));
+  return Math.max(
+    1,
+    player.max_hp + player.str * 21 + player.vit * (48 + player.level / 3.0)
+  );
 }
 
 export function calculatePlayerMaxManaPoint(player: {
-    /** the current max_mp from items giving hp directly, and base class */
-    max_mp: number;
-    level: number;
-    int: number;
+  /** the current max_mp from items giving hp directly, and base class */
+  max_mp: number;
+  level: number;
+  int: number;
 }) {
-    return player.max_mp + player.int * 15 + player.level * 5;
+  return player.max_mp + player.int * 15 + player.level * 5;
 }
 
-export function calculatePlayerSpeed(player: { dex: number; str: number; level: number }) {
-    return (
-        Math.min(player.dex, 256) / 32.0 +
-        Math.min(player.str, 256) / 64.0 +
-        Math.min(player.level, 40) / 10.0 +
-        Math.max(0, Math.min(player.level - 40, 20)) / 15.0 +
-        Math.max(0, Math.min(86, player.level - 60)) / 16.0
-    );
+export function calculatePlayerSpeed(player: {
+  dex: number;
+  str: number;
+  level: number;
+}) {
+  return (
+    Math.min(player.dex, 256) / 32.0 +
+    Math.min(player.str, 256) / 64.0 +
+    Math.min(player.level, 40) / 10.0 +
+    Math.max(0, Math.min(player.level - 40, 20)) / 15.0 +
+    Math.max(0, Math.min(86, player.level - 60)) / 16.0
+  );
 }
