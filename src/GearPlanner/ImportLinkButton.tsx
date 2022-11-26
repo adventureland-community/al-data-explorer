@@ -14,19 +14,18 @@ import { SavedLoadout, SavedLoadouts } from "./types";
 import useImportCharacter from "./useImportCharacter";
 import useImportPlayer from "./useImportPlayer";
 
-export function ImportLinkButton({
-  load,
-}: {
-  load: (name: string, data: SavedLoadout) => void;
-}) {
+export function ImportLinkButton({ load }: { load: (name: string, data: SavedLoadout) => void }) {
   const [open, setOpen] = useState(false);
   const [loadouts, setLoadouts] = useState<SavedLoadouts>({});
 
   const characterNameRef = useRef<HTMLInputElement>(null);
-  const defaultCharacterName = useMemo(
-      () => localStorage.getItem("import-character-name") ?? "",
-      [open],
-  )
+  const defaultCharacterName = useMemo(() => {
+    if (!open) {
+      return "";
+    }
+
+    return localStorage.getItem("import-character-name") ?? "";
+  }, [open]);
 
   const importCharacter = useImportCharacter();
   const importPlayer = useImportPlayer();
@@ -58,30 +57,32 @@ export function ImportLinkButton({
         <DialogContent>
           <Grid container spacing={2}>
             <Grid item xs={12}>
-              <Alert severity="info">Here you can extract characters directly from adventure.land.</Alert>
+              <Alert severity="info">
+                Here you can extract characters directly from adventure.land.
+              </Alert>
             </Grid>
             <Grid item xs={12}>
               <TextField
-                  label='Character Name'
-                  inputRef={characterNameRef}
-                  placeholder="Wizard"
-                  fullWidth
-                  defaultValue={defaultCharacterName}
+                label="Character Name"
+                inputRef={characterNameRef}
+                placeholder="Wizard"
+                fullWidth
+                defaultValue={defaultCharacterName}
               />
             </Grid>
             <Grid item xs={12}>
               <Stack direction="row" spacing={2}>
                 <Button
-                    variant="contained"
-                    onClick={() => onExtractSingleCharacter()}
-                    title="extract the character with the exact name"
+                  variant="contained"
+                  onClick={() => onExtractSingleCharacter()}
+                  title="extract the character with the exact name"
                 >
                   Show character
                 </Button>
                 <Button
-                    variant="contained"
-                    onClick={() => onExtractAllPublicCharacter()}
-                    title="extract all public characters from this name"
+                  variant="contained"
+                  onClick={() => onExtractAllPublicCharacter()}
+                  title="extract all public characters from this name"
                 >
                   Show ALL public characters
                 </Button>

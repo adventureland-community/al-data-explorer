@@ -13,26 +13,19 @@ import {
   TableRow,
   TableCell,
   TableBody,
-  Input,
   Slider,
   Typography,
 } from "@mui/material";
-import { SlotType } from "typed-adventureland";
-import {
-  GItem,
-  ItemKey,
-  ItemType,
-  OffhandType,
-  WeaponType,
-} from "typed-adventureland";
-import { useState } from "react";
+import React, { useState } from "react";
+import { GItem, ItemKey, ItemType, OffhandType, SlotType, WeaponType } from "typed-adventureland";
+
 import { GItems } from "../GDataContext";
-import { ItemImage } from "../ItemImage";
 import { ItemTooltip } from "../ItemTooltip";
 import { getMaxLevel } from "../Utils";
 import { ItemInstance } from "./ItemInstance";
 import { SelectedCharacterClass } from "./types";
 import { Search } from "../Shared/Search";
+
 export type RowItem = { itemName: ItemKey; level?: number } & GItem;
 
 export function GearSelectDialog({
@@ -65,34 +58,36 @@ export function GearSelectDialog({
     setOpen(true);
   }
 
-  let validTypes = slot
-    ? [slot.replace("1", "").replace("2", "")]
-    : ([] as ItemType[]);
   // selectedCharacterClass.doublehand contains weapons considered double handed for the class
 
-  let validWeaponTypes: Array<WeaponType | OffhandType> = [];
+  const validTypes: ItemType[] = [];
+  const validWeaponTypes: Array<WeaponType | OffhandType> = [];
+
   switch (slot) {
     case "mainhand":
-      validTypes = ["weapon"];
-      validWeaponTypes = [];
-      if (selectedCharacterClass) {
-        const mh = Object.keys(selectedCharacterClass.mainhand) as WeaponType[];
-        validWeaponTypes.push(...mh);
-
-        const dh = Object.keys(
-          selectedCharacterClass.doublehand
-        ) as WeaponType[];
-        validWeaponTypes.push(...dh);
+      validTypes.push("weapon");
+      if (!selectedCharacterClass) {
+        break;
       }
+
+      validWeaponTypes.push(...(Object.keys(selectedCharacterClass.mainhand) as WeaponType[]));
+      validWeaponTypes.push(...(Object.keys(selectedCharacterClass.doublehand) as WeaponType[]));
+
       break;
     case "offhand":
-      validTypes = selectedCharacterClass
-        ? Object.keys(selectedCharacterClass.offhand)
-        : [];
-      validWeaponTypes = selectedCharacterClass
-        ? (Object.keys(selectedCharacterClass.offhand) as OffhandType[])
-        : [];
+      if (!selectedCharacterClass) {
+        break;
+      }
 
+      validTypes.push(...(Object.keys(selectedCharacterClass.offhand) as ItemType[]));
+      validWeaponTypes.push(...(Object.keys(selectedCharacterClass.offhand) as OffhandType[]));
+      break;
+    default:
+      if (!slot) {
+        break;
+      }
+
+      validTypes.push(slot.replace("1", "").replace("2", "") as ItemType);
       break;
   }
 
@@ -103,16 +98,14 @@ export function GearSelectDialog({
     ? Object.entries(items)
         .filter(([itemName, gItem]) => {
           const validType =
-            validTypes.some((x) => x === gItem.type) ||
-            (gItem.wtype && gItem.type === "weapon");
+            validTypes.some((x) => x === gItem.type) || (gItem.wtype && gItem.type === "weapon");
 
           const validWeaponType = gItem.wtype
             ? validWeaponTypes.some((x) => x === gItem.wtype)
             : true;
 
           const validClass = selectedCharacterClass
-            ? !gItem.class ||
-              gItem.class.some((x) => x === selectedCharacterClass.className)
+            ? !gItem.class || gItem.class.some((x) => x === selectedCharacterClass.className)
             : true;
 
           let validSearch = true;
@@ -120,12 +113,10 @@ export function GearSelectDialog({
             validSearch = false;
 
             const searchTerm = search.toLowerCase();
-            const itemNameMatches =
-              itemName.toLowerCase().indexOf(searchTerm) > -1;
-            const gItemNameMatches =
-              gItem.name.toLowerCase().indexOf(searchTerm) > -1;
+            const itemNameMatches = itemName.toLowerCase().indexOf(searchTerm) > -1;
+            const gItemNameMatches = gItem.name.toLowerCase().indexOf(searchTerm) > -1;
             const attributeMatchesSearch = Object.keys(gItem).some(
-              (key) => key.toLowerCase().indexOf(searchTerm) > -1
+              (key) => key.toLowerCase().indexOf(searchTerm) > -1,
             );
             // TODO: search in lvl up and set items.
 
@@ -254,17 +245,12 @@ export function GearSelectDialog({
             >
               <TableHead>
                 <TableRow>
-                  <TableCell></TableCell>
-                  {columns.map((c) => {
-                    return (
-                      <TableCell
-                        key={c.id}
-                        align={c.numeric ? "right" : "left"}
-                      >
-                        {c.label}
-                      </TableCell>
-                    );
-                  })}
+                  <TableCell>&nbsp;</TableCell>
+                  {columns.map((c) => (
+                    <TableCell key={c.id} align={c.numeric ? "right" : "left"}>
+                      {c.label}
+                    </TableCell>
+                  ))}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -272,9 +258,7 @@ export function GearSelectDialog({
                   // .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((row) => {
                     const maxLevel = getMaxLevel(row);
-                    const itemLevel = maxLevel
-                      ? Math.min(level ?? 0, maxLevel)
-                      : level;
+                    const itemLevel = maxLevel ? Math.min(level ?? 0, maxLevel) : level;
 
                     return (
                       <ItemTooltip
@@ -284,9 +268,7 @@ export function GearSelectDialog({
                       >
                         <TableRow
                           hover
-                          onClick={(event) =>
-                            onSelectItem(event, row as RowItem)
-                          }
+                          onClick={(event) => onSelectItem(event, row as RowItem)}
                           key={row.itemName}
                           sx={{
                             "&:last-child td, &:last-child th": {

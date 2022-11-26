@@ -1,15 +1,7 @@
 // we need character class, level, gear
 
-import {
-  Grid,
-  Divider,
-  Table,
-  TableRow,
-  TableCell,
-  TableBody,
-} from "@mui/material";
-import { ItemInfo, StatType } from "typed-adventureland";
-import { SlotType } from "typed-adventureland";
+import { Grid, Divider, Table, TableRow, TableCell, TableBody } from "@mui/material";
+import { ItemInfo, SlotType, StatType } from "typed-adventureland";
 import { useContext } from "react";
 import { ATTRIBUTES } from "../constants";
 import { GDataContext, MainStatType } from "../GDataContext";
@@ -19,6 +11,30 @@ import {
   addItemSetStats,
 } from "../Utils";
 import { SelectedCharacterClass } from "./types";
+
+const calculateMainStatByLevel = (
+  stat: MainStatType,
+  level: number,
+  characterClass: SelectedCharacterClass,
+) => {
+  const base = characterClass.stats[stat];
+  const scaling = characterClass.lstats[stat];
+  // TODO: need to investiage this formula.
+  return base + Math.floor(scaling * level); // flooring seems to give a correct stat for a lvl 12 warrior for vitality.
+
+  //
+
+  // return (
+  //   base +
+  //   Math.min(level, 40) * scaling +
+  //   (Math.max(40, level) - 40) * 3 * scaling
+  // );
+  // return base + (level * scaling)
+  // naked lvl 49 merchant returns str 6 dex 27 int 70 vit 15 for 0
+  // Rising — Today at 22:33
+  // merchants have 2 breakpoints, at lvl40 and lvl60
+  // between 40-60 they get twice the scaling, from 60 onward 4 times the scaling
+};
 
 // buffs? mluck?
 export function StatsPanel({
@@ -66,7 +82,7 @@ export function StatsPanel({
     "speed",
     "range",
     "mp_cost",
-    "mp_reduction" /*, "goldm", "xpm", "luckm"*/,
+    "mp_reduction" /* , "goldm", "xpm", "luckm" */,
   ];
   // "miss", "reflection", "lifesteal", "manasteal","rpiercing", "apiercing", "crit", "critdamage", "dreturn", "xrange"
   // "pnresistance", "fireresistance", "fzresistance", "stun", "blast", "explosion"
@@ -76,16 +92,12 @@ export function StatsPanel({
     stats = { ...stats, ...selectedCharacterClass };
 
     for (const stat of mainStatTypes) {
-      stats[stat] = calculateMainStatByLevel(
-        stat,
-        level,
-        selectedCharacterClass
-      );
+      stats[stat] = calculateMainStatByLevel(stat, level, selectedCharacterClass);
     }
     // console.log("main stats", stats);
   }
 
-  for (const [slot, itemInfo] of Object.entries(gear)) {
+  for (const [, itemInfo] of Object.entries(gear)) {
     const itemName = itemInfo.name;
     const gItem = G.items[itemName];
     // TODO: what about special achievements on items?
@@ -96,11 +108,11 @@ export function StatsPanel({
     });
   }
 
-  addItemSetStats(G, stats,gear);
+  addItemSetStats(G, stats, gear);
 
   Object.entries(stats)
-    .filter(([stat, value]) => {
-      return (
+    .filter(
+      ([stat, value]) =>
         !mainStatTypes.some((x) => x === stat) &&
         !defenseStatTypes.some((x) => x === stat) &&
         !offenseStatTypes.some((x) => x === stat) &&
@@ -110,12 +122,9 @@ export function StatsPanel({
         stat !== "g" &&
         stat !== "s" &&
         stat !== "tier" &&
-        typeof value === "number"
-      );
-    })
-    .forEach(([stat, value]) =>
-      otherStatTypes.push(stat as unknown as StatType)
-    );
+        typeof value === "number",
+    )
+    .forEach(([stat]) => otherStatTypes.push(stat as unknown as StatType));
 
   modifyPlayerStatsByAttributes(level, stats);
 
@@ -132,13 +141,13 @@ export function StatsPanel({
           <TableBody>
             <TableRow>
               <TableCell title={getStatsDescription("hp")}>hp</TableCell>
-              <TableCell align={"right"} title={stats.hp?.toString() ?? ""}>
+              <TableCell align="right" title={stats.hp?.toString() ?? ""}>
                 {Math.round(stats.hp ?? 0)}
               </TableCell>
             </TableRow>
             <TableRow>
               <TableCell title={getStatsDescription("mp")}>mp</TableCell>
-              <TableCell align={"right"} title={stats.mp?.toString() ?? ""}>
+              <TableCell align="right" title={stats.mp?.toString() ?? ""}>
                 {Math.round(stats.mp ?? 0)}
               </TableCell>
             </TableRow>
@@ -147,18 +156,12 @@ export function StatsPanel({
                 <TableCell
                   title={getStatsDescription(stat)}
                   style={{
-                    fontWeight:
-                      selectedCharacterClass?.main_stat === stat
-                        ? "bold"
-                        : "normal",
+                    fontWeight: selectedCharacterClass?.main_stat === stat ? "bold" : "normal",
                   }}
                 >
                   {stat}
                 </TableCell>
-                <TableCell
-                  align={"right"}
-                  title={stats[stat]?.toString() ?? ""}
-                >
+                <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
                   {Math.round(stats[stat] ?? 0)}
                 </TableCell>
               </TableRow>
@@ -173,10 +176,7 @@ export function StatsPanel({
             {offenseStatTypes.map((stat) => (
               <TableRow key={`stat_${stat}`}>
                 <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                <TableCell
-                  align={"right"}
-                  title={stats[stat]?.toString() ?? ""}
-                >
+                <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
                   {Math.round(stats[stat] ?? 0)}
                 </TableCell>
               </TableRow>
@@ -191,10 +191,7 @@ export function StatsPanel({
             {defenseStatTypes.map((stat) => (
               <TableRow key={`stat_${stat}`}>
                 <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                <TableCell
-                  align={"right"}
-                  title={stats[stat]?.toString() ?? ""}
-                >
+                <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
                   {Math.round(stats[stat] ?? 0)}
                 </TableCell>
               </TableRow>
@@ -210,13 +207,8 @@ export function StatsPanel({
               .filter((stat) => stats[stat])
               .map((stat) => (
                 <TableRow key={`stat_${stat}`}>
-                  <TableCell title={getStatsDescription(stat)}>
-                    {stat}
-                  </TableCell>
-                  <TableCell
-                    align={"right"}
-                    title={stats[stat]?.toString() ?? ""}
-                  >
+                  <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
+                  <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
                     {Math.round(stats[stat] ?? 0)}
                   </TableCell>
                 </TableRow>
@@ -228,30 +220,6 @@ export function StatsPanel({
   );
 }
 
-const calculateMainStatByLevel = (
-  stat: MainStatType,
-  level: number,
-  characterClass: SelectedCharacterClass
-) => {
-  const base = characterClass.stats[stat];
-  const scaling = characterClass.lstats[stat];
-  // TODO: need to investiage this formula.
-  return base + Math.floor(scaling * level); // flooring seems to give a correct stat for a lvl 12 warrior for vitality.
-
-  //
-
-  // return (
-  //   base +
-  //   Math.min(level, 40) * scaling +
-  //   (Math.max(40, level) - 40) * 3 * scaling
-  // );
-  // return base + (level * scaling)
-  // naked lvl 49 merchant returns str 6 dex 27 int 70 vit 15 for 0
-  // Rising — Today at 22:33
-  // merchants have 2 breakpoints, at lvl40 and lvl60
-  // between 40-60 they get twice the scaling, from 60 onward 4 times the scaling
-};
-
 // Rising
 // function stat_from_level(stat,lvl,ctype){
 //   //Only for non merchant characters
@@ -262,13 +230,13 @@ const calculateMainStatByLevel = (
 
 /**
    * merchant
-  base 
+  base
     dex: 4
     int: 12
     vit: 1
     str: 1
     for: 0
-  
+
   lstats
     dex: 0.4
     int: 1

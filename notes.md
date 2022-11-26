@@ -1,8 +1,8 @@
-
 # stats data collection
+
 rogue, lvl 69
 
-equipping 
+equipping
 +4 str gives +4 armor, +4 str and +84 hp, 21 hp per +1
 +4 dex gives +1 runspeed, +1 attack speed, 0,25 per +1
 +4 int gives +60 mp (15 per +1), +4 resist (0,25 per +1)
@@ -54,23 +54,23 @@ mp 1035
 "ref_speed": 55,
 
 lvl 1 warrior, hp is 200 from class, so that should be 424 from str and vit
-hp: 624 with ringsj = 687 (+63 for +3 str, 21 per str) 
+hp: 624 with ringsj = 687 (+63 for +3 str, 21 per str)
 mp: 55 with ringsj = 100
 int: 2 with ringsj = 5
 str: 11 with ringsj = 14
 dex: 2 with ringsj = 5
-vit: 4 
+vit: 4
 armor: 31 with ringsj = 34
 resistance: 4 with ringsj = 22
 attack: 63 with ringsj = 64
 speed: 55
 
 so hp = 624-200 = 424
-11 str * 21 = 231
+11 str \* 21 = 231
 that leaves 424-231 = 193 health left for vit, unless a plain lvl up also increases hp
 193 / 4 = 48,25 per vit
 
-at lvl 6 
+at lvl 6
 hp 836 = 636 - 336 = 300
-vit 6 = 300 / 6 = 50 per vit 
-str 16 = 21 * 16 = 336
+vit 6 = 300 / 6 = 50 per vit
+str 16 = 21 \* 16 = 336

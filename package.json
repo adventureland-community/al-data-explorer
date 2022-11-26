@@ -25,8 +25,8 @@
   },
   "scripts": {
     "check-types": "tsc --noEmit && echo Type checking ok",
-    "lint": "eslint --ext .js,.ts . && echo Linting ok",
-    "lint:fix": "eslint --fix --ext .js,.ts . && echo Linting ok",
+    "lint": "eslint --ext ts,tsx,js,jsx . && echo Linting ok",
+    "lint:fix": "eslint --fix --ext ts,tsx,js,jsx . && echo Linting ok",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

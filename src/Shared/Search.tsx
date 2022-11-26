@@ -1,12 +1,12 @@
 import { Input } from "@mui/material";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
-export function Search({ doSearch }: { doSearch: (search: string) => void; }) {
+export function Search({ doSearch }: { doSearch: (search: string) => void }) {
   const [search, setSearch] = useState("");
   const [changed, setChanged] = useState(false);
 
   const onSearch = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const value = e.target.value;
+    const { value } = e.target;
     console.log(value);
     setChanged(true);
     setSearch(value);
@@ -17,7 +17,7 @@ export function Search({ doSearch }: { doSearch: (search: string) => void; }) {
       const timeOutId = setTimeout(() => doSearch(search), 500);
       return () => clearTimeout(timeOutId);
     }
-  }, [search]);
+  }, [changed, doSearch, search]);
 
   return <Input id="search" placeholder="Search" onChange={onSearch} autoComplete="off" />;
 }
