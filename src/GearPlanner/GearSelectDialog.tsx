@@ -86,8 +86,6 @@ export function GearSelectDialog({
       }
       break;
     case "offhand":
-      // validTypes = ["misc_offhand", "shield", "source", "quiver"];
-      // rogues has misc_offhand, dagger,stars,fist this is a mix of item type and weapon type
       validTypes = selectedCharacterClass
         ? Object.keys(selectedCharacterClass.offhand)
         : [];
@@ -95,7 +93,6 @@ export function GearSelectDialog({
         ? (Object.keys(selectedCharacterClass.offhand) as OffhandType[])
         : [];
 
-      // TODO: rogues and perhaps other characters can dual wield crab claws for example
       break;
   }
 
@@ -108,9 +105,11 @@ export function GearSelectDialog({
           const validType =
             validTypes.some((x) => x === gItem.type) ||
             (gItem.wtype && gItem.type === "weapon");
+
           const validWeaponType = gItem.wtype
             ? validWeaponTypes.some((x) => x === gItem.wtype)
             : true;
+
           const validClass = selectedCharacterClass
             ? !gItem.class ||
               gItem.class.some((x) => x === selectedCharacterClass.className)
