@@ -74,9 +74,16 @@ export function GearSelectDialog({
   switch (slot) {
     case "mainhand":
       validTypes = ["weapon"];
-      validWeaponTypes = selectedCharacterClass
-        ? (Object.keys(selectedCharacterClass.mainhand) as WeaponType[])
-        : [];
+      validWeaponTypes = [];
+      if (selectedCharacterClass) {
+        const mh = Object.keys(selectedCharacterClass.mainhand) as WeaponType[];
+        validWeaponTypes.push(...mh);
+
+        const dh = Object.keys(
+          selectedCharacterClass.doublehand
+        ) as WeaponType[];
+        validWeaponTypes.push(...dh);
+      }
       break;
     case "offhand":
       // validTypes = ["misc_offhand", "shield", "source", "quiver"];
@@ -122,16 +129,15 @@ export function GearSelectDialog({
               (key) => key.toLowerCase().indexOf(searchTerm) > -1
             );
             // TODO: search in lvl up and set items.
-            
+
             // console.log('filtering by search',itemNameMatches, gItemNameMatches, attributeMatchesSearch);
-            if(itemNameMatches || gItemNameMatches){
+            if (itemNameMatches || gItemNameMatches) {
               validSearch = true;
             }
 
-            if(attributeMatchesSearch){
-              validSearch = true
+            if (attributeMatchesSearch) {
+              validSearch = true;
             }
-            
           }
 
           return validType && validWeaponType && validClass && validSearch;
