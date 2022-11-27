@@ -1,8 +1,16 @@
-import { Button, Dialog, DialogContent, DialogTitle, Input } from "@mui/material";
-import { ItemInfo } from "typed-adventureland";
-import { SlotType } from "typed-adventureland";
-// import LZString from "lz-string";
-import { useRef, useState } from "react";
+import {
+    Alert,
+    Button,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Grid,
+    TextField,
+} from "@mui/material";
+import { useCallback, useRef, useState } from "react";
+import { ItemInfo, SlotType } from "typed-adventureland";
+
 import { SavedLoadouts, SelectedCharacterClass } from "./types";
 
 export function SaveLinkButton({
@@ -36,15 +44,37 @@ export function SaveLinkButton({
             localStorage.setItem("loadouts", JSON.stringify(loadouts));
         }
     };
+
+    const onClose = useCallback(() => {
+        setOpen(false)
+    }, [setOpen])
+
     return (
         <>
             <Button onClick={() => setOpen(true)}>Save</Button>
-            <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
-                <DialogTitle id="scroll-dialog-title"> Share</DialogTitle>
+            <Dialog open={open} onClose={onClose} fullWidth>
+                <DialogTitle>
+                    Save
+                </DialogTitle>
                 <DialogContent>
-                    <Input inputRef={loadOutRef} sx={{ width: "100%" }} />{" "}
-                    <Button onClick={onSaveLoadout}>Save</Button>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12}>
+                            <Alert severity="info">
+                                Choose a name to store, so you can identify it later.
+                            </Alert>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField
+                                label="Name"
+                                inputRef={loadOutRef}
+                                fullWidth
+                            />
+                        </Grid>
+                    </Grid>
                 </DialogContent>
+                <DialogActions>
+                    <Button onClick={onSaveLoadout}>Save</Button>
+                </DialogActions>
             </Dialog>
         </>
     );
