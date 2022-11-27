@@ -24,6 +24,9 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "check-types": "tsc --noEmit && echo Type checking ok",
+    "lint": "eslint --ext .js,.ts . && echo Linting ok",
+    "lint:fix": "eslint --fix --ext .js,.ts . && echo Linting ok",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
@@ -49,9 +52,11 @@
     ]
   },
   "devDependencies": {
+    "@telokys/eslint-config-react-typescript": "^2.0.5",
     "@types/lz-string": "^1.3.34",
-    "prettier": "^2.7.1",
+    "eslint": "^8.28.0",
+    "prettier": "^2.8.0",
     "ts-node": "^10.9.1",
-    "typed-adventureland": "^0.0.6"
+    "typed-adventureland": "^0.0.10"
   }
 }

@@ -1,7 +1,4 @@
-import { GData } from "typed-adventureland";
-import { GItem, ItemKey } from "typed-adventureland";
-import { MapKey } from "typed-adventureland";
-import { MonsterKey } from "typed-adventureland";
+import { GData, GItem, ItemKey, MapKey, MonsterKey } from "typed-adventureland";
 import { createContext } from "react";
 
 export const GDataContext = createContext<CustomGData | undefined>(undefined);
@@ -15,7 +12,7 @@ export type CustomGData = GData & {
     positions: any;
     imagesets: any;
     timestamp: string;
-    base_gold: { [key in MonsterKey]: { [key in MapKey]?: number } };
+    base_gold: Record<MonsterKey, Partial<Record<MapKey, number>>>;
 };
 
 export const base_gold = {

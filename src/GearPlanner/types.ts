@@ -1,6 +1,4 @@
-import { ItemInfo } from "typed-adventureland";
-import { SlotType } from "typed-adventureland";
-import { ClassKey, GClass } from "typed-adventureland";
+import { ItemInfo, SlotType, ClassKey, GClass } from "typed-adventureland";
 
 export type SelectedCharacterClass = {
     className: ClassKey;
