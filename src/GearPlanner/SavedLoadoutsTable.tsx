@@ -37,13 +37,12 @@ export function SavedLoadoutTable({
               key={key}
               onClick={() => onSelectLoadout(key, data)}
               sx={{
-                backgroundColor: classColor,
                 cursor: "pointer",
               }}
             >
-              <TableCell>{key}</TableCell>
-              <TableCell>{data.level}</TableCell>
-              <TableCell>{data.classKey}</TableCell>
+              <TableCell sx={{ color: classColor }}>{key}</TableCell>
+              <TableCell sx={{ color: classColor }}>{data.level}</TableCell>
+              <TableCell sx={{ color: classColor }}>{data.classKey?.slice(0, 1).toUpperCase()}{data.classKey?.slice(1)}</TableCell>
             </TableRow>
           );
         })}

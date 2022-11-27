@@ -1,15 +1,14 @@
 import {
+  Alert,
   Button,
-  Card,
-  CardContent,
+  Grid,
   Dialog,
   DialogContent,
   DialogTitle,
-  Input,
+  TextField,
   Stack,
-  Typography,
 } from "@mui/material";
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { SavedLoadoutTable } from "./SavedLoadoutsTable";
 import { SavedLoadout, SavedLoadouts } from "./types";
 import useImportCharacter from "./useImportCharacter";
@@ -24,64 +23,76 @@ export function ImportLinkButton({
   const [loadouts, setLoadouts] = useState<SavedLoadouts>({});
 
   const characterNameRef = useRef<HTMLInputElement>(null);
+  const defaultCharacterName = useMemo(
+      () => localStorage.getItem("import-character-name") ?? "",
+      [open],
+  )
 
   const importCharacter = useImportCharacter();
   const importPlayer = useImportPlayer();
+
   const onSelectLoadout = (name: string, data: SavedLoadout) => {
     load(name, data);
+    setOpen(false);
   };
-  // TODO: save character names?
 
   const onExtractSingleCharacter = async () => {
     if (characterNameRef.current?.value) {
+      localStorage.setItem("import-character-name", characterNameRef.current.value);
       setLoadouts(await importCharacter(characterNameRef.current.value));
     }
   };
 
   const onExtractAllPublicCharacter = async () => {
     if (characterNameRef.current?.value) {
+      localStorage.setItem("import-character-name", characterNameRef.current.value);
       setLoadouts(await importPlayer(characterNameRef.current.value));
     }
   };
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>IMPORT</Button>
+      <Button onClick={() => setOpen(true)}>Import</Button>
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
-        <DialogTitle id="scroll-dialog-title"> Import</DialogTitle>
+        <DialogTitle id="scroll-dialog-title">Import</DialogTitle>
         <DialogContent>
-          <Card sx={{ marginBottom: 5 }}>
-            <CardContent>
-              <Typography component="div">
-                Here you can extract characters directly from adventure.land
-              </Typography>
-            </CardContent>
-          </Card>
-          <Input
-            inputRef={characterNameRef}
-            placeholder="character name"
-            sx={{ width: "100%", marginBottom: "5px" }}
-          ></Input>
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="contained"
-              onClick={() => onExtractSingleCharacter()}
-              title="extract the character with the exact name"
-            >
-              Extract character
-            </Button>
-            <Button
-              variant="contained"
-              onClick={() => onExtractAllPublicCharacter()}
-              title="extract all public characters from this name"
-            >
-              Extract ALL public character
-            </Button>
-          </Stack>
-          <SavedLoadoutTable loadouts={loadouts} onSelectLoadout={onSelectLoadout} />
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Alert severity="info">Here you can extract characters directly from adventure.land.</Alert>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                  label='Character Name'
+                  inputRef={characterNameRef}
+                  placeholder="Wizard"
+                  fullWidth
+                  defaultValue={defaultCharacterName}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Stack direction="row" spacing={2}>
+                <Button
+                    variant="contained"
+                    onClick={() => onExtractSingleCharacter()}
+                    title="extract the character with the exact name"
+                >
+                  Show character
+                </Button>
+                <Button
+                    variant="contained"
+                    onClick={() => onExtractAllPublicCharacter()}
+                    title="extract all public characters from this name"
+                >
+                  Show ALL public characters
+                </Button>
+              </Stack>
+            </Grid>
+            <Grid item xs={12}>
+              <SavedLoadoutTable loadouts={loadouts} onSelectLoadout={onSelectLoadout} />
+            </Grid>
+          </Grid>
         </DialogContent>
       </Dialog>
     </>
   );
 }
-
