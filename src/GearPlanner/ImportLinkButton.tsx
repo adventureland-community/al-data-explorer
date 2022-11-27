@@ -7,18 +7,13 @@ import {
   DialogTitle,
   Input,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
-import axios from "axios";
 import { useRef, useState } from "react";
-import { CLASS_COLOR } from "../constants";
 import { SavedLoadoutTable } from "./SavedLoadoutsTable";
 import { SavedLoadout, SavedLoadouts } from "./types";
+import useImportCharacter from "./useImportCharacter";
+import useImportPlayer from "./useImportPlayer";
 
 export function ImportLinkButton({
   load,
@@ -30,75 +25,22 @@ export function ImportLinkButton({
 
   const characterNameRef = useRef<HTMLInputElement>(null);
 
+  const importCharacter = useImportCharacter();
+  const importPlayer = useImportPlayer();
   const onSelectLoadout = (name: string, data: SavedLoadout) => {
     load(name, data);
   };
   // TODO: save character names?
 
-  const singleCharacterRegex = new RegExp(
-    "var slots(?<name>.+)=(?<slots>.+);(?:.|\n)+Class:</span>(?<class>.+)</div>(?:.|\n)+Level:</span>(?<level>.+)</div>"
-  );
-
-  const multipleCharacterRegex =
-    /var slots(?<name>.+)=(?<slots>.+);(?:.|\n)+?Class:<\/span>(?<class>.+)<\/div>(?:.|\n)+?Level:<\/span>(?<level>.+)<\/div>/gm;
-
   const onExtractSingleCharacter = async () => {
     if (characterNameRef.current?.value) {
-      // we proxy requests to /al to adventure.land to get around CORS issues.
-      const response = await axios.get(
-        `/al/character/${characterNameRef.current.value}`
-      );
-      const html = response.data;
-      const match = html.match(singleCharacterRegex);
-      // console.log("match", match);
-      const name = match.groups.name;
-      const gear = JSON.parse(match.groups.slots);
-      const classKey = match.groups.class.trim().toLowerCase();
-      const level = Number(match.groups.level.trim());
-      // console.log(match, classKey, level, gear);
-      setLoadouts({
-        [name]: {
-          gear,
-          classKey,
-          level,
-        },
-      });
+      setLoadouts(await importCharacter(characterNameRef.current.value));
     }
   };
 
   const onExtractAllPublicCharacter = async () => {
     if (characterNameRef.current?.value) {
-      // we proxy requests to /al to adventure.land to get around CORS issues.
-      const response = await axios.get(
-        `/al/player/${characterNameRef.current.value}`
-      );
-      const html = response.data;
-
-      const alLoadouts: SavedLoadouts = {};
-
-      let match: any;
-
-      while ((match = multipleCharacterRegex.exec(html)) !== null) {
-        // This is necessary to avoid infinite loops with zero-width matches
-        if (match.index === multipleCharacterRegex.lastIndex) {
-          multipleCharacterRegex.lastIndex++;
-        }
-
-        if (match) {
-          const name = match.groups.name as string;
-          const gear = JSON.parse(match.groups.slots);
-          const classKey = match.groups.class.trim().toLowerCase();
-          const level = Number(match.groups.level.trim());
-          // console.log(match, classKey, level, gear);
-          alLoadouts[name] = {
-            gear,
-            classKey,
-            level,
-          };
-        }
-      }
-
-      setLoadouts(alLoadouts);
+      setLoadouts(await importPlayer(characterNameRef.current.value));
     }
   };
 
