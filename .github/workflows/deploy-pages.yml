@@ -37,6 +37,8 @@ jobs:
         run: npx ts-node update-data.ts
 
       - name: Build project
+        env:
+          DISABLE_ESLINT_PLUGIN: "true"
         run: npm run build
 
       - name: Create CNAME file
