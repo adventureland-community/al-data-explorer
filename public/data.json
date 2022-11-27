@@ -1981,7 +1981,7 @@
   "multipliers": {
     "buy_to_sell": 0.6,
     "shells_to_gold": 32000,
-    "extra_shells": 0,
+    "extra_shells": 35,
     "lostandfound_mult": 4,
     "secondhands_mult": 2,
     "secondhands_cash_mult": 3
@@ -4042,7 +4042,7 @@
       ]
     }
   },
-  "version": 758,
+  "version": 759,
   "cosmetics": {
     "default_beard_position": 0,
     "map": { "old": "new" },
@@ -147599,5 +147599,5 @@
       "size": "small"
     }
   },
-  "timestamp": "2022-11-22T18:33:07.629Z"
+  "timestamp": "2022-11-27T11:54:53.646Z"
 }
