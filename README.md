@@ -1,13 +1,16 @@
 # What is this?
+
 This project is a mix of different tools for exploring adventurelands data.js and other data related to adventureland.
-The intention for it is for it to live on a public URL, but for now you can run it locally. 
+The intention for it is for it to live on a public URL, but for now you can run it locally.
 
 It currently contains
+
 - A WIP gear planner
 - A market data renderer (what merchant is selling what?)
 - A list of monsters
 
 # Contributing
+
 We welcome any enhancements and additions to the different tools as well as new tools. Simply make a PR with a solid description and we will look it over and accept the changes.
 
 Later we might look into a voting system that can automate accepting PRs so this project becomes entirely community driven.
@@ -17,17 +20,20 @@ Later we might look into a voting system that can automate accepting PRs so this
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## typings
+
 - go to https://github.com/adventureland-community/typed-adventureland
 - download the code
 - run `npm run build | npm run pack`
 - copy the produced .tgz to the root of this project and run the below command to install the types
-`npm install --save-dev adventureland@typed-adventureland-<version>.tgz`
+  `npm install --save-dev adventureland@typed-adventureland-<version>.tgz`
 
 ## data.js
-Most of the tools opreate on the data from `https://adventure.land/data.js` and as such you will need to run the following command to download and convert it to json
- - `npx ts-node update-data.ts`
 
- Then you just run `npm start` to host it locally.
+Most of the tools operate on the data from `https://adventure.land/data.js` and as such you will need to run the following command to download and convert it to json
+
+- `npm run update`
+
+Then you just run `npm start` to host it locally.
 
 ## Available Scripts
 

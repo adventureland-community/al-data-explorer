@@ -3,46 +3,46 @@ import { useContext } from "react";
 import { GDataContext } from "./GDataContext";
 
 export function ItemImage({ itemName, opacity }: { itemName: ItemKey; opacity?: number }) {
-    const G = useContext(GDataContext);
+  const G = useContext(GDataContext);
 
-    if (!G) {
-        return <></>; // TODO: render broken image
-    }
+  if (!G) {
+    return <></>; // TODO: render broken image
+  }
 
-    // function item_container(item,actual) in html.js
-    const gItem = G.items[itemName];
-    const skinPositions = G.positions[gItem?.skin ?? itemName] ?? G.positions["placeholder"];
-    // TODO: some items don't have a skin? helmets it would seem, mages hood
-    if (!skinPositions) {
-        return <img alt={itemName} />;
-    }
-    const pack = G.imagesets[skinPositions[0] || "pack_20"];
-    const x = skinPositions[1];
-    const y = skinPositions[2];
-    const size = /*gItem?.size ??*/ 40;
-    const scale = size / pack.size;
-    return (
-        <div
-            style={{
-                overflow: "hidden",
-                height: `${size}px`,
-                width: `${size}px`,
-                opacity: opacity ?? 1,
-            }}
-        >
-            <img
-                alt={itemName}
-                style={{
-                    width: `${pack.columns * pack.size * scale}px`,
-                    height: `${pack.rows * pack.size * scale}px`,
-                    marginTop: `-${y * size}px`,
-                    marginLeft: `-${x * size}px`,
-                    imageRendering: "pixelated", // Thanks to StormSurge for making the sprites render crisp
-                }}
-                src={`https://adventure.land${pack.file}`}
-            />
-        </div>
-    );
+  // function item_container(item,actual) in html.js
+  const gItem = G.items[itemName];
+  const skinPositions = G.positions[gItem?.skin ?? itemName] ?? G.positions.placeholder;
+  // TODO: some items don't have a skin? helmets it would seem, mages hood
+  if (!skinPositions) {
+    return <img alt={itemName} />;
+  }
+  const pack = G.imagesets[skinPositions[0] || "pack_20"];
+  const x = skinPositions[1];
+  const y = skinPositions[2];
+  const size = /* gItem?.size ?? */ 40;
+  const scale = size / pack.size;
+  return (
+    <div
+      style={{
+        overflow: "hidden",
+        height: `${size}px`,
+        width: `${size}px`,
+        opacity: opacity ?? 1,
+      }}
+    >
+      <img
+        alt={itemName}
+        style={{
+          width: `${pack.columns * pack.size * scale}px`,
+          height: `${pack.rows * pack.size * scale}px`,
+          marginTop: `-${y * size}px`,
+          marginLeft: `-${x * size}px`,
+          imageRendering: "pixelated", // Thanks to StormSurge for making the sprites render crisp
+        }}
+        src={`https://adventure.land${pack.file}`}
+      />
+    </div>
+  );
 }
 
 /**

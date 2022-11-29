@@ -14,96 +14,96 @@ import { GDataContext } from "../GDataContext";
 
 // Object.entries(G.npcs).filter(([key,npc])=>npc.name === 'Caroline')
 export function Monsters() {
-    const G = useContext(GDataContext);
+  const G = useContext(GDataContext);
 
-    if (!G) {
-        return <>WAITING!</>;
-    }
+  if (!G) {
+    return <>WAITING!</>;
+  }
 
-    // TODO: columns
-    // TODO: do the heavy row calculations here and map a new object with min and max gold for example.
-    const rows: [MonsterKey, GMonster][] = Object.entries(G.monsters).sort(
-        ([aKey, aValue], [bKey, bValue]) => aValue.name.localeCompare(bValue.name),
-    ) as [MonsterKey, GMonster][];
-    // G.drops.monsters.goo
-    // monsters does not contain gold, where does that come from?
-    // sub table with spawn locations?
-    return (
-        <>
-            <Table stickyHeader size="small">
-                <TableHead>
-                    <TableRow>
-                        <TableCell></TableCell>
-                        <TableCell>Name</TableCell>
-                        <TableCell>HP</TableCell>
-                        <TableCell>GOLD</TableCell>
-                        <TableCell>HP/GOLD</TableCell>
-                        <TableCell>XP</TableCell>
-                        <TableCell>XP/HP</TableCell>
-                        <TableCell>respawn</TableCell>
-                        <TableCell>armor</TableCell>
-                        <TableCell>resistance</TableCell>
-                        <TableCell>evasion</TableCell>
-                        <TableCell>reflection</TableCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {rows.map(([monsterKey, row]) => {
-                        const base_gold = G.base_gold[monsterKey];
-                        console.log(monsterKey, base_gold);
-                        // const goldPerMapString = base_gold
-                        //   ? Object.entries(base_gold).map(([map, gold]) => (
-                        //       <TableRow>
-                        //         <TableCell width={150}>{map}</TableCell>
-                        //         <TableCell width={50} align="right">
-                        //           {gold}
-                        //         </TableCell>
-                        //       </TableRow>
-                        //     ))
-                        //   : // .map(([map, gold]) => `${map}:${gold}`)
-                        //     // .join("\n")
-                        //     "";
-                        const goldPerMapString = base_gold
-                            ? Object.entries(base_gold)
-                                  .map(([map, gold]) => `${map}:${gold}`)
-                                  .join("\n")
-                            : "";
+  // TODO: columns
+  // TODO: do the heavy row calculations here and map a new object with min and max gold for example.
+  const rows: [MonsterKey, GMonster][] = Object.entries(G.monsters).sort(([, aValue], [, bValue]) =>
+    aValue.name.localeCompare(bValue.name),
+  ) as [MonsterKey, GMonster][];
+  // G.drops.monsters.goo
+  // monsters does not contain gold, where does that come from?
+  // sub table with spawn locations?
+  return (
+    <>
+      <Table stickyHeader size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell />
+            <TableCell>Name</TableCell>
+            <TableCell>HP</TableCell>
+            <TableCell>GOLD</TableCell>
+            <TableCell>HP/GOLD</TableCell>
+            <TableCell>XP</TableCell>
+            <TableCell>XP/HP</TableCell>
+            <TableCell>respawn</TableCell>
+            <TableCell>armor</TableCell>
+            <TableCell>resistance</TableCell>
+            <TableCell>evasion</TableCell>
+            <TableCell>reflection</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map(([monsterKey, row]) => {
+            const base_gold = G.base_gold[monsterKey];
+            console.log(monsterKey, base_gold);
+            // const goldPerMapString = base_gold
+            //   ? Object.entries(base_gold).map(([map, gold]) => (
+            //       <TableRow>
+            //         <TableCell width={150}>{map}</TableCell>
+            //         <TableCell width={50} align="right">
+            //           {gold}
+            //         </TableCell>
+            //       </TableRow>
+            //     ))
+            //   : // .map(([map, gold]) => `${map}:${gold}`)
+            //     // .join("\n")
+            //     "";
+            const goldPerMapString = base_gold
+              ? Object.entries(base_gold)
+                  .map(([map, gold]) => `${map}:${gold}`)
+                  .join("\n")
+              : "";
 
-                        const goldValues = base_gold ? Object.values(base_gold) : ([] as number[]);
-                        const minGold = Math.min(...goldValues);
-                        const maxGold = Math.max(...goldValues);
+            const goldValues = base_gold ? Object.values(base_gold) : ([] as number[]);
+            const minGold = Math.min(...goldValues);
+            const maxGold = Math.max(...goldValues);
 
-                        let goldString = "";
-                        if (minGold >= 0 && minGold < maxGold) {
-                            goldString = `${minGold} - ${maxGold}`;
-                        } else if (minGold >= 0 && minGold === maxGold) {
-                            goldString = minGold.toString();
-                        }
-                        // TODO: render farming spots, with mob count and respawn time.
-                        return (
-                            <TableRow key={monsterKey} hover>
-                                <TableCell>{monsterKey}</TableCell>
-                                <TableCell>{row.name}</TableCell>
-                                <TableCell>{row.hp}</TableCell>
-                                <TableCell title={goldPerMapString}>{goldString}</TableCell>
-                                <TableCell>
-                                    {minGold ? (row.hp / minGold).toFixed(2) : ""} - &nbsp;
-                                    {maxGold ? (row.hp / maxGold).toFixed(2) : ""}
-                                </TableCell>
-                                <TableCell>{row.xp}</TableCell>
-                                <TableCell>{(row.xp / row.hp).toFixed(2)}</TableCell>
-                                <TableCell>{row.respawn}</TableCell>
-                                <TableCell>{row.armor}</TableCell>
-                                <TableCell>{row.resistance}</TableCell>
-                                <TableCell>{row.evasion}</TableCell>
-                                <TableCell>{row.reflection}</TableCell>
-                            </TableRow>
-                        );
-                    })}
-                </TableBody>
-            </Table>
-        </>
-    );
+            let goldString = "";
+            if (minGold >= 0 && minGold < maxGold) {
+              goldString = `${minGold} - ${maxGold}`;
+            } else if (minGold >= 0 && minGold === maxGold) {
+              goldString = minGold.toString();
+            }
+            // TODO: render farming spots, with mob count and respawn time.
+            return (
+              <TableRow key={monsterKey} hover>
+                <TableCell>{monsterKey}</TableCell>
+                <TableCell>{row.name}</TableCell>
+                <TableCell>{row.hp}</TableCell>
+                <TableCell title={goldPerMapString}>{goldString}</TableCell>
+                <TableCell>
+                  {minGold ? (row.hp / minGold).toFixed(2) : ""} - &nbsp;
+                  {maxGold ? (row.hp / maxGold).toFixed(2) : ""}
+                </TableCell>
+                <TableCell>{row.xp}</TableCell>
+                <TableCell>{(row.xp / row.hp).toFixed(2)}</TableCell>
+                <TableCell>{row.respawn}</TableCell>
+                <TableCell>{row.armor}</TableCell>
+                <TableCell>{row.resistance}</TableCell>
+                <TableCell>{row.evasion}</TableCell>
+                <TableCell>{row.reflection}</TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </>
+  );
 }
 
 // const monsterImage = $(parent.sprite_image(quest.monsterhunt.id)).css({
