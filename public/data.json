@@ -4051,7 +4051,7 @@
       ]
     }
   },
-  "version": 760,
+  "version": 761,
   "cosmetics": {
     "default_beard_position": 0,
     "map": { "old": "new" },
@@ -6160,19 +6160,19 @@
         [1000000, "stat", "luck", 0.5]
       ],
       "phresistance": 35,
-      "hp": 2400,
-      "resistance": 120,
-      "frequency": 0.7,
-      "damage_type": "physical",
-      "skin": "nerfedbat",
-      "xp": 400,
-      "speed": 24,
       "name": "Bat",
       "rage": 0,
+      "hp": 2400,
       "respawn": 12,
+      "resistance": 120,
       "range": 35,
-      "attack": 50,
       "aggro": 0.3,
+      "attack": 50,
+      "frequency": 0.7,
+      "damage_type": "physical",
+      "skin": "bat",
+      "xp": 400,
+      "speed": 24,
       "mp": 48
     },
     "mrgreen": {
@@ -147683,5 +147683,5 @@
       "size": "small"
     }
   },
-  "timestamp": "2022-11-28T23:02:06.966Z"
+  "timestamp": "2022-11-29T04:34:42.057Z"
 }
