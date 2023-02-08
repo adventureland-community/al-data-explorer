@@ -17,12 +17,34 @@ const calculateMainStatByLevel = (
   level: number,
   characterClass: SelectedCharacterClass,
 ) => {
+  // const base = characterClass.stats[stat];
+  // const scaling = characterClass.lstats[stat];
+  // // TODO: need to investiage this formula.
+  // return base + Math.floor(scaling * level); // flooring seems to give a correct stat for a lvl 12 warrior for vitality.
+
   const base = characterClass.stats[stat];
   const scaling = characterClass.lstats[stat];
-  // TODO: need to investiage this formula.
-  return base + Math.floor(scaling * level); // flooring seems to give a correct stat for a lvl 12 warrior for vitality.
 
-  //
+  // Math.floor seems to give a correct stat for a lvl 12 warrior for vitality.
+  if (characterClass.className !== "merchant") {
+    // https://discord.com/channels/238332476743745536/238332476743745536/1025815735492161576
+    let value = base;
+    value += Math.floor(Math.min(level, 40) * scaling);
+    if (level > 40) value += Math.floor((Math.min(60, level) - 40) * (scaling * 3));
+    return value;
+  }
+
+  // merchant
+  // number_e — And then we have the followinghttps://discord.com/channels/238332476743745536/238332476743745536/751222233141084170
+  let value = base;
+  value += Math.min(level, 40) * scaling;
+  // Rising
+  // merchants have 2 breakpoints, at lvl40 and lvl60
+  // between 40-60 they get twice the scaling, from 60 onward 4 times the scaling
+  if (level > 40) value += Math.floor((Math.min(60, level) - 40) * (scaling * 2));
+  if (level > 60) value += Math.floor((level - 60) * (scaling * 4));
+
+  return value;
 
   // return (
   //   base +
@@ -31,9 +53,20 @@ const calculateMainStatByLevel = (
   // );
   // return base + (level * scaling)
   // naked lvl 49 merchant returns str 6 dex 27 int 70 vit 15 for 0
-  // Rising — Today at 22:33
-  // merchants have 2 breakpoints, at lvl40 and lvl60
-  // between 40-60 they get twice the scaling, from 60 onward 4 times the scaling
+
+  // number_e — And then we have the followinghttps://discord.com/channels/238332476743745536/238332476743745536/751222233141084170
+  // function main_stat_from_lvl(ctype, lvl){
+  //   let main_stat = G.classes[ctype].stats[G.classes[ctype].main_stat]
+  //   if(ctype !== "merchant"){
+  //     main_stat += Math.min(40,lvl)*1
+  //     if(lvl > 40) main_stat += (lvl-40)*3
+  //   }else{
+  //     main_stat += Math.min(40,lvl)*1
+  //     if(lvl > 40) main_stat += (Math.min(60,lvl)-40)*2
+  //     if(lvl > 60) main_stat += (lvl-60)*4
+  //   }
+  //   return main_stat
+  // }
 };
 
 // buffs? mluck?
