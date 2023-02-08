@@ -33,7 +33,7 @@ export const ATTRIBUTES: {
     | "pcourage"
     | "fear"]?: { description: string };
 } = {
-  for: { description: "10 Fortitude, 10% PVP Damage Reduction" },
+  for: { description: "10 Fortitude, 10% PVP Damage Reduction" }, //  TODO: function to render correct percent?
   attack: { description: "" },
   heal: { description: "" },
   frequency: { description: "attacks/second" },

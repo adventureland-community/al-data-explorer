@@ -155,6 +155,9 @@ export function StatsPanel({
         stat !== "g" &&
         stat !== "s" &&
         stat !== "tier" &&
+        stat !== "s" && // stack size
+        stat !== "a" && // ???
+        stat !== "e" && // ???
         typeof value === "number",
     )
     .forEach(([stat]) => otherStatTypes.push(stat as unknown as StatType));
