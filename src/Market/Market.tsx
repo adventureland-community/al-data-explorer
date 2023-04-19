@@ -14,7 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import axios from "axios";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import { ItemKey, MapKey, TradeItemInfo, TradeSlotType } from "typed-adventureland";
@@ -205,11 +205,11 @@ function TradeItemRow({
                     <TableCell colSpan={3} />
                     {/* Buying */}
                     <TableCell>Merchant</TableCell>
-                    <TableCell>Quantitiy</TableCell>
+                    <TableCell>Quantity</TableCell>
                     <TableCell>Price</TableCell>
                     {/* selling */}
                     <TableCell>Merchant</TableCell>
-                    <TableCell>Quantitiy</TableCell>
+                    <TableCell>Quantity</TableCell>
                     <TableCell>Price</TableCell>
                   </TableRow>
                 </TableHead>
@@ -381,10 +381,10 @@ type Merchant = {
 export function Market() {
   const G = useContext(GDataContext);
   const [lastRefresh, setLastRefresh] = useState<Date | undefined>(undefined);
+  const [filter, setFilter] = useState("");
   //   const [merchants, setMerchants] = useState<Merchant[]>([]);
 
   const [items, setItems] = useState<ItemsByNameAndLevel>({});
-  const [filteredItems, setFilteredItems] = useState<ItemsByNameAndLevel>({});
 
   const getMerchantData = () => {
     console.log("fetching merchant data ");
@@ -395,7 +395,6 @@ export function Market() {
         setLastRefresh(new Date());
         const groupedItems = groupItemsByNameAndLevel(response.data);
         setItems(groupedItems);
-        setFilteredItems(groupedItems);
         sessionStorage.setItem(
           "merchants",
           JSON.stringify({ timestamp: new Date(), merchants: response.data }),
@@ -422,7 +421,6 @@ export function Market() {
       setLastRefresh(new Date(parsed.timestamp));
       const groupedItems = groupItemsByNameAndLevel(parsed.merchants);
       setItems(groupedItems);
-      setFilteredItems(groupedItems);
       //   setMerchants(parsed.merchants);
 
       return;
@@ -436,68 +434,62 @@ export function Market() {
   // TODO: group by filter?
   // TODO: tooltip on hover with assorted calculations?
 
-  const filterDataBySearch = (search: string) => {
-    console.log("search triggered filterDataBySearch", search);
-    if (!search) {
-      setFilteredItems(items);
-      return;
-    }
-
-    search = search.toLowerCase();
-
-    const itemNames: string[] = [];
-    itemNames.push(...search.split(" "));
-    itemNames.push(...search.split(","));
-
-    const result: ItemsByNameAndLevel = {};
-
-    const itemNameMatchesSearch = (itemName: string) => itemName.toLowerCase().indexOf(search) > -1;
-
-    let itemName: ItemKey;
-    for (itemName in items) {
-      if (!Object.hasOwn(items, itemName)) {
-        continue;
-      }
-
-      const item = items[itemName];
-      if (item) {
-        const gItem = G?.items[itemName];
-        const itemNameMatches = itemNames.some(itemNameMatchesSearch);
-        const gItemNameMatches = gItem
-          ? gItem.name.toLowerCase().indexOf(search.toLowerCase()) > -1
-          : false;
-
-        if (itemNameMatches || gItemNameMatches) {
-          result[itemName] = item;
-        }
-      }
-    }
-
-    setFilteredItems(result);
-  };
-
   const onRefreshData = () => {
     getMerchantData();
   };
 
-  let rows: Array<{
-    level: number;
-    itemName: ItemKey;
-    prices: BuySellItemPrices;
-  }> = [];
-  Object.entries(filteredItems).forEach(([key, levels]) => {
-    const itemName = key as ItemKey;
-    for (const level in levels) {
-      if (!Object.hasOwn(levels, level)) {
-        continue;
+  const rows = useMemo(() => {
+    let tmpRows: Array<{
+      level: number;
+      itemName: ItemKey;
+      prices: BuySellItemPrices;
+    }> = [];
+
+    console.log("search triggered filterDataBySearch", filter);
+
+    Object.entries(items).forEach(([key, levels]) => {
+      const itemName = key as ItemKey;
+
+      if (filter) {
+        const lowercaseFilter = filter.toLowerCase();
+
+        const itemNames: string[] = [];
+        itemNames.push(...lowercaseFilter.split(" "));
+        itemNames.push(...lowercaseFilter.split(","));
+
+        const itemNameMatchesSearch = (name: string) =>
+          itemNames.some((nname) => name.toLowerCase().includes(nname));
+
+        const item = items[itemName];
+        if (item) {
+          const gItem = G?.items[itemName];
+          const itemNameMatches = itemNameMatchesSearch(itemName);
+          const gItemNameMatches = Boolean(gItem && itemNameMatchesSearch(gItem.name));
+
+          if (!itemNameMatches && !gItemNameMatches) {
+            return;
+          }
+        } else {
+          return;
+        }
       }
 
-      const prices = levels[level];
-      rows.push({ level: Number(level), itemName, prices });
-    }
-  });
-  // TODO: sort by level as well
-  rows = rows.sort((a, b) => a.itemName.localeCompare(b.itemName));
+      for (const level in levels) {
+        if (!Object.hasOwn(levels, level)) {
+          continue;
+        }
+
+        const prices = levels[level];
+        tmpRows.push({ level: Number(level), itemName, prices });
+      }
+    });
+
+    // TODO: sort by level as well
+    tmpRows = tmpRows.sort((a, b) => a.itemName.localeCompare(b.itemName));
+    console.log("=========================================");
+
+    return tmpRows;
+  }, [filter, items, G]);
 
   return (
     <>
@@ -507,7 +499,7 @@ export function Market() {
         <>{lastRefresh?.toLocaleString()}</>
       </Typography>
       <Divider />
-      <Search doSearch={filterDataBySearch} />
+      <Search doSearch={setFilter} />
       <Table stickyHeader size="small">
         <TableHead>
           <TableRow>
