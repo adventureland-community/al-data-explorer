@@ -12,6 +12,10 @@ import {
   Select,
   SelectChangeEvent,
   MenuItem,
+  Typography,
+  LinearProgress,
+  Alert,
+  Box,
 } from "@mui/material";
 import { ItemInfo, MonsterKey, SlotType, StatType } from "typed-adventureland";
 import { useContext, useState } from "react";
@@ -82,6 +86,46 @@ const calculateMainStatByLevel = (
   // }
 };
 
+function DamageVisualization({ source, target }: { source: any; target: any }) {
+  const damage = theo_dps(source, target);
+  const maxHealth = target.hp;
+
+  const percent = Math.min((damage / maxHealth) * 100, 100);
+  const excess = Math.max(damage - maxHealth, 0);
+  const healthLeft = maxHealth - damage;
+  // const hitsToKill = damage % healthLeft;
+
+  return (
+    <div>
+      <div>
+        <Typography>
+          Will do {damage.toFixed(2)} damage to you with {healthLeft.toFixed(2)} health left.
+        </Typography>
+      </div>
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Box sx={{ width: "100%", mr: 1 }}>
+          <LinearProgress
+            variant="determinate"
+            color={percent >= 100 ? "error" : "primary"}
+            value={percent}
+            sx={{ height: "10px" }}
+          />
+        </Box>
+        <Box sx={{ minWidth: 35 }}>
+          <Typography variant="body2" color="text.secondary">{`${percent.toFixed(2)}%`}</Typography>
+        </Box>
+      </Box>
+
+      {excess > 0 && (
+        <Alert variant="outlined" severity="error">
+          WARNING: Monster can deal {excess.toFixed(2)} excess damage! You will be one-shot with{" "}
+          {maxHealth.toFixed(2)} health
+        </Alert>
+      )}
+    </div>
+  );
+}
+
 // buffs? mluck?
 export function StatsPanel({
   selectedCharacterClass,
@@ -92,7 +136,7 @@ export function StatsPanel({
   level: number;
   gear: { [slot in SlotType]?: ItemInfo };
 }) {
-  const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
+  const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent"); // TODO: store last selected mob in localstorage and load it from there.
   const G = useContext(GDataContext);
 
   if (!G) {
@@ -281,6 +325,7 @@ export function StatsPanel({
       <Grid item xs={8}>
         <FormControl fullWidth>
           <InputLabel id="monster-target-label">Monster</InputLabel>
+          {/* TODO: AutoComplete / search https://mui.com/material-ui/react-autocomplete/ */}
           <Select
             labelId="monster-target-label"
             value={targetMonster}
@@ -301,10 +346,14 @@ export function StatsPanel({
           // G.monsters.ent.abilities has a key and a cooldown mtangle
           // G.skills.mtangle applies a condition called tangled
           // G.conditions.tangled appears to set speed to 24
-          // TODO: we need a "fake player" object instead of "stats" should be easier to reason about. */}
-        ent vs you dps: {theo_dps(G.monsters[targetMonster], fakePlayer)}
+          // TODO: we need a "fake player" object instead of "stats" should be easier to reason about. 
+          // TODO: color monster dps red if you will be 1shot, perhaps add a warning icon.
+          // TODO: render minimum damage and maximum damage in case of crit.
+          // TODO: render your abilities damage / dps against the target
+          */}
+        <DamageVisualization source={G.monsters[targetMonster]} target={fakePlayer} />
         <br />
-        you vs ent dps: {theo_dps(fakePlayer, G.monsters[targetMonster])}
+        you vs {targetMonster} dps: {theo_dps(fakePlayer, G.monsters[targetMonster])}
       </Grid>
     </Grid>
   );
