@@ -1,5 +1,3 @@
-import { ClassKey } from "typed-adventureland";
-
 /** Feed this function a value like (character.apiercing - target.armor) and it spits out a multiplier so you can adjust your expected damage */
 function damage_multiplier(defense: number) {
   // extracted from AL
@@ -53,9 +51,7 @@ function cur_mult(
   // let source = source_ent ? source_ent : parent.character;
   // let target = target_ent ? target_ent : get_target(parent.character);
   if (!target || !source) return 0;
-  const dtype: "physical" | "magical" | "pure" = source.damage_type
-    ? source.damage_type
-    : G.classes[source.ctype as ClassKey].damage_type;
+  const dtype: "physical" | "magical" | "pure" = source.damage_type;
 
   // the source stats that  can affect the targets resistances
   const pierces = { magical: source.rpiercing, physical: source.apiercing, pure: 0 };

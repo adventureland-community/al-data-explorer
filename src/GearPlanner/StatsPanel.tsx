@@ -179,6 +179,13 @@ export function StatsPanel({
 
   modifyPlayerStatsByAttributes(level, stats);
 
+  const fakePlayer = {
+    ...stats,
+    damage_type: selectedCharacterClass
+      ? G.classes[selectedCharacterClass.className].damage_type
+      : "physical",
+  };
+
   const getStatsDescription = (key: StatType | MainStatType) => {
     const attr = ATTRIBUTES[key];
     return `${attr?.description ?? ""}`;
@@ -295,9 +302,9 @@ export function StatsPanel({
           // G.skills.mtangle applies a condition called tangled
           // G.conditions.tangled appears to set speed to 24
           // TODO: we need a "fake player" object instead of "stats" should be easier to reason about. */}
-        ent vs you dps: {theo_dps(G.monsters[targetMonster], stats)}
+        ent vs you dps: {theo_dps(G.monsters[targetMonster], fakePlayer)}
         <br />
-        you vs ent dps: {theo_dps(stats, G.monsters[targetMonster])}
+        you vs ent dps: {theo_dps(fakePlayer, G.monsters[targetMonster])}
       </Grid>
     </Grid>
   );
