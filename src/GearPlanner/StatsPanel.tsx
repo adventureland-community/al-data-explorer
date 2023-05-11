@@ -1,8 +1,20 @@
 // we need character class, level, gear
 
-import { Grid, Divider, Table, TableRow, TableCell, TableBody } from "@mui/material";
-import { ItemInfo, SlotType, StatType } from "typed-adventureland";
-import { useContext } from "react";
+import {
+  Grid,
+  Divider,
+  Table,
+  TableRow,
+  TableCell,
+  TableBody,
+  FormControl,
+  InputLabel,
+  Select,
+  SelectChangeEvent,
+  MenuItem,
+} from "@mui/material";
+import { ItemInfo, MonsterKey, SlotType, StatType } from "typed-adventureland";
+import { useContext, useState } from "react";
 import { ATTRIBUTES } from "../constants";
 import { GDataContext, MainStatType } from "../GDataContext";
 import {
@@ -11,6 +23,7 @@ import {
   addItemSetStats,
 } from "../Utils";
 import { SelectedCharacterClass } from "./types";
+import { theo_dps } from "./calculations";
 
 const calculateMainStatByLevel = (
   stat: MainStatType,
@@ -79,7 +92,9 @@ export function StatsPanel({
   level: number;
   gear: { [slot in SlotType]?: ItemInfo };
 }) {
+  const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
   const G = useContext(GDataContext);
+
   if (!G) {
     return <></>;
   }
@@ -169,6 +184,10 @@ export function StatsPanel({
     return `${attr?.description ?? ""}`;
   };
 
+  const handleChange = (event: SelectChangeEvent) => {
+    setTargetMonster(event.target.value as MonsterKey);
+  };
+
   return (
     <Grid container>
       <Grid item xs={3}>
@@ -251,6 +270,34 @@ export function StatsPanel({
               ))}
           </TableBody>
         </Table>
+      </Grid>
+      <Grid item xs={8}>
+        <FormControl fullWidth>
+          <InputLabel id="monster-target-label">Monster</InputLabel>
+          <Select
+            labelId="monster-target-label"
+            value={targetMonster}
+            label={G.monsters[targetMonster].name}
+            onChange={handleChange}
+          >
+            {Object.entries(G.monsters).map(([key, monster]) => (
+              <MenuItem key={key} value={key}>
+                {monster.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <br />
+        {/* // G.monsters.ent
+          // there is attack, frequency, damage_type
+          // we could also use range to verify if we can kite it.
+          // G.monsters.ent.abilities has a key and a cooldown mtangle
+          // G.skills.mtangle applies a condition called tangled
+          // G.conditions.tangled appears to set speed to 24
+          // TODO: we need a "fake player" object instead of "stats" should be easier to reason about. */}
+        ent vs you dps: {theo_dps(G.monsters[targetMonster], stats)}
+        <br />
+        you vs ent dps: {theo_dps(stats, G.monsters[targetMonster])}
       </Grid>
     </Grid>
   );
