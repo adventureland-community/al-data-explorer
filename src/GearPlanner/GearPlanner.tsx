@@ -126,7 +126,6 @@ function Info() {
           Planned:
         </Typography>
         <ul style={{ textAlign: "left" }}>
-          <li>calculate correct stat gains by level</li>
           <li>handle doublehand items</li>
           <li>stat scrolls on items with stat</li>
           <li>export loadout</li>
