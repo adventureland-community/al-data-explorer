@@ -16,10 +16,10 @@ import {
   Slider,
   Typography,
 } from "@mui/material";
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { GItem, ItemKey, ItemType, OffhandType, SlotType, WeaponType } from "typed-adventureland";
 
-import { GItems } from "../GDataContext";
+import { GDataContext, GItems } from "../GDataContext";
 import { ItemTooltip } from "../ItemTooltip";
 import { calculateItemStatsByLevel, getMaxLevel } from "../Utils";
 import { ItemInstance } from "./ItemInstance";
@@ -39,9 +39,14 @@ export function GearSelectDialog({
   onSelectGear: (slot: SlotType, item?: RowItem) => void;
   selectedCharacterClass?: SelectedCharacterClass;
 }) {
+  const G = useContext(GDataContext);
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState<number>(0);
   const [search, setSearch] = useState<string>();
+
+  if (!G) {
+    return <>WAITING!</>;
+  }
 
   // http://localhost:3000/?gear=N4Ig5gpghgTiBcoDGUAOEGgHZQLYfhACMV0QAaEAGwgDcIqEBGAX0rCoHt6BnTEHPgQgAFlCwATTgDNcASwlQ+lGvUbxWlGHKxgATP0EEQSAC7aepzlgwq6DBAGYWbE1SU8AcnmMB3WNqccHZqCHoArCxAA
   // TODO: decompress sharelink
@@ -116,9 +121,31 @@ export function GearSelectDialog({
             const searchTerm = search.toLowerCase();
             const itemNameMatches = itemName.toLowerCase().indexOf(searchTerm) > -1;
             const gItemNameMatches = gItem.name.toLowerCase().indexOf(searchTerm) > -1;
-            const attributesMatchingSearch = Object.keys(gItem).filter(
-              (key) => key.toLowerCase().indexOf(searchTerm) > -1,
-            );
+            const attributesMatchingSearch = Object.keys({
+              ...gItem,
+              ...gItem.upgrade,
+              ...gItem.compound,
+            }).filter((key) => key.toLowerCase().indexOf(searchTerm) > -1);
+
+            let setItemAttributeMatchesSearch = false;
+            if (gItem.set) {
+              const gSet = G.sets[gItem.set];
+              // eslint-disable-next-line guard-for-in
+              for (const setQuantity in gSet) {
+                const setStats = gSet[setQuantity];
+
+                const attributes = Object.keys(setStats ?? {}).filter(
+                  (key) => key.indexOf(searchTerm) > -1,
+                );
+
+                attributes.forEach((property) => {
+                  setItemAttributeMatchesSearch = true;
+                  if (attributeSearchColumns.indexOf(property) === -1) {
+                    attributeSearchColumns.push(property);
+                  }
+                });
+              }
+            }
 
             attributesMatchingSearch.forEach((property) => {
               if (attributeSearchColumns.indexOf(property) === -1) {
@@ -135,6 +162,10 @@ export function GearSelectDialog({
             }
 
             if (attributeMatchesSearch) {
+              validSearch = true;
+            }
+
+            if (setItemAttributeMatchesSearch) {
               validSearch = true;
             }
           }
@@ -163,7 +194,7 @@ export function GearSelectDialog({
       onSelectGear(slot, row);
     }
   };
-
+  // console.log(attributeSearchColumns)
   const columns = [
     {
       id: "name",
@@ -192,11 +223,13 @@ export function GearSelectDialog({
       numeric: true,
       label: "Tier",
     },
-    ...attributeSearchColumns.map((x) => ({
-      id: x,
-      numeric: true,
-      label: x,
-    })),
+    ...attributeSearchColumns
+      .filter((x) => !["stat", "armor", "resistance", "evasion"].includes(x))
+      .map((x) => ({
+        id: x,
+        numeric: true,
+        label: x,
+      })),
     {
       id: "stat",
       numeric: true,
@@ -219,6 +252,8 @@ export function GearSelectDialog({
       label: "Evasion",
     },
   ];
+
+  console.log("columns", columns);
 
   const onLevelSliderChange = (event: Event, value: number | number[]) => {
     if (typeof value === "number") {
