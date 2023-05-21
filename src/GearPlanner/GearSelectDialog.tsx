@@ -94,6 +94,7 @@ export function GearSelectDialog({
   // TODO: upgrade or compound property depending on type, we need to modify the slider range
   // rings  compound, earrings, source
 
+  const attributeSearchColumns: string[] = [];
   const rows = items
     ? Object.entries(items)
         .filter(([itemName, gItem]) => {
@@ -115,9 +116,17 @@ export function GearSelectDialog({
             const searchTerm = search.toLowerCase();
             const itemNameMatches = itemName.toLowerCase().indexOf(searchTerm) > -1;
             const gItemNameMatches = gItem.name.toLowerCase().indexOf(searchTerm) > -1;
-            const attributeMatchesSearch = Object.keys(gItem).some(
+            const attributesMatchingSearch = Object.keys(gItem).filter(
               (key) => key.toLowerCase().indexOf(searchTerm) > -1,
             );
+
+            attributesMatchingSearch.forEach((property) => {
+              if (attributeSearchColumns.indexOf(property) === -1) {
+                attributeSearchColumns.push(property);
+              }
+            });
+
+            const attributeMatchesSearch = attributesMatchingSearch.length > 0;
             // TODO: search in lvl up and set items.
 
             // console.log('filtering by search',itemNameMatches, gItemNameMatches, attributeMatchesSearch);
@@ -183,6 +192,11 @@ export function GearSelectDialog({
       numeric: true,
       label: "Tier",
     },
+    ...attributeSearchColumns.map((x) => ({
+      id: x,
+      numeric: true,
+      label: x,
+    })),
     {
       id: "stat",
       numeric: true,
@@ -253,7 +267,7 @@ export function GearSelectDialog({
           onChange={onLevelSliderChange}
           style={{ marginTop: 25 }}
         />
-        <Search doSearch={onSearch} />
+        <Search doSearch={onSearch} /> <label>You can search by name, or attribute e.g. luck</label>
         <Paper sx={{ width: "100%", overflow: "hidden" }}>
           <TableContainer>
             <Table
