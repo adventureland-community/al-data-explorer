@@ -21,7 +21,7 @@ import { GItem, ItemKey, ItemType, OffhandType, SlotType, WeaponType } from "typ
 
 import { GItems } from "../GDataContext";
 import { ItemTooltip } from "../ItemTooltip";
-import { getMaxLevel } from "../Utils";
+import { calculateItemStatsByLevel, getMaxLevel } from "../Utils";
 import { ItemInstance } from "./ItemInstance";
 import { SelectedCharacterClass } from "./types";
 import { Search } from "../Shared/Search";
@@ -135,11 +135,13 @@ export function GearSelectDialog({
         .map(([itemName, gItem]) => {
           const maxLevel = getMaxLevel(gItem);
           const itemLevel = maxLevel ? Math.min(level, maxLevel) : level;
+          const stats = calculateItemStatsByLevel(gItem, level);
 
           const row = {
             itemName,
             level: itemLevel,
             ...gItem,
+            ...stats,
           };
 
           return row as RowItem;
@@ -169,21 +171,38 @@ export function GearSelectDialog({
       id: "type",
       numeric: true,
       label: "Type",
+      row: (row: RowItem) => `${row.type ? row.type : ""} ${row.wtype ? row.wtype : ""}`,
     },
-    {
-      id: "wtype",
-      numeric: true,
-      label: "W Type", // Merge with type?
-    },
+    // {
+    //   id: "wtype",
+    //   numeric: true,
+    //   label: "W Type", // Merge with type?
+    // },
     {
       id: "tier",
       numeric: true,
       label: "Tier",
     },
     {
+      id: "stat",
+      numeric: true,
+      label: "Stat",
+    },
+    // defensive
+    {
       id: "armor",
       numeric: true,
       label: "Armor",
+    },
+    {
+      id: "resistance",
+      numeric: true,
+      label: "Resistance",
+    },
+    {
+      id: "evasion",
+      numeric: true,
+      label: "Evasion",
     },
   ];
 
@@ -259,6 +278,8 @@ export function GearSelectDialog({
                   .map((row) => {
                     const maxLevel = getMaxLevel(row);
                     const itemLevel = maxLevel ? Math.min(level ?? 0, maxLevel) : level;
+                    // what about items with enchants and such, then we need an item instance, not just the itemname
+                    // TODO: handle level and render correct stats for upgrade / compound
 
                     return (
                       <ItemTooltip
@@ -292,7 +313,11 @@ export function GearSelectDialog({
                                 key={row.itemName + c.id}
                                 align={c.numeric ? "right" : "left"}
                               >
-                                {c.component ? c.component(property) : property}
+                                {c.component
+                                  ? c.component(property)
+                                  : c.row
+                                  ? c.row(property)
+                                  : property}
                               </TableCell>
                             );
                           })}
