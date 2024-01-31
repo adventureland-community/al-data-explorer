@@ -1,6 +1,4 @@
-// TODO search for monster
 // TODO: search for item name / drop
-// TODO: list all monsters, allow sorting by column
 // TODO: show icon, key, name, locations, drop
 // TODO: calculations, hits to kill (depends on supplying stats)
 // hp/xp xp/hit xp/s hp/g g/hit g/h dps/k
@@ -8,47 +6,202 @@
 // consider levels of monster.
 
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
-import { GMonster, MonsterKey } from "typed-adventureland";
-import { useContext } from "react";
+import { GMonster, MonsterKey, GImage, GDimension } from "typed-adventureland";
+import { useState, useContext } from "react";
 import { GDataContext } from "../GDataContext";
+
+function matrixPosition(value: any, matrix: any[]) {
+  let col = -1;
+  const row = matrix.findIndex((r: any[]) => {
+    const c = r.indexOf(value);
+    if (c !== -1) {
+      col = c;
+      return true;
+    }
+    return false;
+  });
+  if (col === -1 && row === -1) return false;
+  return { row, col };
+}
+
+function MonsterImage({
+  monsterName,
+  opacity,
+  scale,
+}: {
+  monsterName: string;
+  opacity: number;
+  scale: number;
+}) {
+  const G = useContext(GDataContext); // Get G from context
+  if (!G) return <></>;
+
+  const monster = G.monsters[monsterName as keyof typeof G.monsters] as GMonster;
+
+  // Lets just search all sprites? Seems simpler than manually listing custom/edge cases...
+  const sprite = Object.values(G.sprites)
+    .filter((v) => v?.matrix && v?.file)
+    .reduce((a, b) => {
+      const find = matrixPosition(monster?.skin, b.matrix);
+      if (find) return { data: b, ...find };
+      return a;
+    }, {} as { data: any; row: number; col: number });
+  if (!sprite) return <img alt={monsterName} />;
+
+  const image = (G.images as Record<string, GImage>)[sprite.data.file.split("?")[0]];
+  const scaling = (scale || 1) * (G.monsters[monsterName as keyof typeof G.monsters]?.size || 1);
+  const width = (image.width / sprite.data.columns) * scaling;
+  const height = (image.height / sprite.data.rows) * scaling;
+
+  const dimension = (G.dimensions as Record<string, GDimension>)[monster?.skin] || false;
+
+  // At this point, I'm just throwing things at the wall to make it work, this could probably be much cleaner :).
+  const offsetx = (dimension && width / 3 - dimension[0] * scaling) || 0;
+  const offsety = (dimension && height / 4 - (dimension[2] || 0) - dimension[1] * scaling) || 0;
+
+  return (
+    <div
+      style={{
+        overflow: "hidden",
+        width: `${width / 3 - offsetx}px`,
+        height: `${height / 4 - offsety}px`,
+        opacity: opacity || 1,
+      }}
+    >
+      <img
+        alt={monsterName}
+        style={{
+          maxWidth: `${image.width * scaling}px`,
+          width: `${image.width * scaling}px`,
+          height: `${image.height * scaling}px`,
+          marginTop: `-${sprite.row * height + offsety}px`,
+          marginLeft: `-${sprite.col * width + offsetx / 2}px`,
+          imageRendering: "pixelated",
+        }}
+        src={`http://adventure.land${sprite.data.file}`}
+      />
+    </div>
+  );
+}
 
 // Object.entries(G.npcs).filter(([key,npc])=>npc.name === 'Caroline')
 export function Monsters() {
   const G = useContext(GDataContext);
 
+  // Add a state variable for the search term
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState({
+    key: "",
+    direction: "",
+  });
+
+  const handleSort = (key: string) => {
+    setSortConfig((prevSortConfig) => {
+      if (prevSortConfig.key === key) {
+        // If clicking on the same column, toggle the direction
+        return { key, direction: prevSortConfig.direction === "asc" ? "desc" : "asc" };
+      }
+      // If clicking on a different column, set the new key and default to ascending order
+      return { key, direction: "asc" };
+    });
+  };
+
   if (!G) {
     return <>WAITING!</>;
   }
 
-  // TODO: columns
   // TODO: do the heavy row calculations here and map a new object with min and max gold for example.
-  const rows: [MonsterKey, GMonster][] = Object.entries(G.monsters).sort(([, aValue], [, bValue]) =>
-    aValue.name.localeCompare(bValue.name),
-  ) as [MonsterKey, GMonster][];
+  const rows: [MonsterKey, GMonster & { avgGold: number }][] = Object.entries(G.monsters)
+    .map(([monsterKey, monster]) => {
+      const base_gold = G.base_gold[monsterKey as keyof typeof G.base_gold] as number[];
+      const goldValues = base_gold ? Object.values(base_gold) : ([] as number[]);
+      const minGold = Math.min(...goldValues) as number;
+      const maxGold = Math.max(...goldValues) as number;
+      let avgGold = (minGold + maxGold) / 2;
+      if (isNaN(avgGold)) {
+        avgGold = 0;
+      }
+      return [monsterKey, { ...monster, avgGold }];
+    })
+    .sort(([aKey, aValue], [bKey, bValue]) => {
+      const sortKey = sortConfig.key as keyof (GMonster & { avgGold: number });
+      let aValueForKey = aValue[sortKey as keyof typeof aValue] as string | number | object;
+      let bValueForKey = bValue[sortKey as keyof typeof bValue] as string | number | object;
+
+      // If sortKey is not valid, sort by monster key
+      if (!Object.prototype.hasOwnProperty.call(aValue, sortKey)) {
+        return (
+          aKey.toString().localeCompare(bKey.toString()) * (sortConfig.direction === "asc" ? 1 : -1)
+        );
+      }
+      // Handle specific columns
+      if (sortKey === "name") {
+        // For text columns, use localeCompare for string comparison
+        return (
+          String(aValueForKey).localeCompare(String(bValueForKey)) *
+          (sortConfig.direction === "asc" ? 1 : -1)
+        );
+      }
+
+      // Handle range values
+      if (typeof aValueForKey === "string" && aValueForKey.includes("-")) {
+        const [min, max] = aValueForKey.split("-").map(Number);
+        aValueForKey = (min + max) / 2;
+      }
+
+      if (typeof bValueForKey === "string" && bValueForKey.includes("-")) {
+        const [min, max] = bValueForKey.split("-").map(Number);
+        bValueForKey = (min + max) / 2;
+      }
+
+      // For numeric columns, directly compare the numbers
+      const aNumericValue = typeof aValueForKey === "number" ? aValueForKey : 0;
+      const bNumericValue = typeof bValueForKey === "number" ? bValueForKey : 0;
+
+      const numericDirection = sortConfig.direction === "asc" ? 1 : -1;
+
+      const result = aNumericValue - bNumericValue;
+
+      return result * numericDirection;
+    }) as [MonsterKey, GMonster & { avgGold: number }][];
+
+  // Filter the rows based on the search term
+  const filteredRows = rows.filter(([, monster]) =>
+    monster.name.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
+
   // G.drops.monsters.goo
   // monsters does not contain gold, where does that come from?
   // sub table with spawn locations?
   return (
     <>
+      {/* Add a search field */}
+      <input
+        type="text"
+        placeholder="Search monsters..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+      />
       <Table stickyHeader size="small">
         <TableHead>
           <TableRow>
-            <TableCell />
-            <TableCell>Name</TableCell>
-            <TableCell>HP</TableCell>
-            <TableCell>GOLD</TableCell>
-            <TableCell>HP/GOLD</TableCell>
-            <TableCell>XP</TableCell>
-            <TableCell>XP/HP</TableCell>
-            <TableCell>respawn</TableCell>
-            <TableCell>armor</TableCell>
-            <TableCell>resistance</TableCell>
-            <TableCell>evasion</TableCell>
-            <TableCell>reflection</TableCell>
+            <TableCell onClick={() => handleSort("monsterkey")}>Monster Key</TableCell>
+            <TableCell>Image</TableCell> {/* New TableCell for the image */}
+            <TableCell onClick={() => handleSort("name")}>Name</TableCell>
+            <TableCell onClick={() => handleSort("hp")}>HP</TableCell>
+            <TableCell onClick={() => handleSort("avgGold")}>GOLD</TableCell>
+            <TableCell onClick={() => handleSort("hpPerGold")}>HP/GOLD</TableCell>
+            <TableCell onClick={() => handleSort("xp")}>XP</TableCell>
+            <TableCell onClick={() => handleSort("xpPerHp")}>XP/HP</TableCell>
+            <TableCell onClick={() => handleSort("respawn")}>Respawn</TableCell>
+            <TableCell onClick={() => handleSort("armor")}>Armor</TableCell>
+            <TableCell onClick={() => handleSort("resistance")}>Resistance</TableCell>
+            <TableCell onClick={() => handleSort("evasion")}>Evasion</TableCell>
+            <TableCell onClick={() => handleSort("reflection")}>Reflection</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map(([monsterKey, row]) => {
+          {filteredRows.map(([monsterKey, row]) => {
             const base_gold = G.base_gold[monsterKey];
             console.log(monsterKey, base_gold);
             // const goldPerMapString = base_gold
@@ -73,23 +226,37 @@ export function Monsters() {
             const minGold = Math.min(...goldValues);
             const maxGold = Math.max(...goldValues);
 
-            let goldString = "";
-            if (minGold >= 0 && minGold < maxGold) {
-              goldString = `${minGold} - ${maxGold}`;
-            } else if (minGold >= 0 && minGold === maxGold) {
-              goldString = minGold.toString();
+            // Calculate average gold
+            let avgGold = (minGold + maxGold) / 2;
+
+            if (isNaN(avgGold)) {
+              avgGold = 0;
             }
+
+            // Calculate HP per average gold
+            let hpPerAvgGold = 0;
+            if (!isNaN(avgGold) && avgGold !== 0) {
+              hpPerAvgGold = Number((row.hp / avgGold).toFixed(2));
+            }
+
+            // let goldString = "";
+            // if (minGold >= 0 && minGold < maxGold) {
+            //   goldString = `${minGold} - ${maxGold}`;
+            // } else if (minGold >= 0 && minGold === maxGold) {
+            //   goldString = minGold.toString();
+            // }
             // TODO: render farming spots, with mob count and respawn time.
             return (
               <TableRow key={monsterKey} hover>
                 <TableCell>{monsterKey}</TableCell>
+                <TableCell>
+                  {" "}
+                  <MonsterImage monsterName={monsterKey} opacity={1} scale={1} />{" "}
+                </TableCell>
                 <TableCell>{row.name}</TableCell>
                 <TableCell>{row.hp}</TableCell>
-                <TableCell title={goldPerMapString}>{goldString}</TableCell>
-                <TableCell>
-                  {minGold ? (row.hp / minGold).toFixed(2) : ""} - &nbsp;
-                  {maxGold ? (row.hp / maxGold).toFixed(2) : ""}
-                </TableCell>
+                <TableCell title={goldPerMapString}>{avgGold}</TableCell>
+                <TableCell>{hpPerAvgGold}</TableCell>
                 <TableCell>{row.xp}</TableCell>
                 <TableCell>{(row.xp / row.hp).toFixed(2)}</TableCell>
                 <TableCell>{row.respawn}</TableCell>
@@ -105,89 +272,3 @@ export function Monsters() {
     </>
   );
 }
-
-// const monsterImage = $(parent.sprite_image(quest.monsterhunt.id)).css({
-//     position: "relative",
-//     left: "-4px",
-//     top: "-40px",
-//   });
-
-// Thanks to WarEagle for pointing me in the direction of precompute_image_positions and sprite_image
-
-// function precompute_image_positions()
-// {
-// 	// G.images is new [25/09/18]
-// 	if(IID) return;
-// 	if(!window.SS) window.SS={},window.SSU={};
-// 	if(!Object.keys(T).length) process_game_data();
-// 	IID={}; // IID is reset after game loads, so actual dimensions are live
-// 	for(var name in G.sprites)
-// 	{
-// 		var s_def=G.sprites[name];
-// 		if(s_def.skip) continue;
-// 		var row_num=4,col_num=3,s_type="full";
-// 		if(in_arr(s_def.type,["animation"])) row_num=1,s_type=s_def.type;
-// 		if(in_arr(s_def.type,["tail"])) col_num=4,s_type=s_def.type;
-// 		if(in_arr(s_def.type,["v_animation","head","hair","hat","s_wings","face","makeup","beard"])) col_num=1,s_type=s_def.type;
-// 		if(in_arr(s_def.type,["a_makeup","a_hat"])) col_num=3,s_type=s_def.type;
-// 		if(in_arr(s_def.type,["wings","body","armor","skin","character"])) s_type=s_def.type;
-// 		if(in_arr(s_def.type,["emblem","gravestone"])) row_num=1,col_num=1,s_type=s_def.type;
-// 		var matrix=s_def.matrix;
-// 		var width=G.images[s_def.file.split("?")[0]]&&G.images[s_def.file.split("?")[0]].width||s_def.width||window.C&&C[s_def.file]&&C[s_def.file].width||312;
-// 		var height=G.images[s_def.file.split("?")[0]]&&G.images[s_def.file.split("?")[0]].height||s_def.height||window.C&&C[s_def.file]&&C[s_def.file].height||288;
-// 		// if(s_def.columns!=4 || s_def.rows!=2) continue;
-// 		for(var i=0;i<matrix.length;i++)
-// 			for(var j=0;j<matrix[i].length;j++)
-// 			{
-// 				var name=matrix[i][j];
-// 				if(!name) continue;
-// 				// 0 total-width,  1 total-height, 2 X-start, 3 Y-start, 4 width, 5 height, 6 col_num, 7 file, 8 type
-// 				IID[name]=[width,height,j*width/s_def.columns,i*height/s_def.rows,width/(s_def.columns*col_num),height/(s_def.rows*row_num),col_num,s_def.file,s_type];
-// 				T[name]=s_def.type;
-// 				SSU[name]=SS[name]=s_def.size||"normal";
-// 				if(G.cosmetics.prop[name] && G.cosmetics.prop[name].includes("slender")) SSU[name]+="slender";
-// 				if(G.dimensions[name])
-// 				{
-// 					//IID[name][4]=G.dimensions[name][0]; - not for here, maybe to replace the default 39 50
-// 					//IID[name][5]=G.dimensions[name][1];
-// 					IID[name][2]=IID[name][2]+(G.dimensions[name][2]||0); // instead of 6 width-disp
-// 				}
-// 			}
-// 	}
-// 	if(0)
-// 		for(var name in IID)
-// 		{
-// 			for(var j=0;j<IID[name].length-1;j++) IID[name][j]*=1.5;
-// 		}
-// }
-
-// function sprite_image(name,args)
-// {
-// 	try{
-// 		precompute_image_positions();
-// 		if(!args) args={};
-// 		args.p=args.p||0;
-// 		args.rheight=args.rheight||0; // height reduction for cx.upper
-// 		if(!IID[name]) name="naked";
-// 		var scale=args.scale||1,css='';
-// 		// previously, the default width/height was 39px/50px [26/09/18]
-// 		var width=IID[name][4],w_disp=0,l_disp=0,j=args.j||0;
-// 		var height=IID[name][5];
-// 		if(args.cwidth) l_disp=(args.cwidth-width*scale)/2;
-// 		// l_disp=parseInt(l_disp); // currently, on Chrome, -0.25, 0.5 px corrections etc. look bad [02/10/18]
-// 		if(IID[name][6]==1) w_disp=width;
-// 		if(args.opacity && args.opacity!=1) css+="opacity: "+args.opacity+";"
-// 		return "<div style='display: inline-block; width: "+(width*scale)+"px; height: "+((height-args.rheight)*scale)+"px; overflow: hidden; position: absolute; left: "+l_disp+"px; bottom: "+((args.p+args.rheight)*scale)+"px; "+css+"'>\
-// 			<img style='\
-// 			margin-left: "+((-IID[name][2]-IID[name][4]+w_disp-(IID[name][4]-width+(args.x_disp||0))/2)*scale)+"px; \
-// 			margin-top: "+((-IID[name][3]-IID[name][5]-IID[name][5]*j+height)*scale)+"px; \
-// 			width: "+(IID[name][0]*scale)+"px; \
-// 			height: "+(IID[name][1]*scale)+"px;' \
-// 		src='"+IID[name][7]+"'/></div>";
-// 		// Math.ceil((IID[name][4]-width)/2)
-// 	}
-// 	catch(e){
-// 		console.log(e);
-// 	}
-// 	return "";
-// }
