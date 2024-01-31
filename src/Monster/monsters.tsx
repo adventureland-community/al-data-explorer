@@ -84,7 +84,6 @@ function MonsterImage({
   );
 }
 
-// Object.entries(G.npcs).filter(([key,npc])=>npc.name === 'Caroline')
 export function Monsters() {
   const G = useContext(GDataContext);
 
@@ -111,59 +110,84 @@ export function Monsters() {
   }
 
   // TODO: do the heavy row calculations here and map a new object with min and max gold for example.
-  const rows: [MonsterKey, GMonster & { avgGold: number }][] = Object.entries(G.monsters)
-    .map(([monsterKey, monster]) => {
-      const base_gold = G.base_gold[monsterKey as keyof typeof G.base_gold] as number[];
-      const goldValues = base_gold ? Object.values(base_gold) : ([] as number[]);
-      const minGold = Math.min(...goldValues) as number;
-      const maxGold = Math.max(...goldValues) as number;
-      let avgGold = (minGold + maxGold) / 2;
-      if (isNaN(avgGold)) {
-        avgGold = 0;
-      }
-      return [monsterKey, { ...monster, avgGold }];
-    })
-    .sort(([aKey, aValue], [bKey, bValue]) => {
-      const sortKey = sortConfig.key as keyof (GMonster & { avgGold: number });
-      let aValueForKey = aValue[sortKey as keyof typeof aValue] as string | number | object;
-      let bValueForKey = bValue[sortKey as keyof typeof bValue] as string | number | object;
+  const rows: [MonsterKey, GMonster & { avgGold: number; hpPerGold: number; xpPerHp: number }][] =
+    Object.entries(G.monsters)
+      .map(([monsterKey, monster]) => {
+        const base_gold = G.base_gold[monsterKey as keyof typeof G.base_gold] as number[];
+        const goldValues = base_gold ? Object.values(base_gold) : ([] as number[]);
+        const minGold = Math.min(...goldValues) as number;
+        const maxGold = Math.max(...goldValues) as number;
+        let avgGold = (minGold + maxGold) / 2;
+        if (isNaN(avgGold)) {
+          avgGold = 0;
+        }
+        // Calculate HP/Gold and XP/HP
+        const hpPerGold = monster.hp / avgGold;
+        const xpPerHp = monster.xp / monster.hp;
+        // If the properties are not present in the monster object, set them to 0
+        const armor = monster.armor || 0;
+        const resistance = monster.resistance || 0;
+        const evasion = monster.evasion || 0;
+        const reflection = monster.reflection || 0;
 
-      // If sortKey is not valid, sort by monster key
-      if (!Object.prototype.hasOwnProperty.call(aValue, sortKey)) {
-        return (
-          aKey.toString().localeCompare(bKey.toString()) * (sortConfig.direction === "asc" ? 1 : -1)
-        );
-      }
-      // Handle specific columns
-      if (sortKey === "name") {
-        // For text columns, use localeCompare for string comparison
-        return (
-          String(aValueForKey).localeCompare(String(bValueForKey)) *
-          (sortConfig.direction === "asc" ? 1 : -1)
-        );
-      }
+        return [
+          monsterKey,
+          { ...monster, armor, resistance, evasion, reflection, avgGold, hpPerGold, xpPerHp },
+        ];
+      })
+      .sort(([aKey, aValue], [bKey, bValue]) => {
+        const sortKey = sortConfig.key as keyof (GMonster & {
+          avgGold: number;
+          hpPerGold: number;
+          xpPerHp: number;
+        });
+        let aValueForKey = aValue[sortKey as keyof typeof aValue] as string | number | object;
+        let bValueForKey = bValue[sortKey as keyof typeof bValue] as string | number | object;
 
-      // Handle range values
-      if (typeof aValueForKey === "string" && aValueForKey.includes("-")) {
-        const [min, max] = aValueForKey.split("-").map(Number);
-        aValueForKey = (min + max) / 2;
-      }
+        // If sortKey is not valid, sort by monster key
+        if (!Object.prototype.hasOwnProperty.call(aValue, sortKey)) {
+          return (
+            aKey.toString().localeCompare(bKey.toString()) *
+            (sortConfig.direction === "asc" ? 1 : -1)
+          );
+        }
+        // Handle specific columns
+        if (sortKey === "name") {
+          // For text columns, use localeCompare for string comparison
+          return (
+            String(aValueForKey).localeCompare(String(bValueForKey)) *
+            (sortConfig.direction === "asc" ? 1 : -1)
+          );
+        }
 
-      if (typeof bValueForKey === "string" && bValueForKey.includes("-")) {
-        const [min, max] = bValueForKey.split("-").map(Number);
-        bValueForKey = (min + max) / 2;
-      }
+        // Handle range values
+        if (typeof aValueForKey === "string" && aValueForKey.includes("-")) {
+          const [min, max] = aValueForKey.split("-").map(Number);
+          aValueForKey = (min + max) / 2;
+        }
 
-      // For numeric columns, directly compare the numbers
-      const aNumericValue = typeof aValueForKey === "number" ? aValueForKey : 0;
-      const bNumericValue = typeof bValueForKey === "number" ? bValueForKey : 0;
+        if (typeof bValueForKey === "string" && bValueForKey.includes("-")) {
+          const [min, max] = bValueForKey.split("-").map(Number);
+          bValueForKey = (min + max) / 2;
+        }
 
-      const numericDirection = sortConfig.direction === "asc" ? 1 : -1;
+        // // Handle Armor, Resistance, Evasion, and Reflection
+        // if (["armor", "resistance", "evasion", "reflection"].includes(sortKey)) {
+        //   // Convert to numbers or default to 0
+        //   aValueForKey = isNaN(Number(aValueForKey)) ? 0 : Number(aValueForKey);
+        //   bValueForKey = isNaN(Number(bValueForKey)) ? 0 : Number(bValueForKey);
+        // }
 
-      const result = aNumericValue - bNumericValue;
+        // For numeric columns, directly compare the numbers
+        const aNumericValue = isNaN(Number(aValueForKey)) ? 0 : Number(aValueForKey);
+        const bNumericValue = isNaN(Number(bValueForKey)) ? 0 : Number(bValueForKey);
 
-      return result * numericDirection;
-    }) as [MonsterKey, GMonster & { avgGold: number }][];
+        const numericDirection = sortConfig.direction === "asc" ? 1 : -1;
+
+        const result = aNumericValue - bNumericValue;
+
+        return result * numericDirection;
+      }) as [MonsterKey, GMonster & { avgGold: number; hpPerGold: number; xpPerHp: number }][];
 
   // Filter the rows based on the search term
   const filteredRows = rows.filter(([, monster]) =>
@@ -186,7 +210,7 @@ export function Monsters() {
         <TableHead>
           <TableRow>
             <TableCell onClick={() => handleSort("monsterkey")}>Monster Key</TableCell>
-            <TableCell>Image</TableCell> {/* New TableCell for the image */}
+            <TableCell>Image</TableCell>
             <TableCell onClick={() => handleSort("name")}>Name</TableCell>
             <TableCell onClick={() => handleSort("hp")}>HP</TableCell>
             <TableCell onClick={() => handleSort("avgGold")}>GOLD</TableCell>
