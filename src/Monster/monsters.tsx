@@ -1,4 +1,3 @@
-// TODO: search for item name / drop
 // TODO: show icon, key, name, locations, drop
 // TODO: calculations, hits to kill (depends on supplying stats)
 // hp/xp xp/hit xp/s hp/g g/hit g/h dps/k
@@ -87,8 +86,9 @@ function MonsterImage({
 export function Monsters() {
   const G = useContext(GDataContext);
 
-  // Add a state variable for the search term
+  // Add a state variable for the search terms
   const [searchTerm, setSearchTerm] = useState("");
+  const [itemSearchTerm, setItemSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({
     key: "",
     direction: "",
@@ -110,88 +110,124 @@ export function Monsters() {
   }
 
   // TODO: do the heavy row calculations here and map a new object with min and max gold for example.
-  const rows: [MonsterKey, GMonster & { avgGold: number; hpPerGold: number; xpPerHp: number }][] =
-    Object.entries(G.monsters)
-      .map(([monsterKey, monster]) => {
-        const base_gold = G.base_gold[monsterKey as keyof typeof G.base_gold] as number[];
-        const goldValues = base_gold ? Object.values(base_gold) : ([] as number[]);
-        const minGold = Math.min(...goldValues) as number;
-        const maxGold = Math.max(...goldValues) as number;
-        let avgGold = (minGold + maxGold) / 2;
-        if (isNaN(avgGold)) {
-          avgGold = 0;
-        }
-        // Calculate HP/Gold and XP/HP
-        const hpPerGold = monster.hp / avgGold;
-        const xpPerHp = monster.xp / monster.hp;
-        // If the properties are not present in the monster object, set them to 0
-        const armor = monster.armor || 0;
-        const resistance = monster.resistance || 0;
-        const evasion = monster.evasion || 0;
-        const reflection = monster.reflection || 0;
+  const rows: [
+    MonsterKey,
+    GMonster & { avgGold: number; hpPerGold: number; xpPerHp: number; drops: any },
+  ][] = Object.entries(G.monsters)
+    .map(([monsterKey, monster]) => {
+      const base_gold = G.base_gold[monsterKey as keyof typeof G.base_gold] as number[];
+      const goldValues = base_gold ? Object.values(base_gold) : ([] as number[]);
+      const minGold = Math.min(...goldValues) as number;
+      const maxGold = Math.max(...goldValues) as number;
+      // Get the drops for this monster
+      const drops = G.drops.monsters[monsterKey];
 
-        return [
-          monsterKey,
-          { ...monster, armor, resistance, evasion, reflection, avgGold, hpPerGold, xpPerHp },
-        ];
-      })
-      .sort(([aKey, aValue], [bKey, bValue]) => {
-        const sortKey = sortConfig.key as keyof (GMonster & {
-          avgGold: number;
-          hpPerGold: number;
-          xpPerHp: number;
-        });
-        let aValueForKey = aValue[sortKey as keyof typeof aValue] as string | number | object;
-        let bValueForKey = bValue[sortKey as keyof typeof bValue] as string | number | object;
+      let formattedDrops = "";
 
-        // If sortKey is not valid, sort by monster key
-        if (!Object.prototype.hasOwnProperty.call(aValue, sortKey)) {
-          return (
-            aKey.toString().localeCompare(bKey.toString()) *
-            (sortConfig.direction === "asc" ? 1 : -1)
-          );
-        }
-        // Handle specific columns
-        if (sortKey === "name") {
-          // For text columns, use localeCompare for string comparison
-          return (
-            String(aValueForKey).localeCompare(String(bValueForKey)) *
-            (sortConfig.direction === "asc" ? 1 : -1)
-          );
-        }
+      // Check if drops is an array
+      if (Array.isArray(drops)) {
+        // Format the drops string
+        formattedDrops = drops
+          .map(([dropChance, itemName, ...args]) => {
+            // If the item name is "open", use the next argument as the item name
+            if (itemName === "open") {
+              itemName = args[0];
+            }
 
-        // Handle range values
-        if (typeof aValueForKey === "string" && aValueForKey.includes("-")) {
-          const [min, max] = aValueForKey.split("-").map(Number);
-          aValueForKey = (min + max) / 2;
-        }
+            // Convert the drop chance to percentage and return the formatted string
+            const percentage = dropChance * 100;
+            return `${itemName} (${percentage.toFixed(2)}%)`;
+          })
+          .join(", ");
+      } else {
+        // Handle non-array drops here
+        // This is just an example, adjust it according to your needs
+        formattedDrops = JSON.stringify(drops);
+      }
+      let avgGold = (minGold + maxGold) / 2;
+      if (isNaN(avgGold)) {
+        avgGold = 0;
+      }
+      // Calculate HP/Gold and XP/HP
+      const hpPerGold = monster.hp / avgGold;
+      const xpPerHp = monster.xp / monster.hp;
+      // If the properties are not present in the monster object, set them to 0
+      const armor = monster.armor || 0;
+      const resistance = monster.resistance || 0;
+      const evasion = monster.evasion || 0;
+      const reflection = monster.reflection || 0;
 
-        if (typeof bValueForKey === "string" && bValueForKey.includes("-")) {
-          const [min, max] = bValueForKey.split("-").map(Number);
-          bValueForKey = (min + max) / 2;
-        }
+      return [
+        monsterKey,
+        {
+          ...monster,
+          armor,
+          resistance,
+          evasion,
+          reflection,
+          avgGold,
+          hpPerGold,
+          xpPerHp,
+          drops: formattedDrops,
+        },
+      ];
+    })
+    .sort(([aKey, aValue], [bKey, bValue]) => {
+      const sortKey = sortConfig.key as keyof (GMonster & {
+        avgGold: number;
+        hpPerGold: number;
+        xpPerHp: number;
+      });
+      let aValueForKey = aValue[sortKey as keyof typeof aValue] as string | number | object;
+      let bValueForKey = bValue[sortKey as keyof typeof bValue] as string | number | object;
 
-        // // Handle Armor, Resistance, Evasion, and Reflection
-        // if (["armor", "resistance", "evasion", "reflection"].includes(sortKey)) {
-        //   // Convert to numbers or default to 0
-        //   aValueForKey = isNaN(Number(aValueForKey)) ? 0 : Number(aValueForKey);
-        //   bValueForKey = isNaN(Number(bValueForKey)) ? 0 : Number(bValueForKey);
-        // }
+      // If sortKey is not valid, sort by monster key
+      if (!Object.prototype.hasOwnProperty.call(aValue, sortKey)) {
+        return (
+          aKey.toString().localeCompare(bKey.toString()) * (sortConfig.direction === "asc" ? 1 : -1)
+        );
+      }
+      // Handle specific columns
+      if (sortKey === "name") {
+        // For text columns, use localeCompare for string comparison
+        return (
+          String(aValueForKey).localeCompare(String(bValueForKey)) *
+          (sortConfig.direction === "asc" ? 1 : -1)
+        );
+      }
 
-        // For numeric columns, directly compare the numbers
-        const aNumericValue = isNaN(Number(aValueForKey)) ? 0 : Number(aValueForKey);
-        const bNumericValue = isNaN(Number(bValueForKey)) ? 0 : Number(bValueForKey);
+      // Handle range values
+      if (typeof aValueForKey === "string" && aValueForKey.includes("-")) {
+        const [min, max] = aValueForKey.split("-").map(Number);
+        aValueForKey = (min + max) / 2;
+      }
 
-        const numericDirection = sortConfig.direction === "asc" ? 1 : -1;
+      if (typeof bValueForKey === "string" && bValueForKey.includes("-")) {
+        const [min, max] = bValueForKey.split("-").map(Number);
+        bValueForKey = (min + max) / 2;
+      }
 
-        const result = aNumericValue - bNumericValue;
+      // For numeric columns, directly compare the numbers
+      const aNumericValue = isNaN(Number(aValueForKey)) ? 0 : Number(aValueForKey);
+      const bNumericValue = isNaN(Number(bValueForKey)) ? 0 : Number(bValueForKey);
 
-        return result * numericDirection;
-      }) as [MonsterKey, GMonster & { avgGold: number; hpPerGold: number; xpPerHp: number }][];
+      const numericDirection = sortConfig.direction === "asc" ? 1 : -1;
 
-  // Filter the rows based on the search term
-  const filteredRows = rows.filter(([, monster]) =>
-    monster.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      const result = aNumericValue - bNumericValue;
+
+      return result * numericDirection;
+    }) as [
+    MonsterKey,
+    GMonster & { avgGold: number; hpPerGold: number; xpPerHp: number; drops: any },
+  ][];
+
+  // Filter the rows based on the search term and item search term
+  const filteredRows = rows.filter(
+    ([, monster]) =>
+      monster.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (monster.drops
+        ? monster.drops.toLowerCase().includes(itemSearchTerm.toLowerCase())
+        : itemSearchTerm === ""),
   );
 
   // G.drops.monsters.goo
@@ -199,12 +235,20 @@ export function Monsters() {
   // sub table with spawn locations?
   return (
     <>
-      {/* Add a search field */}
+      {/* Add a search field for monsters */}
       <input
         type="text"
         placeholder="Search monsters..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
+      />
+
+      {/* Add a search field for items */}
+      <input
+        type="text"
+        placeholder="Search items..."
+        value={itemSearchTerm}
+        onChange={(e) => setItemSearchTerm(e.target.value)}
       />
       <Table stickyHeader size="small">
         <TableHead>
@@ -222,6 +266,7 @@ export function Monsters() {
             <TableCell onClick={() => handleSort("resistance")}>Resistance</TableCell>
             <TableCell onClick={() => handleSort("evasion")}>Evasion</TableCell>
             <TableCell onClick={() => handleSort("reflection")}>Reflection</TableCell>
+            <TableCell onClick={() => handleSort("drop")}>Drop</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -288,6 +333,7 @@ export function Monsters() {
                 <TableCell>{row.resistance}</TableCell>
                 <TableCell>{row.evasion}</TableCell>
                 <TableCell>{row.reflection}</TableCell>
+                <TableCell>{row.drops}</TableCell>
               </TableRow>
             );
           })}
