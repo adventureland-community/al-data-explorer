@@ -11,6 +11,7 @@ export type MainStatType = "dex" | "int" | "vit" | "str" | "for";
 export type CustomGData = GData & {
   positions: any;
   imagesets: any;
+  drops: any;
   timestamp: string;
   base_gold: Record<MonsterKey, Partial<Record<MapKey, number>>>;
 };
