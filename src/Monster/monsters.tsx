@@ -1,3 +1,9 @@
+/**
+ * Renders a table of monsters with their attributes and drops.
+ * Allows searching and sorting of monsters.
+ * @returns JSX.Element
+ */
+
 // TODO: show icon, key, name, locations, drop
 // TODO: calculations, hits to kill (depends on supplying stats)
 // hp/xp xp/hit xp/s hp/g g/hit g/h dps/k
@@ -6,7 +12,7 @@
 
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
 import { GMonster, MonsterKey, GImage, GDimension } from "typed-adventureland";
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { GDataContext } from "../GDataContext";
 
 function matrixPosition(value: any, matrix: any[]) {
@@ -54,9 +60,12 @@ function MonsterImage({
 
   const dimension = (G.dimensions as Record<string, GDimension>)[monster?.skin] || false;
 
-  // At this point, I'm just throwing things at the wall to make it work, this could probably be much cleaner :).
-  const offsetx = (dimension && width / 3 - dimension[0] * scaling) || 0;
-  const offsety = (dimension && height / 4 - (dimension[2] || 0) - dimension[1] * scaling) || 0;
+  let offsetx = 0;
+  let offsety = 0;
+  if (dimension) {
+    offsetx = width / 3 - dimension[0] * scaling;
+    offsety = height / 4 - (dimension[2] || 0) - dimension[1] * scaling;
+  }
 
   return (
     <div
@@ -83,6 +92,68 @@ function MonsterImage({
   );
 }
 
+// function ItemImage({
+//   itemName,
+//   opacity,
+//   scale,
+// }: {
+//   itemName: string;
+//   opacity: number;
+//   scale: number;
+// }) {
+//   const G = useContext(GDataContext); // Get G from context
+//   if (!G) return <></>;
+
+//   const item = G.items[itemName as keyof typeof G.items] as GItem;
+
+//   const sprite = Object.values(G.sprites)
+//     .filter((v) => v?.matrix && v?.file)
+//     .reduce((a, b) => {
+//       const find = matrixPosition(item?.skin, b.matrix);
+//       if (find) return { data: b, ...find };
+//       return a;
+//     }, {} as { data: any; row: number; col: number });
+//   if (!sprite) return <img alt={itemName} />;
+
+//   const image = (G.images as Record<string, GImage>)[sprite.data.file.split("?")[0]];
+//   const scaling = (scale || 1) * (G.items[itemName as keyof typeof G.items]?.size || 1);
+//   const width = (image.width / sprite.data.columns) * scaling;
+//   const height = (image.height / sprite.data.rows) * scaling;
+
+//   const dimension = (G.dimensions as Record<string, GDimension>)[item?.skin] || false;
+
+//   let offsetx = 0;
+//   let offsety = 0;
+//   if (dimension) {
+//     offsetx = width / 3 - dimension[0] * scaling;
+//     offsety = height / 4 - (dimension[2] || 0) - dimension[1] * scaling;
+//   }
+
+//   return (
+//     <div
+//       style={{
+//         overflow: "hidden",
+//         width: `${width / 3 - offsetx}px`,
+//         height: `${height / 4 - offsety}px`,
+//         opacity: opacity || 1,
+//       }}
+//     >
+//       <img
+//         alt={itemName}
+//         style={{
+//           maxWidth: `${image.width * scaling}px`,
+//           width: `${image.width * scaling}px`,
+//           height: `${image.height * scaling}px`,
+//           marginTop: `-${sprite.row * height + offsety}px`,
+//           marginLeft: `-${sprite.col * width + offsetx / 2}px`,
+//           imageRendering: "pixelated",
+//         }}
+//         src={`http://adventure.land${sprite.data.file}`}
+//       />
+//     </div>
+//   );
+// }
+
 export function Monsters() {
   const G = useContext(GDataContext);
 
@@ -104,6 +175,14 @@ export function Monsters() {
       return { key, direction: "asc" };
     });
   };
+
+  useEffect(() => {
+    // Set the initial sorting configuration to sort by HP in ascending order
+    setSortConfig({
+      key: "hp",
+      direction: "asc",
+    });
+  }, []);
 
   if (!G) {
     return <>WAITING!</>;
@@ -136,6 +215,7 @@ export function Monsters() {
 
             // Convert the drop chance to percentage and return the formatted string
             const percentage = dropChance * 100;
+
             return `${itemName} (${percentage.toFixed(2)}%)`;
           })
           .join(", ");
