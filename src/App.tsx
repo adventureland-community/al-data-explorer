@@ -23,7 +23,7 @@ function useRouteMatch(patterns: readonly string[]) {
 }
 
 function Menu() {
-  const routeMatch = useRouteMatch(["/", "/market", "/gear", "/monsters"]);
+  const routeMatch = useRouteMatch(["/", "/market", "/gear", "/monsters", "/bank"]);
   const currentTab = routeMatch?.pattern?.path ?? "/market";
 
   return (
@@ -31,6 +31,7 @@ function Menu() {
       <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
       <Tab label="Market" value="/market" to="/market" component={RouterLink} />
       <Tab label="Gear Planner" value="/gear" to="/gear" component={RouterLink} />
+      <Tab label="Bank" value="/bank" to="/bank" component={RouterLink} />
     </Tabs>
   );
 }
