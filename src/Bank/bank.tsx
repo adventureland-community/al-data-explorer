@@ -38,7 +38,6 @@ export function Bank() {
   return (
     <>
       <Info />
-      <pre>TODO: select characters TODO: render bank for selected character</pre>
       <OwnerSelection onChange={handleOwnerSelect} />
       <BankRender ownerId={selectedOwner} />
     </>

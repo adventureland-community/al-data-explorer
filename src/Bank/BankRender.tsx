@@ -1,12 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 
+import { ItemKey, TitleKey } from "typed-adventureland";
+import { Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
 import { getBankData, BankDataProps } from "./getBankData";
+import { GDataContext } from "../GDataContext";
 
 type BankRenderProps = {
   ownerId: string;
 };
 
 export function BankRender(props: BankRenderProps) {
+  const G = useContext(GDataContext);
   const { ownerId } = props;
 
   const [bankData, setBankData] = useState<BankDataProps>({});
@@ -31,7 +35,96 @@ export function BankRender(props: BankRenderProps) {
     return <></>;
   }
 
-  // TODO: Parse and group bank data
+  const items = [];
+  const itemsByKey: Record<string, any> = {};
+  // eslint-disable-next-line guard-for-in
+  for (const bankKey in bankData) {
+    const bankItems = bankData[bankKey];
+    if (!Array.isArray(bankItems)) continue;
+    for (const item of bankItems) {
+      if (!item) continue;
+      const key = `${item.p ?? ""}${item.level}${item.name}`;
+      let data = itemsByKey[key];
+      if (!data) {
+        data = { p: item.p, level: item.level, name: item.name, q: 0, stack: 0 };
+        itemsByKey[key] = data;
+        items.push(data);
+      }
+      data.q += item.q ?? 1;
+      data.stack++;
+    }
+  }
 
-  return <>TODO: render table of bank data</>;
+  items.sort((a, b) => {
+    if (a.name === b.name) {
+      return a.level - b.name;
+    }
+    return a.name.localeCompare(b.name);
+  });
+
+  const tshirtNames: { [key in ItemKey]?: string } = {
+    tshirt88: "Lucky", // Luck and all
+    tshirt9: "Manasteal", // Manasteal
+    tshirt3: "XP", // XP
+    tshirt8: "Attack MP", // Attack MP cost
+    tshirt7: "Armor piercing", // Armor piercing
+    tshirt6: "Res. piercing", // Res. piercing
+    tshirt4: "Speed", // Speed
+  };
+
+  return (
+    <>
+      <Table stickyHeader size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Name</TableCell>
+            <TableCell>Level</TableCell>
+            <TableCell>Quantity</TableCell>
+            <TableCell>Stacks</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {items.map((x) => {
+            const itemKey = x.name as ItemKey;
+            const gItem = G?.items[itemKey];
+            if (!gItem) return <></>;
+            const titleKey = x.p as TitleKey;
+
+            const stackSize = Number(gItem.s);
+            const stackCount = x.stack;
+            const optimalStackCount = Math.ceil(x.q / stackSize);
+            const optimalStackCountMessage =
+              stackCount > optimalStackCount ? `⚠️${optimalStackCount}` : "";
+
+            const titleName = titleKey && G.titles[titleKey] ? `${G.titles[titleKey].title} ` : "";
+
+            const itemName =
+              itemKey in tshirtNames ? `${tshirtNames[itemKey]} ${gItem.name}` : gItem.name;
+
+            // itemContainer.attr(
+            //   "title",
+            //   `${titleName}${itemName}${
+            //     Number(level) > 0 ? `+${level}` : ""
+            //   }\n${itemKey}\n${stackCount} stacks ${optimalStackCountMessage}`,
+            // );
+
+            return (
+              <TableRow hover>
+                <TableCell component="td">
+                  {titleName}
+                  {itemName} ({x.name})
+                </TableCell>
+                <TableCell component="td">{x.level}</TableCell>
+                <TableCell component="td">{x.q}</TableCell>
+                <TableCell component="td">
+                  {x.stack}
+                  {optimalStackCountMessage}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </>
+  );
 }
