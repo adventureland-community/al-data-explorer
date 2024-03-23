@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from "react";
 
-import { ItemKey, TitleKey } from "typed-adventureland";
+import { ItemKey, ItemType, TitleKey } from "typed-adventureland";
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
 import { getBankData, BankDataProps } from "./getBankData";
 import { GDataContext } from "../GDataContext";
@@ -35,6 +35,36 @@ export function BankRender(props: BankRenderProps) {
     return <></>;
   }
 
+  const types: { [key in ItemType | "exchange" | "other"]?: string } = {
+    helmet: "Helmets",
+    chest: "Armors",
+    pants: "Pants",
+    gloves: "Gloves",
+    shoes: "Shoes",
+    cape: "Capes",
+    ring: "Rings",
+    earring: "Earrings",
+    amulet: "Amulets",
+    belt: "Belts",
+    orb: "Orbs",
+    weapon: "Weapons",
+    shield: "Shields",
+    source: "Offhands",
+    quiver: "Offhands",
+    misc_offhand: "Offhands",
+    elixir: "Elixirs",
+    pot: "Potions",
+    cscroll: "Scrolls",
+    uscroll: "Scrolls",
+    pscroll: "Scrolls",
+    offering: "Scrolls",
+    material: "Crafting and Collecting",
+    exchange: "Exchangeables",
+    dungeon_key: "Keys",
+    token: "Tokens",
+    other: "Others",
+  };
+
   const items = [];
   const itemsByKey: Record<string, any> = {};
   // eslint-disable-next-line guard-for-in
@@ -46,7 +76,15 @@ export function BankRender(props: BankRenderProps) {
       const key = `${item.p ?? ""}${item.level}${item.name}`;
       let data = itemsByKey[key];
       if (!data) {
-        data = { p: item.p, level: item.level, name: item.name, q: 0, stack: 0 };
+        const itemKey = item.name as ItemKey;
+        const gItem = G?.items[itemKey];
+        let type = (gItem && types[gItem.type]) ?? "Others";
+
+        if (gItem && gItem.e) {
+          type = types.exchange ?? "Others";
+        }
+
+        data = { p: item.p, level: item.level, name: item.name, q: 0, stack: 0, category: type };
         itemsByKey[key] = data;
         items.push(data);
       }
@@ -55,9 +93,16 @@ export function BankRender(props: BankRenderProps) {
     }
   }
 
+  const sortedGroupKeys = [...new Set(Object.values(types))]; // .sort((a, b) => a.localeCompare(b));
+
+  // default sort by name
   items.sort((a, b) => {
+    if (a.category !== b.category) {
+      return sortedGroupKeys.indexOf(a.category) - sortedGroupKeys.indexOf(b.category);
+    }
+
     if (a.name === b.name) {
-      return a.level - b.name;
+      return b.level - a.level;
     }
     return a.name.localeCompare(b.name);
   });
@@ -77,6 +122,7 @@ export function BankRender(props: BankRenderProps) {
       <Table stickyHeader size="small">
         <TableHead>
           <TableRow>
+            <TableCell>Category</TableCell>
             <TableCell>Name</TableCell>
             <TableCell>Level</TableCell>
             <TableCell>Quantity</TableCell>
@@ -110,6 +156,7 @@ export function BankRender(props: BankRenderProps) {
 
             return (
               <TableRow hover>
+                <TableCell component="td">{x.category}</TableCell>
                 <TableCell component="td">
                   {titleName}
                   {itemName} ({x.name})
