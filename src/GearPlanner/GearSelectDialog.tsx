@@ -22,7 +22,7 @@ import { GItem, ItemKey, ItemType, OffhandType, SlotType, WeaponType } from "typ
 import { GDataContext, GItems } from "../GDataContext";
 import { ItemTooltip } from "../ItemTooltip";
 import { calculateItemStatsByLevel, getMaxLevel } from "../Utils";
-import { ItemInstance } from "./ItemInstance";
+import { ItemInstance } from "../Shared/ItemInstance";
 import { SelectedCharacterClass } from "./types";
 import { Search } from "../Shared/Search";
 

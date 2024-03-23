@@ -4,6 +4,7 @@ import { ItemKey, ItemType, TitleKey } from "typed-adventureland";
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
 import { getBankData, BankDataProps } from "./getBankData";
 import { GDataContext } from "../GDataContext";
+import { ItemInstance } from "../Shared/ItemInstance";
 
 type BankRenderProps = {
   ownerId: string;
@@ -122,7 +123,7 @@ export function BankRender(props: BankRenderProps) {
       <Table stickyHeader size="small">
         <TableHead>
           <TableRow>
-            <TableCell>Category</TableCell>
+            <TableCell width={100}>Category</TableCell>
             <TableCell>Name</TableCell>
             <TableCell>Level</TableCell>
             <TableCell>Quantity</TableCell>
@@ -158,6 +159,8 @@ export function BankRender(props: BankRenderProps) {
               <TableRow hover>
                 <TableCell component="td">{x.category}</TableCell>
                 <TableCell component="td">
+                  <ItemInstance itemInfo={x} />
+                  &nbsp;
                   {titleName}
                   {itemName} ({x.name})
                 </TableCell>

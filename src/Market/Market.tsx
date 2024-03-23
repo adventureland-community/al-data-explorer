@@ -20,7 +20,7 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import { ItemKey, MapKey, TradeItemInfo, TradeSlotType } from "typed-adventureland";
 
 import { GDataContext } from "../GDataContext";
-import { ItemInstance } from "../GearPlanner/ItemInstance";
+import { ItemInstance } from "../Shared/ItemInstance";
 import { Search } from "../Shared/Search";
 
 // https://stackoverflow.com/a/40724354/28145
