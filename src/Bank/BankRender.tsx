@@ -10,6 +10,131 @@ type BankRenderProps = {
   ownerId: string;
 };
 
+const tshirtNames: { [key in ItemKey]?: string } = {
+  tshirt88: "Lucky", // Luck and all
+  tshirt9: "Manasteal", // Manasteal
+  tshirt3: "XP", // XP
+  tshirt8: "Attack MP", // Attack MP cost
+  tshirt7: "Armor piercing", // Armor piercing
+  tshirt6: "Res. piercing", // Res. piercing
+  tshirt4: "Speed", // Speed
+};
+
+const types: { [key in ItemType | "exchange" | "other"]?: string } = {
+  helmet: "Helmets",
+  chest: "Armors",
+  pants: "Pants",
+  gloves: "Gloves",
+  shoes: "Shoes",
+  cape: "Capes",
+  ring: "Rings",
+  earring: "Earrings",
+  amulet: "Amulets",
+  belt: "Belts",
+  orb: "Orbs",
+  weapon: "Weapons",
+  shield: "Shields",
+  source: "Offhands",
+  quiver: "Offhands",
+  misc_offhand: "Offhands",
+  elixir: "Elixirs",
+  pot: "Potions",
+  cscroll: "Scrolls",
+  uscroll: "Scrolls",
+  pscroll: "Scrolls",
+  offering: "Scrolls",
+  material: "Crafting and Collecting",
+  exchange: "Exchangeables",
+  dungeon_key: "Keys",
+  token: "Tokens",
+  other: "Others",
+};
+
+function TableView({ items }: { items: any[] }) {
+  const G = useContext(GDataContext);
+
+  return (
+    <Table stickyHeader size="small">
+      <TableHead>
+        <TableRow>
+          <TableCell width={100}>Category</TableCell>
+          <TableCell>Name</TableCell>
+          <TableCell>Level</TableCell>
+          <TableCell>Quantity</TableCell>
+          <TableCell>Stacks</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {items.map((x) => {
+          const itemKey = x.name as ItemKey;
+          const gItem = G?.items[itemKey];
+          if (!gItem) return <></>;
+          const titleKey = x.p as TitleKey;
+
+          const stackSize = Number(gItem.s);
+          const stackCount = x.stack;
+          const optimalStackCount = Math.ceil(x.q / stackSize);
+          const optimalStackCountMessage =
+            stackCount > optimalStackCount ? `⚠️${optimalStackCount}` : "";
+
+          const titleName = titleKey && G.titles[titleKey] ? `${G.titles[titleKey].title} ` : "";
+
+          const itemName =
+            itemKey in tshirtNames ? `${tshirtNames[itemKey]} ${gItem.name}` : gItem.name;
+
+          // itemContainer.attr(
+          //   "title",
+          //   `${titleName}${itemName}${
+          //     Number(level) > 0 ? `+${level}` : ""
+          //   }\n${itemKey}\n${stackCount} stacks ${optimalStackCountMessage}`,
+          // );
+          return (
+            <TableRow hover>
+              <TableCell component="td">{x.category}</TableCell>
+              <TableCell component="td">
+                <div style={{ display: "inline-block" }}>
+                  <ItemInstance itemInfo={x} />
+                </div>
+                <div style={{ marginLeft: "10px", display: "inline-block" }}>
+                  <div>
+                    {titleName}
+                    {itemName}
+                  </div>
+                  <div style={{ color: "grey" }}>{x.name}</div>
+                </div>
+              </TableCell>
+              <TableCell component="td">{x.level}</TableCell>
+              <TableCell component="td">{x.q}</TableCell>
+              <TableCell component="td">
+                {x.stack}
+                {optimalStackCountMessage}
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
+function GridView({ items }: { items: any[] }) {
+  // const G = useContext(GDataContext);
+  // TODO: show categories
+  return (
+    <>
+      <div style={{ width: "100%" }}>
+        <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "2px" }}>
+          {items.map((itemInfo) => (
+            <div>
+              <ItemInstance showQuantity itemInfo={itemInfo} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function BankRender(props: BankRenderProps) {
   const G = useContext(GDataContext);
   const { ownerId } = props;
@@ -36,38 +161,9 @@ export function BankRender(props: BankRenderProps) {
     return <></>;
   }
 
-  const types: { [key in ItemType | "exchange" | "other"]?: string } = {
-    helmet: "Helmets",
-    chest: "Armors",
-    pants: "Pants",
-    gloves: "Gloves",
-    shoes: "Shoes",
-    cape: "Capes",
-    ring: "Rings",
-    earring: "Earrings",
-    amulet: "Amulets",
-    belt: "Belts",
-    orb: "Orbs",
-    weapon: "Weapons",
-    shield: "Shields",
-    source: "Offhands",
-    quiver: "Offhands",
-    misc_offhand: "Offhands",
-    elixir: "Elixirs",
-    pot: "Potions",
-    cscroll: "Scrolls",
-    uscroll: "Scrolls",
-    pscroll: "Scrolls",
-    offering: "Scrolls",
-    material: "Crafting and Collecting",
-    exchange: "Exchangeables",
-    dungeon_key: "Keys",
-    token: "Tokens",
-    other: "Others",
-  };
-
   const items = [];
   const itemsByKey: Record<string, any> = {};
+  // itemsByCategory
   // eslint-disable-next-line guard-for-in
   for (const bankKey in bankData) {
     const bankItems = bankData[bankKey];
@@ -108,79 +204,13 @@ export function BankRender(props: BankRenderProps) {
     return a.name.localeCompare(b.name);
   });
 
-  const tshirtNames: { [key in ItemKey]?: string } = {
-    tshirt88: "Lucky", // Luck and all
-    tshirt9: "Manasteal", // Manasteal
-    tshirt3: "XP", // XP
-    tshirt8: "Attack MP", // Attack MP cost
-    tshirt7: "Armor piercing", // Armor piercing
-    tshirt6: "Res. piercing", // Res. piercing
-    tshirt4: "Speed", // Speed
-  };
+  // const view = "grid";
 
   return (
     <>
-      <Table stickyHeader size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell width={100}>Category</TableCell>
-            <TableCell>Name</TableCell>
-            <TableCell>Level</TableCell>
-            <TableCell>Quantity</TableCell>
-            <TableCell>Stacks</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {items.map((x) => {
-            const itemKey = x.name as ItemKey;
-            const gItem = G?.items[itemKey];
-            if (!gItem) return <></>;
-            const titleKey = x.p as TitleKey;
+      <GridView items={items} />
 
-            const stackSize = Number(gItem.s);
-            const stackCount = x.stack;
-            const optimalStackCount = Math.ceil(x.q / stackSize);
-            const optimalStackCountMessage =
-              stackCount > optimalStackCount ? `⚠️${optimalStackCount}` : "";
-
-            const titleName = titleKey && G.titles[titleKey] ? `${G.titles[titleKey].title} ` : "";
-
-            const itemName =
-              itemKey in tshirtNames ? `${tshirtNames[itemKey]} ${gItem.name}` : gItem.name;
-
-            // itemContainer.attr(
-            //   "title",
-            //   `${titleName}${itemName}${
-            //     Number(level) > 0 ? `+${level}` : ""
-            //   }\n${itemKey}\n${stackCount} stacks ${optimalStackCountMessage}`,
-            // );
-
-            return (
-              <TableRow hover>
-                <TableCell component="td">{x.category}</TableCell>
-                <TableCell component="td">
-                  <div style={{ display: "inline-block" }}>
-                    <ItemInstance itemInfo={x} />
-                  </div>
-                  <div style={{ marginLeft: "10px", display: "inline-block" }}>
-                    <div>
-                      {titleName}
-                      {itemName}
-                    </div>
-                    <div style={{ color: "grey" }}>{x.name}</div>
-                  </div>
-                </TableCell>
-                <TableCell component="td">{x.level}</TableCell>
-                <TableCell component="td">{x.q}</TableCell>
-                <TableCell component="td">
-                  {x.stack}
-                  {optimalStackCountMessage}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+      <TableView items={items} />
     </>
   );
 }

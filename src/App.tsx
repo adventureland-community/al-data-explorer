@@ -28,10 +28,10 @@ function Menu() {
 
   return (
     <Tabs value={currentTab} centered sx={{ marginBottom: "15px" }}>
-      <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
-      <Tab label="Market" value="/market" to="/market" component={RouterLink} />
       <Tab label="Gear Planner" value="/gear" to="/gear" component={RouterLink} />
-      <Tab label="Bank" value="/bank" to="/bank" component={RouterLink} />
+      <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
+      <Tab label="🌎 Market" value="/market" to="/market" component={RouterLink} />
+      <Tab label="🌎 Bank" value="/bank" to="/bank" component={RouterLink} />
     </Tabs>
   );
 }
