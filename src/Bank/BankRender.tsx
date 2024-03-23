@@ -159,10 +159,16 @@ export function BankRender(props: BankRenderProps) {
               <TableRow hover>
                 <TableCell component="td">{x.category}</TableCell>
                 <TableCell component="td">
-                  <ItemInstance itemInfo={x} />
-                  &nbsp;
-                  {titleName}
-                  {itemName} ({x.name})
+                  <div style={{ display: "inline-block" }}>
+                    <ItemInstance itemInfo={x} />
+                  </div>
+                  <div style={{ marginLeft: "10px", display: "inline-block" }}>
+                    <div>
+                      {titleName}
+                      {itemName}
+                    </div>
+                    <div style={{ color: "grey" }}>{x.name}</div>
+                  </div>
                 </TableCell>
                 <TableCell component="td">{x.level}</TableCell>
                 <TableCell component="td">{x.q}</TableCell>
