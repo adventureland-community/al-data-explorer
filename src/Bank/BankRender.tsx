@@ -1,7 +1,9 @@
 import { useState, useEffect, useContext } from "react";
-
+import GridViewIcon from "@mui/icons-material/GridView";
+import ViewCompactIcon from "@mui/icons-material/ViewCompact";
+import ViewListIcon from "@mui/icons-material/ViewList";
 import { ItemKey, ItemType, TitleKey } from "typed-adventureland";
-import { Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
+import { Grid, Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
 import { getBankData, BankDataProps } from "./getBankData";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
@@ -51,7 +53,7 @@ const types: { [key in ItemType | "exchange" | "other"]?: string } = {
   other: "Others",
 };
 
-function TableView({ items }: { items: any[] }) {
+function BankTableView({ items }: { items: any[] }) {
   const G = useContext(GDataContext);
 
   return (
@@ -118,7 +120,7 @@ function TableView({ items }: { items: any[] }) {
   );
 }
 
-function GridView({ items }: { items: any[] }) {
+function BankGridView({ items }: { items: any[] }) {
   // const G = useContext(GDataContext);
   // TODO: show categories
   return (
@@ -142,6 +144,7 @@ export function BankRender(props: BankRenderProps) {
 
   const [bankData, setBankData] = useState<BankDataProps>({});
   const [owner, setOwner] = useState<string>("");
+  const [renderMode, setRenderMode] = useState<"list" | "grid" | "gridCompact">("list");
 
   useEffect(() => {
     if (!Object.keys(bankData).length) {
@@ -212,12 +215,36 @@ export function BankRender(props: BankRenderProps) {
 
   return (
     <>
-      <span>
-        {lastUpdated?.toLocaleString()} ({lastUpdateAgo} Ago)
-      </span>
-      <GridView items={items} />
+      <Grid container>
+        <Grid xs={4} />
 
-      <TableView items={items} />
+        <Grid xs={4}>
+          {lastUpdated?.toLocaleString()} ({lastUpdateAgo} Ago)
+        </Grid>
+        <Grid xs={4} container justifyContent="right">
+          <ViewListIcon
+            titleAccess="Show List"
+            style={{ cursor: "pointer" }}
+            onClick={() => setRenderMode("list")}
+            color={renderMode === "list" ? "primary" : "secondary"}
+          />
+          <GridViewIcon
+            titleAccess="Show Grid"
+            style={{ cursor: "pointer" }}
+            onClick={() => setRenderMode("grid")}
+            color={renderMode === "grid" ? "primary" : "secondary"}
+          />
+          <ViewCompactIcon
+            titleAccess="Show Compact Grid"
+            style={{ cursor: "pointer" }}
+            onClick={() => setRenderMode("gridCompact")}
+            color={renderMode === "gridCompact" ? "primary" : "secondary"}
+          />
+        </Grid>
+      </Grid>
+
+      {(renderMode === "grid" || renderMode === "gridCompact") && <BankGridView items={items} />}
+      {renderMode === "list" && <BankTableView items={items} />}
     </>
   );
 }
