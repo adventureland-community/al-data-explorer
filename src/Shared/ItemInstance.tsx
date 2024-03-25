@@ -4,6 +4,7 @@ import React, { useContext } from "react";
 import { GDataContext } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
 import { getLevelString } from "../Utils";
+import { abbreviateNumber } from "./utils";
 
 export function ItemInstance({
   itemInfo,
@@ -82,7 +83,11 @@ export function ItemInstance({
       ) : (
         ""
       )}
-      {itemInfo.q && showQuantity ? <Box sx={quantityStyle}>{itemInfo.q}</Box> : <></>}
+      {itemInfo.q && showQuantity ? (
+        <Box sx={quantityStyle}>{abbreviateNumber(itemInfo.q)}</Box>
+      ) : (
+        <></>
+      )}
     </div>
   );
 }

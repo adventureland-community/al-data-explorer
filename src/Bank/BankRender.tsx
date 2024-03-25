@@ -7,7 +7,7 @@ import { Grid, Table, TableBody, TableCell, TableHead, TableRow } from "@mui/mat
 import { getBankData, BankDataProps } from "./getBankData";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { msToTime } from "../Shared/utils";
+import { abbreviateNumber, msToTime } from "../Shared/utils";
 
 type BankRenderProps = {
   ownerId: string;
@@ -64,11 +64,15 @@ function BankTableView({ items }: { items: any[] }) {
     <Table stickyHeader size="small">
       <TableHead>
         <TableRow>
-          <TableCell width={100}>Category</TableCell>
-          <TableCell>Name</TableCell>
-          <TableCell>Level</TableCell>
-          <TableCell>Quantity</TableCell>
-          <TableCell>Stacks</TableCell>
+          <TableCell component="th" width={100}>
+            Category
+          </TableCell>
+          <TableCell component="th" width={100} align="right">
+            Quantity
+          </TableCell>
+          <TableCell component="th">Name</TableCell>
+          <TableCell component="th">Level</TableCell>
+          <TableCell component="th">Stacks</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
@@ -98,6 +102,9 @@ function BankTableView({ items }: { items: any[] }) {
           return (
             <TableRow key={getUniqueItemKey(itemInfo)} hover>
               <TableCell component="td">{itemInfo.category}</TableCell>
+              <TableCell component="td" align="right" title={itemInfo.q.toLocaleString()}>
+                {abbreviateNumber(itemInfo.q)}
+              </TableCell>
               <TableCell component="td">
                 <div style={{ display: "inline-block" }}>
                   <ItemInstance itemInfo={itemInfo} />
@@ -111,7 +118,6 @@ function BankTableView({ items }: { items: any[] }) {
                 </div>
               </TableCell>
               <TableCell component="td">{itemInfo.level}</TableCell>
-              <TableCell component="td">{itemInfo.q}</TableCell>
               <TableCell component="td">
                 {itemInfo.stack}
                 {optimalStackCountMessage}
