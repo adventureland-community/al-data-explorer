@@ -9,10 +9,14 @@ import { abbreviateNumber } from "./utils";
 export function ItemInstance({
   itemInfo,
   showQuantity,
+  showTitleBorder,
 }: {
   itemInfo: ItemInfo;
   showQuantity?: boolean;
+  showTitleBorder?: boolean;
 }) {
+  if (showTitleBorder === undefined) showTitleBorder = !!itemInfo.p;
+
   const G = useContext(GDataContext);
   if (!G) {
     return <></>;
@@ -65,6 +69,36 @@ export function ItemInstance({
   //   };
 
   const levelString = getLevelString(gItem, itemInfo.level);
+  const titleKey = itemInfo.p;
+  let titleBorderColor;
+  switch (titleKey) {
+    case "festive":
+      titleBorderColor = "#79ff7e";
+      break;
+    case "firehazard":
+      titleBorderColor = "#f79b11";
+      break;
+    case "glitched":
+      titleBorderColor = "grey";
+      break;
+    case "gooped":
+      titleBorderColor = "#64B867";
+      break;
+    case "legacy":
+      titleBorderColor = "white";
+      break;
+    case "lucky":
+      titleBorderColor = "#00f3ff";
+      break;
+    case "shiny":
+      titleBorderColor = "#99b2d8";
+      break;
+    case "superfast":
+      titleBorderColor = "#c681dc";
+      break;
+    default:
+      break;
+  }
 
   return (
     <div
@@ -72,6 +106,10 @@ export function ItemInstance({
         position: "relative",
         display: "inline-block",
         verticalAlign: "inherit",
+        borderWidth: 2,
+        borderStyle: "solid",
+        borderColor: showTitleBorder && titleBorderColor ? titleBorderColor : "transparent",
+        padding: 1,
       }}
     >
       <ItemImage itemName={itemName} />
