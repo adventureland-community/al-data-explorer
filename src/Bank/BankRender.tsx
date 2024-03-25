@@ -2,25 +2,17 @@ import { useState, useEffect, useContext } from "react";
 import GridViewIcon from "@mui/icons-material/GridView";
 import ViewCompactIcon from "@mui/icons-material/ViewCompact";
 import ViewListIcon from "@mui/icons-material/ViewList";
-import { ItemKey, ItemType, TitleKey } from "typed-adventureland";
+import { ItemKey, ItemType } from "typed-adventureland";
 import { Grid, Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
 import { getBankData, BankDataProps } from "./getBankData";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { abbreviateNumber, msToTime } from "../Shared/utils";
+import { getItemName, getTitleName } from "../Shared/iteminfo-util";
+import { getLevelString } from "../Utils";
 
 type BankRenderProps = {
   ownerId: string;
-};
-
-const tshirtNames: { [key in ItemKey]?: string } = {
-  tshirt88: "Lucky", // Luck and all
-  tshirt9: "Manasteal", // Manasteal
-  tshirt3: "XP", // XP
-  tshirt8: "Attack MP", // Attack MP cost
-  tshirt7: "Armor piercing", // Armor piercing
-  tshirt6: "Res. piercing", // Res. piercing
-  tshirt4: "Speed", // Speed
 };
 
 const types: { [key in ItemType | "exchange" | "other"]?: string } = {
@@ -80,7 +72,6 @@ function BankTableView({ items }: { items: any[] }) {
           const itemKey = itemInfo.name as ItemKey;
           const gItem = G?.items[itemKey];
           if (!gItem) return <></>;
-          const titleKey = itemInfo.p as TitleKey;
 
           const stackSize = Number(gItem.s);
           const stackCount = itemInfo.stack;
@@ -88,10 +79,9 @@ function BankTableView({ items }: { items: any[] }) {
           const optimalStackCountMessage =
             stackCount > optimalStackCount ? `⚠️${optimalStackCount}` : "";
 
-          const titleName = titleKey && G.titles[titleKey] ? `${G.titles[titleKey].title} ` : "";
+          const titleName = getTitleName(itemInfo, G);
 
-          const itemName =
-            itemKey in tshirtNames ? `${tshirtNames[itemKey]} ${gItem.name}` : gItem.name;
+          const itemName = getItemName(itemKey, gItem);
 
           // itemContainer.attr(
           //   "title",
@@ -131,17 +121,37 @@ function BankTableView({ items }: { items: any[] }) {
 }
 
 function BankGridView({ items }: { items: any[] }) {
-  // const G = useContext(GDataContext);
+  const G = useContext(GDataContext);
   // TODO: show categories
   return (
     <>
       <div style={{ width: "100%" }}>
         <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "2px" }}>
-          {items.map((itemInfo) => (
-            <div key={getUniqueItemKey(itemInfo)}>
-              <ItemInstance showQuantity itemInfo={itemInfo} />
-            </div>
-          ))}
+          {items.map((itemInfo) => {
+            const itemKey = itemInfo.name as ItemKey;
+            const gItem = G?.items[itemKey];
+            if (!gItem) return <></>;
+            const titleName = getTitleName(itemInfo, G);
+
+            const itemName = getItemName(itemKey, gItem);
+
+            const levelString = getLevelString(gItem, itemInfo.level);
+
+            let htmlTitle = itemName;
+            if (titleName) {
+              htmlTitle = `${titleName} ${htmlTitle}`;
+            }
+
+            if (levelString) {
+              htmlTitle = `+${levelString} ${htmlTitle}`;
+            }
+
+            return (
+              <div key={getUniqueItemKey(itemInfo)} title={htmlTitle}>
+                <ItemInstance showQuantity itemInfo={itemInfo} />
+              </div>
+            );
+          })}
         </div>
       </div>
     </>
