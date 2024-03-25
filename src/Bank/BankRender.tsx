@@ -53,6 +53,10 @@ const types: { [key in ItemType | "exchange" | "other"]?: string } = {
   other: "Others",
 };
 
+function getUniqueItemKey(item: any) {
+  return `${item.p ?? ""}${item.level}${item.name}`;
+}
+
 function BankTableView({ items }: { items: any[] }) {
   const G = useContext(GDataContext);
 
@@ -68,15 +72,15 @@ function BankTableView({ items }: { items: any[] }) {
         </TableRow>
       </TableHead>
       <TableBody>
-        {items.map((x) => {
-          const itemKey = x.name as ItemKey;
+        {items.map((itemInfo) => {
+          const itemKey = itemInfo.name as ItemKey;
           const gItem = G?.items[itemKey];
           if (!gItem) return <></>;
-          const titleKey = x.p as TitleKey;
+          const titleKey = itemInfo.p as TitleKey;
 
           const stackSize = Number(gItem.s);
-          const stackCount = x.stack;
-          const optimalStackCount = Math.ceil(x.q / stackSize);
+          const stackCount = itemInfo.stack;
+          const optimalStackCount = Math.ceil(itemInfo.q / stackSize);
           const optimalStackCountMessage =
             stackCount > optimalStackCount ? `⚠️${optimalStackCount}` : "";
 
@@ -92,24 +96,24 @@ function BankTableView({ items }: { items: any[] }) {
           //   }\n${itemKey}\n${stackCount} stacks ${optimalStackCountMessage}`,
           // );
           return (
-            <TableRow hover>
-              <TableCell component="td">{x.category}</TableCell>
+            <TableRow key={getUniqueItemKey(itemInfo)} hover>
+              <TableCell component="td">{itemInfo.category}</TableCell>
               <TableCell component="td">
                 <div style={{ display: "inline-block" }}>
-                  <ItemInstance itemInfo={x} />
+                  <ItemInstance itemInfo={itemInfo} />
                 </div>
                 <div style={{ marginLeft: "10px", display: "inline-block" }}>
                   <div>
                     {titleName}
                     {itemName}
                   </div>
-                  <div style={{ color: "grey" }}>{x.name}</div>
+                  <div style={{ color: "grey" }}>{itemInfo.name}</div>
                 </div>
               </TableCell>
-              <TableCell component="td">{x.level}</TableCell>
-              <TableCell component="td">{x.q}</TableCell>
+              <TableCell component="td">{itemInfo.level}</TableCell>
+              <TableCell component="td">{itemInfo.q}</TableCell>
               <TableCell component="td">
-                {x.stack}
+                {itemInfo.stack}
                 {optimalStackCountMessage}
               </TableCell>
             </TableRow>
@@ -128,7 +132,7 @@ function BankGridView({ items }: { items: any[] }) {
       <div style={{ width: "100%" }}>
         <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "2px" }}>
           {items.map((itemInfo) => (
-            <div>
+            <div key={getUniqueItemKey(itemInfo)}>
               <ItemInstance showQuantity itemInfo={itemInfo} />
             </div>
           ))}
@@ -174,7 +178,7 @@ export function BankRender(props: BankRenderProps) {
     if (!Array.isArray(bankItems)) continue;
     for (const item of bankItems) {
       if (!item) continue;
-      const key = `${item.p ?? ""}${item.level}${item.name}`;
+      const key = getUniqueItemKey(item);
       let data = itemsByKey[key];
       if (!data) {
         const itemKey = item.name as ItemKey;
