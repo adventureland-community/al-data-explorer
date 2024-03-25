@@ -11,8 +11,22 @@ function Info() {
         <Typography component="div">
           This page shows bank data using the bank endpoint from{" "}
           <a href="https://aldata.earthiverse.ca">earthiverse&apos;s aldata</a>
-          <br />
-          TODO: description how to contribute
+          &nbsp;&nbsp;
+          <a
+            target="_blank"
+            rel="noreferrer"
+            href="https://github.com/earthiverse/ALData?tab=readme-ov-file#authentication"
+          >
+            Get a api key{" "}
+          </a>
+          &nbsp;&nbsp;
+          <a
+            target="_blank"
+            rel="noreferrer"
+            href="https://github.com/earthiverse/ALData?tab=readme-ov-file#put-bankownerkey"
+          >
+            Push bank data
+          </a>
         </Typography>
       </CardContent>
     </Card>

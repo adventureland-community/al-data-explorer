@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material"
 import { getBankData, BankDataProps } from "./getBankData";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
+import { msToTime } from "../Shared/utils";
 
 type BankRenderProps = {
   ownerId: string;
@@ -206,8 +207,14 @@ export function BankRender(props: BankRenderProps) {
 
   // const view = "grid";
 
+  const lastUpdated = bankData.lastUpdated ? new Date(bankData.lastUpdated) : undefined;
+  const lastUpdateAgo = lastUpdated ? msToTime(new Date().getTime() - lastUpdated.getTime()) : "";
+
   return (
     <>
+      <span>
+        {lastUpdated?.toLocaleString()} ({lastUpdateAgo} Ago)
+      </span>
       <GridView items={items} />
 
       <TableView items={items} />
