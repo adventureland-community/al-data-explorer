@@ -120,39 +120,80 @@ function BankTableView({ items }: { items: any[] }) {
   );
 }
 
-function BankGridView({ items }: { items: any[] }) {
+function BankGridViewItemRow({ items }: { items: any[] }) {
   const G = useContext(GDataContext);
-  // TODO: show categories
+
+  return (
+    <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "2px" }}>
+      {items.map((itemInfo) => {
+        const itemKey = itemInfo.name as ItemKey;
+        const gItem = G?.items[itemKey];
+        if (!gItem) return <></>;
+        const titleName = getTitleName(itemInfo, G);
+
+        const itemName = getItemName(itemKey, gItem);
+
+        const levelString = getLevelString(gItem, itemInfo.level);
+
+        let htmlTitle = itemName;
+        if (titleName) {
+          htmlTitle = `${titleName} ${htmlTitle}`;
+        }
+
+        if (levelString) {
+          htmlTitle = `+${levelString} ${htmlTitle}`;
+        }
+
+        htmlTitle += `\n${itemKey}`;
+        // htmlTitle += `\n${itemInfo.category}`;
+        htmlTitle += `\n${gItem.type}`;
+
+        return (
+          <div key={getUniqueItemKey(itemInfo)} title={htmlTitle}>
+            <ItemInstance showQuantity itemInfo={itemInfo} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function BankGridView({
+  items,
+  itemsByCategory,
+  showCategory,
+}: {
+  items: any[];
+  itemsByCategory: Record<string, any[]>;
+  showCategory: boolean;
+}) {
+  const sortedGroupKeys = [...new Set(Object.values(types))]; // .sort((a, b) => a.localeCompare(b));
+
   return (
     <>
       <div style={{ width: "100%" }}>
-        <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "2px" }}>
-          {items.map((itemInfo) => {
-            const itemKey = itemInfo.name as ItemKey;
-            const gItem = G?.items[itemKey];
-            if (!gItem) return <></>;
-            const titleName = getTitleName(itemInfo, G);
-
-            const itemName = getItemName(itemKey, gItem);
-
-            const levelString = getLevelString(gItem, itemInfo.level);
-
-            let htmlTitle = itemName;
-            if (titleName) {
-              htmlTitle = `${titleName} ${htmlTitle}`;
-            }
-
-            if (levelString) {
-              htmlTitle = `+${levelString} ${htmlTitle}`;
-            }
-
+        {showCategory ? (
+          sortedGroupKeys.map((category) => {
+            const categoryItems = itemsByCategory[category];
+            if (!categoryItems) return <></>;
             return (
-              <div key={getUniqueItemKey(itemInfo)} title={htmlTitle}>
-                <ItemInstance showQuantity itemInfo={itemInfo} />
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: "2px",
+                  alignItems: "center",
+                }}
+              >
+                <h1>{category}</h1>
+                <BankGridViewItemRow items={categoryItems} />
               </div>
             );
-          })}
-        </div>
+          })
+        ) : (
+          <BankGridViewItemRow items={items} />
+        )}
       </div>
     </>
   );
@@ -164,7 +205,7 @@ export function BankRender(props: BankRenderProps) {
 
   const [bankData, setBankData] = useState<BankDataProps>({});
   const [owner, setOwner] = useState<string>("");
-  const [renderMode, setRenderMode] = useState<"list" | "grid" | "gridCompact">("list");
+  const [renderMode, setRenderMode] = useState<"list" | "grid" | "gridCompact">("gridCompact");
 
   useEffect(() => {
     if (!Object.keys(bankData).length) {
@@ -189,6 +230,7 @@ export function BankRender(props: BankRenderProps) {
   let totalSlots = 0;
   const items = [];
   const itemsByKey: Record<string, any> = {};
+  const itemsByCategory: Record<string, any> = {};
   // itemsByCategory
   // eslint-disable-next-line guard-for-in
   for (const bankKey in bankData) {
@@ -215,7 +257,13 @@ export function BankRender(props: BankRenderProps) {
 
         data = { p: item.p, level: item.level, name: item.name, q: 0, stack: 0, category: type };
         itemsByKey[key] = data;
+
         items.push(data);
+
+        if (!itemsByCategory[type]) {
+          itemsByCategory[type] = [];
+        }
+        itemsByCategory[type].push(data);
       }
       data.q += item.q ?? 1;
       data.stack++;
@@ -236,8 +284,6 @@ export function BankRender(props: BankRenderProps) {
     return a.name.localeCompare(b.name);
   });
 
-  // const view = "grid";
-
   const lastUpdated = bankData.lastUpdated ? new Date(bankData.lastUpdated) : undefined;
   const lastUpdateAgo = lastUpdated ? msToTime(new Date().getTime() - lastUpdated.getTime()) : "";
 
@@ -252,6 +298,12 @@ export function BankRender(props: BankRenderProps) {
           {lastUpdated?.toLocaleString()} ({lastUpdateAgo} Ago)
         </Grid>
         <Grid xs={4} container justifyContent="right">
+          <ViewCompactIcon
+            titleAccess="Show Compact Grid"
+            style={{ cursor: "pointer" }}
+            onClick={() => setRenderMode("gridCompact")}
+            color={renderMode === "gridCompact" ? "primary" : "secondary"}
+          />
           <ViewListIcon
             titleAccess="Show List"
             style={{ cursor: "pointer" }}
@@ -264,16 +316,16 @@ export function BankRender(props: BankRenderProps) {
             onClick={() => setRenderMode("grid")}
             color={renderMode === "grid" ? "primary" : "secondary"}
           />
-          <ViewCompactIcon
-            titleAccess="Show Compact Grid"
-            style={{ cursor: "pointer" }}
-            onClick={() => setRenderMode("gridCompact")}
-            color={renderMode === "gridCompact" ? "primary" : "secondary"}
-          />
         </Grid>
       </Grid>
 
-      {(renderMode === "grid" || renderMode === "gridCompact") && <BankGridView items={items} />}
+      {(renderMode === "grid" || renderMode === "gridCompact") && (
+        <BankGridView
+          showCategory={renderMode === "grid"}
+          items={items}
+          itemsByCategory={itemsByCategory}
+        />
+      )}
       {renderMode === "list" && <BankTableView items={items} />}
     </>
   );

@@ -15,6 +15,6 @@ export function getItemName(itemKey: ItemKey, gItem: GItem) {
 }
 export function getTitleName(itemInfo: any, G: GData) {
   const titleKey = itemInfo.p as TitleKey;
-  const titleName = titleKey && G.titles[titleKey] ? `${G.titles[titleKey].title} ` : "";
+  const titleName = titleKey && G.titles[titleKey] ? `${G.titles[titleKey].title}` : "";
   return titleName;
 }
