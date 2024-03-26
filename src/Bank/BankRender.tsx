@@ -185,6 +185,8 @@ export function BankRender(props: BankRenderProps) {
     return <></>;
   }
 
+  let usedSlots = 0;
+  let totalSlots = 0;
   const items = [];
   const itemsByKey: Record<string, any> = {};
   // itemsByCategory
@@ -192,8 +194,14 @@ export function BankRender(props: BankRenderProps) {
   for (const bankKey in bankData) {
     const bankItems = bankData[bankKey];
     if (!Array.isArray(bankItems)) continue;
+
+    totalSlots += 42;
+
     for (const item of bankItems) {
       if (!item) continue;
+
+      usedSlots++;
+
       const key = getUniqueItemKey(item);
       let data = itemsByKey[key];
       if (!data) {
@@ -236,7 +244,9 @@ export function BankRender(props: BankRenderProps) {
   return (
     <>
       <Grid container>
-        <Grid xs={4} />
+        <Grid xs={4}>
+          {usedSlots} / {totalSlots} ({totalSlots - usedSlots})
+        </Grid>
 
         <Grid xs={4}>
           {lastUpdated?.toLocaleString()} ({lastUpdateAgo} Ago)
