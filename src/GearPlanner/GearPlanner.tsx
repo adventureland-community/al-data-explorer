@@ -43,7 +43,7 @@ import { ItemTooltip } from "../ItemTooltip";
 // import { calculateItemStatsByLevel, modifyPlayerStatsByAttributes } from "../Utils";
 import { GearSelectDialog, RowItem } from "./GearSelectDialog";
 import { SavedLoadout, SelectedCharacterClass } from "./types";
-import { ItemInstance } from "./ItemInstance";
+import { ItemInstance } from "../Shared/ItemInstance";
 // import { ShareLinkButton } from "./ShareLinkButton";
 import { SaveLinkButton } from "./SaveLinkButton";
 import { LoadLinkButton } from "./LoadLinkButton";

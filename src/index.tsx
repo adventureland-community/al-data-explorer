@@ -7,6 +7,7 @@ import App from "./App";
 import { GearPlanner } from "./GearPlanner/GearPlanner";
 import { Market } from "./Market/Market";
 import { Monsters } from "./Monster/monsters";
+import { Bank } from "./Bank/bank";
 
 // TODO: https://reactrouter.com/en/main/start/tutorial#handling-not-found-errors
 
@@ -26,6 +27,10 @@ const router = createBrowserRouter([
       {
         path: "market",
         element: <Market />,
+      },
+      {
+        path: "bank",
+        element: <Bank />,
       },
     ],
   },

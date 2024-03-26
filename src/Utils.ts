@@ -143,13 +143,27 @@ export function calculateItemStatsByLevel(def: GItem, itemLevel?: number, statTy
     if (typeof value === "number") {
       stats[stat] = value;
     }
+
+    // TODO: Add class specific stats, we need the class type
+    // "rogue": {
+    //   "crit": 2,
+    //   "upgrade": {
+    //     "crit": 0.25
+    //   }
+    // },
   });
 
   // TODO: shiny, glitched, titles outside level loop
 
   if (def.upgrade || def.compound) {
     const u_def: { [T in StatType]?: number } = def.upgrade ?? def.compound ?? {};
-
+    // TODO: Add class specific stats, we need the class type
+    // "rogue": {
+    //   "crit": 2,
+    //   "upgrade": {
+    //     "crit": 0.25
+    //   }
+    // },
     for (let level = 1; level <= (itemLevel ?? 0); level++) {
       let multiplier = 1;
       if (def.upgrade) {
