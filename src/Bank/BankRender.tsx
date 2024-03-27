@@ -3,7 +3,19 @@ import GridViewIcon from "@mui/icons-material/GridView";
 import ViewCompactIcon from "@mui/icons-material/ViewCompact";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import { ItemKey, ItemType } from "typed-adventureland";
-import { Grid, Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
+import {
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Grid,
+  Radio,
+  RadioGroup,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+} from "@mui/material";
 import { getBankData, BankDataProps } from "./getBankData";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
@@ -206,6 +218,7 @@ export function BankRender(props: BankRenderProps) {
   const [bankData, setBankData] = useState<BankDataProps>({});
   const [owner, setOwner] = useState<string>("");
   const [renderMode, setRenderMode] = useState<"list" | "grid" | "gridCompact">("gridCompact");
+  const [sortMode, setSortMode] = useState<"category" | "quantity" | "stack">("category");
 
   useEffect(() => {
     if (!Object.keys(bankData).length) {
@@ -225,6 +238,10 @@ export function BankRender(props: BankRenderProps) {
   if (!Object.keys(bankData).length) {
     return <></>;
   }
+
+  const onSortModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSortMode((event.target as HTMLInputElement).value as any);
+  };
 
   let usedSlots = 0;
   let totalSlots = 0;
@@ -274,11 +291,22 @@ export function BankRender(props: BankRenderProps) {
 
   // default sort by name
   items.sort((a, b) => {
+    if (sortMode === "stack" && a.stack !== b.stack) {
+      // DESC
+      return b.stack - a.stack;
+    }
+
+    if (sortMode === "quantity" && a.q !== b.q) {
+      // DESC
+      return b.q - a.q;
+    }
+
     if (a.category !== b.category) {
       return sortedGroupKeys.indexOf(a.category) - sortedGroupKeys.indexOf(b.category);
     }
 
     if (a.name === b.name) {
+      // DESC
       return b.level - a.level;
     }
     return a.name.localeCompare(b.name);
@@ -289,6 +317,24 @@ export function BankRender(props: BankRenderProps) {
 
   return (
     <>
+      <Grid container>
+        <Grid xs={4}>
+          <FormControl>
+            <FormLabel id="demo-controlled-radio-buttons-group">Sorting</FormLabel>
+            <RadioGroup
+              row
+              aria-labelledby="demo-controlled-radio-buttons-group"
+              name="controlled-radio-buttons-group"
+              value={sortMode}
+              onChange={onSortModeChange}
+            >
+              <FormControlLabel value="category" control={<Radio />} label="Category" />
+              <FormControlLabel value="quantity" control={<Radio />} label="Quantity" />
+              <FormControlLabel value="stack" control={<Radio />} label="Stack" />
+            </RadioGroup>
+          </FormControl>
+        </Grid>
+      </Grid>
       <Grid container>
         <Grid xs={4}>
           {usedSlots} / {totalSlots} ({totalSlots - usedSlots})
