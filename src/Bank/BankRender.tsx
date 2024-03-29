@@ -266,21 +266,30 @@ export function BankRender(props: BankRenderProps) {
       if (!data) {
         const itemKey = item.name as ItemKey;
         const gItem = G?.items[itemKey];
-        let type = (gItem && types[gItem.type]) ?? "Others";
+        let category = (gItem && types[gItem.type]) ?? "Others";
 
         if (gItem && gItem.e) {
-          type = types.exchange ?? "Others";
+          category = types.exchange ?? "Others";
         }
 
-        data = { p: item.p, level: item.level, name: item.name, q: 0, stack: 0, category: type };
+        data = {
+          p: item.p,
+          level: item.level,
+          name: item.name,
+          q: 0,
+          stack: 0,
+          category,
+          type: gItem?.type ?? undefined,
+        };
+
         itemsByKey[key] = data;
 
         items.push(data);
 
-        if (!itemsByCategory[type]) {
-          itemsByCategory[type] = [];
+        if (!itemsByCategory[category]) {
+          itemsByCategory[category] = [];
         }
-        itemsByCategory[type].push(data);
+        itemsByCategory[category].push(data);
       }
       data.q += item.q ?? 1;
       data.stack++;
@@ -305,11 +314,18 @@ export function BankRender(props: BankRenderProps) {
       return sortedGroupKeys.indexOf(a.category) - sortedGroupKeys.indexOf(b.category);
     }
 
-    if (a.name === b.name) {
-      // DESC
-      return b.level - a.level;
+    if (a.type !== b.type) {
+      // ASC
+      return a.type.localeCompare(b.type);
     }
-    return a.name.localeCompare(b.name);
+
+    if (a.name !== b.name) {
+      // ASC
+      return a.name.localeCompare(b.name);
+    }
+
+    // DESC
+    return b.level - a.level;
   });
 
   const lastUpdated = bankData.lastUpdated ? new Date(bankData.lastUpdated) : undefined;
