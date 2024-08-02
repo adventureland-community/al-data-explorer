@@ -12,6 +12,10 @@ import {
   TableHead,
   TableRow,
   Typography,
+  Select,
+  MenuItem,
+  TextField,
+  Autocomplete,
 } from "@mui/material";
 import axios from "axios";
 import { useContext, useEffect, useMemo, useState } from "react";
@@ -21,7 +25,7 @@ import { ItemKey, MapKey, TradeItemInfo, TradeSlotType } from "typed-adventurela
 
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { Search } from "../Shared/Search";
+
 import { abbreviateNumber } from "../Shared/utils";
 
 function Info() {
@@ -40,25 +44,32 @@ function Info() {
   );
 }
 
+function getTimeAgo(lastSeen: string | Date) {
+  const now = new Date();
+  const lastSeenDate = new Date(lastSeen);
+  const diffInMs = now.getTime() - lastSeenDate.getTime();
+
+  const days = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diffInMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diffInMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  return `${days}d ${hours}h ${minutes}m ago`;
+}
+
 function TradeItemRow({
   level,
   itemName,
   prices,
+  merchants,
 }: {
   level: number;
   itemName: ItemKey;
   prices: BuySellItemPrices;
+  merchants: { [id: string]: Merchant };
 }) {
   const G = useContext(GDataContext);
-
   const [showDetails, setShowDetails] = useState<boolean>(false);
-
   const gItem = G?.items[itemName];
-  // TODO: should this be an accordian instead? or do we want a nested table
-  // https://mui.com/material-ui/react-table/#column-grouping a group for buy vs sell?
-  // collapse https://mui.com/material-ui/react-table/#collapsible-table
-
-  // When rendering individual merchant prices, we could render a row relative to gItem price?
 
   const RenderShortNumber = (number?: number) => {
     if (number) {
@@ -68,46 +79,56 @@ function TradeItemRow({
         </TableCell>
       );
     }
-
     return <TableCell component="td" />;
   };
 
-  const RenderShortPriceWithMerchantName = ({
-    merchant,
-    price,
-  }: {
-    merchant?: string;
-    price: number;
-  }) => {
-    if (price) {
+  const RenderMerchantName = (merchantName?: string) => {
+    if (merchantName) {
+      const merchantDetails = merchants[merchantName];
+      let tooltip = `${merchantName}`;
+
+      if (merchantDetails) {
+        tooltip += `\nServer: ${merchantDetails.serverRegion}${merchantDetails.serverIdentifier}`;
+        tooltip += `\nMap: ${merchantDetails.map}`;
+        tooltip += `\nX: ${merchantDetails.x.toFixed(2)}, Y: ${merchantDetails.y.toFixed(2)}`;
+        tooltip += `\nLast seen: ${getTimeAgo(merchantDetails.lastSeen)}`;
+      }
+
+      const handleCopy = () => {
+        const command = `smart_move({map: "${merchantDetails?.map}", x: ${merchantDetails?.x}, y: ${merchantDetails?.y}})`;
+        navigator.clipboard.writeText(command).then(() => {
+          console.log("Copied to clipboard:", command);
+        });
+      };
+
       return (
-        <TableCell component="td" title={`${price.toLocaleString()} ${merchant}`}>
-          {abbreviateNumber(price)}
+        <TableCell
+          component="td"
+          title={tooltip}
+          onClick={handleCopy}
+          style={{ cursor: "pointer" }}
+        >
+          {merchantName}
         </TableCell>
       );
     }
-
     return <TableCell component="td" />;
   };
 
   const buyerCount = Object.keys(prices.buying.merchants).length;
   const sellerCount = Object.keys(prices.selling.merchants).length;
 
-  // TODO: collapse by price, in case the same price exists
   const buyItems = Object.entries(prices.buying.merchants)
     .flatMap(([merchantName, m]) => m.items.map((x) => ({ merchantName, ...x })))
-    .sort((a, b) => (b.price ?? 0) - (a.price ?? 0)); // sort descending, we want to sell most expensive
+    .sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
 
   const sellItems = Object.entries(prices.selling.merchants)
     .flatMap(([merchantName, m]) => m.items.map((x) => ({ merchantName, ...x })))
-    .sort((a, b) => (a.price ?? 0) - (b.price ?? 0)); // sort ascending, we want to buy the cheapest
+    .sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
 
   const maxDetailIndex = Math.max(buyItems.length, sellItems.length);
 
-  const detailRows: Array<{
-    buy: { merchantName: string; q?: number; price?: number };
-    sell: { merchantName: string; q?: number; price?: number };
-  }> = [];
+  const detailRows = [];
 
   for (let index = 0; index < maxDetailIndex; index++) {
     const buy = buyItems[index];
@@ -120,9 +141,6 @@ function TradeItemRow({
       <TableRow
         onClick={() => setShowDetails(!showDetails)}
         hover
-        // sx={{
-        //   "&:last-child td, &:last-child th": { border: 0 },
-        // }}
         sx={{ "& > *": { borderBottom: "unset" } }}
       >
         <TableCell>
@@ -140,28 +158,24 @@ function TradeItemRow({
           />
           <span style={{ marginLeft: "15px" }}>{gItem?.name}</span>
         </TableCell>
-        {/* buy averages, total items */}
         <TableCell component="td">{buyerCount || ""}</TableCell>
         {RenderShortNumber(prices.buying.amount)}
-        {RenderShortPriceWithMerchantName(prices.buying.minPrice)}
-        {RenderShortPriceWithMerchantName(prices.buying.maxPrice)}
+        {RenderShortNumber(prices.buying.minPrice.price)}
+        {RenderShortNumber(prices.buying.maxPrice.price)}
         {RenderShortNumber(prices.buying.avgPrice)}
-        {/* sell averages, total items. */}
         <TableCell>{sellerCount || ""}</TableCell>
         {RenderShortNumber(prices.selling.amount)}
-        {RenderShortPriceWithMerchantName(prices.selling.minPrice)}
-        {RenderShortPriceWithMerchantName(prices.selling.maxPrice)}
+        {RenderShortNumber(prices.selling.minPrice.price)}
+        {RenderShortNumber(prices.selling.maxPrice.price)}
         {RenderShortNumber(prices.selling.avgPrice)}
       </TableRow>
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={13}>
           <Collapse in={showDetails} timeout="auto" unmountOnExit>
             <Box sx={{ margin: 1 }}>
-              {/* <Typography variant="h6" gutterBottom component="div">
-                Details
-              </Typography> */}
               <Table size="small" aria-label="purchases">
                 <TableHead>
+                  {" "}
                   <TableRow>
                     <TableCell align="center" colSpan={3} />
                     <TableCell align="center" colSpan={3}>
@@ -173,27 +187,26 @@ function TradeItemRow({
                   </TableRow>
                   <TableRow>
                     <TableCell colSpan={3} />
-                    {/* Buying */}
                     <TableCell>Merchant</TableCell>
                     <TableCell>Quantity</TableCell>
                     <TableCell>Price</TableCell>
-                    {/* selling */}
                     <TableCell>Merchant</TableCell>
                     <TableCell>Quantity</TableCell>
                     <TableCell>Price</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {detailRows.map(({ buy, sell }, index) => (
-                    // eslint-disable-next-line react/no-array-index-key
-                    <TableRow key={`details${itemName}${index}`}>
+                  {detailRows.map(({ buy, sell }) => (
+                    <TableRow
+                      key={`${itemName}-${level}-${buy?.merchantName || ""}-${
+                        sell?.merchantName || ""
+                      }`}
+                    >
                       <TableCell colSpan={3} />
-
-                      <TableCell component="td">{buy?.merchantName}</TableCell>
+                      {RenderMerchantName(buy?.merchantName)}
                       {RenderShortNumber(buy?.q)}
                       {RenderShortNumber(buy?.price)}
-
-                      <TableCell component="td">{sell?.merchantName}</TableCell>
+                      {RenderMerchantName(sell?.merchantName)}
                       {RenderShortNumber(sell?.q)}
                       {RenderShortNumber(sell?.price)}
                     </TableRow>
@@ -207,14 +220,6 @@ function TradeItemRow({
     </>
   );
 }
-
-// function Overview({ merchants }: { merchants: Merchant[] }) {
-//     // TODO: extract out all items by item name and level
-//     // store each price per merchant
-//     // TODO: calculate lowest, highest and average price.
-//     // TODO: do this for buying vs selling
-//     return <>hello world</>;
-// }
 
 type ItemPrices = {
   amount: number;
@@ -236,6 +241,17 @@ type BuySellItemPrices = {
 
 type ItemsByNameAndLevel = {
   [T in ItemKey]?: BuySellItemPrices[]; // index is equal to level
+};
+
+type Merchant = {
+  id: string;
+  lastSeen: string;
+  map: MapKey;
+  serverIdentifier: string;
+  serverRegion: string;
+  slots: { [T in TradeSlotType]?: TradeItemInfo };
+  x: number;
+  y: number;
 };
 
 function groupItemsByNameAndLevel(merchants: Merchant[]) {
@@ -318,71 +334,63 @@ function groupItemsByNameAndLevel(merchants: Merchant[]) {
     }
   }
 
-  // TODO: loop result and summarize prices
-
   return result;
 }
-
-type Merchant = {
-  /** name of the merchant */
-  id: string;
-  lastSeen: string;
-  map: MapKey;
-  serverIdentifier: string; // ServerIdentifier;
-  serverRegion: string; // ServerRegion;
-  slots: { [T in TradeSlotType]?: TradeItemInfo };
-  x: number;
-  y: number;
-};
-
-// https://stackoverflow.com/a/32180863/28145
-// export function msToTime(ms: number) {
-//     const seconds = ms / 1000;
-//     const minutes = ms / (1000 * 60);
-//     const hours = ms / (1000 * 60 * 60);
-//     const days = ms / (1000 * 60 * 60 * 24);
-//     // TODO: could render the "rest" as welll e.g. "1 day, 1 hour, 1 minute, 1 second"
-//     if (seconds < 60) return `${seconds.toFixed(1)} s`;
-//     if (minutes < 60) return `${minutes.toFixed(1)} m`;
-//     if (hours < 24) return `${hours.toFixed(1)} H`;
-//     return `${days.toFixed(1)} D`;
-// }
 
 export function Market() {
   const G = useContext(GDataContext);
   const [lastRefresh, setLastRefresh] = useState<Date | undefined>(undefined);
   const [filter, setFilter] = useState("");
-  //   const [merchants, setMerchants] = useState<Merchant[]>([]);
-
   const [items, setItems] = useState<ItemsByNameAndLevel>({});
+  const [selectedBuyer, setSelectedBuyer] = useState<string | undefined>(undefined);
+  const [selectedSeller, setSelectedSeller] = useState<string | undefined>(undefined);
+  const [merchants, setMerchants] = useState<{ [id: string]: Merchant }>({});
+
+  const uniqueBuyers = useMemo(() => {
+    const buyers = new Set<string>();
+    Object.values(items).forEach((levels) => {
+      Object.values(levels).forEach((prices) => {
+        Object.keys(prices.buying.merchants).forEach((merchant) => buyers.add(merchant));
+      });
+    });
+    return Array.from(buyers);
+  }, [items]);
+
+  const uniqueSellers = useMemo(() => {
+    const sellers = new Set<string>();
+    Object.values(items).forEach((levels) => {
+      Object.values(levels).forEach((prices) => {
+        Object.keys(prices.selling.merchants).forEach((merchant) => sellers.add(merchant));
+      });
+    });
+    return Array.from(sellers);
+  }, [items]);
 
   const getMerchantData = () => {
     console.log("fetching merchant data ");
     axios
       .get("https://aldata.earthiverse.ca/merchants")
       .then((response) => {
-        // handle success
         setLastRefresh(new Date());
         const groupedItems = groupItemsByNameAndLevel(response.data);
         setItems(groupedItems);
+        setMerchants(
+          response.data.reduce((acc: { [id: string]: Merchant }, merchant: Merchant) => {
+            acc[merchant.id] = merchant;
+            return acc;
+          }, {}),
+        );
         sessionStorage.setItem(
           "merchants",
           JSON.stringify({ timestamp: new Date(), merchants: response.data }),
         );
       })
       .catch((error) => {
-        // handle error
         console.log(error);
-      })
-      .then(() => {
-        // always executed
       });
   };
 
   useEffect(() => {
-    // TODO: should probably cache this somehow, perhaps track diffs in localstorage?
-    // or build a database or something.
-
     const sessionStorageMerchants = sessionStorage.getItem("merchants");
 
     if (sessionStorageMerchants) {
@@ -391,18 +399,17 @@ export function Market() {
       setLastRefresh(new Date(parsed.timestamp));
       const groupedItems = groupItemsByNameAndLevel(parsed.merchants);
       setItems(groupedItems);
-      //   setMerchants(parsed.merchants);
-
+      setMerchants(
+        parsed.merchants.reduce((acc: { [id: string]: Merchant }, merchant: Merchant) => {
+          acc[merchant.id] = merchant;
+          return acc;
+        }, {}),
+      );
       return;
     }
 
     getMerchantData();
   }, []);
-
-  // TODO: store stats for items every time you refresh and new data is present for a merchant
-
-  // TODO: group by filter?
-  // TODO: tooltip on hover with assorted calculations?
 
   const onRefreshData = () => {
     getMerchantData();
@@ -454,12 +461,43 @@ export function Market() {
       }
     });
 
-    // TODO: sort by level as well
     tmpRows = tmpRows.sort((a, b) => a.itemName.localeCompare(b.itemName));
     console.log("=========================================");
 
     return tmpRows;
   }, [filter, items, G]);
+
+  const filteredRows = useMemo(
+    () =>
+      rows.filter(({ itemName, prices }) => {
+        const buyerMatches = selectedBuyer
+          ? Object.keys(prices.buying.merchants).includes(selectedBuyer)
+          : true;
+        const sellerMatches = selectedSeller
+          ? Object.keys(prices.selling.merchants).includes(selectedSeller)
+          : true;
+
+        const hasSellers = Object.keys(prices.selling.merchants).length > 0;
+
+        const itemNameMatchesSearch = (name: string) =>
+          !filter || name.toLowerCase().includes(filter.toLowerCase());
+
+        const isExcludedItem =
+          (itemName as string) === "helmet" &&
+          prices.selling.minPrice.price === 749999999 &&
+          prices.selling.maxPrice.price === 749999999 &&
+          prices.selling.amount === 1;
+
+        return (
+          !isExcludedItem &&
+          hasSellers &&
+          buyerMatches &&
+          sellerMatches &&
+          itemNameMatchesSearch(itemName)
+        );
+      }),
+    [rows, selectedBuyer, selectedSeller, filter],
+  );
 
   return (
     <>
@@ -469,7 +507,53 @@ export function Market() {
         <>{lastRefresh?.toLocaleString()}</>
       </Typography>
       <Divider />
-      <Search doSearch={setFilter} />
+      <Box display="flex" mb={2}>
+        <Box flexGrow={0} mr={2} sx={{ width: "300px" }}>
+          <Autocomplete
+            options={Object.keys(items)}
+            onInputChange={(event, newInputValue) => {
+              setFilter(newInputValue);
+            }}
+            renderInput={(params) => (
+              <TextField {...params} label="Search Items" variant="outlined" />
+            )}
+          />
+        </Box>
+        <Box flexGrow={0} mr={2}>
+          <Select
+            value={selectedBuyer || ""}
+            onChange={(e) => setSelectedBuyer(e.target.value)}
+            displayEmpty
+          >
+            <MenuItem value="">
+              <em>All Buyers</em>
+            </MenuItem>
+            {uniqueBuyers.map((buyer) => (
+              <MenuItem key={buyer} value={buyer}>
+                {buyer}
+              </MenuItem>
+            ))}
+          </Select>
+        </Box>
+
+        <Box flexGrow={0}>
+          <Select
+            value={selectedSeller || ""}
+            onChange={(e) => setSelectedSeller(e.target.value)}
+            displayEmpty
+          >
+            <MenuItem value="">
+              <em>All Sellers</em>
+            </MenuItem>
+            {uniqueSellers.map((seller) => (
+              <MenuItem key={seller} value={seller}>
+                {seller}
+              </MenuItem>
+            ))}
+          </Select>
+        </Box>
+      </Box>
+
       <Table stickyHeader size="small">
         <TableHead>
           <TableRow>
@@ -500,26 +584,17 @@ export function Market() {
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map(({ level, itemName, prices }) => (
+          {filteredRows.map(({ level, itemName, prices }) => (
             <TradeItemRow
               key={itemName + level}
               level={level}
               itemName={itemName}
               prices={prices}
+              merchants={merchants}
             />
           ))}
         </TableBody>
       </Table>
-      {/* {filteredMerchants.map((merchant) => {
-        const ms = new Date().getTime() - new Date(merchant.lastSeen).getTime();
-        const timeago = msToTime(ms);
-        return (
-          <div key={merchant.id} style={{ textAlign: "left", padding: "5px" }}>
-            <Typography variant="h4">{merchant.id}</Typography>
-            <Typography variant="subtitle1">{timeago} Ago</Typography>
-          </div>
-        );
-      })} */}
     </>
   );
 }
