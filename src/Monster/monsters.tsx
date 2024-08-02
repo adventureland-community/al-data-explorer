@@ -10,8 +10,17 @@
 // min hit, max hit consider crit.
 // consider levels of monster.
 
-import { Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
-import { GMonster, MonsterKey, GImage, GDimension } from "typed-adventureland";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Grid,
+  Box,
+} from "@mui/material";
+import { GMonster, MonsterKey, GImage, GDimension, GMap } from "typed-adventureland";
 import { useState, useContext, useEffect } from "react";
 import { GDataContext } from "../GDataContext";
 
@@ -158,11 +167,20 @@ export function Monsters() {
   const G = useContext(GDataContext);
 
   // Add a state variable for the search terms
-  const [searchTerm, setSearchTerm] = useState("");
-  const [itemSearchTerm, setItemSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({
     key: "",
     direction: "",
+  });
+
+  // Add state for filters
+  const [filters, setFilters] = useState({
+    monsterName: "",
+    hpMin: "", // New filter for HP MIN
+    hpMax: "", // Changed from hp to hpMax
+    respawnMin: "", // New filter for Respawn MIN
+    respawnMax: "", // Changed from respawn to respawnMax
+    itemName: "", // New filter for item drops
+    achievement: "", // New filter for achievements
   });
 
   const handleSort = (key: string) => {
@@ -188,10 +206,32 @@ export function Monsters() {
     return <>WAITING!</>;
   }
 
+  const getMonsterSpawns = (monsterKey: string) => {
+    const spawnLocations: string[] = [];
+
+    for (const mapName in G.maps as Record<string, GMap>) {
+      if (Object.prototype.hasOwnProperty.call(G.maps, mapName)) {
+        const map = (G.maps as Record<string, GMap>)[mapName];
+        if (map.monsters && map.monsters.some((monster) => monster.type === monsterKey)) {
+          spawnLocations.push(mapName);
+        }
+      }
+    }
+
+    return spawnLocations;
+  };
+
   // TODO: do the heavy row calculations here and map a new object with min and max gold for example.
   const rows: [
     MonsterKey,
-    GMonster & { avgGold: number; hpPerGold: number; xpPerHp: number; drops: any },
+    GMonster & {
+      avgGold: number;
+      hpPerGold: number;
+      xpPerHp: number;
+      drops: any;
+      spawns: string[];
+      achievements: any; // Add achievements to the row type
+    },
   ][] = Object.entries(G.monsters)
     .map(([monsterKey, monster]) => {
       const base_gold = G.base_gold[monsterKey as keyof typeof G.base_gold] as number[];
@@ -200,6 +240,8 @@ export function Monsters() {
       const maxGold = Math.max(...goldValues) as number;
       // Get the drops for this monster
       const drops = G.drops.monsters[monsterKey];
+      // Get the spawn locations of the monster
+      const spawns = getMonsterSpawns(monsterKey);
 
       let formattedDrops = "";
 
@@ -249,6 +291,8 @@ export function Monsters() {
           hpPerGold,
           xpPerHp,
           drops: formattedDrops,
+          spawns,
+          achievements: monster.achievements || [], // Add achievements to the row
         },
       ];
     })
@@ -298,125 +342,282 @@ export function Monsters() {
       return result * numericDirection;
     }) as [
     MonsterKey,
-    GMonster & { avgGold: number; hpPerGold: number; xpPerHp: number; drops: any },
+    GMonster & {
+      avgGold: number;
+      hpPerGold: number;
+      xpPerHp: number;
+      drops: any;
+      spawns: string[];
+      achievements: any; // Add achievements to the row type
+    },
   ][];
 
-  // Filter the rows based on the search term and item search term
-  const filteredRows = rows.filter(
-    ([, monster]) =>
-      monster.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (monster.drops
-        ? monster.drops.toLowerCase().includes(itemSearchTerm.toLowerCase())
-        : itemSearchTerm === ""),
-  );
+  // Filter the rows based on the selected filters
+  const filteredRows = rows.filter(([, monster]) => {
+    const matchesMonsterName = monster.name
+      .toLowerCase()
+      .includes(filters.monsterName.toLowerCase());
+
+    // Convert filters.hpMin, filters.hpMax, respawnMin, respawnMax, and achievement to numbers for comparison
+    const hpMinFilter = filters.hpMin ? Number(filters.hpMin) : -Infinity;
+    const hpMaxFilter = filters.hpMax ? Number(filters.hpMax) : Infinity;
+    const respawnMinFilter = filters.respawnMin ? Number(filters.respawnMin) : -Infinity;
+    const respawnMaxFilter = filters.respawnMax ? Number(filters.respawnMax) : Infinity;
+    const matchesAchievement = monster.achievements
+      ? monster.achievements.some((achievement: any) =>
+          achievement[2].toLowerCase().includes(filters.achievement.toLowerCase()),
+        )
+      : filters.achievement === "";
+
+    const matchesHpMin = monster.hp >= hpMinFilter;
+    const matchesHp = monster.hp < hpMaxFilter;
+    const matchesRespawnMin = monster.respawn >= respawnMinFilter;
+    const matchesRespawn = monster.respawn <= respawnMaxFilter;
+    const matchesItem = monster.drops
+      ? monster.drops.toLowerCase().includes(filters.itemName.toLowerCase())
+      : filters.itemName === "";
+
+    return (
+      matchesMonsterName &&
+      matchesHpMin &&
+      matchesHp &&
+      matchesRespawnMin &&
+      matchesRespawn &&
+      matchesItem &&
+      matchesAchievement
+    );
+  });
+
+  // Ensure filteredRowsWithFilters is defined
+  const filteredRowsWithFilters = filteredRows as [
+    MonsterKey,
+    GMonster & {
+      avgGold: number;
+      hpPerGold: number;
+      xpPerHp: number;
+      drops: any;
+      spawns: string[];
+      achievements: any; // Add achievements to the row type
+    },
+  ][];
 
   // G.drops.monsters.goo
   // monsters does not contain gold, where does that come from?
   // sub table with spawn locations?
   return (
     <>
-      {/* Add a search field for monsters */}
-      <input
-        type="text"
-        placeholder="Search monsters..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
+      {/* Add filter inputs */}
+      <Box sx={{ padding: 2 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={2}>
+            <TextField
+              fullWidth
+              label="Monster"
+              variant="outlined"
+              value={filters.monsterName}
+              onChange={(e) => setFilters({ ...filters, monsterName: e.target.value })}
+            />
+          </Grid>
+          <Grid item xs={2}>
+            <TextField
+              fullWidth
+              label="Item Drop"
+              variant="outlined"
+              value={filters.itemName}
+              onChange={(e) => setFilters({ ...filters, itemName: e.target.value })}
+            />
+          </Grid>
+          <Grid item xs={2}>
+            <TextField
+              fullWidth
+              label="Achievement" // New label for Achievement filter
+              variant="outlined"
+              value={filters.achievement} // Bind to achievement filter
+              onChange={(e) => setFilters({ ...filters, achievement: e.target.value })}
+            />
+          </Grid>
+          <Grid item xs={1}>
+            <TextField
+              fullWidth
+              label="HP MIN" // New label for HP MIN
+              type="number"
+              variant="outlined"
+              value={filters.hpMin} // Bind to hpMin filter
+              onChange={(e) => {
+                const { value } = e.target; // Destructure value
+                setFilters({ ...filters, hpMin: value === "" ? "" : String(Number(value)) });
+              }}
+            />
+          </Grid>
+          <Grid item xs={1}>
+            <TextField
+              fullWidth
+              label="HP MAX" // Changed label from HP to HP MAX
+              type="number"
+              variant="outlined"
+              value={filters.hpMax} // Changed from hp to hpMax
+              onChange={(e) => {
+                const { value } = e.target;
+                setFilters({ ...filters, hpMax: value === "" ? "" : String(Number(value)) }); // Changed from hp to hpMax
+              }}
+            />
+          </Grid>
+          <Grid item xs={1}>
+            <TextField
+              fullWidth
+              label="Respawn MIN" // New label for Respawn MIN
+              type="number"
+              variant="outlined"
+              value={filters.respawnMin} // Bind to respawnMin filter
+              onChange={(e) => {
+                const { value } = e.target; // Destructure value
+                setFilters({ ...filters, respawnMin: value === "" ? "" : String(Number(value)) });
+              }}
+            />
+          </Grid>
+          <Grid item xs={1}>
+            <TextField
+              fullWidth
+              label="Respawn MAX" // Changed label from Respawn to Respawn MAX
+              type="number"
+              variant="outlined"
+              value={filters.respawnMax} // Changed from respawn to respawnMax
+              onChange={(e) => {
+                const { value } = e.target;
+                setFilters({ ...filters, respawnMax: value === "" ? "" : String(Number(value)) }); // Changed from respawn to respawnMax
+              }}
+            />
+          </Grid>
+        </Grid>
+      </Box>
 
-      {/* Add a search field for items */}
-      <input
-        type="text"
-        placeholder="Search items..."
-        value={itemSearchTerm}
-        onChange={(e) => setItemSearchTerm(e.target.value)}
-      />
       <Table stickyHeader size="small">
         <TableHead>
           <TableRow>
-            <TableCell onClick={() => handleSort("monsterkey")}>Monster Key</TableCell>
-            <TableCell>Image</TableCell>
-            <TableCell onClick={() => handleSort("name")}>Name</TableCell>
-            <TableCell onClick={() => handleSort("hp")}>HP</TableCell>
-            <TableCell onClick={() => handleSort("avgGold")}>GOLD</TableCell>
-            <TableCell onClick={() => handleSort("hpPerGold")}>HP/GOLD</TableCell>
-            <TableCell onClick={() => handleSort("xp")}>XP</TableCell>
-            <TableCell onClick={() => handleSort("xpPerHp")}>XP/HP</TableCell>
-            <TableCell onClick={() => handleSort("respawn")}>Respawn</TableCell>
-            <TableCell onClick={() => handleSort("armor")}>Armor</TableCell>
-            <TableCell onClick={() => handleSort("resistance")}>Resistance</TableCell>
-            <TableCell onClick={() => handleSort("evasion")}>Evasion</TableCell>
-            <TableCell onClick={() => handleSort("reflection")}>Reflection</TableCell>
-            <TableCell onClick={() => handleSort("drop")}>Drop</TableCell>
+            <TableCell onClick={() => handleSort("monsterkey")} style={{ cursor: "pointer" }}>
+              MKey
+            </TableCell>
+            <TableCell>Monster</TableCell>
+            <TableCell onClick={() => handleSort("hp")} style={{ cursor: "pointer" }}>
+              HP
+            </TableCell>
+            <TableCell onClick={() => handleSort("avgGold")} style={{ cursor: "pointer" }}>
+              GOLD
+            </TableCell>
+            <TableCell onClick={() => handleSort("hpPerGold")} style={{ cursor: "pointer" }}>
+              HP/GOLD
+            </TableCell>
+            <TableCell onClick={() => handleSort("xp")} style={{ cursor: "pointer" }}>
+              XP
+            </TableCell>
+            <TableCell onClick={() => handleSort("xpPerHp")} style={{ cursor: "pointer" }}>
+              XP/HP
+            </TableCell>
+            <TableCell onClick={() => handleSort("respawn")} style={{ cursor: "pointer" }}>
+              Respawn
+            </TableCell>
+            <TableCell onClick={() => handleSort("armor")} style={{ cursor: "pointer" }}>
+              Armor
+            </TableCell>
+            <TableCell onClick={() => handleSort("resistance")} style={{ cursor: "pointer" }}>
+              Resistance
+            </TableCell>
+            <TableCell onClick={() => handleSort("evasion")} style={{ cursor: "pointer" }}>
+              Evasion
+            </TableCell>
+            <TableCell onClick={() => handleSort("reflection")} style={{ cursor: "pointer" }}>
+              Reflection
+            </TableCell>
+            <TableCell onClick={() => handleSort("drop")} style={{ cursor: "pointer" }}>
+              Drop
+            </TableCell>
+            <TableCell onClick={() => handleSort("spawns")} style={{ cursor: "pointer" }}>
+              Spawns
+            </TableCell>
+            <TableCell onClick={() => handleSort("achievements")} style={{ cursor: "pointer" }}>
+              Achievements
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {filteredRows.map(([monsterKey, row]) => {
-            const base_gold = G.base_gold[monsterKey];
-            console.log(monsterKey, base_gold);
-            // const goldPerMapString = base_gold
-            //   ? Object.entries(base_gold).map(([map, gold]) => (
-            //       <TableRow>
-            //         <TableCell width={150}>{map}</TableCell>
-            //         <TableCell width={50} align="right">
-            //           {gold}
-            //         </TableCell>
-            //       </TableRow>
-            //     ))
-            //   : // .map(([map, gold]) => `${map}:${gold}`)
-            //     // .join("\n")
-            //     "";
-            const goldPerMapString = base_gold
-              ? Object.entries(base_gold)
-                  .map(([map, gold]) => `${map}:${gold}`)
-                  .join("\n")
-              : "";
+          {filteredRowsWithFilters.map(
+            ([monsterKey, row]: [
+              MonsterKey,
+              GMonster & {
+                avgGold: number;
+                hpPerGold: number;
+                xpPerHp: number;
+                drops: any;
+                spawns: string[];
+                achievements: any; // Add achievements to the row type
+              },
+            ]) => {
+              const base_gold = G.base_gold[monsterKey as keyof typeof G.base_gold];
+              const goldPerMapString = base_gold
+                ? Object.entries(base_gold)
+                    .map(([map, gold]) => `${map}:${gold}`)
+                    .join("\n")
+                : "";
 
-            const goldValues = base_gold ? Object.values(base_gold) : ([] as number[]);
-            const minGold = Math.min(...goldValues);
-            const maxGold = Math.max(...goldValues);
+              const goldValues = base_gold ? Object.values(base_gold) : ([] as number[]);
+              const minGold = Math.min(...goldValues);
+              const maxGold = Math.max(...goldValues);
 
-            // Calculate average gold
-            let avgGold = (minGold + maxGold) / 2;
+              // Calculate average gold
+              let avgGold = (minGold + maxGold) / 2;
 
-            if (isNaN(avgGold)) {
-              avgGold = 0;
-            }
+              if (isNaN(avgGold)) {
+                avgGold = 0;
+              }
 
-            // Calculate HP per average gold
-            let hpPerAvgGold = 0;
-            if (!isNaN(avgGold) && avgGold !== 0) {
-              hpPerAvgGold = Number((row.hp / avgGold).toFixed(2));
-            }
+              // Calculate HP per average gold
+              let hpPerAvgGold = 0;
+              if (!isNaN(avgGold) && avgGold !== 0) {
+                hpPerAvgGold = Number((row.hp / avgGold).toFixed(2));
+              }
 
-            // let goldString = "";
-            // if (minGold >= 0 && minGold < maxGold) {
-            //   goldString = `${minGold} - ${maxGold}`;
-            // } else if (minGold >= 0 && minGold === maxGold) {
-            //   goldString = minGold.toString();
-            // }
-            // TODO: render farming spots, with mob count and respawn time.
-            return (
-              <TableRow key={monsterKey} hover>
-                <TableCell>{monsterKey}</TableCell>
-                <TableCell>
-                  {" "}
-                  <MonsterImage monsterName={monsterKey} opacity={1} scale={1} />{" "}
-                </TableCell>
-                <TableCell>{row.name}</TableCell>
-                <TableCell>{row.hp}</TableCell>
-                <TableCell title={goldPerMapString}>{avgGold}</TableCell>
-                <TableCell>{hpPerAvgGold}</TableCell>
-                <TableCell>{row.xp}</TableCell>
-                <TableCell>{(row.xp / row.hp).toFixed(2)}</TableCell>
-                <TableCell>{row.respawn}</TableCell>
-                <TableCell>{row.armor}</TableCell>
-                <TableCell>{row.resistance}</TableCell>
-                <TableCell>{row.evasion}</TableCell>
-                <TableCell>{row.reflection}</TableCell>
-                <TableCell>{row.drops}</TableCell>
-              </TableRow>
-            );
-          })}
+              const achievementsList = row.achievements
+                ? row.achievements
+                    .map((achievement: any) => `${achievement[2]}: ${achievement[3]}`)
+                    .join(", ")
+                : "None"; // Display "None" if no achievements
+
+              return (
+                <TableRow key={monsterKey} hover>
+                  <TableCell>
+                    <a
+                      href={`https://adventure.land/docs/guide/all/monsters/${monsterKey.toLowerCase()}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ textDecoration: "underline", color: "inherit" }} // Optional styling
+                    >
+                      {monsterKey}
+                    </a>
+                  </TableCell>
+                  <TableCell>
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <MonsterImage monsterName={monsterKey} opacity={1} scale={1} />
+                      <span style={{ marginLeft: "8px" }}>{row.name}</span>{" "}
+                      {/* Name next to image */}
+                    </div>
+                  </TableCell>
+                  <TableCell>{row.hp}</TableCell>
+                  <TableCell title={goldPerMapString}>{avgGold}</TableCell>
+                  <TableCell>{hpPerAvgGold}</TableCell>
+                  <TableCell>{row.xp}</TableCell>
+                  <TableCell>{(row.xp / row.hp).toFixed(2)}</TableCell>
+                  <TableCell>{row.respawn}</TableCell>
+                  <TableCell>{row.armor}</TableCell>
+                  <TableCell>{row.resistance}</TableCell>
+                  <TableCell>{row.evasion}</TableCell>
+                  <TableCell>{row.reflection}</TableCell>
+                  <TableCell>{row.drops}</TableCell>
+                  <TableCell>{row.spawns.join(", ")}</TableCell>
+                  <TableCell>{achievementsList}</TableCell> {/* Display achievements */}
+                </TableRow>
+              );
+            },
+          )}
         </TableBody>
       </Table>
     </>
