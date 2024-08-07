@@ -89,7 +89,7 @@ const stat_type_multiplier: { [T in StatType]?: number } = {
 
 export function getMaxLevel(gItem: { upgrade?: any; compound?: any }) {
   if (gItem.upgrade) {
-    return 12;
+    return 13;
   }
 
   if (gItem.compound) {
