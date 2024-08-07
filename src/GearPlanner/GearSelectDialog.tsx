@@ -298,7 +298,7 @@ export function GearSelectDialog({
           step={1}
           marks
           min={0}
-          max={12} // TODO: should variate this depending on item type
+          max={13} // TODO: should variate this depending on item type
           onChange={onLevelSliderChange}
           style={{ marginTop: 25 }}
         />
