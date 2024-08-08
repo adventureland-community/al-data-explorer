@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { Box, SxProps } from "@mui/material";
 import { ItemInfo } from "typed-adventureland";
 import React, { useContext } from "react";
 import { GDataContext } from "../GDataContext";
@@ -24,7 +24,7 @@ export function ItemInstance({
   const itemName = itemInfo.name;
   const gItem = G.items[itemName];
 
-  const levelStyle = {
+  const levelStyle: SxProps = {
     position: "absolute",
     bottom: 0,
     left: 0,
@@ -35,10 +35,61 @@ export function ItemInstance({
     width: "18px",
     height: "18px",
     // bgcolor: "background.paper",
-    bgcolor: "#00000071",
+    bgcolor: "#000000ca",
     //
     textAlign: "center",
-    fontSize: "0.675rem",
+    fontSize: "0.68rem",
+    color: () => {
+      if (gItem.compound) {
+        if (itemInfo.level === 4) {
+          return "#FFC949";
+        }
+
+        if (itemInfo.level === 5) {
+          return "#B753C7";
+        }
+        // Booster
+        // .clevelA{
+        //   color: #FFC949;
+        // }
+        // .clevelB{
+        //   color: #4A9AFF;
+        // }
+        // .clevelC{
+        //   color: #FC4546;
+        // }
+        // .clevelD{
+        //   color: #9353FF;
+        // }
+        // .clevelE{
+        //   color: #FD8915;
+        // }
+        // .clevelW{
+        //   color: #5BAD59;
+        // }
+        // .clevel6{
+        //   color: #FC2F72;
+        // }
+        // .clevel7{
+        //   color: #FD6A19;
+        // }
+        // .clevel7{
+        //   color: #D71D41;
+        // }
+      } else if (gItem.upgrade) {
+        if (itemInfo.level === 8) {
+          return "#FFC949";
+        }
+
+        if (itemInfo.level === 9) {
+          return "#E64D31";
+        }
+
+        if ((itemInfo.level ?? 0) >= 10) {
+          return "#B753C7";
+        }
+      }
+    },
   };
 
   const quantityStyle = {
