@@ -478,6 +478,7 @@ export function Market() {
           : true;
 
         const hasSellers = Object.keys(prices.selling.merchants).length > 0;
+        const hasBuyers = Object.keys(prices.buying.merchants).length > 0;
 
         const itemNameMatchesSearch = (name: string) =>
           !filter || name.toLowerCase().includes(filter.toLowerCase());
@@ -490,7 +491,7 @@ export function Market() {
 
         return (
           !isExcludedItem &&
-          hasSellers &&
+          (hasSellers || hasBuyers) &&
           buyerMatches &&
           sellerMatches &&
           itemNameMatchesSearch(itemName)
