@@ -300,8 +300,11 @@ function groupItemsByNameAndLevel(merchants: Merchant[]) {
       const itemPricesByName = result[item.name] ?? {};
 
       const titleKey = item.p ?? "";
-      itemPricesByName[titleKey] = [];
-      const itemPricesByTitle = itemPricesByName[titleKey] ?? [];
+      let itemPricesByTitle = itemPricesByName[titleKey];
+      if (!itemPricesByTitle) {
+        itemPricesByName[titleKey] = [];
+        itemPricesByTitle = itemPricesByName[titleKey] ?? [];
+      }
 
       const level = item.level ?? 0;
       let itemPricesByLevel = itemPricesByTitle[level];
@@ -355,6 +358,7 @@ function groupItemsByNameAndLevel(merchants: Merchant[]) {
           merchant: { id, lastSeen },
           items: [],
         };
+
         itemsByMerchant = itemsByBuyingOrSelling.merchants[merchant.id];
       }
 
