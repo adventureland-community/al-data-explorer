@@ -91,7 +91,10 @@ function BankTableView({ items }: { items: any[] }) {
           const optimalStackCountMessage =
             stackCount > optimalStackCount ? `⚠️${optimalStackCount}` : "";
 
-          const titleName = getTitleName(itemInfo, G);
+          let titleName = getTitleName(itemInfo, G);
+          if (titleName) {
+            titleName += " ";
+          }
 
           const itemName = getItemName(itemKey, gItem);
 

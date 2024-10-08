@@ -21,12 +21,20 @@ import axios from "axios";
 import { useContext, useEffect, useMemo, useState } from "react";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import { ItemKey, MapKey, TradeItemInfo, TradeSlotType } from "typed-adventureland";
+import {
+  ItemInfoPValues,
+  ItemKey,
+  MapKey,
+  TitleKey,
+  TradeItemInfo,
+  TradeSlotType,
+} from "typed-adventureland";
 
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 
 import { abbreviateNumber } from "../Shared/utils";
+import { getItemName, getTitleName } from "../Shared/iteminfo-util";
 
 function Info() {
   return (
@@ -57,19 +65,21 @@ function getTimeAgo(lastSeen: string | Date) {
 }
 
 function TradeItemRow({
+  itemKey,
+  title,
   level,
-  itemName,
   prices,
   merchants,
 }: {
+  itemKey: ItemKey;
+  title: TitleKey;
   level: number;
-  itemName: ItemKey;
   prices: BuySellItemPrices;
   merchants: { [id: string]: Merchant };
 }) {
   const G = useContext(GDataContext);
   const [showDetails, setShowDetails] = useState<boolean>(false);
-  const gItem = G?.items[itemName];
+  const gItem = G?.items[itemKey];
 
   const RenderShortNumber = (number?: number) => {
     if (number) {
@@ -135,6 +145,20 @@ function TradeItemRow({
     const sell = sellItems[index];
     detailRows.push({ buy, sell });
   }
+  if (!gItem) return <></>;
+
+  const itemInfo = {
+    name: itemKey,
+    p: title as ItemInfoPValues,
+    level,
+  };
+
+  let titleName = getTitleName(itemInfo, G);
+  if (titleName) {
+    titleName += " ";
+  }
+
+  const itemName = getItemName(itemKey, gItem);
 
   return (
     <>
@@ -148,15 +172,18 @@ function TradeItemRow({
             {showDetails ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
         </TableCell>
-        <TableCell>{itemName}</TableCell>
-        <TableCell>
-          <ItemInstance
-            itemInfo={{
-              name: itemName,
-              level,
-            }}
-          />
-          <span style={{ marginLeft: "15px" }}>{gItem?.name}</span>
+        {/* <TableCell>{itemName}</TableCell> */}
+        <TableCell component="td">
+          <div style={{ display: "inline-block" }}>
+            <ItemInstance itemInfo={itemInfo} />
+          </div>
+          <div style={{ marginLeft: "10px", display: "inline-block" }}>
+            <div>
+              {titleName}
+              {itemName}
+            </div>
+            <div style={{ color: "grey" }}>{itemInfo.name}</div>
+          </div>
         </TableCell>
         <TableCell component="td">{buyerCount || ""}</TableCell>
         {RenderShortNumber(prices.buying.amount)}
@@ -239,9 +266,9 @@ type BuySellItemPrices = {
   selling: ItemPrices;
 };
 
-type ItemsByNameAndLevel = {
-  [T in ItemKey]?: BuySellItemPrices[]; // index is equal to level
-};
+type ItemsByNameTitleLevel = Partial<
+  Record<ItemKey, Partial<Record<TitleKey | "", BuySellItemPrices[]>>>
+>;
 
 type Merchant = {
   id: string;
@@ -255,7 +282,7 @@ type Merchant = {
 };
 
 function groupItemsByNameAndLevel(merchants: Merchant[]) {
-  const result: ItemsByNameAndLevel = {};
+  const result: ItemsByNameTitleLevel = {};
 
   for (const merchant of merchants) {
     let tradeSlot: TradeSlotType;
@@ -269,15 +296,18 @@ function groupItemsByNameAndLevel(merchants: Merchant[]) {
         continue;
       }
 
-      result[item.name] = result[item.name] ?? [];
-      const itemPrices = result[item.name] ?? [];
+      result[item.name] = result[item.name] ?? {};
+      const itemPricesByName = result[item.name] ?? {};
+
+      const titleKey = item.p ?? "";
+      itemPricesByName[titleKey] = [];
+      const itemPricesByTitle = itemPricesByName[titleKey] ?? [];
 
       const level = item.level ?? 0;
-
-      let itemPricesByLevel = itemPrices[level];
+      let itemPricesByLevel = itemPricesByTitle[level];
 
       if (!itemPricesByLevel) {
-        itemPrices[level] = {
+        itemPricesByTitle[level] = {
           buying: {
             amount: 0,
             minPrice: { price: 0 },
@@ -293,7 +323,7 @@ function groupItemsByNameAndLevel(merchants: Merchant[]) {
             merchants: {},
           },
         };
-        itemPricesByLevel = itemPrices[level];
+        itemPricesByLevel = itemPricesByTitle[level];
       }
 
       const buyingOrSelling: "buying" | "selling" = item.b ? "buying" : "selling";
@@ -341,28 +371,54 @@ export function Market() {
   const G = useContext(GDataContext);
   const [lastRefresh, setLastRefresh] = useState<Date | undefined>(undefined);
   const [filter, setFilter] = useState("");
-  const [items, setItems] = useState<ItemsByNameAndLevel>({});
+  const [items, setItems] = useState<ItemsByNameTitleLevel>({});
   const [selectedBuyer, setSelectedBuyer] = useState<string | undefined>(undefined);
   const [selectedSeller, setSelectedSeller] = useState<string | undefined>(undefined);
   const [merchants, setMerchants] = useState<{ [id: string]: Merchant }>({});
 
   const uniqueBuyers = useMemo(() => {
     const buyers = new Set<string>();
-    Object.values(items).forEach((levels) => {
-      Object.values(levels).forEach((prices) => {
-        Object.keys(prices.buying.merchants).forEach((merchant) => buyers.add(merchant));
-      });
-    });
+
+    // eslint-disable-next-line guard-for-in
+    for (const itemKey in items) {
+      const itemsByItemKey = items[itemKey as ItemKey];
+      // eslint-disable-next-line guard-for-in
+      for (const titleKey in itemsByItemKey) {
+        const itemsByTitle = itemsByItemKey[titleKey as TitleKey] ?? [];
+        // eslint-disable-next-line guard-for-in
+        for (const level in itemsByTitle) {
+          const pricesByLevel = itemsByTitle[level];
+          // eslint-disable-next-line guard-for-in
+          for (const merchantName in pricesByLevel.buying.merchants) {
+            buyers.add(merchantName);
+          }
+        }
+      }
+    }
+
     return Array.from(buyers);
   }, [items]);
 
   const uniqueSellers = useMemo(() => {
     const sellers = new Set<string>();
-    Object.values(items).forEach((levels) => {
-      Object.values(levels).forEach((prices) => {
-        Object.keys(prices.selling.merchants).forEach((merchant) => sellers.add(merchant));
-      });
-    });
+
+    // eslint-disable-next-line guard-for-in
+    for (const itemKey in items) {
+      const itemsByItemKey = items[itemKey as ItemKey];
+      // eslint-disable-next-line guard-for-in
+      for (const titleKey in itemsByItemKey) {
+        const itemsByTitle = itemsByItemKey[titleKey as TitleKey] ?? [];
+        // eslint-disable-next-line guard-for-in
+        for (const level in itemsByTitle) {
+          const pricesByLevel = itemsByTitle[level];
+          // eslint-disable-next-line guard-for-in
+          for (const merchantName in pricesByLevel.selling.merchants) {
+            sellers.add(merchantName);
+          }
+        }
+      }
+    }
+
     return Array.from(sellers);
   }, [items]);
 
@@ -417,49 +473,54 @@ export function Market() {
 
   const rows = useMemo(() => {
     let tmpRows: Array<{
-      level: number;
       itemName: ItemKey;
+      title: TitleKey;
+      level: number;
       prices: BuySellItemPrices;
     }> = [];
 
     console.log("search triggered filterDataBySearch", filter);
 
-    Object.entries(items).forEach(([key, levels]) => {
-      const itemName = key as ItemKey;
+    // eslint-disable-next-line guard-for-in
+    for (const itemKey in items) {
+      const itemsByItemKey = items[itemKey as ItemKey];
+      // eslint-disable-next-line guard-for-in
+      for (const titleKey in itemsByItemKey) {
+        const itemsByTitle = itemsByItemKey[titleKey as TitleKey] ?? [];
+        // eslint-disable-next-line guard-for-in
+        for (const level in itemsByTitle) {
+          const pricesByLevel = itemsByTitle[level];
 
-      if (filter) {
-        const lowercaseFilter = filter.toLowerCase();
+          // why are we filtering it twice? here and in filtered rows?
+          if (filter) {
+            const lowercaseFilter = filter.toLowerCase();
 
-        const itemNames: string[] = [];
-        itemNames.push(...lowercaseFilter.split(" "));
-        itemNames.push(...lowercaseFilter.split(","));
+            const itemNames: string[] = [];
+            itemNames.push(...lowercaseFilter.split(" "));
+            itemNames.push(...lowercaseFilter.split(","));
 
-        const itemNameMatchesSearch = (name: string) =>
-          itemNames.some((nname) => name.toLowerCase().includes(nname));
+            const itemNameMatchesSearch = (name: string) =>
+              itemNames.some((nname) => name.toLowerCase().includes(nname));
 
-        const item = items[itemName];
-        if (item) {
-          const gItem = G?.items[itemName];
-          const itemNameMatches = itemNameMatchesSearch(itemName);
-          const gItemNameMatches = Boolean(gItem && itemNameMatchesSearch(gItem.name));
+            const gItem = G?.items[itemKey as ItemKey];
+            const itemNameMatches = itemNameMatchesSearch(itemKey);
+            const gItemNameMatches = gItem && itemNameMatchesSearch(gItem.name);
 
-          if (!itemNameMatches && !gItemNameMatches) {
-            return;
+            if (!itemNameMatches && !gItemNameMatches) {
+              continue;
+            }
           }
-        } else {
-          return;
+
+          // TODO: no filter
+          tmpRows.push({
+            itemName: itemKey as ItemKey,
+            title: titleKey as TitleKey,
+            level: Number(level),
+            prices: pricesByLevel,
+          });
         }
       }
-
-      for (const level in levels) {
-        if (!Object.hasOwn(levels, level)) {
-          continue;
-        }
-
-        const prices = levels[level];
-        tmpRows.push({ level: Number(level), itemName, prices });
-      }
-    });
+    }
 
     tmpRows = tmpRows.sort((a, b) => a.itemName.localeCompare(b.itemName));
     console.log("=========================================");
@@ -483,14 +544,7 @@ export function Market() {
         const itemNameMatchesSearch = (name: string) =>
           !filter || name.toLowerCase().includes(filter.toLowerCase());
 
-        const isExcludedItem =
-          (itemName as string) === "helmet" &&
-          prices.selling.minPrice.price === 749999999 &&
-          prices.selling.maxPrice.price === 749999999 &&
-          prices.selling.amount === 1;
-
         return (
-          !isExcludedItem &&
           (hasSellers || hasBuyers) &&
           buyerMatches &&
           sellerMatches &&
@@ -499,6 +553,10 @@ export function Market() {
       }),
     [rows, selectedBuyer, selectedSeller, filter],
   );
+
+  // TODO: two children with key = helmet10 ???
+  console.log(filteredRows.filter((x) => x.itemName === "helmet"));
+  // TODO: also when searching, helmet10 shows up???
 
   return (
     <>
@@ -568,7 +626,7 @@ export function Market() {
           </TableRow>
           <TableRow>
             <TableCell />
-            <TableCell>Item</TableCell>
+            {/* <TableCell>Item</TableCell> */}
             <TableCell>Name</TableCell>
 
             <TableCell># Buyers</TableCell>
@@ -585,11 +643,12 @@ export function Market() {
           </TableRow>
         </TableHead>
         <TableBody>
-          {filteredRows.map(({ level, itemName, prices }) => (
+          {filteredRows.map(({ itemName, title, level, prices }) => (
             <TradeItemRow
-              key={itemName + level}
+              key={`${itemName}${title}${level}`}
+              itemKey={itemName}
+              title={title}
               level={level}
-              itemName={itemName}
               prices={prices}
               merchants={merchants}
             />
