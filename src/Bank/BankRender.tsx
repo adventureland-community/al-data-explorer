@@ -317,12 +317,12 @@ export function BankRender(props: BankRenderProps) {
       return sortedGroupKeys.indexOf(a.category) - sortedGroupKeys.indexOf(b.category);
     }
 
-    if (a.type !== b.type) {
+    if (a.type && a.type !== b.type) {
       // ASC
       return a.type.localeCompare(b.type);
     }
 
-    if (a.name !== b.name) {
+    if (a.name && a.name !== b.name) {
       // ASC
       return a.name.localeCompare(b.name);
     }
