@@ -8,6 +8,7 @@ import { GearPlanner } from "./GearPlanner/GearPlanner";
 import { Market } from "./Market/Market";
 import { Monsters } from "./Monster/monsters";
 import { Bank } from "./Bank/bank";
+import HOF from "./HOF/hof";
 
 // TODO: https://reactrouter.com/en/main/start/tutorial#handling-not-found-errors
 
@@ -31,6 +32,10 @@ const router = createBrowserRouter([
       {
         path: "bank",
         element: <Bank />,
+      },
+      {
+        path: "hof",
+        element: <HOF />,
       },
     ],
   },
