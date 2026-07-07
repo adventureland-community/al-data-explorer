@@ -23,8 +23,8 @@ function useRouteMatch(patterns: readonly string[]) {
 }
 
 function Menu() {
-  const routeMatch = useRouteMatch(["/", "/market", "/gear", "/monsters", "/bank"]);
-  const currentTab = routeMatch?.pattern?.path ?? "/market";
+  const routeMatch = useRouteMatch(["/market", "/gear", "/monsters", "/bank"]);
+  const currentTab = routeMatch?.pattern?.path ?? false;
 
   return (
     <Tabs value={currentTab} centered sx={{ marginBottom: "15px" }}>
