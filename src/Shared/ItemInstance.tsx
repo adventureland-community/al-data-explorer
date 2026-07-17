@@ -98,16 +98,16 @@ export function ItemInstance({
     right: 0,
     border: 0.5,
     borderColor: (theme: any) => (theme.palette.mode === "dark" ? "grey.800" : "grey.300"),
-    // m: 1,
-    // borderRadius: "16px",
-    width: "20px",
+    width: "fit-content",
+    maxWidth: "100%",
     height: "18px",
+    paddingLeft: "2px",
+    paddingRight: "2px",
     bgcolor: "#00000071",
-
-    //
-    textAlign: "center",
+    textAlign: "right",
     fontSize: "0.675rem",
-    overflow: "hidden",
+    lineHeight: "18px",
+    whiteSpace: "nowrap",
   };
   // TODO: include tooltip?
   //   const onChangeLevel = (event: React.ChangeEvent<HTMLInputElement>) => {

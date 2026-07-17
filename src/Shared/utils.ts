@@ -19,14 +19,16 @@ export function abbreviateNumber(number?: number) {
   // scale the number
   const scaled = number / scale;
 
-  // format number and add suffix
-  //   return scaled.toFixed(1) + suffix;
-  return (
-    scaled.toLocaleString(undefined, {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    }) + suffix
-  );
+  // Drop trailing .0 (e.g. 9999 → "10k", 1500 → "1.5k")
+  const rounded = Math.round(scaled * 10) / 10;
+  const formatted = Number.isInteger(rounded)
+    ? String(rounded)
+    : rounded.toLocaleString(undefined, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      });
+
+  return formatted + suffix;
 }
 
 // https://stackoverflow.com/a/32180863/28145
