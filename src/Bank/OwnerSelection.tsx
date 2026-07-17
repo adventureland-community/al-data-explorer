@@ -7,14 +7,18 @@ import { getOwners, OwnerResponseProps } from "./getOwners";
 
 type OwnerSelectionProps = {
   onChange: (newOwner: string) => void;
+  /** Pre-select this owner id when options load (e.g. from ?owner= query). */
+  initialOwner?: string;
 };
 
 export function OwnerSelection(props: OwnerSelectionProps) {
+  const { onChange, initialOwner } = props;
   const [ownerData, setOwnerData] = useState<OwnerResponseProps[]>([]);
+  const [selected, setSelected] = useState<{ label: string; value: string } | null>(null);
 
   const handleOwnerSelect = (newOwner: string) => {
     console.log("Handle owner select: ", newOwner);
-    props.onChange(newOwner);
+    onChange(newOwner);
   };
 
   useEffect(() => {
@@ -28,10 +32,27 @@ export function OwnerSelection(props: OwnerSelectionProps) {
     }
   }, [ownerData.length]);
 
-  const ownerDataOptions = ownerData?.map((owner) => ({
+  const ownerDataOptions = ownerData.map((owner) => ({
     label: owner.characters.join(", "),
     value: owner.owner,
   }));
+
+  useEffect(() => {
+    if (!initialOwner || !ownerDataOptions.length) {
+      return;
+    }
+    const match = ownerDataOptions.find((option) => option.value === initialOwner);
+    if (match && selected?.value !== match.value) {
+      setSelected(match);
+      handleOwnerSelect(match.value);
+    } else if (!match && selected?.value !== initialOwner) {
+      // Owner id from URL may not be in active-owners list — still select/load it.
+      const fallback = { label: initialOwner, value: initialOwner };
+      setSelected(fallback);
+      handleOwnerSelect(initialOwner);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOwner, ownerDataOptions.length]);
 
   return (
     <Autocomplete
@@ -39,10 +60,12 @@ export function OwnerSelection(props: OwnerSelectionProps) {
       fullWidth
       id="owner-data-selector"
       options={ownerDataOptions}
+      value={selected}
       onChange={(_, newOwner) => {
         if (newOwner?.value) {
           console.log("On change selected owner: ", newOwner);
-          handleOwnerSelect(newOwner?.value as string);
+          setSelected(newOwner);
+          handleOwnerSelect(newOwner.value as string);
         }
       }}
       renderInput={(params) => (

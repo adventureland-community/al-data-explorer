@@ -1,5 +1,6 @@
 import { Card, CardContent, Typography } from "@mui/material";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
 import { OwnerSelection } from "./OwnerSelection";
 import { BankRender } from "./BankRender";
@@ -27,6 +28,7 @@ function Info() {
           >
             Push bank data
           </a>
+          . Matching WTS/WTB trade listings from ALData are shown when available (read-only).
         </Typography>
       </CardContent>
     </Card>
@@ -34,12 +36,21 @@ function Info() {
 }
 
 export function Bank() {
-  const [selectedOwner, setSelectedOwner] = useState<string>("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const ownerFromQuery = searchParams.get("owner") ?? "";
+  const [selectedOwner, setSelectedOwner] = useState<string>(ownerFromQuery);
+
+  useEffect(() => {
+    if (ownerFromQuery && ownerFromQuery !== selectedOwner) {
+      setSelectedOwner(ownerFromQuery);
+    }
+  }, [ownerFromQuery, selectedOwner]);
 
   const handleOwnerSelect = (owner: string) => {
-    console.log("Handle owner select: ", selectedOwner);
+    console.log("Handle owner select: ", owner);
     if (owner) {
       setSelectedOwner(owner);
+      setSearchParams({ owner });
     }
   };
 
@@ -52,7 +63,7 @@ export function Bank() {
   return (
     <>
       <Info />
-      <OwnerSelection onChange={handleOwnerSelect} />
+      <OwnerSelection onChange={handleOwnerSelect} initialOwner={ownerFromQuery || selectedOwner} />
       <BankRender ownerId={selectedOwner} />
     </>
   );

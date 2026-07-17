@@ -22,6 +22,12 @@ const sections = [
     path: "/bank",
     description: "View shared bank data from community contributors.",
   },
+  {
+    title: "Trades",
+    path: "/trades",
+    description:
+      "Browse bank WTS/WTB trade listings and deals (distinct from merchant Market stands).",
+  },
 ];
 
 export function Welcome() {

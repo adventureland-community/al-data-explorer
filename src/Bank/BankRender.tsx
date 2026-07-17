@@ -5,6 +5,8 @@ import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import { ItemKey, ItemType } from "typed-adventureland";
 import {
+  Box,
+  Checkbox,
   FormControl,
   FormControlLabel,
   FormLabel,
@@ -16,16 +18,31 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Typography,
 } from "@mui/material";
 import { getBankData, BankDataProps } from "./getBankData";
 import { BankPacksView } from "./BankPacksView";
+import { findMatchingListings, getOwnerTrades } from "./getTrades";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { abbreviateNumber, msToTime } from "../Shared/utils";
 import { getItemName, getItemInstanceTitle, getTitleName } from "../Shared/iteminfo-util";
+import { ListingNotes, TradeSideSummary, formatGoldPrice } from "../Trades/TradeSideDisplay";
+import { TradeListing } from "../Trades/tradeTypes";
 
 type BankRenderProps = {
   ownerId: string;
+};
+
+type AggregatedBankItem = {
+  p?: string;
+  level?: number;
+  name: ItemKey;
+  q: number;
+  stack: number;
+  category: string;
+  type?: string;
+  listings: TradeListing[];
 };
 
 const types: { [key in ItemType | "exchange" | "other"]?: string } = {
@@ -58,11 +75,72 @@ const types: { [key in ItemType | "exchange" | "other"]?: string } = {
   other: "Others",
 };
 
-function getUniqueItemKey(item: any) {
+function getUniqueItemKey(item: { name: string; level?: number; p?: string }) {
   return `${item.p ?? ""}${item.level}${item.name}`;
 }
 
-function BankTableView({ items }: { items: any[] }) {
+function itemHasTradeInfo(item: AggregatedBankItem) {
+  return item.listings.length > 0;
+}
+
+function TradeBadges({ listings }: { listings: TradeListing[] }) {
+  if (!listings.length) {
+    return null;
+  }
+
+  return (
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, marginTop: 0.5 }}>
+      {listings.map((listing) => (
+        <Box
+          key={`${listing.name}-${listing.level ?? ""}-${listing.p ?? ""}-${listing.note ?? ""}-${
+            listing.wts?.price ?? ""
+          }-${listing.wtb?.price ?? ""}`}
+          sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, alignItems: "center" }}
+        >
+          {listing.wts && <TradeSideSummary label="WTS" side={listing.wts} compact />}
+          {listing.wtb && <TradeSideSummary label="WTB" side={listing.wtb} compact />}
+          {listing.wts && formatGoldPrice(listing.wts) && (
+            <Typography variant="caption" title={listing.wts.price?.toLocaleString()}>
+              WTS {formatGoldPrice(listing.wts)}
+            </Typography>
+          )}
+          {listing.wtb && formatGoldPrice(listing.wtb) && (
+            <Typography variant="caption" title={listing.wtb.price?.toLocaleString()}>
+              WTB {formatGoldPrice(listing.wtb)}
+            </Typography>
+          )}
+          {(listing.wts?.trades ?? []).map((offer) => (
+            <Typography
+              key={`wts-${offer.item.name}-${offer.item.level ?? ""}-${offer.give}-${
+                offer.receive
+              }`}
+              variant="caption"
+              color="text.secondary"
+            >
+              WTS {offer.give}:{offer.receive} {offer.item.name}
+              {offer.negotiable ? " (nego)" : ""}
+            </Typography>
+          ))}
+          {(listing.wtb?.trades ?? []).map((offer) => (
+            <Typography
+              key={`wtb-${offer.item.name}-${offer.item.level ?? ""}-${offer.give}-${
+                offer.receive
+              }`}
+              variant="caption"
+              color="text.secondary"
+            >
+              WTB {offer.give}:{offer.receive} {offer.item.name}
+              {offer.negotiable ? " (nego)" : ""}
+            </Typography>
+          ))}
+          <ListingNotes note={listing.note} />
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+function BankTableView({ items }: { items: AggregatedBankItem[] }) {
   const G = useContext(GDataContext);
 
   return (
@@ -78,6 +156,7 @@ function BankTableView({ items }: { items: any[] }) {
           <TableCell component="th">Name</TableCell>
           <TableCell component="th">Level</TableCell>
           <TableCell component="th">Stacks</TableCell>
+          <TableCell component="th">Trades</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
@@ -99,12 +178,6 @@ function BankTableView({ items }: { items: any[] }) {
 
           const itemName = getItemName(itemKey, gItem);
 
-          // itemContainer.attr(
-          //   "title",
-          //   `${titleName}${itemName}${
-          //     Number(level) > 0 ? `+${level}` : ""
-          //   }\n${itemKey}\n${stackCount} stacks ${optimalStackCountMessage}`,
-          // );
           return (
             <TableRow key={getUniqueItemKey(itemInfo)} hover>
               <TableCell component="td">{itemInfo.category}</TableCell>
@@ -113,7 +186,14 @@ function BankTableView({ items }: { items: any[] }) {
               </TableCell>
               <TableCell component="td">
                 <div style={{ display: "inline-block" }}>
-                  <ItemInstance itemInfo={itemInfo} />
+                  <ItemInstance
+                    itemInfo={{
+                      name: itemInfo.name,
+                      level: itemInfo.level,
+                      p: itemInfo.p as any,
+                      q: itemInfo.q,
+                    }}
+                  />
                 </div>
                 <div style={{ marginLeft: "10px", display: "inline-block" }}>
                   <div>
@@ -128,6 +208,9 @@ function BankTableView({ items }: { items: any[] }) {
                 {itemInfo.stack}
                 {optimalStackCountMessage}
               </TableCell>
+              <TableCell component="td">
+                <TradeBadges listings={itemInfo.listings} />
+              </TableCell>
             </TableRow>
           );
         })}
@@ -136,7 +219,7 @@ function BankTableView({ items }: { items: any[] }) {
   );
 }
 
-function BankGridViewItemRow({ items }: { items: any[] }) {
+function BankGridViewItemRow({ items }: { items: AggregatedBankItem[] }) {
   const G = useContext(GDataContext);
 
   return (
@@ -146,9 +229,41 @@ function BankGridViewItemRow({ items }: { items: any[] }) {
         const gItem = G?.items[itemKey];
         if (!gItem || !G) return <></>;
 
+        let htmlTitle = getItemInstanceTitle(itemInfo, G);
+        if (itemInfo.listings.length) {
+          htmlTitle += `\n${itemInfo.listings.length} trade listing(s)`;
+        }
+
         return (
-          <div key={getUniqueItemKey(itemInfo)} title={getItemInstanceTitle(itemInfo, G)}>
+          <div key={getUniqueItemKey(itemInfo)} title={htmlTitle} style={{ position: "relative" }}>
             <ItemInstance showQuantity itemInfo={itemInfo} />
+            {itemHasTradeInfo(itemInfo) && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1px",
+                }}
+              >
+                {itemInfo.listings.some((l) => l.wts) && (
+                  <TradeSideSummary
+                    label="WTS"
+                    side={itemInfo.listings.find((l) => l.wts)?.wts}
+                    compact
+                  />
+                )}
+                {itemInfo.listings.some((l) => l.wtb) && (
+                  <TradeSideSummary
+                    label="WTB"
+                    side={itemInfo.listings.find((l) => l.wtb)?.wtb}
+                    compact
+                  />
+                )}
+              </Box>
+            )}
           </div>
         );
       })}
@@ -161,11 +276,11 @@ function BankGridView({
   itemsByCategory,
   showCategory,
 }: {
-  items: any[];
-  itemsByCategory: Record<string, any[]>;
+  items: AggregatedBankItem[];
+  itemsByCategory: Record<string, AggregatedBankItem[]>;
   showCategory: boolean;
 }) {
-  const sortedGroupKeys = [...new Set(Object.values(types))]; // .sort((a, b) => a.localeCompare(b));
+  const sortedGroupKeys = [...new Set(Object.values(types))];
 
   return (
     <>
@@ -176,6 +291,7 @@ function BankGridView({
             if (!categoryItems) return <></>;
             return (
               <div
+                key={category}
                 style={{
                   display: "flex",
                   flexDirection: "row",
@@ -202,11 +318,13 @@ export function BankRender(props: BankRenderProps) {
   const { ownerId } = props;
 
   const [bankData, setBankData] = useState<BankDataProps>({});
+  const [tradeListings, setTradeListings] = useState<TradeListing[]>([]);
   const [owner, setOwner] = useState<string>("");
   const [renderMode, setRenderMode] = useState<"list" | "grid" | "gridCompact" | "packs">(
     "gridCompact",
   );
   const [sortMode, setSortMode] = useState<"category" | "quantity" | "stack">("category");
+  const [onlyWithTrades, setOnlyWithTrades] = useState(false);
 
   useEffect(() => {
     if (!Object.keys(bankData).length) {
@@ -215,11 +333,15 @@ export function BankRender(props: BankRenderProps) {
           setBankData({ ...newBankData });
         }
       });
+      getOwnerTrades(ownerId).then((trades) => {
+        setTradeListings(trades.listings ?? []);
+      });
     }
 
     if (owner !== ownerId) {
       setOwner(ownerId);
       setBankData({});
+      setTradeListings([]);
     }
   }, [bankData, owner, ownerId]);
 
@@ -233,10 +355,10 @@ export function BankRender(props: BankRenderProps) {
 
   let usedSlots = 0;
   let totalSlots = 0;
-  const items = [];
-  const itemsByKey: Record<string, any> = {};
-  const itemsByCategory: Record<string, any> = {};
-  // itemsByCategory
+  const items: AggregatedBankItem[] = [];
+  const itemsByKey: Record<string, AggregatedBankItem> = {};
+  const itemsByCategory: Record<string, AggregatedBankItem[]> = {};
+
   // eslint-disable-next-line guard-for-in
   for (const bankKey in bankData) {
     const bankItems = bankData[bankKey];
@@ -263,11 +385,12 @@ export function BankRender(props: BankRenderProps) {
         data = {
           p: item.p,
           level: item.level,
-          name: item.name,
+          name: itemKey,
           q: 0,
           stack: 0,
           category,
           type: gItem?.type ?? undefined,
+          listings: findMatchingListings(tradeListings, item),
         };
 
         itemsByKey[key] = data;
@@ -284,17 +407,14 @@ export function BankRender(props: BankRenderProps) {
     }
   }
 
-  const sortedGroupKeys = [...new Set(Object.values(types))]; // .sort((a, b) => a.localeCompare(b));
+  const sortedGroupKeys = [...new Set(Object.values(types))];
 
-  // default sort by name
   items.sort((a, b) => {
     if (sortMode === "stack" && a.stack !== b.stack) {
-      // DESC
       return b.stack - a.stack;
     }
 
     if (sortMode === "quantity" && a.q !== b.q) {
-      // DESC
       return b.q - a.q;
     }
 
@@ -302,22 +422,29 @@ export function BankRender(props: BankRenderProps) {
       return sortedGroupKeys.indexOf(a.category) - sortedGroupKeys.indexOf(b.category);
     }
 
-    if (a.type && a.type !== b.type) {
-      // ASC
+    if (a.type && b.type && a.type !== b.type) {
       return a.type.localeCompare(b.type);
     }
 
-    if (a.name && a.name !== b.name) {
-      // ASC
+    if (a.name !== b.name) {
       return a.name.localeCompare(b.name);
     }
 
-    // DESC
-    return b.level - a.level;
+    return (b.level ?? 0) - (a.level ?? 0);
   });
+
+  const visibleItems = onlyWithTrades ? items.filter(itemHasTradeInfo) : items;
+  const visibleItemsByCategory: Record<string, AggregatedBankItem[]> = {};
+  for (const item of visibleItems) {
+    if (!visibleItemsByCategory[item.category]) {
+      visibleItemsByCategory[item.category] = [];
+    }
+    visibleItemsByCategory[item.category].push(item);
+  }
 
   const lastUpdated = bankData.lastUpdated ? new Date(bankData.lastUpdated) : undefined;
   const lastUpdateAgo = lastUpdated ? msToTime(new Date().getTime() - lastUpdated.getTime()) : "";
+  const tradeCount = items.filter(itemHasTradeInfo).length;
 
   return (
     <>
@@ -338,6 +465,17 @@ export function BankRender(props: BankRenderProps) {
                 <FormControlLabel value="stack" control={<Radio />} label="Stack" />
               </RadioGroup>
             </FormControl>
+          </Grid>
+          <Grid xs={4}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={onlyWithTrades}
+                  onChange={(e) => setOnlyWithTrades(e.target.checked)}
+                />
+              }
+              label={`Only items with trade info (${tradeCount})`}
+            />
           </Grid>
         </Grid>
       )}
@@ -380,11 +518,11 @@ export function BankRender(props: BankRenderProps) {
       {(renderMode === "grid" || renderMode === "gridCompact") && (
         <BankGridView
           showCategory={renderMode === "grid"}
-          items={items}
-          itemsByCategory={itemsByCategory}
+          items={visibleItems}
+          itemsByCategory={visibleItemsByCategory}
         />
       )}
-      {renderMode === "list" && <BankTableView items={items} />}
+      {renderMode === "list" && <BankTableView items={visibleItems} />}
       {renderMode === "packs" && <BankPacksView bankData={bankData} />}
     </>
   );
