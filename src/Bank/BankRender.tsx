@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from "react";
 import GridViewIcon from "@mui/icons-material/GridView";
 import ViewCompactIcon from "@mui/icons-material/ViewCompact";
 import ViewListIcon from "@mui/icons-material/ViewList";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import { ItemKey, ItemType } from "typed-adventureland";
 import {
   FormControl,
@@ -17,11 +18,11 @@ import {
   TableRow,
 } from "@mui/material";
 import { getBankData, BankDataProps } from "./getBankData";
+import { BankPacksView } from "./BankPacksView";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { abbreviateNumber, msToTime } from "../Shared/utils";
-import { getItemName, getTitleName } from "../Shared/iteminfo-util";
-import { getLevelString } from "../Utils";
+import { getItemName, getItemInstanceTitle, getTitleName } from "../Shared/iteminfo-util";
 
 type BankRenderProps = {
   ownerId: string;
@@ -143,28 +144,10 @@ function BankGridViewItemRow({ items }: { items: any[] }) {
       {items.map((itemInfo) => {
         const itemKey = itemInfo.name as ItemKey;
         const gItem = G?.items[itemKey];
-        if (!gItem) return <></>;
-        const titleName = getTitleName(itemInfo, G);
-
-        const itemName = getItemName(itemKey, gItem);
-
-        const levelString = getLevelString(gItem, itemInfo.level);
-
-        let htmlTitle = itemName;
-        if (titleName) {
-          htmlTitle = `${titleName} ${htmlTitle}`;
-        }
-
-        if (levelString) {
-          htmlTitle = `+${levelString} ${htmlTitle}`;
-        }
-
-        htmlTitle += `\n${itemKey}`;
-        // htmlTitle += `\n${itemInfo.category}`;
-        htmlTitle += `\n${gItem.type}`;
+        if (!gItem || !G) return <></>;
 
         return (
-          <div key={getUniqueItemKey(itemInfo)} title={htmlTitle}>
+          <div key={getUniqueItemKey(itemInfo)} title={getItemInstanceTitle(itemInfo, G)}>
             <ItemInstance showQuantity itemInfo={itemInfo} />
           </div>
         );
@@ -220,7 +203,9 @@ export function BankRender(props: BankRenderProps) {
 
   const [bankData, setBankData] = useState<BankDataProps>({});
   const [owner, setOwner] = useState<string>("");
-  const [renderMode, setRenderMode] = useState<"list" | "grid" | "gridCompact">("gridCompact");
+  const [renderMode, setRenderMode] = useState<"list" | "grid" | "gridCompact" | "packs">(
+    "gridCompact",
+  );
   const [sortMode, setSortMode] = useState<"category" | "quantity" | "stack">("category");
 
   useEffect(() => {
@@ -336,24 +321,26 @@ export function BankRender(props: BankRenderProps) {
 
   return (
     <>
-      <Grid container>
-        <Grid xs={4}>
-          <FormControl>
-            <FormLabel id="demo-controlled-radio-buttons-group">Sorting</FormLabel>
-            <RadioGroup
-              row
-              aria-labelledby="demo-controlled-radio-buttons-group"
-              name="controlled-radio-buttons-group"
-              value={sortMode}
-              onChange={onSortModeChange}
-            >
-              <FormControlLabel value="category" control={<Radio />} label="Category" />
-              <FormControlLabel value="quantity" control={<Radio />} label="Quantity" />
-              <FormControlLabel value="stack" control={<Radio />} label="Stack" />
-            </RadioGroup>
-          </FormControl>
+      {renderMode !== "packs" && (
+        <Grid container>
+          <Grid xs={4}>
+            <FormControl>
+              <FormLabel id="demo-controlled-radio-buttons-group">Sorting</FormLabel>
+              <RadioGroup
+                row
+                aria-labelledby="demo-controlled-radio-buttons-group"
+                name="controlled-radio-buttons-group"
+                value={sortMode}
+                onChange={onSortModeChange}
+              >
+                <FormControlLabel value="category" control={<Radio />} label="Category" />
+                <FormControlLabel value="quantity" control={<Radio />} label="Quantity" />
+                <FormControlLabel value="stack" control={<Radio />} label="Stack" />
+              </RadioGroup>
+            </FormControl>
+          </Grid>
         </Grid>
-      </Grid>
+      )}
       <Grid container>
         <Grid xs={4}>
           {usedSlots} / {totalSlots} ({totalSlots - usedSlots})
@@ -381,6 +368,12 @@ export function BankRender(props: BankRenderProps) {
             onClick={() => setRenderMode("grid")}
             color={renderMode === "grid" ? "primary" : "secondary"}
           />
+          <ViewModuleIcon
+            titleAccess="Show Bank Packs"
+            style={{ cursor: "pointer" }}
+            onClick={() => setRenderMode("packs")}
+            color={renderMode === "packs" ? "primary" : "secondary"}
+          />
         </Grid>
       </Grid>
 
@@ -392,6 +385,7 @@ export function BankRender(props: BankRenderProps) {
         />
       )}
       {renderMode === "list" && <BankTableView items={items} />}
+      {renderMode === "packs" && <BankPacksView bankData={bankData} />}
     </>
   );
 }

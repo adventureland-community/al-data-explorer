@@ -31,8 +31,7 @@ export function Welcome() {
         AL Data Explorer
       </Typography>
       <Typography sx={{ marginBottom: 3, textAlign: "center" }}>
-        Tools for exploring Adventure Land game data, market prices, and community bank
-        information.
+        Tools for exploring Adventure Land game data, market prices, and community bank information.
       </Typography>
 
       {sections.map((section) => (
