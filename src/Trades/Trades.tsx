@@ -154,9 +154,9 @@ function TradeRowView({ row }: { row: TradeRow }) {
         >
           {ownerLabel}
         </Button>
-        {discordName ? (
+        {discordName && discordName.toLowerCase() !== ownerLabel.toLowerCase() ? (
           <Typography variant="caption" display="block" color="text.secondary" title={discordId}>
-            Discord: {discordName}
+            @{discordName}
           </Typography>
         ) : null}
       </TableCell>
