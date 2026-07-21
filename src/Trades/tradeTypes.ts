@@ -17,8 +17,10 @@ export type OwnerTrades = {
   listings: TradeListing[];
   lastUpdated?: number;
   characters?: string[];
-  /** Short display name derived from characters (e.g. "earth"). */
+  /** Short display name: preferred displayName, else derived from characters. */
   label?: string;
+  /** Explicit preferred name set via PUT /trades (applies to all listings). */
+  displayName?: string;
 };
 
 export type OwnerTradesResponse = {
@@ -26,4 +28,5 @@ export type OwnerTradesResponse = {
   lastUpdated?: number;
   characters?: string[];
   label?: string;
+  displayName?: string;
 };

@@ -65,7 +65,12 @@ function flattenTrades(owners: OwnerTrades[]): TradeRow[] {
       if (listing.wts) {
         rows.push({
           owner: ownerEntry.owner,
-          ownerLabel: formatOwnerLabel(ownerEntry.owner, ownerEntry.characters, ownerEntry.label),
+          ownerLabel: formatOwnerLabel(
+            ownerEntry.owner,
+            ownerEntry.characters,
+            ownerEntry.label,
+            ownerEntry.displayName,
+          ),
           listing,
           side: "WTS",
           tradeSide: listing.wts,
@@ -75,7 +80,12 @@ function flattenTrades(owners: OwnerTrades[]): TradeRow[] {
       if (listing.wtb) {
         rows.push({
           owner: ownerEntry.owner,
-          ownerLabel: formatOwnerLabel(ownerEntry.owner, ownerEntry.characters, ownerEntry.label),
+          ownerLabel: formatOwnerLabel(
+            ownerEntry.owner,
+            ownerEntry.characters,
+            ownerEntry.label,
+            ownerEntry.displayName,
+          ),
           listing,
           side: "WTB",
           tradeSide: listing.wtb,

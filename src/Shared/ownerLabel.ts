@@ -33,7 +33,12 @@ export function ownerLabelFromCharacters(characters: string[] | undefined): stri
   return names[0];
 }
 
-export function formatOwnerLabel(ownerId: string, characters?: string[], label?: string): string {
-  const derived = label || ownerLabelFromCharacters(characters);
+export function formatOwnerLabel(
+  ownerId: string,
+  characters?: string[],
+  label?: string,
+  displayName?: string,
+): string {
+  const derived = displayName || label || ownerLabelFromCharacters(characters);
   return derived || ownerId;
 }
