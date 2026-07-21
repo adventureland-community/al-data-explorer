@@ -18,7 +18,6 @@ import {
   Autocomplete,
 } from "@mui/material";
 import axios from "axios";
-import { ALDATA_BASE_URL } from "../aldataBaseUrl";
 import { useContext, useEffect, useMemo, useState } from "react";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
@@ -31,6 +30,7 @@ import {
   TradeSlotType,
 } from "typed-adventureland";
 
+import { ALDATA_BASE_URL } from "../aldataBaseUrl";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 

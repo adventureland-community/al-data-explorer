@@ -229,14 +229,21 @@ function BankGridViewItemRow({ items }: { items: AggregatedBankItem[] }) {
         const gItem = G?.items[itemKey];
         if (!gItem || !G) return <></>;
 
-        let htmlTitle = getItemInstanceTitle(itemInfo, G);
+        const instance = {
+          name: itemInfo.name,
+          level: itemInfo.level,
+          p: itemInfo.p as any,
+          q: itemInfo.q,
+        };
+
+        let htmlTitle = getItemInstanceTitle(instance, G);
         if (itemInfo.listings.length) {
           htmlTitle += `\n${itemInfo.listings.length} trade listing(s)`;
         }
 
         return (
           <div key={getUniqueItemKey(itemInfo)} title={htmlTitle} style={{ position: "relative" }}>
-            <ItemInstance showQuantity itemInfo={itemInfo} />
+            <ItemInstance showQuantity itemInfo={instance} />
             {itemHasTradeInfo(itemInfo) && (
               <Box
                 sx={{
