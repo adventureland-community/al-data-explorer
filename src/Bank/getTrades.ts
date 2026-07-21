@@ -1,7 +1,8 @@
 import axios, { AxiosResponse } from "axios";
+import { ALDATA_BASE_URL } from "../aldataBaseUrl";
 import { OwnerTrades, OwnerTradesResponse, TradeListing } from "../Trades/tradeTypes";
 
-const GET_TRADES_ROOT = "https://aldata.earthiverse.ca/trades";
+const GET_TRADES_ROOT = `${ALDATA_BASE_URL}/trades`;
 
 export const getOwnerTrades = async (ownerId: string): Promise<OwnerTradesResponse> => {
   if (ownerId === "") {
