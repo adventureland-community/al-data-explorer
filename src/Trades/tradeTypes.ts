@@ -16,9 +16,14 @@ export type OwnerTrades = {
   owner: string;
   listings: TradeListing[];
   lastUpdated?: number;
+  characters?: string[];
+  /** Short display name derived from characters (e.g. "earth"). */
+  label?: string;
 };
 
 export type OwnerTradesResponse = {
   listings: TradeListing[];
   lastUpdated?: number;
+  characters?: string[];
+  label?: string;
 };

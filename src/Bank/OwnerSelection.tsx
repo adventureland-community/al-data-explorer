@@ -4,6 +4,7 @@ import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 
 import { getOwners, OwnerResponseProps } from "./getOwners";
+import { formatOwnerLabel } from "../Shared/ownerLabel";
 
 type OwnerSelectionProps = {
   onChange: (newOwner: string) => void;
@@ -32,10 +33,14 @@ export function OwnerSelection(props: OwnerSelectionProps) {
     }
   }, [ownerData.length]);
 
-  const ownerDataOptions = ownerData.map((owner) => ({
-    label: owner.characters.join(", "),
-    value: owner.owner,
-  }));
+  const ownerDataOptions = ownerData.map((owner) => {
+    const display = formatOwnerLabel(owner.owner, owner.characters);
+    const chars = owner.characters?.length ? owner.characters.join(", ") : owner.owner;
+    return {
+      label: display && display !== owner.owner ? `${display} — ${chars}` : chars,
+      value: owner.owner,
+    };
+  });
 
   useEffect(() => {
     if (!initialOwner || !ownerDataOptions.length) {

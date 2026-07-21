@@ -30,11 +30,13 @@ import { getItemName, getTitleName } from "../Shared/iteminfo-util";
 import { msToTime } from "../Shared/utils";
 import { ListingNotes, TradeSideSummary, formatGoldPrice } from "./TradeSideDisplay";
 import { OwnerTrades, TradeListing, TradeSide } from "./tradeTypes";
+import { formatOwnerLabel } from "../Shared/ownerLabel";
 
 type SideFilter = "all" | "wts" | "wtb";
 
 type TradeRow = {
   owner: string;
+  ownerLabel: string;
   listing: TradeListing;
   side: "WTS" | "WTB";
   tradeSide: TradeSide;
@@ -63,6 +65,7 @@ function flattenTrades(owners: OwnerTrades[]): TradeRow[] {
       if (listing.wts) {
         rows.push({
           owner: ownerEntry.owner,
+          ownerLabel: formatOwnerLabel(ownerEntry.owner, ownerEntry.characters, ownerEntry.label),
           listing,
           side: "WTS",
           tradeSide: listing.wts,
@@ -72,6 +75,7 @@ function flattenTrades(owners: OwnerTrades[]): TradeRow[] {
       if (listing.wtb) {
         rows.push({
           owner: ownerEntry.owner,
+          ownerLabel: formatOwnerLabel(ownerEntry.owner, ownerEntry.characters, ownerEntry.label),
           listing,
           side: "WTB",
           tradeSide: listing.wtb,
@@ -86,7 +90,7 @@ function flattenTrades(owners: OwnerTrades[]): TradeRow[] {
 
 function TradeRowView({ row }: { row: TradeRow }) {
   const G = useContext(GDataContext);
-  const { listing, tradeSide, side, owner, lastUpdated } = row;
+  const { listing, tradeSide, side, owner, ownerLabel, lastUpdated } = row;
   const itemKey = listing.name as ItemKey;
   const gItem = G?.items[itemKey];
 
@@ -115,8 +119,9 @@ function TradeRowView({ row }: { row: TradeRow }) {
           to={`/bank?owner=${encodeURIComponent(owner)}`}
           size="small"
           sx={{ textTransform: "none", minWidth: 0, padding: 0 }}
+          title={owner}
         >
-          {owner}
+          {ownerLabel}
         </Button>
       </TableCell>
       <TableCell>
