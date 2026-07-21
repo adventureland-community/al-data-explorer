@@ -28,6 +28,7 @@ import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
 import { msToTime } from "../Shared/utils";
+import { formatCopyTradeMessage } from "./formatCopyTradeMessage";
 import { ListingNotes, TradeSideSummary, formatGoldPrice } from "./TradeSideDisplay";
 import { OwnerTrades, TradeListing, TradeSide } from "./tradeTypes";
 import { formatOwnerLabel } from "../Shared/ownerLabel";
@@ -41,6 +42,8 @@ type TradeRow = {
   side: "WTS" | "WTB";
   tradeSide: TradeSide;
   lastUpdated?: number;
+  discordName?: string;
+  discordId?: string;
 };
 
 function Info() {
@@ -50,7 +53,9 @@ function Info() {
         <Typography component="div">
           Bank trade listings from{" "}
           <a href="https://aldata.earthiverse.ca">earthiverse&apos;s aldata</a> — player WTS/WTB
-          offers attached to shared banks. Distinct from the Market page (merchant stands).
+          offers attached to shared banks. Distinct from the Market page (merchant stands). Use
+          Copy to build a Discord message (includes a pingable mention when the seller set{" "}
+          <code>discordId</code>).
         </Typography>
       </CardContent>
     </Card>
@@ -62,34 +67,31 @@ function flattenTrades(owners: OwnerTrades[]): TradeRow[] {
 
   for (const ownerEntry of owners) {
     for (const listing of ownerEntry.listings ?? []) {
+      const shared = {
+        owner: ownerEntry.owner,
+        ownerLabel: formatOwnerLabel(
+          ownerEntry.owner,
+          ownerEntry.characters,
+          ownerEntry.label,
+          ownerEntry.displayName,
+        ),
+        listing,
+        lastUpdated: ownerEntry.lastUpdated,
+        discordName: ownerEntry.discordName,
+        discordId: ownerEntry.discordId,
+      };
       if (listing.wts) {
         rows.push({
-          owner: ownerEntry.owner,
-          ownerLabel: formatOwnerLabel(
-            ownerEntry.owner,
-            ownerEntry.characters,
-            ownerEntry.label,
-            ownerEntry.displayName,
-          ),
-          listing,
+          ...shared,
           side: "WTS",
           tradeSide: listing.wts,
-          lastUpdated: ownerEntry.lastUpdated,
         });
       }
       if (listing.wtb) {
         rows.push({
-          owner: ownerEntry.owner,
-          ownerLabel: formatOwnerLabel(
-            ownerEntry.owner,
-            ownerEntry.characters,
-            ownerEntry.label,
-            ownerEntry.displayName,
-          ),
-          listing,
+          ...shared,
           side: "WTB",
           tradeSide: listing.wtb,
-          lastUpdated: ownerEntry.lastUpdated,
         });
       }
     }
@@ -100,7 +102,8 @@ function flattenTrades(owners: OwnerTrades[]): TradeRow[] {
 
 function TradeRowView({ row }: { row: TradeRow }) {
   const G = useContext(GDataContext);
-  const { listing, tradeSide, side, owner, ownerLabel, lastUpdated } = row;
+  const { listing, tradeSide, side, owner, ownerLabel, lastUpdated, discordName, discordId } = row;
+  const [copied, setCopied] = useState(false);
   const itemKey = listing.name as ItemKey;
   const gItem = G?.items[itemKey];
 
@@ -121,6 +124,24 @@ function TradeRowView({ row }: { row: TradeRow }) {
     ? msToTime(new Date().getTime() - lastUpdatedDate.getTime())
     : "";
 
+  const onCopy = async () => {
+    const text = formatCopyTradeMessage({
+      ownerLabel,
+      listing,
+      side,
+      tradeSide,
+      discordName,
+      discordId,
+    });
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard may be blocked; ignore
+    }
+  };
+
   return (
     <TableRow hover>
       <TableCell>
@@ -133,6 +154,11 @@ function TradeRowView({ row }: { row: TradeRow }) {
         >
           {ownerLabel}
         </Button>
+        {discordName ? (
+          <Typography variant="caption" display="block" color="text.secondary" title={discordId}>
+            Discord: {discordName}
+          </Typography>
+        ) : null}
       </TableCell>
       <TableCell>
         <div style={{ display: "inline-block" }}>
@@ -169,6 +195,11 @@ function TradeRowView({ row }: { row: TradeRow }) {
       </TableCell>
       <TableCell>
         {lastUpdatedDate ? `${lastUpdatedDate.toLocaleString()} (${lastUpdateAgo} Ago)` : ""}
+      </TableCell>
+      <TableCell>
+        <Button size="small" onClick={onCopy} sx={{ textTransform: "none" }}>
+          {copied ? "Copied" : "Copy"}
+        </Button>
       </TableCell>
     </TableRow>
   );
@@ -295,6 +326,7 @@ export function Trades() {
             <TableCell>Item trades</TableCell>
             <TableCell>Notes</TableCell>
             <TableCell>Updated</TableCell>
+            <TableCell>Message</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>

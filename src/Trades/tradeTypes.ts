@@ -21,6 +21,10 @@ export type OwnerTrades = {
   label?: string;
   /** Explicit preferred name set via PUT /trades (applies to all listings). */
   displayName?: string;
+  /** Discord username / display name (plain text). */
+  discordName?: string;
+  /** Discord snowflake for copy-paste mentions. */
+  discordId?: string;
 };
 
 export type OwnerTradesResponse = {
@@ -29,4 +33,6 @@ export type OwnerTradesResponse = {
   characters?: string[];
   label?: string;
   displayName?: string;
+  discordName?: string;
+  discordId?: string;
 };
