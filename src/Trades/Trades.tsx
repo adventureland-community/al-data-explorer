@@ -53,8 +53,8 @@ function Info() {
         <Typography component="div">
           Bank trade listings from{" "}
           <a href="https://aldata.earthiverse.ca">earthiverse&apos;s aldata</a> — player WTS/WTB
-          offers attached to shared banks. Distinct from the Market page (merchant stands). Use
-          Copy to build a Discord message (includes a pingable mention when the seller set{" "}
+          offers attached to shared banks. Distinct from the Market page (merchant stands). Use Copy
+          to build a Discord message (includes a pingable mention when the seller set{" "}
           <code>discordId</code>).
         </Typography>
       </CardContent>

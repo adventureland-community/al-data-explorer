@@ -45,8 +45,8 @@ export function formatCopyTradeMessage(args: {
   const contact = args.discordId
     ? `<@${args.discordId}>`
     : args.discordName
-      ? `@${args.discordName}`
-      : args.ownerLabel;
+    ? `@${args.discordName}`
+    : args.ownerLabel;
 
   const details = formatSideDetails(args.listing, args.tradeSide);
   const detailText = details.length > 0 ? details.join("; ") : "(see listing)";
