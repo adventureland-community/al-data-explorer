@@ -1,6 +1,10 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Tooltip, Typography } from "@mui/material";
+import { useContext } from "react";
+import { ItemKey } from "typed-adventureland";
 
+import { CustomGData, GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
+import { getItemName, getTitleName } from "../Shared/iteminfo-util";
 import { NegotiableMarker } from "./NegotiableMarker";
 import { ItemRef, TradeOffer } from "./tradeTypes";
 import { itemRefToItemInfo } from "./tradeViewModel";
@@ -10,6 +14,38 @@ function itemWithQty(item: ItemRef, quantity: number) {
     ...itemRefToItemInfo(item),
     q: quantity,
   };
+}
+
+function formatItemLabel(item: ItemRef, G: CustomGData | undefined): string {
+  if (!G) {
+    return item.name;
+  }
+  const itemInfo = itemRefToItemInfo(item);
+  const gItem = G.items[item.name as ItemKey];
+  const title = getTitleName(itemInfo, G);
+  const name = gItem ? getItemName(item.name as ItemKey, gItem) : item.name;
+  const titled = title ? `${title} ${name}` : name;
+  if (item.level !== undefined) {
+    return `${titled} +${item.level}`;
+  }
+  return titled;
+}
+
+/** Human-readable tooltip for a ratio trade, e.g. "Trade 2× Crypt Key for 1× Tomb Key". */
+export function formatTradeOfferTooltip(
+  listing: ItemRef,
+  offer: TradeOffer,
+  G: CustomGData | undefined,
+): string {
+  const giveLabel = formatItemLabel(listing, G);
+  const receiveLabel = formatItemLabel(offer.item, G);
+  const giveQty = offer.give.toLocaleString();
+  const receiveQty = offer.receive.toLocaleString();
+  let text = `Trade ${giveQty}× ${giveLabel} for ${receiveQty}× ${receiveLabel}`;
+  if (offer.negotiable) {
+    text += " · negotiable";
+  }
+  return text;
 }
 
 export function TradeRatioRow({
@@ -24,46 +60,51 @@ export function TradeRatioRow({
   compact?: boolean;
   reserveNegotiableSlot?: boolean;
 }) {
+  const G = useContext(GDataContext);
   const scale = compact ? 0.65 : 1;
   const slotWidth = compact ? 16 : 18;
+  const tooltip = formatTradeOfferTooltip(listing, offer, G);
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: compact ? 0.4 : 0.75,
-        flexWrap: "nowrap",
-      }}
-    >
-      {reserveNegotiableSlot || offer.negotiable ? (
-        <Box
-          sx={{
-            width: slotWidth,
-            flexShrink: 0,
-            display: "inline-flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          {offer.negotiable ? (
-            <NegotiableMarker title="Ratio is negotiable" fontSize={compact ? 13 : 15} />
-          ) : null}
-        </Box>
-      ) : null}
-      <Box sx={{ transform: `scale(${scale})`, transformOrigin: "center", flexShrink: 0 }}>
-        <ItemInstance itemInfo={itemWithQty(listing, offer.give)} showQuantity />
-      </Box>
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ fontSize: compact ? "0.65rem" : "0.75rem", lineHeight: 1 }}
+    <Tooltip title={tooltip} placement="top" enterDelay={300}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: compact ? 0.4 : 0.75,
+          flexWrap: "nowrap",
+          cursor: "help",
+        }}
       >
-        →
-      </Typography>
-      <Box sx={{ transform: `scale(${scale})`, transformOrigin: "center", flexShrink: 0 }}>
-        <ItemInstance itemInfo={itemWithQty(offer.item, offer.receive)} showQuantity />
+        {reserveNegotiableSlot || offer.negotiable ? (
+          <Box
+            sx={{
+              width: slotWidth,
+              flexShrink: 0,
+              display: "inline-flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            {offer.negotiable ? (
+              <NegotiableMarker title="Ratio is negotiable" fontSize={compact ? 13 : 15} />
+            ) : null}
+          </Box>
+        ) : null}
+        <Box sx={{ transform: `scale(${scale})`, transformOrigin: "center", flexShrink: 0 }}>
+          <ItemInstance itemInfo={itemWithQty(listing, offer.give)} showQuantity />
+        </Box>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ fontSize: compact ? "0.65rem" : "0.75rem", lineHeight: 1 }}
+        >
+          →
+        </Typography>
+        <Box sx={{ transform: `scale(${scale})`, transformOrigin: "center", flexShrink: 0 }}>
+          <ItemInstance itemInfo={itemWithQty(offer.item, offer.receive)} showQuantity />
+        </Box>
       </Box>
-    </Box>
+    </Tooltip>
   );
 }
