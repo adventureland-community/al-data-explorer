@@ -231,7 +231,7 @@ export function TradeItemCard({ group }: { group: GroupedTradeItem }) {
           }}
         >
           <Box sx={{ display: "flex", gap: 1, alignItems: "center", minWidth: 0, flex: 1 }}>
-            <Box sx={{ transform: "scale(0.85)", transformOrigin: "left center", flexShrink: 0 }}>
+            <Box sx={{ flexShrink: 0 }}>
               <ItemInstance itemInfo={itemInfo} />
             </Box>
             <Box sx={{ minWidth: 0, textAlign: "left" }}>
