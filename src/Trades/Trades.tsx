@@ -32,6 +32,7 @@ import {
   GroupSortKey,
   TableSortKey,
   TradeFilters,
+  TradeOverviewItem,
   TradesViewMode,
   computeOverviewStats,
   filterTradeRows,
@@ -87,7 +88,17 @@ export function Trades() {
     () => filterTradeRows(allRows, filters, itemDisplayName),
     [allRows, filters, itemDisplayName],
   );
-  const overviewStats = useMemo(() => computeOverviewStats(filteredRows), [filteredRows]);
+  // Keep overview stable when filtering by item so top tiles remain clickable.
+  const overviewRows = useMemo(
+    () =>
+      filterTradeRows(
+        allRows,
+        { sideFilter, itemFilter: "", hasGoldPrice, hasItemTrades },
+        itemDisplayName,
+      ),
+    [allRows, sideFilter, hasGoldPrice, hasItemTrades, itemDisplayName],
+  );
+  const overviewStats = useMemo(() => computeOverviewStats(overviewRows), [overviewRows]);
   const groupedItems = useMemo(() => {
     const groups = groupTradesByItem(filteredRows);
     return sortGroupedItems(groups, groupSort);
@@ -101,6 +112,11 @@ export function Trades() {
     if (!value) return;
     setViewMode(value);
     saveTradesViewMode(value);
+  };
+
+  const onOverviewItemSelect = (item: TradeOverviewItem) => {
+    const { name } = item.listing;
+    setItemFilter((current) => (current.trim().toLowerCase() === name.toLowerCase() ? "" : name));
   };
 
   if (!G) {
@@ -117,7 +133,11 @@ export function Trades() {
 
   return (
     <>
-      <TradesOverview stats={overviewStats} />
+      <TradesOverview
+        stats={overviewStats}
+        selectedItemName={itemFilter}
+        onItemSelect={onOverviewItemSelect}
+      />
       {!loaded && <Typography>Loading trades…</Typography>}
       {loaded && owners.length === 0 && (
         <Typography color="text.secondary">
@@ -217,8 +237,8 @@ export function Trades() {
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-            gap: 1,
+            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+            gap: 1.5,
           }}
         >
           {groupedItems.map((group) => (

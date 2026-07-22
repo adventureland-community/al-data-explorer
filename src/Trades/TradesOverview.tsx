@@ -28,7 +28,15 @@ function StatBox({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function TopItemTile({ item }: { item: TradeOverviewItem }) {
+function TopItemTile({
+  item,
+  selected,
+  onSelect,
+}: {
+  item: TradeOverviewItem;
+  selected: boolean;
+  onSelect: (item: TradeOverviewItem) => void;
+}) {
   const G = useContext(GDataContext);
   if (!G) {
     return null;
@@ -39,6 +47,9 @@ function TopItemTile({ item }: { item: TradeOverviewItem }) {
 
   return (
     <Box
+      component="button"
+      type="button"
+      onClick={() => onSelect(item)}
       sx={{
         display: "flex",
         alignItems: "center",
@@ -46,11 +57,26 @@ function TopItemTile({ item }: { item: TradeOverviewItem }) {
         p: 1,
         borderRadius: 1,
         border: 1,
-        borderColor: "divider",
-        bgcolor: "background.paper",
+        borderColor: selected ? "primary.main" : "divider",
+        bgcolor: selected ? "action.selected" : "background.paper",
         minWidth: 0,
+        width: "100%",
+        textAlign: "left",
+        cursor: "pointer",
+        font: "inherit",
+        color: "inherit",
+        transition: "border-color 0.15s ease, background-color 0.15s ease",
+        "&:hover": {
+          borderColor: "primary.main",
+          bgcolor: selected ? "action.selected" : "action.hover",
+        },
       }}
-      title={`${item.wtsCount} WTS · ${item.wtbCount} WTB`}
+      title={
+        selected
+          ? `Clear filter for ${displayName}`
+          : `Filter to ${displayName} (${item.wtsCount} WTS · ${item.wtbCount} WTB)`
+      }
+      aria-pressed={selected}
     >
       <Box sx={{ flexShrink: 0 }}>
         <ItemInstance itemInfo={itemInfo} />
@@ -85,15 +111,25 @@ function TopItemTile({ item }: { item: TradeOverviewItem }) {
   );
 }
 
-function TopItemsGrid({ stats }: { stats: TradeOverviewStats }) {
+function TopItemsGrid({
+  stats,
+  selectedItemName,
+  onItemSelect,
+}: {
+  stats: TradeOverviewStats;
+  selectedItemName?: string;
+  onItemSelect: (item: TradeOverviewItem) => void;
+}) {
   if (stats.topItems.length === 0) {
     return null;
   }
 
+  const selected = selectedItemName?.trim().toLowerCase() ?? "";
+
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant="subtitle2" sx={{ mb: 1 }}>
-        Most listed items
+        Listed items
       </Typography>
       <Box
         sx={{
@@ -103,14 +139,27 @@ function TopItemsGrid({ stats }: { stats: TradeOverviewStats }) {
         }}
       >
         {stats.topItems.map((item) => (
-          <TopItemTile key={item.key} item={item} />
+          <TopItemTile
+            key={item.key}
+            item={item}
+            selected={selected === item.listing.name.toLowerCase()}
+            onSelect={onItemSelect}
+          />
         ))}
       </Box>
     </Box>
   );
 }
 
-export function TradesOverview({ stats }: { stats: TradeOverviewStats }) {
+export function TradesOverview({
+  stats,
+  selectedItemName,
+  onItemSelect,
+}: {
+  stats: TradeOverviewStats;
+  selectedItemName?: string;
+  onItemSelect?: (item: TradeOverviewItem) => void;
+}) {
   return (
     <Card sx={{ mb: 2 }}>
       <CardContent>
@@ -129,7 +178,11 @@ export function TradesOverview({ stats }: { stats: TradeOverviewStats }) {
           <StatBox label="Items" value={stats.uniqueItems} />
           <StatBox label="Owners" value={stats.uniqueOwners} />
         </Box>
-        <TopItemsGrid stats={stats} />
+        <TopItemsGrid
+          stats={stats}
+          selectedItemName={selectedItemName}
+          onItemSelect={onItemSelect ?? (() => undefined)}
+        />
       </CardContent>
     </Card>
   );

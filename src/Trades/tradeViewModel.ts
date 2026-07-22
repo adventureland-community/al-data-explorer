@@ -188,8 +188,7 @@ export function computeOverviewStats(rows: TradeRow[]): TradeOverviewStats {
       wtbCount: group.wtbCount,
       totalCount: group.wtsCount + group.wtbCount,
     }))
-    .sort((a, b) => b.totalCount - a.totalCount)
-    .slice(0, 10);
+    .sort((a, b) => b.totalCount - a.totalCount);
 
   return {
     totalListings: rows.length,
