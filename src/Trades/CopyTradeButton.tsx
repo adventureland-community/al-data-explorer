@@ -1,36 +1,59 @@
-import { Button } from "@mui/material";
-import { useState } from "react";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import CheckIcon from "@mui/icons-material/Check";
+import { IconButton, Tooltip } from "@mui/material";
+import { MouseEvent, useState } from "react";
 
 import { formatCopyTradeMessage } from "./formatCopyTradeMessage";
 import { TradeListing, TradeSide } from "./tradeTypes";
 import { TradeRow } from "./tradeViewModel";
 
-export function CopyTradeButton({ row }: { row: TradeRow }) {
-  const [copied, setCopied] = useState(false);
-  const { ownerLabel, listing, side, tradeSide, discordName, discordId } = row;
+async function copyRowMessage(row: TradeRow): Promise<boolean> {
+  const text = formatCopyTradeMessage({
+    ownerLabel: row.ownerLabel,
+    listing: row.listing,
+    side: row.side,
+    tradeSide: row.tradeSide,
+    discordName: row.discordName,
+    discordId: row.discordId,
+  });
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-  const onCopy = async () => {
-    const text = formatCopyTradeMessage({
-      ownerLabel,
-      listing,
-      side,
-      tradeSide,
-      discordName,
-      discordId,
-    });
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard may be blocked; ignore
-    }
+export function CopyTradeButton({ row, iconOnly = true }: { row: TradeRow; iconOnly?: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  const onCopy = async (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const ok = await copyRowMessage(row);
+    if (!ok) return;
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
   };
 
   return (
-    <Button size="small" onClick={onCopy} sx={{ textTransform: "none" }}>
-      {copied ? "Copied" : "Copy"}
-    </Button>
+    <Tooltip title={copied ? "Copied" : "Copy Discord message"} placement="top">
+      <IconButton
+        size="small"
+        onClick={onCopy}
+        aria-label={copied ? "Copied" : "Copy Discord message"}
+        sx={{
+          p: iconOnly ? 0.25 : 0.5,
+          color: copied ? "success.main" : "text.secondary",
+        }}
+      >
+        {copied ? (
+          <CheckIcon sx={{ fontSize: iconOnly ? 14 : 16 }} />
+        ) : (
+          <ContentCopyIcon sx={{ fontSize: iconOnly ? 14 : 16 }} />
+        )}
+      </IconButton>
+    </Tooltip>
   );
 }
 

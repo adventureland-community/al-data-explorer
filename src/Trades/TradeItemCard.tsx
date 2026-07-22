@@ -1,5 +1,5 @@
-import { Box, Button, Card, CardContent, Chip, Typography } from "@mui/material";
-import { useContext } from "react";
+import { Box, Card, CardContent, Link, Typography } from "@mui/material";
+import { useContext, useMemo } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { ItemKey } from "typed-adventureland";
 
@@ -12,18 +12,7 @@ import { formatGoldPrice } from "./TradeSideDisplay";
 import { TradeRatioRow } from "./TradeRatioRow";
 import { GroupedTradeItem, TradeRow, itemRefToItemInfo } from "./tradeViewModel";
 
-const MAX_LISTINGS_SHOWN = 4;
-
-function SideBadge({ side }: { side: "WTS" | "WTB" }) {
-  return (
-    <Chip
-      size="small"
-      color={side === "WTS" ? "success" : "info"}
-      label={side}
-      sx={{ height: 18, fontSize: "0.65rem", minWidth: 40 }}
-    />
-  );
-}
+const MAX_LISTINGS_SHOWN = 5;
 
 function OfferTerms({ row }: { row: TradeRow }) {
   const { listing, tradeSide } = row;
@@ -31,36 +20,46 @@ function OfferTerms({ row }: { row: TradeRow }) {
   const trades = tradeSide.trades ?? [];
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, minWidth: 0 }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-end",
+        gap: 0.15,
+        minWidth: 0,
+        textAlign: "right",
+      }}
+    >
       {gold !== undefined ? (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap" }}>
-          <Typography variant="body2" component="span" title={tradeSide.price?.toLocaleString()}>
-            {gold}
-            {tradeSide.quantity !== undefined ? ` ×${tradeSide.quantity}` : ""}
-          </Typography>
+        <Typography
+          variant="body2"
+          component="span"
+          title={tradeSide.price?.toLocaleString()}
+          sx={{ fontWeight: 600, lineHeight: 1.2 }}
+        >
+          {gold}
+          {tradeSide.quantity !== undefined ? ` ×${tradeSide.quantity}` : ""}
           {tradeSide.priceNegotiable ? (
-            <Chip
-              size="small"
-              variant="outlined"
-              label="negotiable"
-              sx={{ height: 18, fontSize: "0.65rem" }}
-            />
+            <Typography
+              component="span"
+              variant="caption"
+              color="text.secondary"
+              title="Price is negotiable"
+              sx={{ ml: 0.5, fontWeight: 400, fontStyle: "italic" }}
+            >
+              negotiable
+            </Typography>
           ) : null}
-        </Box>
+        </Typography>
       ) : null}
       {trades.map((offer) => (
-        <TradeRatioRow
-          key={`${offer.item.name}-${offer.item.level ?? ""}-${offer.give}-${offer.receive}-${
-            offer.negotiable ? "n" : ""
-          }`}
-          listing={listing}
-          offer={offer}
-          compact
-        />
+        <Box key={`${offer.item.name}-${offer.give}-${offer.receive}`} sx={{ maxWidth: "100%" }}>
+          <TradeRatioRow listing={listing} offer={offer} compact quiet />
+        </Box>
       ))}
       {!gold && trades.length === 0 ? (
         <Typography variant="caption" color="text.secondary">
-          (no terms)
+          —
         </Typography>
       ) : null}
     </Box>
@@ -68,82 +67,95 @@ function OfferTerms({ row }: { row: TradeRow }) {
 }
 
 function ListingOfferRow({ row }: { row: TradeRow }) {
-  const { owner, ownerLabel, listing, side, tradeSide, discordName } = row;
+  const { owner, ownerLabel, listing, tradeSide, discordName } = row;
   const note = tradeSide.note ?? listing.note;
+  const ownerTitle = [
+    owner,
+    discordName && discordName !== ownerLabel ? `@${discordName}` : "",
+    note,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <Box
+      title={ownerTitle || undefined}
       sx={{
         display: "grid",
-        gridTemplateColumns: "auto 1fr auto",
+        gridTemplateColumns: "minmax(0, 1fr) auto",
         columnGap: 1,
-        rowGap: 0.25,
-        alignItems: "start",
-        py: 0.5,
-        borderTop: 1,
-        borderColor: "divider",
+        alignItems: "center",
+        py: 0.4,
+        minHeight: 28,
       }}
     >
-      <SideBadge side={side} />
-      <Box sx={{ minWidth: 0 }}>
-        <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, flexWrap: "wrap" }}>
-          <Button
-            component={RouterLink}
-            to={`/bank?owner=${encodeURIComponent(owner)}`}
-            size="small"
-            sx={{
-              textTransform: "none",
-              minWidth: 0,
-              p: 0,
-              fontSize: "0.8rem",
-              lineHeight: 1.2,
-            }}
-            title={owner}
-          >
-            {ownerLabel}
-          </Button>
-          {discordName && discordName.toLowerCase() !== ownerLabel.toLowerCase() ? (
-            <Typography variant="caption" color="text.secondary">
-              @{discordName}
-            </Typography>
-          ) : null}
-        </Box>
-        <OfferTerms row={row} />
-        {note ? (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            noWrap
-            title={note}
-            sx={{ display: "block", maxWidth: "100%" }}
-          >
-            {note}
-          </Typography>
-        ) : null}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.25, minWidth: 0 }}>
+        <Link
+          component={RouterLink}
+          to={`/bank?owner=${encodeURIComponent(owner)}`}
+          underline="hover"
+          title={owner}
+          sx={{
+            fontSize: "0.8rem",
+            lineHeight: 1.2,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            maxWidth: "100%",
+          }}
+        >
+          {ownerLabel}
+        </Link>
+        <CopyTradeButton row={row} iconOnly />
       </Box>
-      <CopyTradeButton row={row} />
+      <OfferTerms row={row} />
+    </Box>
+  );
+}
+
+function SideSection({ side, rows }: { side: "WTS" | "WTB"; rows: TradeRow[] }) {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return (
+    <Box sx={{ mt: 0.75 }}>
+      <Typography
+        variant="caption"
+        sx={{
+          display: "block",
+          mb: 0.25,
+          fontWeight: 700,
+          letterSpacing: 0.4,
+          color: side === "WTS" ? "success.main" : "info.main",
+        }}
+      >
+        {side}
+      </Typography>
+      <Box sx={{ display: "flex", flexDirection: "column" }}>
+        {rows.map((row) => (
+          <ListingOfferRow
+            key={`${row.owner}-${row.side}-${row.listing.note ?? ""}-${
+              formatGoldPrice(row.tradeSide) ?? ""
+            }`}
+            row={row}
+          />
+        ))}
+      </Box>
     </Box>
   );
 }
 
 function HeaderSummary({ group }: { group: GroupedTradeItem }) {
   const parts: string[] = [];
-  if (group.wtsCount > 0) parts.push(`${group.wtsCount} WTS`);
-  if (group.wtbCount > 0) parts.push(`${group.wtbCount} WTB`);
-  parts.push(`${group.ownerCount} owner${group.ownerCount === 1 ? "" : "s"}`);
-
-  const priceBits: string[] = [];
-  if (group.cheapestWts !== undefined)
-    priceBits.push(`from ${formatPriceShort(group.cheapestWts)}`);
-  if (group.highestWtb !== undefined) {
-    priceBits.push(`buy to ${formatPriceShort(group.highestWtb)}`);
-  }
+  if (group.wtsCount > 0) parts.push(`${group.wtsCount} sell`);
+  if (group.wtbCount > 0) parts.push(`${group.wtbCount} buy`);
+  if (group.cheapestWts !== undefined) parts.push(`from ${formatPriceShort(group.cheapestWts)}`);
+  if (group.highestWtb !== undefined) parts.push(`to ${formatPriceShort(group.highestWtb)}`);
 
   return (
-    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
       {parts.join(" · ")}
-      {priceBits.length ? ` · ${priceBits.join(" · ")}` : ""}
-      {group.hasBarter ? " · barter" : ""}
     </Typography>
   );
 }
@@ -154,18 +166,30 @@ export function TradeItemCard({ group }: { group: GroupedTradeItem }) {
   const gItem = G?.items[group.listing.name as ItemKey];
   const titleName = G ? getTitleName(itemInfo, G) : "";
   const itemName = gItem ? getItemName(group.listing.name as ItemKey, gItem) : group.listing.name;
-  const shownRows = group.rows.slice(0, MAX_LISTINGS_SHOWN);
-  const hiddenCount = group.rows.length - shownRows.length;
+
+  const { wtsRows, wtbRows, hiddenCount } = useMemo(() => {
+    const wts = group.rows.filter((row) => row.side === "WTS");
+    const wtb = group.rows.filter((row) => row.side === "WTB");
+    const budget = MAX_LISTINGS_SHOWN;
+    const shownWts = wts.slice(0, budget);
+    const remaining = budget - shownWts.length;
+    const shownWtb = wtb.slice(0, Math.max(0, remaining));
+    return {
+      wtsRows: shownWts,
+      wtbRows: shownWtb,
+      hiddenCount: group.rows.length - shownWts.length - shownWtb.length,
+    };
+  }, [group.rows]);
 
   return (
-    <Card variant="outlined" sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <CardContent sx={{ flex: 1, p: 1.25, "&:last-child": { pb: 1.25 } }}>
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", mb: 0.5 }}>
-          <Box sx={{ transform: "scale(0.9)", transformOrigin: "left center", flexShrink: 0 }}>
+    <Card variant="outlined" sx={{ height: "100%" }}>
+      <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 } }}>
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+          <Box sx={{ transform: "scale(0.85)", transformOrigin: "left center", flexShrink: 0 }}>
             <ItemInstance itemInfo={itemInfo} />
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="subtitle2" noWrap title={itemName} sx={{ lineHeight: 1.2 }}>
+            <Typography variant="subtitle2" noWrap title={itemName} sx={{ lineHeight: 1.15 }}>
               {titleName ? `${titleName} ` : ""}
               {itemName}
             </Typography>
@@ -176,21 +200,15 @@ export function TradeItemCard({ group }: { group: GroupedTradeItem }) {
             <HeaderSummary group={group} />
           </Box>
         </Box>
-        <Box>
-          {shownRows.map((row) => (
-            <ListingOfferRow
-              key={`${row.owner}-${row.side}-${row.listing.note ?? ""}-${
-                formatGoldPrice(row.tradeSide) ?? ""
-              }`}
-              row={row}
-            />
-          ))}
-          {hiddenCount > 0 ? (
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", pt: 0.5 }}>
-              +{hiddenCount} more
-            </Typography>
-          ) : null}
-        </Box>
+
+        <SideSection side="WTS" rows={wtsRows} />
+        <SideSection side="WTB" rows={wtbRows} />
+
+        {hiddenCount > 0 ? (
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+            +{hiddenCount} more
+          </Typography>
+        ) : null}
       </CardContent>
     </Card>
   );
