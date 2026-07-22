@@ -7,6 +7,7 @@ import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
 import { CopyTradeButton } from "./CopyTradeButton";
+import { NegotiableMarker } from "./NegotiableMarker";
 import { formatPriceShort } from "./TradesOverview";
 import { formatGoldPrice } from "./TradeSideDisplay";
 import { TradeRatioRow } from "./TradeRatioRow";
@@ -40,21 +41,15 @@ function OfferTerms({ row }: { row: TradeRow }) {
           {gold}
           {tradeSide.quantity !== undefined ? ` ×${tradeSide.quantity}` : ""}
           {tradeSide.priceNegotiable ? (
-            <Typography
-              component="span"
-              variant="caption"
-              color="text.secondary"
-              title="Price is negotiable"
-              sx={{ ml: 0.5, fontWeight: 400, fontStyle: "italic" }}
-            >
-              negotiable
-            </Typography>
+            <Box component="span" sx={{ ml: 0.5, display: "inline-flex", verticalAlign: "middle" }}>
+              <NegotiableMarker title="Price is negotiable" fontSize={13} />
+            </Box>
           ) : null}
         </Typography>
       ) : null}
       {trades.map((offer) => (
         <Box key={`${offer.item.name}-${offer.give}-${offer.receive}`} sx={{ maxWidth: "100%" }}>
-          <TradeRatioRow listing={listing} offer={offer} compact quiet />
+          <TradeRatioRow listing={listing} offer={offer} compact />
         </Box>
       ))}
       {!gold && trades.length === 0 ? (
@@ -222,12 +217,22 @@ export function TradeItemCard({ group }: { group: GroupedTradeItem }) {
             <Box sx={{ transform: "scale(0.85)", transformOrigin: "left center", flexShrink: 0 }}>
               <ItemInstance itemInfo={itemInfo} />
             </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2" noWrap title={itemName} sx={{ lineHeight: 1.15 }}>
+            <Box sx={{ minWidth: 0, textAlign: "left" }}>
+              <Typography
+                variant="subtitle2"
+                noWrap
+                title={itemName}
+                sx={{ lineHeight: 1.15, textAlign: "left" }}
+              >
                 {titleName ? `${titleName} ` : ""}
                 {itemName}
               </Typography>
-              <Typography variant="caption" color="text.secondary" noWrap>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                noWrap
+                sx={{ display: "block", textAlign: "left" }}
+              >
                 {group.listing.name}
                 {group.listing.level !== undefined ? ` +${group.listing.level}` : ""}
               </Typography>

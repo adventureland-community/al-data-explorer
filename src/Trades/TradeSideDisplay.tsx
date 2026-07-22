@@ -1,5 +1,6 @@
 import { Box, Chip, Typography } from "@mui/material";
 import { abbreviateNumber } from "../Shared/utils";
+import { NegotiableMarker } from "./NegotiableMarker";
 import { ItemRef, TradeOffer, TradeSide } from "./tradeTypes";
 import { TradeRatioRow } from "./TradeRatioRow";
 
@@ -82,15 +83,7 @@ export function TradeSideSummary({
             {gold}
             {side.quantity !== undefined ? ` ×${side.quantity}` : ""}
           </Typography>
-          {side.priceNegotiable ? (
-            <Chip
-              size="small"
-              variant="outlined"
-              label="negotiable"
-              title="Price is negotiable"
-              sx={{ height: 20, fontSize: "0.7rem" }}
-            />
-          ) : null}
+          {side.priceNegotiable ? <NegotiableMarker title="Price is negotiable" /> : null}
         </Box>
       )}
       {side.note && (
