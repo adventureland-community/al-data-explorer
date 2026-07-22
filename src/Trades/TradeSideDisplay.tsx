@@ -16,7 +16,7 @@ function formatItemRef(item: ItemRef): string {
 
 function formatTradeOffer(offer: TradeOffer): string {
   const ratio = `${offer.give}:${offer.receive}`;
-  const negotiable = offer.negotiable ? " (nego)" : "";
+  const negotiable = offer.negotiable ? " (negotiable)" : "";
   return `${ratio} ${formatItemRef(offer.item)}${negotiable}`;
 }
 

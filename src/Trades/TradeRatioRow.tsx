@@ -1,4 +1,4 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Chip, Typography } from "@mui/material";
 
 import { ItemInstance } from "../Shared/ItemInstance";
 import { ItemRef, TradeOffer } from "./tradeTypes";
@@ -35,9 +35,13 @@ export function TradeRatioRow({
         <ItemInstance itemInfo={itemRefToItemInfo(offer.item)} />
       </Box>
       {offer.negotiable ? (
-        <Typography variant="caption" color="text.secondary" sx={{ fontSize }}>
-          (nego)
-        </Typography>
+        <Chip
+          size="small"
+          variant="outlined"
+          label="negotiable"
+          title="Ratio is negotiable"
+          sx={{ height: compact ? 18 : 20, fontSize: compact ? "0.65rem" : "0.7rem" }}
+        />
       ) : null}
     </Box>
   );
