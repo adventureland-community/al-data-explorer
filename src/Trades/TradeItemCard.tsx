@@ -147,16 +147,42 @@ function SideSection({ side, rows }: { side: "WTS" | "WTB"; rows: TradeRow[] }) 
 }
 
 function HeaderSummary({ group }: { group: GroupedTradeItem }) {
-  const parts: string[] = [];
-  if (group.wtsCount > 0) parts.push(`${group.wtsCount} sell`);
-  if (group.wtbCount > 0) parts.push(`${group.wtbCount} buy`);
-  if (group.cheapestWts !== undefined) parts.push(`from ${formatPriceShort(group.cheapestWts)}`);
-  if (group.highestWtb !== undefined) parts.push(`to ${formatPriceShort(group.highestWtb)}`);
+  const counts: string[] = [];
+  if (group.wtsCount > 0) counts.push(`${group.wtsCount} sell`);
+  if (group.wtbCount > 0) counts.push(`${group.wtbCount} buy`);
+
+  const prices: string[] = [];
+  if (group.cheapestWts !== undefined) prices.push(`from ${formatPriceShort(group.cheapestWts)}`);
+  if (group.highestWtb !== undefined) prices.push(`to ${formatPriceShort(group.highestWtb)}`);
 
   return (
-    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
-      {parts.join(" · ")}
-    </Typography>
+    <Box sx={{ textAlign: "right", flexShrink: 0, pl: 1 }}>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: "block", lineHeight: 1.25 }}
+      >
+        {counts.join(" · ") || "no offers"}
+      </Typography>
+      {prices.length > 0 ? (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", lineHeight: 1.25 }}
+        >
+          {prices.join(" · ")}
+        </Typography>
+      ) : null}
+      {group.hasBarter ? (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", lineHeight: 1.25 }}
+        >
+          barter
+        </Typography>
+      ) : null}
+    </Box>
   );
 }
 
@@ -184,21 +210,30 @@ export function TradeItemCard({ group }: { group: GroupedTradeItem }) {
   return (
     <Card variant="outlined" sx={{ height: "100%" }}>
       <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 } }}>
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-          <Box sx={{ transform: "scale(0.85)", transformOrigin: "left center", flexShrink: 0 }}>
-            <ItemInstance itemInfo={itemInfo} />
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center", minWidth: 0, flex: 1 }}>
+            <Box sx={{ transform: "scale(0.85)", transformOrigin: "left center", flexShrink: 0 }}>
+              <ItemInstance itemInfo={itemInfo} />
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="subtitle2" noWrap title={itemName} sx={{ lineHeight: 1.15 }}>
+                {titleName ? `${titleName} ` : ""}
+                {itemName}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {group.listing.name}
+                {group.listing.level !== undefined ? ` +${group.listing.level}` : ""}
+              </Typography>
+            </Box>
           </Box>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="subtitle2" noWrap title={itemName} sx={{ lineHeight: 1.15 }}>
-              {titleName ? `${titleName} ` : ""}
-              {itemName}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {group.listing.name}
-              {group.listing.level !== undefined ? ` +${group.listing.level}` : ""}
-            </Typography>
-            <HeaderSummary group={group} />
-          </Box>
+          <HeaderSummary group={group} />
         </Box>
 
         <SideSection side="WTS" rows={wtsRows} />
