@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, Typography } from "@mui/material";
+import { Box, Card, CardContent, Chip, Typography } from "@mui/material";
 import { useContext } from "react";
 import { ItemKey } from "typed-adventureland";
 
@@ -6,15 +6,15 @@ import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { getItemName } from "../Shared/iteminfo-util";
 import { abbreviateNumber } from "../Shared/utils";
-import { TradeOverviewStats, itemRefToItemInfo } from "./tradeViewModel";
+import { TradeOverviewItem, TradeOverviewStats, itemRefToItemInfo } from "./tradeViewModel";
 
 function StatBox({ label, value }: { label: string; value: string | number }) {
   return (
     <Box
       sx={{
-        flex: "1 1 120px",
-        minWidth: 100,
-        p: 1.5,
+        flex: "1 1 100px",
+        minWidth: 88,
+        p: 1.25,
         borderRadius: 1,
         bgcolor: "action.hover",
       }}
@@ -29,83 +29,81 @@ function StatBox({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function TopItemsChart({ stats }: { stats: TradeOverviewStats }) {
+function TopItemTile({ item }: { item: TradeOverviewItem }) {
   const G = useContext(GDataContext);
-  if (!G || stats.topItems.length === 0) {
+  if (!G) {
     return null;
   }
 
-  const maxTotal = Math.max(...stats.topItems.map((item) => item.totalCount), 1);
+  const itemInfo = itemRefToItemInfo(item.listing);
+  const gItem = G.items[item.listing.name as ItemKey];
+  const displayName = gItem ? getItemName(item.listing.name as ItemKey, gItem) : item.listing.name;
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        p: 1,
+        borderRadius: 1,
+        border: 1,
+        borderColor: "divider",
+        bgcolor: "background.paper",
+        minWidth: 0,
+      }}
+      title={`${item.wtsCount} WTS · ${item.wtbCount} WTB`}
+    >
+      <Box sx={{ transform: "scale(0.75)", transformOrigin: "center", flexShrink: 0 }}>
+        <ItemInstance itemInfo={itemInfo} />
+      </Box>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography variant="body2" noWrap title={displayName}>
+          {displayName}
+        </Typography>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.25 }}>
+          {item.wtsCount > 0 ? (
+            <Chip
+              size="small"
+              color="success"
+              label={`${item.wtsCount} WTS`}
+              sx={{ height: 20, fontSize: "0.7rem" }}
+            />
+          ) : null}
+          {item.wtbCount > 0 ? (
+            <Chip
+              size="small"
+              color="info"
+              label={`${item.wtbCount} WTB`}
+              sx={{ height: 20, fontSize: "0.7rem" }}
+            />
+          ) : null}
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+function TopItemsGrid({ stats }: { stats: TradeOverviewStats }) {
+  if (stats.topItems.length === 0) {
+    return null;
+  }
 
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant="subtitle2" sx={{ mb: 1 }}>
         Most listed items
       </Typography>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
-        {stats.topItems.map((item) => {
-          const itemInfo = itemRefToItemInfo(item.listing);
-          const gItem = G.items[item.listing.name as ItemKey];
-          const displayName = gItem
-            ? getItemName(item.listing.name as ItemKey, gItem)
-            : item.listing.name;
-          const wtsWidth = (item.wtsCount / maxTotal) * 100;
-          const wtbWidth = (item.wtbCount / maxTotal) * 100;
-
-          return (
-            <Box key={item.key} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Box sx={{ transform: "scale(0.7)", transformOrigin: "left center", width: 36 }}>
-                <ItemInstance itemInfo={itemInfo} />
-              </Box>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="caption" noWrap title={displayName}>
-                  {displayName}
-                </Typography>
-                <Box
-                  sx={{
-                    display: "flex",
-                    height: 8,
-                    borderRadius: 0.5,
-                    overflow: "hidden",
-                    mt: 0.25,
-                  }}
-                >
-                  {item.wtsCount > 0 ? (
-                    <Box
-                      sx={{
-                        width: `${wtsWidth}%`,
-                        bgcolor: "success.main",
-                        minWidth: item.wtsCount > 0 ? 4 : 0,
-                      }}
-                      title={`${item.wtsCount} WTS`}
-                    />
-                  ) : null}
-                  {item.wtbCount > 0 ? (
-                    <Box
-                      sx={{
-                        width: `${wtbWidth}%`,
-                        bgcolor: "info.main",
-                        minWidth: item.wtbCount > 0 ? 4 : 0,
-                      }}
-                      title={`${item.wtbCount} WTB`}
-                    />
-                  ) : null}
-                </Box>
-              </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
-                {item.totalCount}
-              </Typography>
-            </Box>
-          );
-        })}
-      </Box>
-      <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
-        <Typography variant="caption" color="success.main">
-          ■ WTS
-        </Typography>
-        <Typography variant="caption" color="info.main">
-          ■ WTB
-        </Typography>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+          gap: 1,
+        }}
+      >
+        {stats.topItems.map((item) => (
+          <TopItemTile key={item.key} item={item} />
+        ))}
       </Box>
     </Box>
   );
@@ -130,7 +128,7 @@ export function TradesOverview({ stats }: { stats: TradeOverviewStats }) {
           <StatBox label="Items" value={stats.uniqueItems} />
           <StatBox label="Owners" value={stats.uniqueOwners} />
         </Box>
-        <TopItemsChart stats={stats} />
+        <TopItemsGrid stats={stats} />
       </CardContent>
     </Card>
   );
