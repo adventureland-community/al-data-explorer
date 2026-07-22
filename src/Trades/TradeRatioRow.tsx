@@ -1,10 +1,9 @@
 import { Box, Tooltip, Typography } from "@mui/material";
 import { useContext } from "react";
-import { ItemKey } from "typed-adventureland";
 
 import { CustomGData, GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { getItemName, getTitleName } from "../Shared/iteminfo-util";
+import { formatItemDisplayName } from "../Shared/iteminfo-util";
 import { NegotiableMarker } from "./NegotiableMarker";
 import { ItemRef, TradeOffer } from "./tradeTypes";
 import { itemRefToItemInfo } from "./tradeViewModel";
@@ -16,29 +15,14 @@ function itemWithQty(item: ItemRef, quantity: number) {
   };
 }
 
-function formatItemLabel(item: ItemRef, G: CustomGData | undefined): string {
-  if (!G) {
-    return item.name;
-  }
-  const itemInfo = itemRefToItemInfo(item);
-  const gItem = G.items[item.name as ItemKey];
-  const title = getTitleName(itemInfo, G);
-  const name = gItem ? getItemName(item.name as ItemKey, gItem) : item.name;
-  const titled = title ? `${title} ${name}` : name;
-  if (item.level !== undefined) {
-    return `${titled} +${item.level}`;
-  }
-  return titled;
-}
-
 /** Human-readable tooltip for a ratio trade, e.g. "Trade 2× Crypt Key for 1× Tomb Key". */
 export function formatTradeOfferTooltip(
   listing: ItemRef,
   offer: TradeOffer,
   G: CustomGData | undefined,
 ): string {
-  const giveLabel = formatItemLabel(listing, G);
-  const receiveLabel = formatItemLabel(offer.item, G);
+  const giveLabel = G ? formatItemDisplayName(listing, G) : listing.name;
+  const receiveLabel = G ? formatItemDisplayName(offer.item, G) : offer.item.name;
   const giveQty = offer.give.toLocaleString();
   const receiveQty = offer.receive.toLocaleString();
   let text = `Trade ${giveQty}× ${giveLabel} for ${receiveQty}× ${receiveLabel}`;

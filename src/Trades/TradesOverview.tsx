@@ -1,10 +1,9 @@
 import { Box, Card, CardContent, Chip, Typography } from "@mui/material";
 import { useContext } from "react";
-import { ItemKey } from "typed-adventureland";
 
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { getItemName } from "../Shared/iteminfo-util";
+import { formatItemDisplayName } from "../Shared/iteminfo-util";
 import { abbreviateNumber } from "../Shared/utils";
 import { TradeOverviewItem, TradeOverviewStats, itemRefToItemInfo } from "./tradeViewModel";
 
@@ -36,8 +35,7 @@ function TopItemTile({ item }: { item: TradeOverviewItem }) {
   }
 
   const itemInfo = itemRefToItemInfo(item.listing);
-  const gItem = G.items[item.listing.name as ItemKey];
-  const displayName = gItem ? getItemName(item.listing.name as ItemKey, gItem) : item.listing.name;
+  const displayName = formatItemDisplayName(itemInfo, G);
 
   return (
     <Box

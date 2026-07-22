@@ -11,11 +11,10 @@ import {
 } from "@mui/material";
 import { useContext } from "react";
 import { Link as RouterLink } from "react-router-dom";
-import { ItemKey } from "typed-adventureland";
 
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { getItemName, getTitleName } from "../Shared/iteminfo-util";
+import { formatItemDisplayName } from "../Shared/iteminfo-util";
 import { msToTime } from "../Shared/utils";
 import { CopyTradeButton } from "./CopyTradeButton";
 import { ListingNotes, TradeSideSummary, formatGoldPriceLabel } from "./TradeSideDisplay";
@@ -30,12 +29,8 @@ function listingRowKey(row: TradeRow): string {
 
 function TradeTableRow({ row, G }: { row: TradeRow; G: any }) {
   const { listing, tradeSide, side, owner, ownerLabel, lastUpdated, discordName, discordId } = row;
-  const itemKey = listing.name as ItemKey;
-  const gItem = G?.items[itemKey];
   const itemInfo = itemRefToItemInfo(listing);
-  let titleName = G ? getTitleName(itemInfo, G) : "";
-  if (titleName) titleName += " ";
-  const itemName = gItem ? getItemName(itemKey, gItem) : listing.name;
+  const displayName = G ? formatItemDisplayName(itemInfo, G) : listing.name;
   const gold = formatGoldPriceLabel(tradeSide);
   const lastUpdatedDate = lastUpdated ? new Date(lastUpdated) : undefined;
   const lastUpdateAgo = lastUpdatedDate
@@ -64,10 +59,7 @@ function TradeTableRow({ row, G }: { row: TradeRow; G: any }) {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <ItemInstance itemInfo={itemInfo} />
           <Box>
-            <div>
-              {titleName}
-              {itemName}
-            </div>
+            <div>{displayName}</div>
             <Typography variant="caption" color="text.secondary">
               {listing.name}
             </Typography>

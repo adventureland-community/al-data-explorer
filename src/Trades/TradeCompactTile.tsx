@@ -1,10 +1,9 @@
 import { Box, Card, CardActionArea, CardContent, Chip, Typography } from "@mui/material";
 import { useContext, useState } from "react";
-import { ItemKey } from "typed-adventureland";
 
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { getItemName, getTitleName } from "../Shared/iteminfo-util";
+import { formatItemDisplayName } from "../Shared/iteminfo-util";
 import { formatPriceShort } from "./TradesOverview";
 import { GroupedTradeItem, itemRefToItemInfo } from "./tradeViewModel";
 import { TradeItemCard } from "./TradeItemCard";
@@ -13,9 +12,7 @@ export function TradeCompactTile({ group }: { group: GroupedTradeItem }) {
   const G = useContext(GDataContext);
   const [expanded, setExpanded] = useState(false);
   const itemInfo = itemRefToItemInfo(group.listing);
-  const gItem = G?.items[group.listing.name as ItemKey];
-  const titleName = G ? getTitleName(itemInfo, G) : "";
-  const itemName = gItem ? getItemName(group.listing.name as ItemKey, gItem) : group.listing.name;
+  const displayName = G ? formatItemDisplayName(itemInfo, G) : group.listing.name;
 
   if (expanded) {
     return (
@@ -46,10 +43,9 @@ export function TradeCompactTile({ group }: { group: GroupedTradeItem }) {
               align="center"
               noWrap
               sx={{ width: "100%" }}
-              title={itemName}
+              title={displayName}
             >
-              {titleName ? `${titleName} ` : ""}
-              {itemName}
+              {displayName}
             </Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.25, justifyContent: "center" }}>
               {group.wtsCount > 0 ? (

@@ -1,11 +1,10 @@
 import { Box, Card, CardContent, Link, Typography } from "@mui/material";
 import { useContext, useMemo } from "react";
 import { Link as RouterLink } from "react-router-dom";
-import { ItemKey } from "typed-adventureland";
 
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { getItemName, getTitleName } from "../Shared/iteminfo-util";
+import { formatItemDisplayName } from "../Shared/iteminfo-util";
 import { CopyTradeButton } from "./CopyTradeButton";
 import { NegotiableMarker } from "./NegotiableMarker";
 import { formatPriceShort } from "./TradesOverview";
@@ -204,9 +203,7 @@ function HeaderSummary({ group }: { group: GroupedTradeItem }) {
 export function TradeItemCard({ group }: { group: GroupedTradeItem }) {
   const G = useContext(GDataContext);
   const itemInfo = itemRefToItemInfo(group.listing);
-  const gItem = G?.items[group.listing.name as ItemKey];
-  const titleName = G ? getTitleName(itemInfo, G) : "";
-  const itemName = gItem ? getItemName(group.listing.name as ItemKey, gItem) : group.listing.name;
+  const displayName = G ? formatItemDisplayName(itemInfo, G) : group.listing.name;
 
   const { wtsRows, wtbRows, hiddenCount } = useMemo(() => {
     const wts = group.rows.filter((row) => row.side === "WTS");
@@ -241,11 +238,10 @@ export function TradeItemCard({ group }: { group: GroupedTradeItem }) {
               <Typography
                 variant="subtitle2"
                 noWrap
-                title={itemName}
+                title={displayName}
                 sx={{ lineHeight: 1.15, textAlign: "left" }}
               >
-                {titleName ? `${titleName} ` : ""}
-                {itemName}
+                {displayName}
               </Typography>
               <Typography
                 variant="caption"
@@ -254,7 +250,6 @@ export function TradeItemCard({ group }: { group: GroupedTradeItem }) {
                 sx={{ display: "block", textAlign: "left" }}
               >
                 {group.listing.name}
-                {group.listing.level !== undefined ? ` +${group.listing.level}` : ""}
               </Typography>
             </Box>
           </Box>
