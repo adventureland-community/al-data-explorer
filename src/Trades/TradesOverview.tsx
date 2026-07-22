@@ -52,12 +52,15 @@ function TopItemTile({ item }: { item: TradeOverviewItem }) {
       }}
       title={`${item.wtsCount} WTS · ${item.wtbCount} WTB`}
     >
-      <Box sx={{ transform: "scale(0.75)", transformOrigin: "center", flexShrink: 0 }}>
+      <Box sx={{ flexShrink: 0 }}>
         <ItemInstance itemInfo={itemInfo} />
       </Box>
-      <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography variant="body2" noWrap title={displayName}>
+      <Box sx={{ minWidth: 0, flex: 1, textAlign: "left" }}>
+        <Typography variant="subtitle2" noWrap title={displayName} sx={{ lineHeight: 1.15 }}>
           {displayName}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" noWrap display="block">
+          {item.listing.name}
         </Typography>
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.25 }}>
           {item.wtsCount > 0 ? (
