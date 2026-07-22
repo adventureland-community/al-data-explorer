@@ -31,7 +31,7 @@ export function formatItemDisplayName(
   const itemKey = itemInfo.name as ItemKey;
   const gItem = G.items[itemKey];
   if (!gItem) {
-    return itemInfo.level !== undefined ? `${itemKey} +${itemInfo.level}` : itemKey;
+    return itemInfo.level ? `${itemKey} +${itemInfo.level}` : itemKey;
   }
 
   const titleName = getTitleName(itemInfo, G);
@@ -42,7 +42,8 @@ export function formatItemDisplayName(
   if (titleName) {
     label = `${titleName} ${label}`;
   }
-  if (levelString !== undefined && levelString !== null) {
+  // Level 0 is the base item — don't prefix "+0".
+  if (levelString !== undefined && levelString !== null && levelString !== 0) {
     label = `+${levelString} ${label}`;
   }
   return label;
