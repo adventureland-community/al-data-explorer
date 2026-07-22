@@ -127,13 +127,21 @@ function ListingOfferRow({ row }: { row: TradeRow }) {
   );
 }
 
-function SideSection({ side, rows }: { side: "WTS" | "WTB"; rows: TradeRow[] }) {
+function SideSection({
+  side,
+  rows,
+  compactHeader,
+}: {
+  side: "WTS" | "WTB";
+  rows: TradeRow[];
+  compactHeader?: boolean;
+}) {
   if (rows.length === 0) {
     return null;
   }
 
   return (
-    <Box sx={{ mt: 0.75 }}>
+    <Box sx={{ mt: compactHeader ? 0 : 0.75, minWidth: 0 }}>
       <Typography
         variant="caption"
         sx={{
@@ -145,6 +153,9 @@ function SideSection({ side, rows }: { side: "WTS" | "WTB"; rows: TradeRow[] }) 
         }}
       >
         {side}
+        <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.75 }}>
+          {rows.length} offer{rows.length === 1 ? "" : "s"}
+        </Typography>
       </Typography>
       <Box sx={{ display: "flex", flexDirection: "column" }}>
         {rows.map((row) => (
@@ -205,16 +216,21 @@ export function TradeItemCard({ group }: { group: GroupedTradeItem }) {
   const itemInfo = itemRefToItemInfo(group.listing);
   const displayName = G ? formatItemDisplayName(itemInfo, G) : group.listing.name;
 
-  const { wtsRows, wtbRows, hiddenCount } = useMemo(() => {
+  const { wtsRows, wtbRows, hiddenCount, dualColumn } = useMemo(() => {
     const wts = group.rows.filter((row) => row.side === "WTS");
     const wtb = group.rows.filter((row) => row.side === "WTB");
-    const budget = MAX_LISTINGS_SHOWN;
-    const shownWts = wts.slice(0, budget);
-    const remaining = budget - shownWts.length;
-    const shownWtb = wtb.slice(0, Math.max(0, remaining));
+    const dual = wts.length > 0 && wtb.length > 0;
+    // In dual-column layout, budget each side independently so WTB isn't starved.
+    const perSide = dual ? Math.ceil(MAX_LISTINGS_SHOWN / 2) : MAX_LISTINGS_SHOWN;
+    const shownWts = wts.slice(0, perSide);
+    const shownWtb = wtb.slice(
+      0,
+      dual ? perSide : Math.max(0, MAX_LISTINGS_SHOWN - shownWts.length),
+    );
     return {
       wtsRows: shownWts,
       wtbRows: shownWtb,
+      dualColumn: dual,
       hiddenCount: group.rows.length - shownWts.length - shownWtb.length,
     };
   }, [group.rows]);
@@ -256,8 +272,25 @@ export function TradeItemCard({ group }: { group: GroupedTradeItem }) {
           <HeaderSummary group={group} />
         </Box>
 
-        <SideSection side="WTS" rows={wtsRows} />
-        <SideSection side="WTB" rows={wtbRows} />
+        {dualColumn ? (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 1.5,
+              mt: 0.75,
+              alignItems: "start",
+            }}
+          >
+            <SideSection side="WTS" rows={wtsRows} compactHeader />
+            <SideSection side="WTB" rows={wtbRows} compactHeader />
+          </Box>
+        ) : (
+          <>
+            <SideSection side="WTS" rows={wtsRows} />
+            <SideSection side="WTB" rows={wtbRows} />
+          </>
+        )}
 
         {hiddenCount > 0 ? (
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
