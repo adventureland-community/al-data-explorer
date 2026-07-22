@@ -61,8 +61,9 @@ export function TradeRatioRow({
   reserveNegotiableSlot?: boolean;
 }) {
   const G = useContext(GDataContext);
-  const scale = compact ? 0.65 : 1;
-  const slotWidth = compact ? 16 : 18;
+  // Keep near full size so sprites + quantity badges stay readable in cards/table.
+  const scale = compact ? 0.9 : 1;
+  const slotWidth = compact ? 18 : 20;
   const tooltip = formatTradeOfferTooltip(listing, offer, G);
 
   return (
@@ -71,7 +72,7 @@ export function TradeRatioRow({
         sx={{
           display: "flex",
           alignItems: "center",
-          gap: compact ? 0.4 : 0.75,
+          gap: compact ? 0.5 : 0.75,
           flexWrap: "nowrap",
           cursor: "help",
         }}
@@ -87,7 +88,7 @@ export function TradeRatioRow({
             }}
           >
             {offer.negotiable ? (
-              <NegotiableMarker title="Ratio is negotiable" fontSize={compact ? 13 : 15} />
+              <NegotiableMarker title="Ratio is negotiable" fontSize={compact ? 14 : 16} />
             ) : null}
           </Box>
         ) : null}
@@ -97,7 +98,7 @@ export function TradeRatioRow({
         <Typography
           variant="caption"
           color="text.secondary"
-          sx={{ fontSize: compact ? "0.65rem" : "0.75rem", lineHeight: 1 }}
+          sx={{ fontSize: compact ? "0.75rem" : "0.85rem", lineHeight: 1, fontWeight: 600 }}
         >
           →
         </Typography>
