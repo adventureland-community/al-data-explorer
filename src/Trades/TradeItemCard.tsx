@@ -26,13 +26,14 @@ function OfferTerms({ row }: { row: TradeRow }) {
       sx={{
         display: "flex",
         flexDirection: "column",
-        alignItems: "stretch",
-        gap: 0.25,
+        alignItems: "flex-start",
+        gap: 0.35,
         minWidth: 0,
+        width: "100%",
       }}
     >
       {gold !== undefined ? (
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
           {anyNegotiable || tradeSide.priceNegotiable ? (
             <Box
               sx={{
@@ -59,20 +60,16 @@ function OfferTerms({ row }: { row: TradeRow }) {
         </Box>
       ) : null}
       {trades.map((offer) => (
-        <Box
+        <TradeRatioRow
           key={`${offer.item.name}-${offer.give}-${offer.receive}`}
-          sx={{ display: "flex", justifyContent: "flex-end" }}
-        >
-          <TradeRatioRow
-            listing={listing}
-            offer={offer}
-            compact
-            reserveNegotiableSlot={anyNegotiable}
-          />
-        </Box>
+          listing={listing}
+          offer={offer}
+          compact
+          reserveNegotiableSlot={anyNegotiable}
+        />
       ))}
       {!gold && trades.length === 0 ? (
-        <Typography variant="caption" color="text.secondary" sx={{ textAlign: "right" }}>
+        <Typography variant="caption" color="text.secondary">
           —
         </Typography>
       ) : null}
@@ -95,12 +92,13 @@ function ListingOfferRow({ row }: { row: TradeRow }) {
     <Box
       title={ownerTitle || undefined}
       sx={{
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) auto",
-        columnGap: 1,
-        alignItems: "center",
-        py: 0.4,
-        minHeight: 28,
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.35,
+        py: 0.6,
+        borderTop: 1,
+        borderColor: "divider",
+        minWidth: 0,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.25, minWidth: 0 }}>
@@ -115,7 +113,8 @@ function ListingOfferRow({ row }: { row: TradeRow }) {
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
-            maxWidth: "100%",
+            minWidth: 0,
+            flex: 1,
           }}
         >
           {ownerLabel}
@@ -123,6 +122,17 @@ function ListingOfferRow({ row }: { row: TradeRow }) {
         <CopyTradeButton row={row} iconOnly />
       </Box>
       <OfferTerms row={row} />
+      {note ? (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          noWrap
+          title={note}
+          sx={{ maxWidth: "100%" }}
+        >
+          {note}
+        </Typography>
+      ) : null}
     </Box>
   );
 }
@@ -276,8 +286,8 @@ export function TradeItemCard({ group }: { group: GroupedTradeItem }) {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 1.5,
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 2,
               mt: 0.75,
               alignItems: "start",
             }}
