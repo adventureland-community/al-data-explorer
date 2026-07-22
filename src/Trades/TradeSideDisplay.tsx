@@ -79,11 +79,11 @@ export function TradeSideSummary({
       <Chip size="small" color={color} label={label} />
       {gold !== undefined && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap" }}>
+          {side.priceNegotiable ? <NegotiableMarker title="Price is negotiable" /> : null}
           <Typography variant="body2" title={side.price?.toLocaleString()}>
             {gold}
             {side.quantity !== undefined ? ` ×${side.quantity}` : ""}
           </Typography>
-          {side.priceNegotiable ? <NegotiableMarker title="Price is negotiable" /> : null}
         </Box>
       )}
       {side.note && (

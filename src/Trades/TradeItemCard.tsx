@@ -19,41 +19,61 @@ function OfferTerms({ row }: { row: TradeRow }) {
   const { listing, tradeSide } = row;
   const gold = formatGoldPrice(tradeSide);
   const trades = tradeSide.trades ?? [];
+  const anyNegotiable = !!tradeSide.priceNegotiable || trades.some((offer) => !!offer.negotiable);
+  const slotWidth = 16;
 
   return (
     <Box
       sx={{
         display: "flex",
         flexDirection: "column",
-        alignItems: "flex-end",
-        gap: 0.15,
+        alignItems: "stretch",
+        gap: 0.25,
         minWidth: 0,
-        textAlign: "right",
       }}
     >
       {gold !== undefined ? (
-        <Typography
-          variant="body2"
-          component="span"
-          title={tradeSide.price?.toLocaleString()}
-          sx={{ fontWeight: 600, lineHeight: 1.2 }}
-        >
-          {gold}
-          {tradeSide.quantity !== undefined ? ` ×${tradeSide.quantity}` : ""}
-          {tradeSide.priceNegotiable ? (
-            <Box component="span" sx={{ ml: 0.5, display: "inline-flex", verticalAlign: "middle" }}>
-              <NegotiableMarker title="Price is negotiable" fontSize={13} />
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.4 }}>
+          {anyNegotiable || tradeSide.priceNegotiable ? (
+            <Box
+              sx={{
+                width: slotWidth,
+                flexShrink: 0,
+                display: "inline-flex",
+                justifyContent: "center",
+              }}
+            >
+              {tradeSide.priceNegotiable ? (
+                <NegotiableMarker title="Price is negotiable" fontSize={13} />
+              ) : null}
             </Box>
           ) : null}
-        </Typography>
+          <Typography
+            variant="body2"
+            component="span"
+            title={tradeSide.price?.toLocaleString()}
+            sx={{ fontWeight: 600, lineHeight: 1.2 }}
+          >
+            {gold}
+            {tradeSide.quantity !== undefined ? ` ×${tradeSide.quantity}` : ""}
+          </Typography>
+        </Box>
       ) : null}
       {trades.map((offer) => (
-        <Box key={`${offer.item.name}-${offer.give}-${offer.receive}`} sx={{ maxWidth: "100%" }}>
-          <TradeRatioRow listing={listing} offer={offer} compact />
+        <Box
+          key={`${offer.item.name}-${offer.give}-${offer.receive}`}
+          sx={{ display: "flex", justifyContent: "flex-end" }}
+        >
+          <TradeRatioRow
+            listing={listing}
+            offer={offer}
+            compact
+            reserveNegotiableSlot={anyNegotiable}
+          />
         </Box>
       ))}
       {!gold && trades.length === 0 ? (
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" color="text.secondary" sx={{ textAlign: "right" }}>
           —
         </Typography>
       ) : null}

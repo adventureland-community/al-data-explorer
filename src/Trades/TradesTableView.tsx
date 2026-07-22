@@ -87,6 +87,7 @@ function TradeTableRow({ row, G }: { row: TradeRow; G: any }) {
               listing={listing}
               offer={offer}
               compact
+              reserveNegotiableSlot={(tradeSide.trades ?? []).some((t) => !!t.negotiable)}
             />
           ))}
         </Box>
