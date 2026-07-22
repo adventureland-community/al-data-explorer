@@ -27,7 +27,7 @@ import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { abbreviateNumber, msToTime } from "../Shared/utils";
 import { getItemName, getItemInstanceTitle, getTitleName } from "../Shared/iteminfo-util";
-import { ListingNotes, TradeSideSummary, formatGoldPrice } from "../Trades/TradeSideDisplay";
+import { ListingNotes, TradeSideSummary, formatGoldPriceLabel } from "../Trades/TradeSideDisplay";
 import { TradeListing } from "../Trades/tradeTypes";
 
 type BankRenderProps = {
@@ -99,14 +99,14 @@ function TradeBadges({ listings }: { listings: TradeListing[] }) {
         >
           {listing.wts && <TradeSideSummary label="WTS" side={listing.wts} compact />}
           {listing.wtb && <TradeSideSummary label="WTB" side={listing.wtb} compact />}
-          {listing.wts && formatGoldPrice(listing.wts) && (
+          {listing.wts && formatGoldPriceLabel(listing.wts) && (
             <Typography variant="caption" title={listing.wts.price?.toLocaleString()}>
-              WTS {formatGoldPrice(listing.wts)}
+              WTS {formatGoldPriceLabel(listing.wts)}
             </Typography>
           )}
-          {listing.wtb && formatGoldPrice(listing.wtb) && (
+          {listing.wtb && formatGoldPriceLabel(listing.wtb) && (
             <Typography variant="caption" title={listing.wtb.price?.toLocaleString()}>
-              WTB {formatGoldPrice(listing.wtb)}
+              WTB {formatGoldPriceLabel(listing.wtb)}
             </Typography>
           )}
           {(listing.wts?.trades ?? []).map((offer) => (

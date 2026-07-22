@@ -25,7 +25,15 @@ export function formatGoldPrice(side?: TradeSide): string | undefined {
     return undefined;
   }
   const gold = abbreviateNumber(side.price) ?? side.price;
-  return side.priceNegotiable ? `${gold} OBO` : String(gold);
+  return String(gold);
+}
+
+export function formatGoldPriceLabel(side?: TradeSide): string | undefined {
+  const gold = formatGoldPrice(side);
+  if (gold === undefined) {
+    return undefined;
+  }
+  return side?.priceNegotiable ? `${gold} negotiable` : gold;
 }
 
 export function TradeSideSummary({
@@ -45,13 +53,14 @@ export function TradeSideSummary({
   }
 
   const gold = formatGoldPrice(side);
+  const goldLabel = formatGoldPriceLabel(side);
   const trades = side.trades ?? [];
   const color = label === "WTS" ? "success" : "info";
 
   if (compact) {
     const parts: string[] = [];
-    if (gold) {
-      parts.push(String(gold));
+    if (goldLabel) {
+      parts.push(goldLabel);
     }
     if (trades.length) {
       parts.push(trades.map(formatTradeOffer).join(", "));
@@ -68,10 +77,21 @@ export function TradeSideSummary({
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, alignItems: "flex-start" }}>
       <Chip size="small" color={color} label={label} />
       {gold !== undefined && (
-        <Typography variant="body2" title={side.price?.toLocaleString()}>
-          {gold}
-          {side.quantity !== undefined ? ` ×${side.quantity}` : ""}
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap" }}>
+          <Typography variant="body2" title={side.price?.toLocaleString()}>
+            {gold}
+            {side.quantity !== undefined ? ` ×${side.quantity}` : ""}
+          </Typography>
+          {side.priceNegotiable ? (
+            <Chip
+              size="small"
+              variant="outlined"
+              label="negotiable"
+              title="Price is negotiable"
+              sx={{ height: 20, fontSize: "0.7rem" }}
+            />
+          ) : null}
+        </Box>
       )}
       {side.note && (
         <Typography variant="caption" color="text.secondary">

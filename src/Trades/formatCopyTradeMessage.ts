@@ -15,7 +15,7 @@ function formatSideDetails(listing: TradeListing, side: TradeSide): string[] {
   const note = side.note ?? listing.note;
 
   if (side.price !== undefined) {
-    const obo = side.priceNegotiable ? " (OBO)" : "";
+    const obo = side.priceNegotiable ? " (negotiable)" : "";
     const notePart = note ? ` — ${note}` : "";
     parts.push(`${quantity}${metaPart}@ ${side.price.toLocaleString()}${obo}${notePart}`);
   }

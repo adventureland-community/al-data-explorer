@@ -18,7 +18,7 @@ import { ItemInstance } from "../Shared/ItemInstance";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
 import { msToTime } from "../Shared/utils";
 import { CopyTradeButton } from "./CopyTradeButton";
-import { ListingNotes, TradeSideSummary, formatGoldPrice } from "./TradeSideDisplay";
+import { ListingNotes, TradeSideSummary, formatGoldPriceLabel } from "./TradeSideDisplay";
 import { TradeRatioRow } from "./TradeRatioRow";
 import { TableSortKey, TradeRow, itemRefToItemInfo } from "./tradeViewModel";
 
@@ -36,7 +36,7 @@ function TradeTableRow({ row, G }: { row: TradeRow; G: any }) {
   let titleName = G ? getTitleName(itemInfo, G) : "";
   if (titleName) titleName += " ";
   const itemName = gItem ? getItemName(itemKey, gItem) : listing.name;
-  const gold = formatGoldPrice(tradeSide);
+  const gold = formatGoldPriceLabel(tradeSide);
   const lastUpdatedDate = lastUpdated ? new Date(lastUpdated) : undefined;
   const lastUpdateAgo = lastUpdatedDate
     ? msToTime(new Date().getTime() - lastUpdatedDate.getTime())
