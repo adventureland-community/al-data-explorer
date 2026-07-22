@@ -1,6 +1,7 @@
 import { Box, Chip, Typography } from "@mui/material";
 import { abbreviateNumber } from "../Shared/utils";
 import { ItemRef, TradeOffer, TradeSide } from "./tradeTypes";
+import { TradeRatioRow } from "./TradeRatioRow";
 
 function formatItemRef(item: ItemRef): string {
   let label = item.name;
@@ -30,10 +31,13 @@ export function formatGoldPrice(side?: TradeSide): string | undefined {
 export function TradeSideSummary({
   label,
   side,
+  listing,
   compact,
 }: {
   label: "WTS" | "WTB";
   side?: TradeSide;
+  /** When set, barter ratios render with ItemInstance on both sides. */
+  listing?: ItemRef;
   compact?: boolean;
 }) {
   if (!side) {
@@ -74,16 +78,26 @@ export function TradeSideSummary({
           {side.note}
         </Typography>
       )}
-      {trades.map((offer) => (
-        <Typography
-          key={`${offer.item.name}-${offer.item.level ?? ""}-${offer.give}-${offer.receive}-${
-            offer.negotiable ? "n" : ""
-          }`}
-          variant="caption"
-        >
-          {formatTradeOffer(offer)}
-        </Typography>
-      ))}
+      {listing
+        ? trades.map((offer) => (
+            <TradeRatioRow
+              key={`${offer.item.name}-${offer.item.level ?? ""}-${offer.give}-${offer.receive}-${
+                offer.negotiable ? "n" : ""
+              }`}
+              listing={listing}
+              offer={offer}
+            />
+          ))
+        : trades.map((offer) => (
+            <Typography
+              key={`${offer.item.name}-${offer.item.level ?? ""}-${offer.give}-${offer.receive}-${
+                offer.negotiable ? "n" : ""
+              }`}
+              variant="caption"
+            >
+              {formatTradeOffer(offer)}
+            </Typography>
+          ))}
     </Box>
   );
 }
