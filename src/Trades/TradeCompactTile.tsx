@@ -4,8 +4,7 @@ import { useContext, useState } from "react";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { formatItemDisplayName } from "../Shared/iteminfo-util";
-import { formatPriceShort } from "./TradesOverview";
-import { SideMixBar } from "./TradeMarketBits";
+import { formatPriceShort, SideMixBar } from "./TradeMarketBits";
 import { GroupedTradeItem, itemRefToItemInfo } from "./tradeViewModel";
 import { TradeItemCard } from "./TradeItemCard";
 

@@ -17,6 +17,11 @@ export const getOwnerTrades = async (ownerId: string): Promise<OwnerTradesRespon
     return {
       listings: data.listings ?? [],
       lastUpdated: data.lastUpdated,
+      characters: data.characters,
+      label: data.label,
+      displayName: data.displayName,
+      discordName: data.discordName,
+      discordId: data.discordId,
     };
   } catch (err) {
     return { listings: [] };

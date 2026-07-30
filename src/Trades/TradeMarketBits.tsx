@@ -1,6 +1,12 @@
 import { Box, Typography } from "@mui/material";
 
-import { formatPriceShort } from "./TradesOverview";
+import { abbreviateNumber } from "../Shared/utils";
+
+export function formatPriceShort(price?: number): string {
+  if (price === undefined) return "";
+  const abbreviated = abbreviateNumber(price);
+  return abbreviated !== undefined ? String(abbreviated) : String(price);
+}
 
 /** Compact green/blue WTS vs WTB share bar. */
 export function SideMixBar({

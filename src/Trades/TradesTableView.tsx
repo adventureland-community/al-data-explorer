@@ -20,9 +20,7 @@ import { ItemInstance } from "../Shared/ItemInstance";
 import { formatItemDisplayName } from "../Shared/iteminfo-util";
 import { msToTime } from "../Shared/utils";
 import { CopyTradeButton } from "./CopyTradeButton";
-import { NegotiableMarker } from "./NegotiableMarker";
-import { formatGoldPrice } from "./TradeSideDisplay";
-import { TradeRatioRow } from "./TradeRatioRow";
+import { TradeOfferTerms } from "./TradeOfferTerms";
 import { TableSortKey, TradeRow, itemRefToItemInfo } from "./tradeViewModel";
 
 function listingRowKey(row: TradeRow): string {
@@ -43,10 +41,7 @@ function TradeTableRow({ row, G }: { row: TradeRow; G: any }) {
   const { listing, tradeSide, side, owner, ownerLabel, lastUpdated, discordName, discordId } = row;
   const itemInfo = itemRefToItemInfo(listing);
   const displayName = G ? formatItemDisplayName(itemInfo, G) : listing.name;
-  const gold = formatGoldPrice(tradeSide);
   const note = tradeSide.note ?? listing.note;
-  const trades = tradeSide.trades ?? [];
-  const anyNegotiable = trades.some((t) => !!t.negotiable);
 
   return (
     <TableRow
@@ -104,48 +99,7 @@ function TradeTableRow({ row, G }: { row: TradeRow; G: any }) {
         />
       </TableCell>
       <TableCell sx={{ verticalAlign: "middle", py: 1, minWidth: 160 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-          {gold !== undefined || tradeSide.quantity !== undefined ? (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
-              {tradeSide.priceNegotiable ? (
-                <NegotiableMarker title="Price is negotiable" fontSize={14} />
-              ) : null}
-              {gold !== undefined ? (
-                <Typography
-                  variant="body2"
-                  fontWeight={700}
-                  color={side === "WTS" ? "success.main" : "info.main"}
-                  title={tradeSide.price?.toLocaleString()}
-                >
-                  {gold}
-                </Typography>
-              ) : null}
-              {tradeSide.quantity !== undefined ? (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}
-                >
-                  ×{tradeSide.quantity.toLocaleString()}
-                </Typography>
-              ) : null}
-            </Box>
-          ) : null}
-          {trades.map((offer) => (
-            <TradeRatioRow
-              key={`${offer.item.name}-${offer.item.level ?? ""}-${offer.give}-${offer.receive}`}
-              listing={listing}
-              offer={offer}
-              compact
-              reserveNegotiableSlot={anyNegotiable}
-            />
-          ))}
-          {!gold && trades.length === 0 && tradeSide.quantity === undefined ? (
-            <Typography variant="caption" color="text.secondary">
-              —
-            </Typography>
-          ) : null}
-        </Box>
+        <TradeOfferTerms listing={listing} tradeSide={tradeSide} side={side} layout="table" />
       </TableCell>
       <TableCell sx={{ verticalAlign: "middle", py: 1, whiteSpace: "nowrap" }}>
         <Typography

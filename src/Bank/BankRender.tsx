@@ -18,7 +18,6 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  Typography,
 } from "@mui/material";
 import { getBankData, BankDataProps } from "./getBankData";
 import { BankPacksView } from "./BankPacksView";
@@ -27,7 +26,8 @@ import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { abbreviateNumber, msToTime } from "../Shared/utils";
 import { getItemName, getItemInstanceTitle, getTitleName } from "../Shared/iteminfo-util";
-import { ListingNotes, TradeSideSummary, formatGoldPriceLabel } from "../Trades/TradeSideDisplay";
+import { ListingNotes, TradeSideSummary } from "../Trades/TradeSideDisplay";
+import { itemRefToItemInfo } from "../Trades/tradeViewModel";
 import { TradeListing } from "../Trades/tradeTypes";
 
 type BankRenderProps = {
@@ -95,44 +95,10 @@ function TradeBadges({ listings }: { listings: TradeListing[] }) {
           key={`${listing.name}-${listing.level ?? ""}-${listing.p ?? ""}-${listing.note ?? ""}-${
             listing.wts?.price ?? ""
           }-${listing.wtb?.price ?? ""}`}
-          sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, alignItems: "center" }}
+          sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, alignItems: "flex-start" }}
         >
-          {listing.wts && <TradeSideSummary label="WTS" side={listing.wts} compact />}
-          {listing.wtb && <TradeSideSummary label="WTB" side={listing.wtb} compact />}
-          {listing.wts && formatGoldPriceLabel(listing.wts) && (
-            <Typography variant="caption" title={listing.wts.price?.toLocaleString()}>
-              WTS {formatGoldPriceLabel(listing.wts)}
-            </Typography>
-          )}
-          {listing.wtb && formatGoldPriceLabel(listing.wtb) && (
-            <Typography variant="caption" title={listing.wtb.price?.toLocaleString()}>
-              WTB {formatGoldPriceLabel(listing.wtb)}
-            </Typography>
-          )}
-          {(listing.wts?.trades ?? []).map((offer) => (
-            <Typography
-              key={`wts-${offer.item.name}-${offer.item.level ?? ""}-${offer.give}-${
-                offer.receive
-              }`}
-              variant="caption"
-              color="text.secondary"
-            >
-              WTS {offer.give}:{offer.receive} {offer.item.name}
-              {offer.negotiable ? " (nego)" : ""}
-            </Typography>
-          ))}
-          {(listing.wtb?.trades ?? []).map((offer) => (
-            <Typography
-              key={`wtb-${offer.item.name}-${offer.item.level ?? ""}-${offer.give}-${
-                offer.receive
-              }`}
-              variant="caption"
-              color="text.secondary"
-            >
-              WTB {offer.give}:{offer.receive} {offer.item.name}
-              {offer.negotiable ? " (nego)" : ""}
-            </Typography>
-          ))}
+          {listing.wts && <TradeSideSummary label="WTS" side={listing.wts} listing={listing} />}
+          {listing.wtb && <TradeSideSummary label="WTB" side={listing.wtb} listing={listing} />}
           <ListingNotes note={listing.note} />
         </Box>
       ))}
@@ -188,9 +154,7 @@ function BankTableView({ items }: { items: AggregatedBankItem[] }) {
                 <div style={{ display: "inline-block" }}>
                   <ItemInstance
                     itemInfo={{
-                      name: itemInfo.name,
-                      level: itemInfo.level,
-                      p: itemInfo.p as any,
+                      ...itemRefToItemInfo(itemInfo),
                       q: itemInfo.q,
                     }}
                   />
@@ -230,9 +194,7 @@ function BankGridViewItemRow({ items }: { items: AggregatedBankItem[] }) {
         if (!gItem || !G) return <></>;
 
         const instance = {
-          name: itemInfo.name,
-          level: itemInfo.level,
-          p: itemInfo.p as any,
+          ...itemRefToItemInfo(itemInfo),
           q: itemInfo.q,
         };
 

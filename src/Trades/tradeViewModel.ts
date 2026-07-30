@@ -1,4 +1,4 @@
-import { ItemKey } from "typed-adventureland";
+import { ItemInfo, ItemInfoPValues, ItemKey } from "typed-adventureland";
 
 import { formatOwnerLabel } from "../Shared/ownerLabel";
 import { ItemRef, OwnerTrades, TradeListing, TradeSide } from "./tradeTypes";
@@ -53,11 +53,11 @@ export function listingKey(listing: ItemRef): string {
   return `${listing.name}|${listing.level ?? ""}|${listing.p ?? ""}`;
 }
 
-export function itemRefToItemInfo(item: ItemRef) {
+export function itemRefToItemInfo(item: ItemRef): ItemInfo {
   return {
     name: item.name as ItemKey,
     level: item.level,
-    p: item.p as any,
+    ...(item.p !== undefined ? { p: item.p as ItemInfoPValues } : {}),
   };
 }
 

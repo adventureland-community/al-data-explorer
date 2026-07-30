@@ -6,11 +6,8 @@ import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { formatItemDisplayName } from "../Shared/iteminfo-util";
 import { CopyTradeButton } from "./CopyTradeButton";
-import { NegotiableMarker } from "./NegotiableMarker";
-import { formatPriceShort } from "./TradesOverview";
-import { GoldPriceRange, SideMixBar } from "./TradeMarketBits";
-import { formatGoldPrice } from "./TradeSideDisplay";
-import { TradeRatioRow } from "./TradeRatioRow";
+import { formatPriceShort, GoldPriceRange, SideMixBar } from "./TradeMarketBits";
+import { formatGoldPrice, TradeOfferTerms } from "./TradeOfferTerms";
 import { GroupedTradeItem, TradeRow, itemRefToItemInfo } from "./tradeViewModel";
 
 const MAX_LISTINGS_SHOWN = 5;
@@ -77,91 +74,6 @@ function CardFooter({ group }: { group: GroupedTradeItem }) {
   );
 }
 
-function OfferTerms({ row }: { row: TradeRow }) {
-  const { listing, tradeSide } = row;
-  const gold = formatGoldPrice(tradeSide);
-  const trades = tradeSide.trades ?? [];
-  const anyNegotiable = !!tradeSide.priceNegotiable || trades.some((offer) => !!offer.negotiable);
-  const slotWidth = 16;
-  const { quantity } = tradeSide;
-
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-start",
-        gap: 0.35,
-        minWidth: 0,
-        width: "100%",
-      }}
-    >
-      {gold !== undefined || quantity !== undefined ? (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-            gap: 1,
-            width: "100%",
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.4, minWidth: 0 }}>
-            {gold !== undefined && (anyNegotiable || tradeSide.priceNegotiable) ? (
-              <Box
-                sx={{
-                  width: slotWidth,
-                  flexShrink: 0,
-                  display: "inline-flex",
-                  justifyContent: "center",
-                }}
-              >
-                {tradeSide.priceNegotiable ? (
-                  <NegotiableMarker title="Price is negotiable" fontSize={13} />
-                ) : null}
-              </Box>
-            ) : null}
-            {gold !== undefined ? (
-              <Typography
-                variant="body2"
-                component="span"
-                title={tradeSide.price?.toLocaleString()}
-                sx={{ fontWeight: 700, lineHeight: 1.2 }}
-              >
-                {gold}
-              </Typography>
-            ) : null}
-          </Box>
-          {quantity !== undefined ? (
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}
-              title={`Quantity ${quantity.toLocaleString()}`}
-            >
-              ×{quantity.toLocaleString()}
-            </Typography>
-          ) : null}
-        </Box>
-      ) : null}
-      {trades.map((offer) => (
-        <TradeRatioRow
-          key={`${offer.item.name}-${offer.give}-${offer.receive}`}
-          listing={listing}
-          offer={offer}
-          compact
-          reserveNegotiableSlot={anyNegotiable}
-        />
-      ))}
-      {!gold && trades.length === 0 && quantity === undefined ? (
-        <Typography variant="caption" color="text.secondary">
-          —
-        </Typography>
-      ) : null}
-    </Box>
-  );
-}
-
 function ListingOfferRow({ row }: { row: TradeRow }) {
   const { owner, ownerLabel, listing, tradeSide, discordName } = row;
   const note = tradeSide.note ?? listing.note;
@@ -206,7 +118,12 @@ function ListingOfferRow({ row }: { row: TradeRow }) {
         </Link>
         <CopyTradeButton row={row} iconOnly />
       </Box>
-      <OfferTerms row={row} />
+      <TradeOfferTerms
+        listing={row.listing}
+        tradeSide={row.tradeSide}
+        side={row.side}
+        layout="card"
+      />
       {note ? (
         <Typography
           variant="caption"

@@ -4,7 +4,6 @@ import { IconButton, Tooltip } from "@mui/material";
 import { MouseEvent, useState } from "react";
 
 import { formatCopyTradeMessage } from "./formatCopyTradeMessage";
-import { TradeListing, TradeSide } from "./tradeTypes";
 import { TradeRow } from "./tradeViewModel";
 
 async function copyRowMessage(row: TradeRow): Promise<boolean> {
@@ -54,35 +53,5 @@ export function CopyTradeButton({ row, iconOnly = true }: { row: TradeRow; iconO
         )}
       </IconButton>
     </Tooltip>
-  );
-}
-
-export function CopyTradeButtonFromParts({
-  ownerLabel,
-  listing,
-  side,
-  tradeSide,
-  discordName,
-  discordId,
-}: {
-  ownerLabel: string;
-  listing: TradeListing;
-  side: "WTS" | "WTB";
-  tradeSide: TradeSide;
-  discordName?: string;
-  discordId?: string;
-}) {
-  return (
-    <CopyTradeButton
-      row={{
-        owner: "",
-        ownerLabel,
-        listing,
-        side,
-        tradeSide,
-        discordName,
-        discordId,
-      }}
-    />
   );
 }

@@ -4,7 +4,6 @@ import { useContext } from "react";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { formatItemDisplayName } from "../Shared/iteminfo-util";
-import { abbreviateNumber } from "../Shared/utils";
 import { TradeOverviewItem, TradeOverviewStats, itemRefToItemInfo } from "./tradeViewModel";
 
 function StatBox({ label, value }: { label: string; value: string | number }) {
@@ -186,10 +185,4 @@ export function TradesOverview({
       </CardContent>
     </Card>
   );
-}
-
-export function formatPriceShort(price?: number): string {
-  if (price === undefined) return "";
-  const abbreviated = abbreviateNumber(price);
-  return abbreviated !== undefined ? String(abbreviated) : String(price);
 }
