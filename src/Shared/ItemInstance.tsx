@@ -172,7 +172,7 @@ export function ItemInstance({
       ) : (
         ""
       )}
-      {itemInfo.q && itemInfo.q > 1 && showQuantity ? (
+      {showQuantity && itemInfo.q !== undefined && itemInfo.q > 0 ? (
         <Box sx={quantityStyle}>{abbreviateNumber(itemInfo.q)}</Box>
       ) : (
         <></>

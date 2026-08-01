@@ -30,6 +30,7 @@ import {
   TradeSlotType,
 } from "typed-adventureland";
 
+import { ALDATA_BASE_URL } from "../aldataBaseUrl";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 
@@ -429,7 +430,7 @@ export function Market() {
   const getMerchantData = () => {
     console.log("fetching merchant data ");
     axios
-      .get("https://aldata.earthiverse.ca/merchants")
+      .get(`${ALDATA_BASE_URL}/merchants`)
       .then((response) => {
         setLastRefresh(new Date());
         const groupedItems = groupItemsByNameAndLevel(response.data);

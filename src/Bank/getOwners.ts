@@ -1,6 +1,8 @@
 import axios, { AxiosResponse } from "axios";
 
-const GET_OWNERS_URL = "https://aldata.earthiverse.ca/active-owners";
+import { ALDATA_BASE_URL } from "../aldataBaseUrl";
+
+const GET_OWNERS_URL = `${ALDATA_BASE_URL}/active-owners`;
 
 export type OwnerResponseProps = {
   owner: string;

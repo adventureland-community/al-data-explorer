@@ -1,6 +1,8 @@
 import axios, { AxiosResponse } from "axios";
 
-const GET_BANK_DATA_ROOT = "https://aldata.earthiverse.ca/bank";
+import { ALDATA_BASE_URL } from "../aldataBaseUrl";
+
+const GET_BANK_DATA_ROOT = `${ALDATA_BASE_URL}/bank`;
 
 export interface BankDataProps {
   gold?: number;
