@@ -4,20 +4,21 @@ import axios from "axios";
 import useIsLocalEnvironment from "./useIsLocalEnvironment";
 import { SavedLoadouts } from "./types";
 
+const AL_PROXY_BASE = "https://al-proxy.thmsn.workers.dev";
+
 export default function useImportCharacter() {
   const isLocalEnvironment = useIsLocalEnvironment();
 
   return useCallback<(query: string) => Promise<SavedLoadouts>>(
     async (query) => {
-      if (!isLocalEnvironment) {
-        return (await axios.get<SavedLoadouts>(`https://adventureland-character.deno.dev/${query}`))
-          .data;
-      }
+      const url = isLocalEnvironment
+        ? `/al/character/${query}`
+        : `${AL_PROXY_BASE}/character/${query}`;
 
       const regex =
         /var slots[^=]+=(?<gear>.+);(?:.|\n)+Name:<\/span>(?<name>.+)<\/div>(?:.|\n)+Class:<\/span>(?<classKey>.+)<\/div>(?:.|\n)+Level:<\/span>(?<level>.+)<\/div>/;
 
-      const response = await axios.get(`/al/character/${query}`);
+      const response = await axios.get(url);
 
       const html = response.data;
       const match = html.match(regex);
