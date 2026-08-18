@@ -22,6 +22,11 @@ const sections = [
     path: "/bank",
     description: "View shared bank data from community contributors.",
   },
+  {
+    title: "World",
+    path: "/world",
+    description: "Explore every map at once in 3D, stacked by door connections.",
+  },
 ];
 
 export function Welcome() {

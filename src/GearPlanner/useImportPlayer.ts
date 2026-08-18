@@ -11,9 +11,7 @@ export default function useImportPlayer() {
 
   return useCallback<(query: string) => Promise<SavedLoadouts>>(
     async (query) => {
-      const url = isLocalEnvironment
-        ? `/al/player/${query}`
-        : `${AL_PROXY_BASE}/player/${query}`;
+      const url = isLocalEnvironment ? `/al/player/${query}` : `${AL_PROXY_BASE}/player/${query}`;
 
       const regex =
         /var slots[^=]+=(?<gear>.+);(?:.|\n)+?Name:<\/span>(?<name>.+)<\/div>(?:.|\n)+?Class:<\/span>(?<classKey>.+)<\/div>(?:.|\n)+?Level:<\/span>(?<level>.+)<\/div>/gm;

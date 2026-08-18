@@ -8,6 +8,7 @@ It currently contains
 - A WIP gear planner
 - A market data renderer (what merchant is selling what?)
 - A list of monsters
+- A 3D world viewer that stacks maps by door connections
 
 # Contributing
 
