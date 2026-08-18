@@ -1,4 +1,3 @@
-import { PortalRigidGroups } from "./doorLayout";
 import { COMPONENT_PACK_GAP, packComponentOnShelf, PackShelf } from "./overworldLayout";
 import { componentArtBounds } from "./layoutBounds";
 import { ParsedMap, MapPose } from "./types";
