@@ -34,7 +34,9 @@ Most of the tools operate on the data from `https://adventure.land/data.js` and 
 
 - `npm run update`
 
-Then you just run `npm start` to host it locally. Map pixel art loads from `https://adventure.land` at runtime (same URLs as item icons; the browser caches the tilesets).
+That writes `public/data.json` and downloads tilesets plus sprite sheets into `public/images/` (gitignored). The world viewer loads those files as same-origin textures so WebGL can use nearest-neighbor filtering like the game client. If `public/images` is missing, the viewer errors and tells you to run `npm run update` again.
+
+Then you just run `npm start` to host it locally. Item icons elsewhere still load from `https://adventure.land`.
 
 ## Available Scripts
 

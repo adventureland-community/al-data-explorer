@@ -11,7 +11,7 @@
 # production
 /build
 
-# leftover local tileset cache (not used; maps load from adventure.land)
+# Art fetched by `npm run update` (tilesets + sprite sheets). Never commit.
 /public/images
 
 # misc

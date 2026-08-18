@@ -10,8 +10,9 @@
 # - Same-repo PRs: secrets would be available if configured. Keep this workflow
 #   free of `secrets.*` and deploy permissions so future secret additions stay
 #   off the PR path. Deploy stays in deploy-pages.yml (main push only).
-# - Do not run update-data.ts here — it fetches external data and is unnecessary
-#   for CI because public/data.json is committed.
+# - Do not run update-data.ts here — it fetches external data (and art into
+#   gitignored public/images/). CI uses the committed public/data.json; the
+#   world viewer art is downloaded on deploy and local `npm run update`.
 # - Pin third-party actions to commit SHAs to reduce mutable-tag hijack risk.
 #
 # Recommended repo settings (GitHub → Settings → Actions):

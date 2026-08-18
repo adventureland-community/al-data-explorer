@@ -41,7 +41,7 @@ jobs:
       - name: Run tests
         run: CI=true npm test -- --watchAll=false
 
-      - name: Update data.json
+      - name: Update data.json and art assets
         run: npx ts-node update-data.ts
 
       - name: Build project
