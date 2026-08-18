@@ -1,0 +1,61 @@
+# PR validation — intentionally secret-free and read-only.
+#
+# Security model (see GitHub docs + Security Lab "pwn request" guidance):
+# - Use `pull_request`, NOT `pull_request_target`. The latter runs with base-repo
+#   secrets and a read/write token; checking out and executing fork PR code there
+#   is the classic secret-hijack / supply-chain attack pattern.
+# - Fork PRs: GitHub withholds repository secrets and restricts GITHUB_TOKEN to
+#   read-only. Untrusted code may run (npm lifecycle scripts, tests), but there
+#   is nothing privileged to steal from this job.
+# - Same-repo PRs: secrets would be available if configured. Keep this workflow
+#   free of `secrets.*` and deploy permissions so future secret additions stay
+#   off the PR path. Deploy stays in deploy-pages.yml (main push only).
+# - Do not run update-data.ts here — it fetches external data and is unnecessary
+#   for CI because public/data.json is committed.
+# - Pin third-party actions to commit SHAs to reduce mutable-tag hijack risk.
+#
+# Recommended repo settings (GitHub → Settings → Actions):
+# - Require approval for all outside collaborators / first-time contributors
+# - Do not add pull_request_target workflows that checkout fork head refs
+
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: CI=true npm test -- --watchAll=false
+
+      - name: Build project
+        env:
+          DISABLE_ESLINT_PLUGIN: "true"
+        run: npm run build
