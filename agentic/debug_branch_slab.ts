@@ -1,6 +1,5 @@
 import { buildDoorLockedSet } from "../src/WorldViewer/doorLayout";
 import { isDoorStackPin } from "../src/WorldViewer/layoutGraph";
-import { analyzeWorldLayout } from "../src/WorldViewer/layoutAnalysis";
 import { layoutWorld } from "../src/WorldViewer/layoutWorld";
 import { mapArtRect, resolveSlabOverlaps, DEFAULT_SLAB_GAP } from "../src/WorldViewer/rectLayout";
 import { MapSource } from "../src/WorldViewer/types";
@@ -13,7 +12,10 @@ const branchSource: MapSource = {
       outside: true,
       doors: [[160, 1370, 24, 32, "cave", 0, 4]],
       npcs: [],
-      spawns: [[0, 0], [160, 1381]],
+      spawns: [
+        [0, 0],
+        [160, 1381],
+      ],
     },
     cave: {
       key: "cave",
@@ -37,7 +39,10 @@ const branchSource: MapSource = {
         [50, 0, 16, 16, "level2w", 0, 0],
       ],
       npcs: [],
-      spawns: [[0, 0], [50, 0]],
+      spawns: [
+        [0, 0],
+        [50, 0],
+      ],
     },
     level2n: {
       key: "level2n",

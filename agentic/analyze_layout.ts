@@ -1,7 +1,13 @@
 import { readFileSync } from "fs";
 import { join } from "path";
-import { analyzeWorldLayout } from "../src/WorldViewer/layoutAnalysis";
-import { layoutWorld, pickComponentRoot } from "../src/WorldViewer/layoutWorld";
+import {
+  buildAdjacency,
+  doorGraphDepth,
+  findComponents,
+  pickComponentRoot,
+} from "../src/WorldViewer/layoutGraph";
+import { layoutWorld } from "../src/WorldViewer/layoutWorld";
+import { countSameSlabOverlaps } from "../src/WorldViewer/rectLayout";
 import { MapSource } from "../src/WorldViewer/types";
 
 const G = JSON.parse(readFileSync(join(__dirname, "../public/data.json"), "utf8")) as {
@@ -17,19 +23,18 @@ const layout = layoutWorld(
   G.npcs as Record<string, import("typed-adventureland").GNpc>,
 );
 
-const report = analyzeWorldLayout(layout);
+const mapIds = Object.keys(layout.maps);
+const adj = buildAdjacency(layout.connections);
+const components = findComponents(mapIds, adj);
 
 console.log("=== Layout summary ===");
 console.log(
   JSON.stringify(
     {
-      mapCount: report.mapCount,
-      placedCount: report.placedCount,
-      connectionCount: report.connectionCount,
-      artOverlapsSameZ: report.artOverlapsSameZ,
-      artOverlapsAnyZ: report.artOverlapsAnyZ,
-      nearOriginCount: report.nearOriginMaps.length,
-      exactPoseStacks: report.exactPoseStacks.length,
+      mapCount: mapIds.length,
+      placedCount: Object.keys(layout.poses).length,
+      connectionCount: layout.connections.length,
+      sameSlabOverlaps: countSameSlabOverlaps(layout.maps, layout.poses),
     },
     null,
     2,
@@ -37,27 +42,30 @@ console.log(
 );
 
 console.log("\n=== Components (hub = BFS root) ===");
-for (const component of report.components) {
-  const maps = component.mapIds.map((id) => layout.maps[id]);
+for (const mapIdsInComponent of components) {
+  const rootId = pickComponentRoot(mapIdsInComponent, layout.connections, layout.maps);
+  const maps = mapIdsInComponent.map((id) => layout.maps[id]);
   const bandCounts = { overworld: 0, indoor: 0, underground: 0 };
   for (const map of maps) {
     bandCounts[map.band] += 1;
   }
+  const maxDepth = doorGraphDepth(rootId, mapIdsInComponent, layout.connections);
   console.log(
-    `${component.rootId}: ${component.mapIds.length} maps, depth ${component.maxDepth}, bands ${JSON.stringify(bandCounts)}`,
+    `${rootId}: ${mapIdsInComponent.length} maps, depth ${maxDepth}, bands ${JSON.stringify(
+      bandCounts,
+    )}`,
   );
-  console.log(`  maps: ${component.mapIds.join(", ")}`);
+  console.log(`  maps: ${mapIdsInComponent.join(", ")}`);
 }
 
 console.log("\n=== Hub degree within main-sized components ===");
-const adjacency = layout.connections;
-for (const component of report.components.filter((c) => c.mapIds.length > 1)) {
-  const root = pickComponentRoot(component.mapIds, adjacency, layout.maps);
+for (const mapIdsInComponent of components.filter((component) => component.length > 1)) {
+  const root = pickComponentRoot(mapIdsInComponent, layout.connections, layout.maps);
   const degree = new Map<string, number>();
-  for (const id of component.mapIds) {
+  for (const id of mapIdsInComponent) {
     degree.set(id, 0);
   }
-  for (const edge of adjacency) {
+  for (const edge of layout.connections) {
     if (degree.has(edge.fromMap)) {
       degree.set(edge.fromMap, (degree.get(edge.fromMap) || 0) + 1);
     }
@@ -66,7 +74,7 @@ for (const component of report.components.filter((c) => c.mapIds.length > 1)) {
     }
   }
   const ranked = [...degree.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-  console.log(`${component.id} root=${root}`);
+  console.log(`root=${root}`);
   for (const [id, count] of ranked) {
     const map = layout.maps[id];
     console.log(`  ${id}: ${count} edges, band=${map.band}, outside=${map.outside}`);

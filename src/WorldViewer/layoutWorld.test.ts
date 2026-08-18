@@ -1,7 +1,6 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { GMap, GNpc } from "typed-adventureland";
-import { analyzeWorldLayout } from "./layoutAnalysis";
 import { layoutWorld, pickComponentRoot, verticalDelta } from "./layoutWorld";
 import { countSameSlabOverlaps, mapArtRect, rectsOverlap } from "./rectLayout";
 import { MapSource } from "./types";
@@ -126,8 +125,7 @@ describe("layoutWorld", () => {
 
   it("clears same-layer art overlaps after size-aware slab separation", () => {
     const layout = layoutWorld(source, 480);
-    const report = analyzeWorldLayout(layout);
-    expect(report.artOverlapsSameZ).toBe(0);
+    expect(countSameSlabOverlaps(layout.maps, layout.poses)).toBe(0);
   });
 
   it("uses the highest-degree map as the component root", () => {
@@ -489,9 +487,7 @@ describe("layoutWorld", () => {
     };
     const layout = layoutWorld(branchSource, 480);
     expect(layout.poses.level2n.z).toBe(layout.poses.level2w.z);
-    const report = analyzeWorldLayout(layout);
-    const branchOverlaps = report.artOverlapsSameZ;
-    expect(branchOverlaps).toBe(0);
+    expect(countSameSlabOverlaps(layout.maps, layout.poses)).toBe(0);
   });
 
   it("marks the mansion link as two-way", () => {

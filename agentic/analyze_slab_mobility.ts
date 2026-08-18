@@ -2,7 +2,6 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { buildDoorLockedSet } from "../src/WorldViewer/doorLayout";
 import { isDoorStackPin } from "../src/WorldViewer/layoutGraph";
-import { analyzeWorldLayout } from "../src/WorldViewer/layoutAnalysis";
 import { layoutWorld } from "../src/WorldViewer/layoutWorld";
 import { countSameSlabOverlaps } from "../src/WorldViewer/rectLayout";
 import { MapSource } from "../src/WorldViewer/types";
@@ -21,8 +20,7 @@ const layout = layoutWorld(
   G.npcs as Record<string, import("typed-adventureland").GNpc>,
 );
 
-const report = analyzeWorldLayout(layout);
-console.log("sameZ overlaps total:", report.artOverlapsSameZ);
+console.log("sameZ overlaps total:", countSameSlabOverlaps(layout.maps, layout.poses));
 
 const byZ = new Map<number, string[]>();
 for (const [id, pose] of Object.entries(layout.poses)) {
