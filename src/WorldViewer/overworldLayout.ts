@@ -1,14 +1,11 @@
 import { PortalRigidGroups } from "./doorLayout";
 import { placeGroupShortestDoorClearance } from "./doorPlacement";
+import { pickShortestOption } from "./doorGeometry";
 import { isPortalOverworldPair } from "./layoutGraph";
 import { componentArtBounds, shiftMapPoses, ComponentArtBounds } from "./layoutBounds";
-import { mapCenterWorld } from "./worldCameraBounds";
 import { DEFAULT_SLAB_GAP, mapArtRect, minCardinalClearance } from "./rectLayout";
-import { pickShortestOption } from "./doorGeometry";
 import { DoorConnection, MapPose, ParsedMap } from "./types";
-
-export type { ComponentArtBounds };
-export { componentArtBounds, shiftMapPoses } from "./layoutBounds";
+import { mapCenterWorld } from "./worldCameraBounds";
 
 export interface PackShelf {
   cursorX: number;
@@ -204,6 +201,36 @@ function placeOnRadialRings(
   }
 }
 
+function spreadOverworldOnRings(
+  maps: Record<string, ParsedMap>,
+  poses: Record<string, MapPose>,
+  connections: DoorConnection[],
+  portalGroups: PortalRigidGroups,
+  gap: number,
+  isolatedOnly: boolean,
+  ringOffset: number,
+): void {
+  const mainPose = poses.main;
+  const mainMap = maps.main;
+  if (!mainPose || !mainMap) {
+    return;
+  }
+
+  const mainCenter = mapCenterWorld(mainMap, mainPose);
+  const mainSpan = Math.max(mainMap.artMaxX - mainMap.artMinX, mainMap.artMaxY - mainMap.artMinY);
+  const ringStep = mainSpan * 0.45 + gap + 900;
+  const degree = connectionDegree(connections);
+  const roots = collectOverworldSatelliteRoots(
+    maps,
+    poses,
+    connections,
+    portalGroups,
+    degree,
+    isolatedOnly,
+  );
+  placeOnRadialRings(maps, poses, portalGroups, roots, mainCenter, ringStep, ringOffset);
+}
+
 /**
  * Arrange instance overworld maps (not directly doored to main) on rings around the hub
  * instead of a single horizontal strip from slab separation.
@@ -215,25 +242,7 @@ export function spreadOverworldSatellites(
   portalGroups: PortalRigidGroups,
   gap: number,
 ): void {
-  const mainPose = poses.main;
-  const mainMap = maps.main;
-  if (!mainPose || !mainMap) {
-    return;
-  }
-
-  const mainCenter = mapCenterWorld(mainMap, mainPose);
-  const mainSpan = Math.max(mainMap.artMaxX - mainMap.artMinX, mainMap.artMaxY - mainMap.artMinY);
-  const ringStep = mainSpan * 0.45 + gap + 900;
-  const degree = connectionDegree(connections);
-  const roots = collectOverworldSatelliteRoots(
-    maps,
-    poses,
-    connections,
-    portalGroups,
-    degree,
-    false,
-  );
-  placeOnRadialRings(maps, poses, portalGroups, roots, mainCenter, ringStep, 0);
+  spreadOverworldOnRings(maps, poses, connections, portalGroups, gap, false, 0);
 }
 
 /** Push doorless overworld maps onto outer rings so they sit beyond connected satellites. */
@@ -244,31 +253,13 @@ export function spreadIsolatedOverworldMaps(
   portalGroups: PortalRigidGroups,
   gap: number,
 ): void {
-  const mainPose = poses.main;
-  const mainMap = maps.main;
-  if (!mainPose || !mainMap) {
-    return;
-  }
-
-  const mainCenter = mapCenterWorld(mainMap, mainPose);
-  const mainSpan = Math.max(mainMap.artMaxX - mainMap.artMinX, mainMap.artMaxY - mainMap.artMinY);
-  const ringStep = mainSpan * 0.45 + gap + 900;
-  const degree = connectionDegree(connections);
-  const roots = collectOverworldSatelliteRoots(
+  spreadOverworldOnRings(
     maps,
     poses,
     connections,
     portalGroups,
-    degree,
+    gap,
     true,
-  );
-  placeOnRadialRings(
-    maps,
-    poses,
-    portalGroups,
-    roots,
-    mainCenter,
-    ringStep,
     ISOLATED_OVERWORLD_EXTRA_RINGS,
   );
 }

@@ -83,10 +83,6 @@ export function isPortalOverworldPair(fromMap: ParsedMap, toMap: ParsedMap): boo
   );
 }
 
-export function isDoorLayoutPin(fromMap: ParsedMap, toMap: ParsedMap, twoWay = true): boolean {
-  return isDoorStackPin(fromMap, toMap, twoWay) || isPortalDoorAlign(fromMap, toMap);
-}
-
 /** Z for a door step: dungeon chains stack down; band changes use the target band layer. */
 export function pickLayerZ(
   fromMap: ParsedMap,

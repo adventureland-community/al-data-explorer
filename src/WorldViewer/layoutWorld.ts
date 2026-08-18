@@ -3,21 +3,23 @@ import {
   buildDoorLockedSet,
   buildPortalRigidGroups,
   buildSlabImmovable,
+  buildStackPinAnchors,
   realignDoorLocked,
+  StackPinAnchor,
 } from "./doorLayout";
+import { doorLinkedPose } from "./doorGeometry";
 import { bandLayerZ, isDoorStackPin, pickComponentRoot, pickLayerZ } from "./layoutGraph";
+import { componentArtBounds, shiftMapPoses } from "./layoutBounds";
+import { resolveOneWayExitLayout } from "./oneWayExitLayout";
 import {
   COMPONENT_PACK_GAP,
-  componentArtBounds,
   mainPortalAnchorIds,
   packComponentOnShelf,
   resolvePortalPairLayout,
   separateMainPortalGroups,
-  shiftMapPoses,
   spreadIsolatedOverworldMaps,
   spreadOverworldSatellites,
 } from "./overworldLayout";
-import { resolveOneWayExitLayout } from "./oneWayExitLayout";
 import { parseMaps, spawnPoint } from "./parseMaps";
 import {
   DEFAULT_SLAB_GAP,
@@ -28,6 +30,11 @@ import {
 import { DoorConnection, MapPose, MapSource, ParsedMap, WorldLayout } from "./types";
 
 export const DEFAULT_LAYER_HEIGHT = 480;
+
+/** Slab/realign cycles after initial BFS placement — clears dense same-layer stacks. */
+const SLAB_REALIGN_PASSES_INITIAL = 6;
+/** Extra slab/realign cycles after overworld satellite spread. */
+const SLAB_REALIGN_PASSES_POST_SPREAD = 3;
 
 function hasReverseDoor(maps: Record<string, ParsedMap>, fromMap: string, toMap: string): boolean {
   const dest = maps[toMap];
@@ -99,7 +106,6 @@ function placeFromEdge(
   fromId: string,
   toId: string,
   edge: DoorConnection,
-  forward: boolean,
   layerHeight: number,
 ): void {
   const fromPose = poses[fromId];
@@ -108,14 +114,12 @@ function placeFromEdge(
   if (!fromPose || !fromMap || !toMap) {
     return;
   }
-  const desiredX = forward
-    ? fromPose.x + edge.fromX - edge.toX
-    : fromPose.x - edge.fromX + edge.toX;
-  const desiredY = forward
-    ? fromPose.y + edge.fromY - edge.toY
-    : fromPose.y - edge.fromY + edge.toY;
-  const z = pickLayerZ(fromMap, toMap, fromPose, layerHeight);
-  poses[toId] = { x: desiredX, y: desiredY, z };
+  const linked = doorLinkedPose(fromPose, edge, toId);
+  poses[toId] = {
+    x: linked.x,
+    y: linked.y,
+    z: pickLayerZ(fromMap, toMap, fromPose, layerHeight),
+  };
   if (isDoorStackPin(fromMap, toMap, edge.twoWay)) {
     doorAligned.add(toId);
   }
@@ -140,10 +144,10 @@ function placeComponent(
     }
     for (const edge of connections) {
       if (edge.fromMap === fromId && !poses[edge.toMap]) {
-        placeFromEdge(maps, poses, doorAligned, fromId, edge.toMap, edge, true, layerHeight);
+        placeFromEdge(maps, poses, doorAligned, fromId, edge.toMap, edge, layerHeight);
         queue.push(edge.toMap);
       } else if (edge.toMap === fromId && !poses[edge.fromMap]) {
-        placeFromEdge(maps, poses, doorAligned, fromId, edge.fromMap, edge, false, layerHeight);
+        placeFromEdge(maps, poses, doorAligned, fromId, edge.fromMap, edge, layerHeight);
         queue.push(edge.fromMap);
       }
     }
@@ -205,8 +209,7 @@ function sortComponents(components: string[][]): string[][] {
 function runSlabRealignPasses(
   maps: Record<string, ParsedMap>,
   poses: Record<string, MapPose>,
-  connections: DoorConnection[],
-  doorLocked: Set<string>,
+  stackPinAnchors: Map<string, StackPinAnchor>,
   slabImmovable: Set<string>,
   portalGroups: ReturnType<typeof buildPortalRigidGroups>,
   layerHeight: number,
@@ -214,7 +217,7 @@ function runSlabRealignPasses(
 ): void {
   for (let pass = 0; pass < passes; pass += 1) {
     resolveWorldSlabs(maps, poses, slabImmovable, DEFAULT_SLAB_GAP, portalGroups);
-    realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
+    realignDoorLocked(maps, poses, stackPinAnchors, layerHeight);
   }
 }
 
@@ -232,16 +235,16 @@ function applyDoorLinkedPlacements(
 function finalizeOverworldSlab(
   maps: Record<string, ParsedMap>,
   poses: Record<string, MapPose>,
-  connections: DoorConnection[],
-  doorLocked: Set<string>,
+  stackPinAnchors: Map<string, StackPinAnchor>,
   slabImmovable: Set<string>,
   portalGroups: ReturnType<typeof buildPortalRigidGroups>,
+  connections: DoorConnection[],
   layerHeight: number,
 ): void {
   const overworldAnchors = mainPortalAnchorIds(maps, connections, portalGroups);
   const overworldImmovable = new Set([...slabImmovable, ...overworldAnchors]);
   resolveWorldSlabs(maps, poses, overworldImmovable, DEFAULT_SLAB_GAP, portalGroups);
-  realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
+  realignDoorLocked(maps, poses, stackPinAnchors, layerHeight);
 }
 
 export function layoutWorld(
@@ -290,29 +293,28 @@ export function layoutWorld(
   }
 
   const doorLocked = buildDoorLockedSet(doorAligned);
+  const stackPinAnchors = buildStackPinAnchors(maps, poses, connections, doorLocked, layerHeight);
   const slabImmovable = buildSlabImmovable(maps, connections);
   const portalGroups = buildPortalRigidGroups(maps, connections);
-  realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
+  realignDoorLocked(maps, poses, stackPinAnchors, layerHeight);
   runSlabRealignPasses(
     maps,
     poses,
-    connections,
-    doorLocked,
+    stackPinAnchors,
     slabImmovable,
     portalGroups,
     layerHeight,
-    6,
+    SLAB_REALIGN_PASSES_INITIAL,
   );
   spreadOverworldSatellites(maps, poses, connections, portalGroups, DEFAULT_SLAB_GAP);
   runSlabRealignPasses(
     maps,
     poses,
-    connections,
-    doorLocked,
+    stackPinAnchors,
     slabImmovable,
     portalGroups,
     layerHeight,
-    3,
+    SLAB_REALIGN_PASSES_POST_SPREAD,
   );
   resolveDoorLockedSlabOverflow(
     maps,
@@ -328,10 +330,10 @@ export function layoutWorld(
   finalizeOverworldSlab(
     maps,
     poses,
-    connections,
-    doorLocked,
+    stackPinAnchors,
     slabImmovable,
     portalGroups,
+    connections,
     layerHeight,
   );
 

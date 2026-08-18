@@ -1,10 +1,6 @@
 import { PortalRigidGroups } from "./doorLayout";
-import {
-  COMPONENT_PACK_GAP,
-  componentArtBounds,
-  packComponentOnShelf,
-  PackShelf,
-} from "./overworldLayout";
+import { COMPONENT_PACK_GAP, packComponentOnShelf, PackShelf } from "./overworldLayout";
+import { componentArtBounds } from "./layoutBounds";
 import { ParsedMap, MapPose } from "./types";
 
 function stubMap(id: string, w: number, h: number): ParsedMap {

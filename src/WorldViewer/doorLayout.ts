@@ -1,9 +1,15 @@
 import { isDoorStackPin, isPortalOverworldPair, pickLayerZ } from "./layoutGraph";
+import { doorLinkedPose } from "./doorGeometry";
 import { DoorConnection, MapPose, ParsedMap } from "./types";
 
 export interface PortalRigidGroups {
   rootByMap: Map<string, string>;
   membersByRoot: Map<string, Set<string>>;
+}
+
+export interface StackPinAnchor {
+  anchorId: string;
+  edge: DoorConnection;
 }
 
 /** Maps fixed on a slab — hub plus vertical stack-pin children (door XY fixed to parent). */
@@ -82,13 +88,59 @@ export function buildPortalRigidGroups(
   return { rootByMap, membersByRoot };
 }
 
-/** Hub + maps placed via port-locking door steps (derived from band rules, not manual pins). */
+/** Maps whose XY is fixed to a stack-pin parent door after slab moves. */
 export function buildDoorLockedSet(doorAligned: Set<string>): Set<string> {
   const locked = new Set<string>(["main"]);
   for (const mapId of doorAligned) {
     locked.add(mapId);
   }
   return locked;
+}
+
+/** One stack-pin parent per locked child — computed once from door topology. */
+export function buildStackPinAnchors(
+  maps: Record<string, ParsedMap>,
+  poses: Record<string, MapPose>,
+  connections: DoorConnection[],
+  doorLocked: Set<string>,
+  layerHeight: number,
+): Map<string, StackPinAnchor> {
+  const anchors = new Map<string, StackPinAnchor>();
+  for (const mapId of doorLocked) {
+    if (mapId === "main") {
+      continue;
+    }
+    let best: { anchorId: string; edge: DoorConnection; zDelta: number } | null = null;
+    for (const edge of connections) {
+      let anchorId: string | null = null;
+      if (edge.toMap === mapId && poses[edge.fromMap]) {
+        anchorId = edge.fromMap;
+      } else if (edge.fromMap === mapId && poses[edge.toMap]) {
+        anchorId = edge.toMap;
+      } else {
+        continue;
+      }
+      const parentMap = maps[anchorId];
+      const childMap = maps[mapId];
+      if (!parentMap || !childMap || !isDoorStackPin(parentMap, childMap, edge.twoWay)) {
+        continue;
+      }
+      const anchorPose = poses[anchorId];
+      const childPose = poses[mapId];
+      if (!anchorPose || !childPose) {
+        continue;
+      }
+      const expectedZ = pickLayerZ(parentMap, childMap, anchorPose, layerHeight);
+      const zDelta = Math.abs(expectedZ - childPose.z);
+      if (!best || zDelta < best.zDelta) {
+        best = { anchorId, edge, zDelta };
+      }
+    }
+    if (best) {
+      anchors.set(mapId, { anchorId: best.anchorId, edge: best.edge });
+    }
+  }
+  return anchors;
 }
 
 export function doorAlignedPose(
@@ -108,61 +160,26 @@ export function doorAlignedPose(
   if (!isDoorStackPin(parentMap, childMap, edge.twoWay)) {
     return null;
   }
-  const forward = edge.fromMap === anchorId && edge.toMap === mapId;
-  const x = forward ? anchorPose.x + edge.fromX - edge.toX : anchorPose.x - edge.fromX + edge.toX;
-  const y = forward ? anchorPose.y + edge.fromY - edge.toY : anchorPose.y - edge.fromY + edge.toY;
-  const z = pickLayerZ(parentMap, childMap, anchorPose, layerHeight);
-  return { x, y, z };
-}
-
-function findPortAnchor(
-  mapId: string,
-  maps: Record<string, ParsedMap>,
-  poses: Record<string, MapPose>,
-  connections: DoorConnection[],
-  layerHeight: number,
-): { anchorId: string; edge: DoorConnection } | null {
-  let best: { anchorId: string; edge: DoorConnection; zDelta: number } | null = null;
-  for (const edge of connections) {
-    let anchorId: string | null = null;
-    if (edge.toMap === mapId && poses[edge.fromMap]) {
-      anchorId = edge.fromMap;
-    } else if (edge.fromMap === mapId && poses[edge.toMap]) {
-      anchorId = edge.toMap;
-    } else {
-      continue;
-    }
-    const parentMap = maps[anchorId];
-    const childMap = maps[mapId];
-    if (!parentMap || !childMap || !isDoorStackPin(parentMap, childMap, edge.twoWay)) {
-      continue;
-    }
-    const expectedZ = pickLayerZ(parentMap, childMap, poses[anchorId], layerHeight);
-    const zDelta = Math.abs(expectedZ - poses[mapId].z);
-    if (!best || zDelta < best.zDelta) {
-      best = { anchorId, edge, zDelta };
-    }
-  }
-  return best ? { anchorId: best.anchorId, edge: best.edge } : null;
+  const linked = doorLinkedPose(anchorPose, edge, mapId);
+  return {
+    x: linked.x,
+    y: linked.y,
+    z: pickLayerZ(parentMap, childMap, anchorPose, layerHeight),
+  };
 }
 
 /** Re-apply door ports after slab separation moves a parent on another layer. */
 export function realignDoorLocked(
   maps: Record<string, ParsedMap>,
   poses: Record<string, MapPose>,
-  connections: DoorConnection[],
-  doorLocked: Set<string>,
+  stackPinAnchors: Map<string, StackPinAnchor>,
   layerHeight: number,
 ): void {
-  const maxPasses = doorLocked.size + 2;
+  const maxPasses = stackPinAnchors.size + 2;
   for (let pass = 0; pass < maxPasses; pass += 1) {
     let moved = false;
-    for (const mapId of doorLocked) {
+    for (const [mapId, port] of stackPinAnchors) {
       if (mapId === "main") {
-        continue;
-      }
-      const port = findPortAnchor(mapId, maps, poses, connections, layerHeight);
-      if (!port) {
         continue;
       }
       const aligned = doorAlignedPose(maps, poses, port.anchorId, mapId, port.edge, layerHeight);
