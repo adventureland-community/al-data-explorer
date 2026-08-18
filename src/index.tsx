@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 import "./index.css";
-import App from "./App";
+import App, { FullBleedLayout, StandardLayout } from "./App";
 import { GearPlanner } from "./GearPlanner/GearPlanner";
 import { Market } from "./Market/Market";
 import { Monsters } from "./Monster/monsters";
@@ -19,28 +19,38 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       {
-        index: true,
-        element: <Welcome />,
+        element: <StandardLayout />,
+        children: [
+          {
+            index: true,
+            element: <Welcome />,
+          },
+          {
+            path: "monsters",
+            element: <Monsters />,
+          },
+          {
+            path: "gear",
+            element: <GearPlanner />,
+          },
+          {
+            path: "market",
+            element: <Market />,
+          },
+          {
+            path: "bank",
+            element: <Bank />,
+          },
+        ],
       },
       {
-        path: "monsters",
-        element: <Monsters />,
-      },
-      {
-        path: "gear",
-        element: <GearPlanner />,
-      },
-      {
-        path: "market",
-        element: <Market />,
-      },
-      {
-        path: "bank",
-        element: <Bank />,
-      },
-      {
-        path: "world",
-        element: <WorldViewer />,
+        element: <FullBleedLayout />,
+        children: [
+          {
+            path: "world",
+            element: <WorldViewer />,
+          },
+        ],
       },
     ],
   },
