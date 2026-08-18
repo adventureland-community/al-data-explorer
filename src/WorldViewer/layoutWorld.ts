@@ -1,9 +1,33 @@
 import { GNpc } from "typed-adventureland";
+import {
+  buildDoorLockedSet,
+  buildPortalRigidGroups,
+  buildSlabImmovable,
+  realignDoorLocked,
+} from "./doorLayout";
+import { bandLayerZ, isDoorLayoutPin, pickComponentRoot, pickLayerZ } from "./layoutGraph";
+import {
+  COMPONENT_PACK_GAP,
+  componentArtBounds,
+  mainPortalAnchorIds,
+  packComponentOnShelf,
+  resolvePortalPairLayout,
+  separateMainPortalGroups,
+  shiftMapPoses,
+  spreadIsolatedOverworldMaps,
+  spreadOverworldSatellites,
+} from "./overworldLayout";
+import { resolveOneWayExitLayout } from "./oneWayExitLayout";
 import { parseMaps, spawnPoint } from "./parseMaps";
+import {
+  DEFAULT_SLAB_GAP,
+  PINNED_SLAB_STEP,
+  resolveDoorLockedSlabOverflow,
+  resolveWorldSlabs,
+} from "./rectLayout";
 import { DoorConnection, MapPose, MapSource, ParsedMap, WorldLayout } from "./types";
 
 export const DEFAULT_LAYER_HEIGHT = 480;
-const PACK_GAP = 2800;
 
 function hasReverseDoor(maps: Record<string, ParsedMap>, fromMap: string, toMap: string): boolean {
   const dest = maps[toMap];
@@ -19,6 +43,9 @@ function hasReverseDoor(maps: Record<string, ParsedMap>, fromMap: string, toMap:
 }
 
 export function verticalDelta(from: ParsedMap, to: ParsedMap): number {
+  if (from.band === to.band) {
+    return 0;
+  }
   if (from.band === "overworld" && to.band === "underground") {
     return -1;
   }
@@ -38,23 +65,6 @@ export function verticalDelta(from: ParsedMap, to: ParsedMap): number {
     return 1;
   }
   return 1;
-}
-
-function usedZLevels(poses: Record<string, MapPose>): Set<number> {
-  const used = new Set<number>();
-  for (const pose of Object.values(poses)) {
-    used.add(pose.z);
-  }
-  return used;
-}
-
-function nextLayerZ(fromZ: number, delta: number, layerHeight: number, used: Set<number>): number {
-  const step = delta === 0 ? 1 : Math.sign(delta);
-  let z = fromZ + step * layerHeight;
-  while (used.has(z)) {
-    z += step * layerHeight;
-  }
-  return z;
 }
 
 export function collectConnections(maps: Record<string, ParsedMap>): DoorConnection[] {
@@ -82,64 +92,114 @@ export function collectConnections(maps: Record<string, ParsedMap>): DoorConnect
   return connections;
 }
 
+function placeFromEdge(
+  maps: Record<string, ParsedMap>,
+  poses: Record<string, MapPose>,
+  doorAligned: Set<string>,
+  fromId: string,
+  toId: string,
+  edge: DoorConnection,
+  forward: boolean,
+  layerHeight: number,
+): void {
+  const fromPose = poses[fromId];
+  const fromMap = maps[fromId];
+  const toMap = maps[toId];
+  if (!fromPose || !fromMap || !toMap) {
+    return;
+  }
+  const desiredX = forward
+    ? fromPose.x + edge.fromX - edge.toX
+    : fromPose.x - edge.fromX + edge.toX;
+  const desiredY = forward
+    ? fromPose.y + edge.fromY - edge.toY
+    : fromPose.y - edge.fromY + edge.toY;
+  const z = pickLayerZ(fromMap, toMap, fromPose, layerHeight);
+  poses[toId] = { x: desiredX, y: desiredY, z };
+  if (isDoorLayoutPin(fromMap, toMap, edge.twoWay)) {
+    doorAligned.add(toId);
+  }
+}
+
 function placeComponent(
   maps: Record<string, ParsedMap>,
   connections: DoorConnection[],
   poses: Record<string, MapPose>,
+  doorAligned: Set<string>,
   rootId: string,
   origin: MapPose,
   layerHeight: number,
 ): void {
   poses[rootId] = { ...origin };
   const queue = [rootId];
-  const usedZ = usedZLevels(poses);
 
   while (queue.length > 0) {
     const fromId = queue.shift();
     if (!fromId) {
       break;
     }
-    const fromPose = poses[fromId];
-    const fromMap = maps[fromId];
     for (const edge of connections) {
-      if (edge.fromMap !== fromId) {
-        continue;
+      if (edge.fromMap === fromId && !poses[edge.toMap]) {
+        placeFromEdge(maps, poses, doorAligned, fromId, edge.toMap, edge, true, layerHeight);
+        queue.push(edge.toMap);
+      } else if (edge.toMap === fromId && !poses[edge.fromMap]) {
+        placeFromEdge(maps, poses, doorAligned, fromId, edge.fromMap, edge, false, layerHeight);
+        queue.push(edge.fromMap);
       }
-      if (poses[edge.toMap]) {
-        continue;
-      }
-      const toMap = maps[edge.toMap];
-      if (!toMap) {
-        continue;
-      }
-      const delta = verticalDelta(fromMap, toMap);
-      const z = nextLayerZ(fromPose.z, delta, layerHeight, usedZ);
-      usedZ.add(z);
-      poses[edge.toMap] = {
-        x: fromPose.x + edge.fromX - edge.toX,
-        y: fromPose.y + edge.fromY - edge.toY,
-        z,
-      };
-      queue.push(edge.toMap);
     }
   }
 }
 
-function componentSize(
-  maps: Record<string, ParsedMap>,
-  poses: Record<string, MapPose>,
-  ids: string[],
-): number {
-  let maxX = 0;
-  for (const id of ids) {
-    const map = maps[id];
-    const pose = poses[id];
-    if (!map || !pose) {
-      continue;
+function buildAdjacency(connections: DoorConnection[]): Map<string, Set<string>> {
+  const adj = new Map<string, Set<string>>();
+  const touch = (a: string, b: string) => {
+    if (!adj.has(a)) {
+      adj.set(a, new Set());
     }
-    maxX = Math.max(maxX, pose.x + map.maxX);
+    adj.get(a)?.add(b);
+  };
+  for (const edge of connections) {
+    touch(edge.fromMap, edge.toMap);
+    touch(edge.toMap, edge.fromMap);
   }
-  return maxX;
+  return adj;
+}
+
+function findComponents(mapIds: string[], adj: Map<string, Set<string>>): string[][] {
+  const remaining = new Set(mapIds);
+  const components: string[][] = [];
+  while (remaining.size > 0) {
+    const start = [...remaining].sort()[0];
+    const queue = [start];
+    const component: string[] = [];
+    remaining.delete(start);
+    while (queue.length > 0) {
+      const id = queue.shift();
+      if (!id) {
+        break;
+      }
+      component.push(id);
+      for (const next of adj.get(id) || []) {
+        if (remaining.has(next)) {
+          remaining.delete(next);
+          queue.push(next);
+        }
+      }
+    }
+    components.push(component);
+  }
+  return components;
+}
+
+function sortComponents(components: string[][]): string[][] {
+  return components.sort((a, b) => {
+    const aHasMain = a.includes("main") ? 0 : 1;
+    const bHasMain = b.includes("main") ? 0 : 1;
+    if (aHasMain !== bHasMain) {
+      return aHasMain - bHasMain;
+    }
+    return b.length - a.length;
+  });
 }
 
 export function layoutWorld(
@@ -151,31 +211,100 @@ export function layoutWorld(
   const maps = parseMaps(source, includeIgnored, npcDefs);
   const connections = collectConnections(maps);
   const poses: Record<string, MapPose> = {};
+  const doorAligned = new Set<string>();
+  const mapIds = Object.keys(maps);
+  const adj = buildAdjacency(connections);
+  const components = sortComponents(findComponents(mapIds, adj));
 
-  const roots = ["main", "winterland", "desertland", "halloween"].filter((id) => maps[id]);
-  let packX = 0;
+  let packShelf = { cursorX: 0, cursorY: 0, rowHeight: 0 };
 
-  const placeRoot = (rootId: string, origin: MapPose) => {
+  for (const component of components) {
+    const isMainHub = component.includes("main");
+    const rootId = isMainHub ? "main" : pickComponentRoot(component, connections, maps);
     const before = Object.keys(poses);
-    placeComponent(maps, connections, poses, rootId, origin, layerHeight);
+    const origin: MapPose = isMainHub
+      ? { x: 0, y: 0, z: 0 }
+      : {
+          x: 0,
+          y: 0,
+          z: bandLayerZ(maps[rootId].band, layerHeight),
+        };
+    placeComponent(maps, connections, poses, doorAligned, rootId, origin, layerHeight);
     const added = Object.keys(poses).filter((id) => !before.includes(id));
-    packX = Math.max(packX, componentSize(maps, poses, added) + PACK_GAP);
-  };
 
-  for (const rootId of roots) {
-    if (poses[rootId]) {
+    if (isMainHub) {
+      const bounds = componentArtBounds(maps, poses, added);
+      packShelf = {
+        cursorX: 0,
+        cursorY: bounds.maxY + COMPONENT_PACK_GAP,
+        rowHeight: 0,
+      };
       continue;
     }
-    placeRoot(rootId, { x: packX, y: 0, z: 0 });
+
+    const bounds = componentArtBounds(maps, poses, added);
+    const { dx, dy } = packComponentOnShelf(packShelf, bounds, COMPONENT_PACK_GAP);
+    shiftMapPoses(poses, added, dx, dy);
   }
 
-  const leftovers = Object.keys(maps).sort();
-  for (const id of leftovers) {
-    if (poses[id]) {
-      continue;
-    }
-    placeRoot(id, { x: packX, y: 0, z: 0 });
+  const doorLocked = buildDoorLockedSet(doorAligned);
+  const slabImmovable = buildSlabImmovable(maps, connections);
+  const portalGroups = buildPortalRigidGroups(maps, connections, doorAligned);
+  realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
+  for (let pass = 0; pass < 6; pass += 1) {
+    resolveWorldSlabs(maps, poses, slabImmovable, DEFAULT_SLAB_GAP, portalGroups);
+    realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
   }
+  spreadOverworldSatellites(maps, poses, connections, portalGroups, DEFAULT_SLAB_GAP);
+  for (let pass = 0; pass < 3; pass += 1) {
+    resolveWorldSlabs(maps, poses, slabImmovable, DEFAULT_SLAB_GAP, portalGroups);
+    realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
+  }
+  resolveDoorLockedSlabOverflow(
+    maps,
+    poses,
+    doorLocked,
+    PINNED_SLAB_STEP,
+    512,
+    DEFAULT_SLAB_GAP,
+    portalGroups,
+  );
+  resolvePortalPairLayout(maps, poses, connections, portalGroups, DEFAULT_SLAB_GAP);
+  separateMainPortalGroups(maps, poses, connections, portalGroups, DEFAULT_SLAB_GAP);
+  resolveOneWayExitLayout(maps, poses, connections, DEFAULT_SLAB_GAP);
+  spreadIsolatedOverworldMaps(maps, poses, connections, portalGroups, DEFAULT_SLAB_GAP);
+  const overworldAnchors = mainPortalAnchorIds(maps, connections, portalGroups);
+  const overworldImmovable = new Set([...slabImmovable, ...overworldAnchors]);
+  resolveWorldSlabs(maps, poses, overworldImmovable, DEFAULT_SLAB_GAP, portalGroups);
+  realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
 
   return { maps, poses, connections };
 }
+
+/** Door-graph depth from a root within one connected component (for analysis UI). */
+export function doorGraphDepth(
+  rootId: string,
+  component: string[],
+  connections: DoorConnection[],
+): number {
+  const adj = buildAdjacency(connections);
+  const depths = new Map<string, number>([[rootId, 0]]);
+  const queue = [rootId];
+  while (queue.length > 0) {
+    const id = queue.shift();
+    if (!id) {
+      break;
+    }
+    const depth = depths.get(id) || 0;
+    for (const next of adj.get(id) || []) {
+      if (!component.includes(next) || depths.has(next)) {
+        continue;
+      }
+      depths.set(next, depth + 1);
+      queue.push(next);
+    }
+  }
+  return Math.max(0, ...depths.values());
+}
+
+export { bandLabel, pickComponentRoot } from "./layoutGraph";

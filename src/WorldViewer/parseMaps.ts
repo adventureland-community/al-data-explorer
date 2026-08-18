@@ -1,7 +1,7 @@
 import { GGeometry, GMap, GNpc } from "typed-adventureland";
 import { MapBand, MapSource, NpcFeature, ParsedDoor, ParsedMap, PointFeature } from "./types";
 
-const UNDERGROUND_PATTERN = /cave|tunnel|crypt|tomb|level|bank_b|bank_u|dungeon|mtunnel/i;
+const UNDERGROUND_PATTERN = /cave|cove|tunnel|crypt|tomb|level|bank_b|bank_u|dungeon|mtunnel/i;
 
 export function mapBand(id: string, map: GMap): MapBand {
   if (UNDERGROUND_PATTERN.test(id)) {
