@@ -1,5 +1,5 @@
-import { GGeometry, GMap } from "typed-adventureland";
-import { MapBand, MapSource, ParsedDoor, ParsedMap, PointFeature } from "./types";
+import { GGeometry, GMap, GNpc } from "typed-adventureland";
+import { MapBand, MapSource, NpcFeature, ParsedDoor, ParsedMap, PointFeature } from "./types";
 
 const UNDERGROUND_PATTERN = /cave|tunnel|crypt|tomb|level|bank_b|bank_u|dungeon|mtunnel/i;
 
@@ -71,23 +71,45 @@ function expandBounds(
   return [Math.min(minX, x), Math.min(minY, y), Math.max(maxX, x), Math.max(maxY, y)];
 }
 
-function npcPoints(map: GMap): PointFeature[] {
-  const points: PointFeature[] = [];
+function npcPoints(map: GMap, npcDefs: Record<string, GNpc>): NpcFeature[] {
+  const points: NpcFeature[] = [];
   for (const npc of map.npcs || []) {
-    const label = npc.name || npc.id;
+    const def = npcDefs[npc.id];
+    const skin = def?.skin || npc.id;
+    const label = npc.name || def?.name || npc.id;
+    const name = npc.name || def?.name;
     if (npc.position) {
-      points.push({ x: npc.position[0], y: npc.position[1], label });
+      points.push({
+        id: npc.id,
+        skin,
+        name,
+        x: npc.position[0],
+        y: npc.position[1],
+        label,
+      });
     }
     if (npc.positions) {
       for (const position of npc.positions) {
-        points.push({ x: position[0], y: position[1], label });
+        points.push({
+          id: npc.id,
+          skin,
+          name,
+          x: position[0],
+          y: position[1],
+          label,
+        });
       }
     }
   }
   return points;
 }
 
-function parseOneMap(id: string, map: GMap, geometry: GGeometry | undefined): ParsedMap {
+function parseOneMap(
+  id: string,
+  map: GMap,
+  geometry: GGeometry | undefined,
+  npcDefs: Record<string, GNpc>,
+): ParsedMap {
   const doors: ParsedDoor[] = [];
   for (const raw of map.doors || []) {
     const parsed = doorTuple(raw);
@@ -161,7 +183,7 @@ function parseOneMap(id: string, map: GMap, geometry: GGeometry | undefined): Pa
     zones.push({ type: zone.type, polygon: zone.polygon });
   }
 
-  const npcs = npcPoints(map);
+  const npcs = npcPoints(map, npcDefs);
   const xLines = geometry?.x_lines ? [...geometry.x_lines] : [];
   const yLines = geometry?.y_lines ? [...geometry.y_lines] : [];
 
@@ -197,6 +219,11 @@ function parseOneMap(id: string, map: GMap, geometry: GGeometry | undefined): Pa
     maxY = 100;
   }
 
+  const artMinX = geometry?.min_x ?? minX;
+  const artMaxX = geometry?.max_x ?? maxX;
+  const artMinY = geometry?.min_y ?? minY;
+  const artMaxY = geometry?.max_y ?? maxY;
+
   return {
     id,
     name: map.name || id,
@@ -207,6 +234,10 @@ function parseOneMap(id: string, map: GMap, geometry: GGeometry | undefined): Pa
     maxX,
     minY,
     maxY,
+    artMinX,
+    artMaxX,
+    artMinY,
+    artMaxY,
     xLines,
     yLines,
     doors,
@@ -218,13 +249,17 @@ function parseOneMap(id: string, map: GMap, geometry: GGeometry | undefined): Pa
   };
 }
 
-export function parseMaps(source: MapSource, includeIgnored = false): Record<string, ParsedMap> {
+export function parseMaps(
+  source: MapSource,
+  includeIgnored = false,
+  npcDefs: Record<string, GNpc> = {},
+): Record<string, ParsedMap> {
   const parsed: Record<string, ParsedMap> = {};
   for (const [id, map] of Object.entries(source.maps)) {
     if (!map || !includeMap(map, includeIgnored)) {
       continue;
     }
-    parsed[id] = parseOneMap(id, map, source.geometry[id]);
+    parsed[id] = parseOneMap(id, map, source.geometry[id], npcDefs);
   }
   return parsed;
 }

@@ -19,6 +19,12 @@ export interface PointFeature {
   label: string;
 }
 
+export interface NpcFeature extends PointFeature {
+  id: string;
+  skin: string;
+  name?: string;
+}
+
 export interface MonsterFeature {
   type: string;
   x: number;
@@ -66,12 +72,17 @@ export interface ParsedMap {
   maxX: number;
   minY: number;
   maxY: number;
+  /** Geometry bounds used for tile art (may differ from minX/maxX when overlays extend further). */
+  artMinX: number;
+  artMaxX: number;
+  artMinY: number;
+  artMaxY: number;
   xLines: Array<[number, number, number]>;
   yLines: Array<[number, number, number]>;
   doors: ParsedDoor[];
   spawns: PointFeature[];
   quirks: Array<RectFeature & { kind: string; text?: string }>;
-  npcs: PointFeature[];
+  npcs: NpcFeature[];
   monsters: MonsterFeature[];
   zones: ZoneFeature[];
 }
@@ -86,6 +97,36 @@ export interface WorldLayout {
   maps: Record<string, ParsedMap>;
   poses: Record<string, MapPose>;
   connections: DoorConnection[];
+}
+
+export interface MapFocus {
+  mapId: string;
+  x: number;
+  y: number;
+}
+
+export interface DoorTravel {
+  toMap: string;
+  toX: number;
+  toY: number;
+  toName: string;
+  lock?: string;
+}
+
+export interface NpcSelection {
+  mapId: string;
+  id: string;
+  name: string;
+  skin: string;
+  x: number;
+  y: number;
+}
+
+export interface MonsterSelection {
+  mapId: string;
+  type: string;
+  x: number;
+  y: number;
 }
 
 export interface MapSource {

@@ -59,8 +59,51 @@ describe("layoutWorld", () => {
 
   it("puts the tomb below the mansion", () => {
     const layout = layoutWorld(source, 480);
-    expect(layout.poses.tomb.z).toBe(0);
+    expect(layout.poses.tomb.z).toBeLessThan(layout.poses.mansion.z);
     expect(verticalDelta(layout.maps.mansion, layout.maps.tomb)).toBe(-1);
+  });
+
+  it("keeps winter cove on a different layer than winterland", () => {
+    const winterSource: MapSource = {
+      maps: {
+        winterland: emptyMap({
+          name: "Winterland",
+          outside: true,
+          doors: [[0, 0, 16, 16, "winter_cave", 0, 0]],
+          spawns: [
+            [0, 0],
+            [0, 0],
+            [0, 0],
+            [100, 100],
+          ],
+        }),
+        winter_cave: emptyMap({
+          name: "Frozen Cave",
+          doors: [
+            [0, 0, 16, 16, "winterland", 0, 3],
+            [50, 50, 16, 16, "winter_cove", 0, 0],
+          ],
+          spawns: [
+            [0, 0],
+            [50, 50],
+          ],
+        }),
+        winter_cove: emptyMap({
+          name: "Frozen Cove",
+          doors: [[0, 0, 16, 16, "winter_cave", 0, 1]],
+          spawns: [[0, 0]],
+        }),
+      },
+      geometry: {
+        winterland: { min_x: 0, max_x: 100, min_y: 0, max_y: 100, tiles: [], placements: [] },
+        winter_cave: { min_x: 0, max_x: 100, min_y: 0, max_y: 100, tiles: [], placements: [] },
+        winter_cove: { min_x: 0, max_x: 100, min_y: 0, max_y: 100, tiles: [], placements: [] },
+      },
+    };
+    const layout = layoutWorld(winterSource, 480);
+    expect(layout.poses.winterland.z).toBe(0);
+    expect(layout.poses.winter_cove.z).not.toBe(layout.poses.winterland.z);
+    expect(layout.poses.winter_cave.z).not.toBe(layout.poses.winterland.z);
   });
 
   it("marks the mansion link as two-way", () => {

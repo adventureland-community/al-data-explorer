@@ -34,7 +34,7 @@ Most of the tools operate on the data from `https://adventure.land/data.js` and 
 
 - `npm run update`
 
-Then you just run `npm start` to host it locally.
+Then you just run `npm start` to host it locally. Map pixel art loads from `https://adventure.land` at runtime (same URLs as item icons; the browser caches the tilesets).
 
 ## Available Scripts
 

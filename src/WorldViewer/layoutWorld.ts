@@ -1,4 +1,5 @@
-import { bandHeightSign, parseMaps, spawnPoint } from "./parseMaps";
+import { GNpc } from "typed-adventureland";
+import { parseMaps, spawnPoint } from "./parseMaps";
 import { DoorConnection, MapPose, MapSource, ParsedMap, WorldLayout } from "./types";
 
 export const DEFAULT_LAYER_HEIGHT = 480;
@@ -18,15 +19,42 @@ function hasReverseDoor(maps: Record<string, ParsedMap>, fromMap: string, toMap:
 }
 
 export function verticalDelta(from: ParsedMap, to: ParsedMap): number {
-  const fromSign = bandHeightSign(from.band);
-  const toSign = bandHeightSign(to.band);
-  if (toSign !== fromSign) {
-    return Math.sign(toSign - fromSign);
-  }
-  if (to.band === "underground") {
+  if (from.band === "overworld" && to.band === "underground") {
     return -1;
   }
+  if (from.band === "underground" && to.band === "overworld") {
+    return 1;
+  }
+  if (from.band === "overworld" && to.band === "indoor") {
+    return 1;
+  }
+  if (from.band === "indoor" && to.band === "overworld") {
+    return -1;
+  }
+  if (from.band === "indoor" && to.band === "underground") {
+    return -1;
+  }
+  if (from.band === "underground" && to.band === "indoor") {
+    return 1;
+  }
   return 1;
+}
+
+function usedZLevels(poses: Record<string, MapPose>): Set<number> {
+  const used = new Set<number>();
+  for (const pose of Object.values(poses)) {
+    used.add(pose.z);
+  }
+  return used;
+}
+
+function nextLayerZ(fromZ: number, delta: number, layerHeight: number, used: Set<number>): number {
+  const step = delta === 0 ? 1 : Math.sign(delta);
+  let z = fromZ + step * layerHeight;
+  while (used.has(z)) {
+    z += step * layerHeight;
+  }
+  return z;
 }
 
 export function collectConnections(maps: Record<string, ParsedMap>): DoorConnection[] {
@@ -64,6 +92,7 @@ function placeComponent(
 ): void {
   poses[rootId] = { ...origin };
   const queue = [rootId];
+  const usedZ = usedZLevels(poses);
 
   while (queue.length > 0) {
     const fromId = queue.shift();
@@ -83,10 +112,13 @@ function placeComponent(
       if (!toMap) {
         continue;
       }
+      const delta = verticalDelta(fromMap, toMap);
+      const z = nextLayerZ(fromPose.z, delta, layerHeight, usedZ);
+      usedZ.add(z);
       poses[edge.toMap] = {
         x: fromPose.x + edge.fromX - edge.toX,
         y: fromPose.y + edge.fromY - edge.toY,
-        z: fromPose.z + verticalDelta(fromMap, toMap) * layerHeight,
+        z,
       };
       queue.push(edge.toMap);
     }
@@ -114,8 +146,9 @@ export function layoutWorld(
   source: MapSource,
   layerHeight = DEFAULT_LAYER_HEIGHT,
   includeIgnored = false,
+  npcDefs: Record<string, GNpc> = {},
 ): WorldLayout {
-  const maps = parseMaps(source, includeIgnored);
+  const maps = parseMaps(source, includeIgnored, npcDefs);
   const connections = collectConnections(maps);
   const poses: Record<string, MapPose> = {};
 

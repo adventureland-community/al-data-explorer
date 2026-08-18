@@ -1,27 +1,54 @@
 /**
- * Adventure Land HTML proxy for Cloudflare Workers
+ * Adventure Land proxy for Cloudflare Workers
  *
  * Deployed URL: https://al-proxy.thmsn.workers.dev
  *
- * Thin forwarder only: fetches adventure.land HTML and adds CORS for
- * https://aldata.adventureland.community (local npm start still uses /al).
- * Parsing stays in al-data-explorer (useImportPlayer / useImportCharacter).
- *
- * How to deploy (dashboard copy-paste):
- * 1. https://dash.cloudflare.com → Workers & Pages → Create → Create Worker
- * 2. Name it `al-proxy` (account subdomain `thmsn`) and deploy the stub once
- * 3. Edit code → replace everything with this file → Deploy
- * 4. Test (should return HTML, not JSON):
- *    https://al-proxy.thmsn.workers.dev/player/thmsn
- *    https://al-proxy.thmsn.workers.dev/character/MoulinRogue
- *
- * Production hooks call these URLs, then parse locally.
- * Local `npm start` keeps using setupProxy.js `/al/...`.
+ * Proxies adventure.land player/character HTML for gear import on
+ * https://aldata.adventureland.community (local npm start uses /al).
  */
 
-const UPSTREAM = "https://adventure.land";
+const AL_UPSTREAM = "https://adventure.land";
 
-const ALLOWED_ORIGIN = "https://aldata.adventureland.community";
+const ALLOWED_ORIGINS = new Set([
+  "https://aldata.adventureland.community",
+  "http://localhost:3000",
+]);
+
+function corsHeaders(request) {
+  const origin = request.headers.get("Origin");
+  const headers = {
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
+
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+
+  return headers;
+}
+
+function json(data, status = 200, cors = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      ...cors,
+    },
+  });
+}
+
+function text(message, status, cors = {}) {
+  return new Response(message, {
+    status,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      ...cors,
+    },
+  });
+}
 
 export default {
   async fetch(request) {
@@ -50,11 +77,11 @@ export default {
     }
 
     if (!/^\/(player|character)\/[^/]+$/.test(path)) {
-      return text("Not found. Use /player/:name or /character/:name", 404, cors);
+      return text("Not found", 404, cors);
     }
 
     try {
-      const upstream = await fetch(`${UPSTREAM}${path}`, {
+      const upstream = await fetch(`${AL_UPSTREAM}${path}`, {
         headers: {
           Accept: "text/html",
           "User-Agent": "al-data-explorer-proxy/1.0",
@@ -75,39 +102,3 @@ export default {
     }
   },
 };
-
-function corsHeaders(request) {
-  const origin = request.headers.get("Origin");
-  const headers = {
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Max-Age": "86400",
-    Vary: "Origin",
-  };
-
-  if (origin === ALLOWED_ORIGIN) {
-    headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGIN;
-  }
-
-  return headers;
-}
-
-function json(data, status = 200, cors = {}) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      ...cors,
-    },
-  });
-}
-
-function text(message, status, cors = {}) {
-  return new Response(message, {
-    status,
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      ...cors,
-    },
-  });
-}

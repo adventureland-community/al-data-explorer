@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { CSS3DObject } from "three/examples/jsm/renderers/CSS3DRenderer";
+import { GDimension, GImage, GMonster, GSprite } from "typed-adventureland";
 import {
   FLOOR_INDOOR_COLOR,
   FLOOR_OUTSIDE_COLOR,
@@ -8,7 +10,43 @@ import {
   SELECTED_FLOOR_COLOR,
   TWO_WAY_CONNECTION_COLOR,
 } from "./overlayColors";
+import {
+  MapArtBake,
+  createDefaultPatternSvg,
+  setDefaultPatternFrame,
+  tileAnimFrame,
+} from "./renderMapCanvas";
+import { createSpriteElement, lookupSkinSprite } from "./spriteLookup";
 import { MapBand, OverlayKind, OverlayVisibility, ParsedMap, WorldLayout } from "./types";
+
+export interface MapSpriteContext {
+  sprites: Record<string, GSprite>;
+  images: Record<string, GImage>;
+  dimensions: Record<string, GDimension>;
+  monsters: Record<string, GMonster>;
+}
+
+const SPRITE_LIFT = 14;
+const SEE_THROUGH_OVERLAY_OPACITY = 0.38;
+
+/** Default debug overlay opacities (zinals-style). */
+const OVERLAY_FILL_OPACITY: Record<Exclude<OverlayKind, "bounds" | "npcs">, number> = {
+  zones: 0.18,
+  monsters: 0.22,
+  quirks: 0.4,
+  doors: 0.45,
+  spawns: 0.7,
+};
+
+const BOUNDS_LINE_OPACITY = 0.7;
+const CONNECTION_LINE_OPACITY = 0.85;
+
+function markOverlayMesh(mesh: THREE.Object3D, lift: number, baseOpacity: number): void {
+  mesh.userData.isOverlayMesh = true;
+  mesh.userData.overlayLift = lift;
+  mesh.userData.baseOpacity = baseOpacity;
+  mesh.renderOrder = lift;
+}
 
 const LIFT: Record<OverlayKind, number> = {
   bounds: 2,
@@ -49,10 +87,11 @@ function makeRectMesh(
   geometry.rotateX(-Math.PI / 2);
   const material = new THREE.MeshBasicMaterial({
     color,
-    transparent: true,
+    transparent: opacity < 1,
     opacity,
     side: THREE.DoubleSide,
     depthWrite: false,
+    depthTest: true,
   });
   const mesh = new THREE.Mesh(geometry, material);
   const centerY = bottomCentered ? y - height / 2 : y;
@@ -79,10 +118,11 @@ function makePolygonMesh(
   geometry.rotateX(-Math.PI / 2);
   const material = new THREE.MeshBasicMaterial({
     color,
-    transparent: true,
+    transparent: opacity < 1,
     opacity,
     side: THREE.DoubleSide,
     depthWrite: false,
+    depthTest: true,
   });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.y = lift;
@@ -122,32 +162,32 @@ function boundsLines(map: ParsedMap): THREE.LineSegments {
     positions.push(x1, lift, y, x2, lift, y);
   }
   if (positions.length === 0) {
-    const { minX, maxX, minY, maxY } = map;
+    const { artMinX, artMaxX, artMinY, artMaxY } = map;
     positions.push(
-      minX,
+      artMinX,
       lift,
-      minY,
-      maxX,
+      artMinY,
+      artMaxX,
       lift,
-      minY,
-      maxX,
+      artMinY,
+      artMaxX,
       lift,
-      minY,
-      maxX,
+      artMinY,
+      artMaxX,
       lift,
-      maxY,
-      maxX,
+      artMaxY,
+      artMaxX,
       lift,
-      maxY,
-      minX,
+      artMaxY,
+      artMinX,
       lift,
-      maxY,
-      minX,
+      artMaxY,
+      artMinX,
       lift,
-      maxY,
-      minX,
+      artMaxY,
+      artMinX,
       lift,
-      minY,
+      artMinY,
     );
   }
   const geometry = new THREE.BufferGeometry();
@@ -155,15 +195,109 @@ function boundsLines(map: ParsedMap): THREE.LineSegments {
   const material = new THREE.LineBasicMaterial({
     color: overlayColor("bounds"),
     transparent: true,
-    opacity: 0.7,
+    opacity: BOUNDS_LINE_OPACITY,
+    depthWrite: false,
+    depthTest: true,
   });
-  return new THREE.LineSegments(geometry, material);
+  const lines = new THREE.LineSegments(geometry, material);
+  lines.userData.isOverlayLine = true;
+  lines.userData.overlayLift = lift;
+  lines.userData.baseOpacity = BOUNDS_LINE_OPACITY;
+  lines.renderOrder = lift;
+  return lines;
 }
 
 function overlayGroup(kind: OverlayKind): THREE.Group {
   const group = new THREE.Group();
   group.name = `overlay:${kind}`;
   group.userData.overlayKind = kind;
+  return group;
+}
+
+function makePickMesh(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  lift: number,
+  bottomCentered = false,
+): THREE.Mesh {
+  const geometry = new THREE.PlaneGeometry(Math.max(width, 2), Math.max(height, 2));
+  geometry.rotateX(-Math.PI / 2);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  const centerY = bottomCentered ? y - height / 2 : y;
+  mesh.position.set(x, lift, centerY);
+  return mesh;
+}
+
+function tagPick(
+  mesh: THREE.Object3D,
+  kind: string,
+  mapId: string,
+  extra: Record<string, unknown>,
+): void {
+  mesh.userData.pickKind = kind;
+  mesh.userData.mapId = mapId;
+  Object.assign(mesh.userData, extra);
+}
+
+function makeCssSprite(
+  clip: ReturnType<typeof lookupSkinSprite>,
+  x: number,
+  y: number,
+  lift: number,
+  feetAnchored: boolean,
+): CSS3DObject | null {
+  if (!clip) {
+    return null;
+  }
+  const element = createSpriteElement(clip);
+  const sprite = new CSS3DObject(element);
+  sprite.userData.isMapSprite = true;
+  sprite.rotation.x = -Math.PI / 2;
+  const z = feetAnchored ? y - clip.viewHeight / 2 : y;
+  sprite.position.set(x, lift, z);
+  return sprite;
+}
+
+function buildMapSprites(map: ParsedMap, ctx: MapSpriteContext): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "sprites";
+
+  for (const npc of map.npcs) {
+    const clip = lookupSkinSprite(ctx.sprites, ctx.images, ctx.dimensions, npc.skin);
+    const sprite = makeCssSprite(clip, npc.x, npc.y, SPRITE_LIFT, true);
+    if (!sprite) {
+      continue;
+    }
+    sprite.userData.spriteKind = "npc";
+    sprite.userData.npc = npc;
+    sprite.userData.mapId = map.id;
+    group.add(sprite);
+  }
+
+  for (const monster of map.monsters) {
+    const def = ctx.monsters[monster.type as keyof typeof ctx.monsters];
+    const skin = def?.skin || monster.type;
+    const size = def?.size || 1;
+    const clip = lookupSkinSprite(ctx.sprites, ctx.images, ctx.dimensions, skin, size);
+    const sprite = makeCssSprite(clip, monster.x, monster.y, SPRITE_LIFT - 2, false);
+    if (!sprite) {
+      continue;
+    }
+    sprite.userData.spriteKind = "monster";
+    sprite.userData.monsterType = monster.type;
+    sprite.userData.mapId = map.id;
+    group.add(sprite);
+  }
+
   return group;
 }
 
@@ -180,16 +314,28 @@ function buildMapOverlays(map: ParsedMap): THREE.Group[] {
       door.height,
       overlayColor("doors"),
       LIFT.doors,
-      0.45,
+      OVERLAY_FILL_OPACITY.doors,
       true,
     );
     mesh.userData.label = `To ${door.toMap}`;
+    tagPick(mesh, "door", map.id, { door });
+    markOverlayMesh(mesh, LIFT.doors, OVERLAY_FILL_OPACITY.doors);
     doors.add(mesh);
   }
 
   const spawns = overlayGroup("spawns");
   for (const spawn of map.spawns) {
-    spawns.add(makeRectMesh(spawn.x, spawn.y, 14, 14, overlayColor("spawns"), LIFT.spawns, 0.7));
+    const mesh = makeRectMesh(
+      spawn.x,
+      spawn.y,
+      14,
+      14,
+      overlayColor("spawns"),
+      LIFT.spawns,
+      OVERLAY_FILL_OPACITY.spawns,
+    );
+    markOverlayMesh(mesh, LIFT.spawns, OVERLAY_FILL_OPACITY.spawns);
+    spawns.add(mesh);
   }
 
   const quirks = overlayGroup("quirks");
@@ -201,37 +347,46 @@ function buildMapOverlays(map: ParsedMap): THREE.Group[] {
       quirk.height,
       overlayColor("quirks"),
       LIFT.quirks,
-      0.4,
+      OVERLAY_FILL_OPACITY.quirks,
       true,
     );
     mesh.userData.label = quirk.text || quirk.kind;
+    markOverlayMesh(mesh, LIFT.quirks, OVERLAY_FILL_OPACITY.quirks);
     quirks.add(mesh);
   }
 
   const npcs = overlayGroup("npcs");
   for (const npc of map.npcs) {
-    const mesh = makeRectMesh(npc.x, npc.y, 16, 16, overlayColor("npcs"), LIFT.npcs, 0.8);
-    mesh.userData.label = npc.label;
-    npcs.add(mesh);
+    const pick = makePickMesh(npc.x, npc.y, 20, 28, LIFT.npcs, true);
+    pick.userData.label = npc.label;
+    tagPick(pick, "npc", map.id, { npc });
+    npcs.add(pick);
   }
 
   const monsters = overlayGroup("monsters");
   for (const monster of map.monsters) {
     let mesh: THREE.Object3D | null = null;
     if (monster.polygon) {
-      mesh = makePolygonMesh(monster.polygon, overlayColor("monsters"), LIFT.monsters, 0.22);
+      mesh = makePolygonMesh(
+        monster.polygon,
+        overlayColor("monsters"),
+        LIFT.monsters,
+        OVERLAY_FILL_OPACITY.monsters,
+      );
     } else if (monster.radius) {
       const geometry = new THREE.CircleGeometry(monster.radius, 24);
       geometry.rotateX(-Math.PI / 2);
       const material = new THREE.MeshBasicMaterial({
         color: overlayColor("monsters"),
         transparent: true,
-        opacity: 0.22,
+        opacity: OVERLAY_FILL_OPACITY.monsters,
         side: THREE.DoubleSide,
         depthWrite: false,
+        depthTest: true,
       });
       mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(monster.x, LIFT.monsters, monster.y);
+      markOverlayMesh(mesh, LIFT.monsters, OVERLAY_FILL_OPACITY.monsters);
     } else {
       mesh = makeRectMesh(
         monster.x,
@@ -240,20 +395,30 @@ function buildMapOverlays(map: ParsedMap): THREE.Group[] {
         monster.height,
         overlayColor("monsters"),
         LIFT.monsters,
-        0.22,
+        OVERLAY_FILL_OPACITY.monsters,
       );
     }
     if (mesh) {
       mesh.userData.label = monster.type;
+      tagPick(mesh, "monster", map.id, { monsterType: monster.type, monster });
+      if (!mesh.userData.isOverlayMesh) {
+        markOverlayMesh(mesh, LIFT.monsters, OVERLAY_FILL_OPACITY.monsters);
+      }
       monsters.add(mesh);
     }
   }
 
   const zones = overlayGroup("zones");
   for (const zone of map.zones) {
-    const mesh = makePolygonMesh(zone.polygon, overlayColor("zones"), LIFT.zones, 0.18);
+    const mesh = makePolygonMesh(
+      zone.polygon,
+      overlayColor("zones"),
+      LIFT.zones,
+      OVERLAY_FILL_OPACITY.zones,
+    );
     if (mesh) {
       mesh.userData.label = zone.type;
+      markOverlayMesh(mesh, LIFT.zones, OVERLAY_FILL_OPACITY.zones);
       zones.add(mesh);
     }
   }
@@ -261,9 +426,27 @@ function buildMapOverlays(map: ParsedMap): THREE.Group[] {
   return [bounds, doors, spawns, quirks, npcs, monsters, zones];
 }
 
+function makeDepthOccluder(map: ParsedMap): THREE.Mesh {
+  const width = Math.max(map.artMaxX - map.artMinX, 8);
+  const height = Math.max(map.artMaxY - map.artMinY, 8);
+  const geometry = new THREE.PlaneGeometry(width, height);
+  geometry.rotateX(-Math.PI / 2);
+  const material = new THREE.MeshBasicMaterial({
+    colorWrite: false,
+    depthWrite: true,
+    depthTest: true,
+    side: THREE.FrontSide,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set((map.artMinX + map.artMaxX) / 2, -0.5, (map.artMinY + map.artMaxY) / 2);
+  mesh.userData.isDepthOccluder = true;
+  mesh.renderOrder = -2;
+  return mesh;
+}
+
 function makeFloor(map: ParsedMap): THREE.Mesh {
-  const width = Math.max(map.maxX - map.minX, 8);
-  const height = Math.max(map.maxY - map.minY, 8);
+  const width = Math.max(map.artMaxX - map.artMinX, 8);
+  const height = Math.max(map.artMaxY - map.artMinY, 8);
   const geometry = new THREE.PlaneGeometry(width, height);
   geometry.rotateX(-Math.PI / 2);
   const material = new THREE.MeshBasicMaterial({
@@ -274,7 +457,7 @@ function makeFloor(map: ParsedMap): THREE.Mesh {
     depthWrite: false,
   });
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set((map.minX + map.maxX) / 2, 0, (map.minY + map.maxY) / 2);
+  mesh.position.set((map.artMinX + map.artMaxX) / 2, 0, (map.artMinY + map.artMaxY) / 2);
   mesh.userData.mapId = map.id;
   mesh.userData.isFloor = true;
   return mesh;
@@ -287,6 +470,7 @@ export function applyMapPose(group: THREE.Group, pose: { x: number; y: number; z
 export function createMapGroup(
   map: ParsedMap,
   pose: { x: number; y: number; z: number },
+  spriteContext?: MapSpriteContext,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = map.id;
@@ -294,12 +478,17 @@ export function createMapGroup(
   group.userData.band = map.band;
   applyMapPose(group, pose);
 
+  group.add(makeDepthOccluder(map));
   const floor = makeFloor(map);
   group.add(floor);
 
   const overlays = buildMapOverlays(map);
   for (const overlay of overlays) {
     group.add(overlay);
+  }
+
+  if (spriteContext) {
+    group.add(buildMapSprites(map, spriteContext));
   }
 
   const label = makeLabelSprite(`${map.name} (${map.id})`);
@@ -333,7 +522,12 @@ export function createConnectionLines(layout: WorldLayout): THREE.Group {
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.85 });
+    const material = new THREE.LineBasicMaterial({
+      color,
+      transparent: true,
+      opacity: CONNECTION_LINE_OPACITY,
+      depthWrite: false,
+    });
     const lines = new THREE.LineSegments(geometry, material);
     lines.name = name;
     group.add(lines);
@@ -350,6 +544,188 @@ export function setOverlayVisibility(root: THREE.Object3D, visibility: OverlayVi
     if (kind) {
       object.visible = visibility[kind];
     }
+    if (object.userData.isMapSprite) {
+      const spriteKind = object.userData.spriteKind as "npc" | "monster" | undefined;
+      if (spriteKind === "npc") {
+        object.visible = visibility.npcs;
+      } else if (spriteKind === "monster") {
+        object.visible = visibility.monsters;
+      }
+    }
+  });
+}
+
+export function applyOverlayDepthStyle(root: THREE.Object3D, seeThrough: boolean): void {
+  root.traverse((object) => {
+    if (object instanceof THREE.LineSegments && object.userData.isOverlayLine) {
+      const material = object.material as THREE.LineBasicMaterial;
+      const baseOpacity =
+        (object.userData.baseOpacity as number | undefined) ?? BOUNDS_LINE_OPACITY;
+      material.transparent = true;
+      material.opacity = seeThrough ? SEE_THROUGH_OVERLAY_OPACITY : baseOpacity;
+      material.depthWrite = false;
+      material.needsUpdate = true;
+      return;
+    }
+    if (!(object instanceof THREE.Mesh)) {
+      return;
+    }
+    if (object.userData.isDepthOccluder || object.userData.isFloor || object.userData.pickKind) {
+      return;
+    }
+    if (!object.userData.isOverlayMesh) {
+      return;
+    }
+    const material = object.material as THREE.MeshBasicMaterial;
+    const lift = (object.userData.overlayLift as number | undefined) ?? object.position.y;
+    const baseOpacity = (object.userData.baseOpacity as number | undefined) ?? 1;
+    const opacity = seeThrough ? SEE_THROUGH_OVERLAY_OPACITY : baseOpacity;
+    material.transparent = opacity < 1;
+    material.opacity = opacity;
+    material.depthWrite = false;
+    material.depthTest = true;
+    material.side = THREE.DoubleSide;
+    object.renderOrder = lift;
+    material.needsUpdate = true;
+  });
+}
+
+export function setMonsterTypeVisibility(root: THREE.Object3D, hiddenTypes: Set<string>): void {
+  root.traverse((object) => {
+    const monsterType = object.userData.monsterType as string | undefined;
+    if (!monsterType) {
+      return;
+    }
+    const overlayVisible = object.parent?.visible !== false;
+    object.visible = overlayVisible && !hiddenTypes.has(monsterType);
+  });
+}
+
+function styleLayer(element: HTMLElement, width: number, height: number): void {
+  element.style.position = "absolute";
+  element.style.left = "0";
+  element.style.top = "0";
+  element.style.width = `${width}px`;
+  element.style.height = `${height}px`;
+  element.style.pointerEvents = "none";
+  if (element instanceof HTMLCanvasElement) {
+    element.style.imageRendering = "pixelated";
+    element.style.display = "block";
+  }
+}
+
+function mapArtOf(floor: THREE.Object3D): CSS3DObject | undefined {
+  const found = floor.children.find((child) => child.userData.isMapArt);
+  return found instanceof CSS3DObject ? found : undefined;
+}
+
+function makeMapArt(
+  floor: THREE.Mesh,
+  mapId: string,
+  bake: MapArtBake,
+  elapsedMs: number,
+): CSS3DObject {
+  const geometry = floor.geometry as THREE.PlaneGeometry;
+  const { width, height } = geometry.parameters;
+  const wrap = document.createElement("div");
+  wrap.style.position = "relative";
+  wrap.style.width = `${width}px`;
+  wrap.style.height = `${height}px`;
+  wrap.style.pointerEvents = "none";
+
+  if (bake.animatedDefault) {
+    const svg = createDefaultPatternSvg(mapId, bake.animatedDefault, width, height);
+    const defaultFrame = tileAnimFrame(bake.animatedDefault.def, elapsedMs, { kind: "water" });
+    setDefaultPatternFrame(svg, bake.animatedDefault.def, defaultFrame);
+    wrap.appendChild(svg);
+  }
+
+  styleLayer(bake.staticCanvas, width, height);
+  wrap.appendChild(bake.staticCanvas);
+
+  if (bake.overlay) {
+    styleLayer(bake.overlay, width, height);
+    wrap.appendChild(bake.overlay);
+    bake.paintOverlay?.(elapsedMs);
+  }
+
+  const art = new CSS3DObject(wrap);
+  art.userData.isMapArt = true;
+  art.userData.mapArt = bake;
+  art.userData.lastDefaultFrame = bake.animatedDefault
+    ? tileAnimFrame(bake.animatedDefault.def, elapsedMs, { kind: "water" })
+    : -1;
+  // Match floor plane (XZ): canvas Y-down maps to +Z, same as geometry coords.
+  art.rotation.x = -Math.PI / 2;
+  art.position.set(0, 0.02, 0);
+  return art;
+}
+
+/**
+ * Official tileset images have no CORS headers, so they cannot become WebGL
+ * textures. Baked canvases are shown with CSS3D instead (display-only is allowed).
+ */
+export function applyFloorCanvases(
+  root: THREE.Object3D,
+  artByMap: Record<string, MapArtBake>,
+  enabled: boolean,
+  elapsedMs: number,
+): void {
+  root.traverse((object) => {
+    if (!object.userData.isFloor || !(object instanceof THREE.Mesh)) {
+      return;
+    }
+    const { parent } = object;
+    if (!parent) {
+      return;
+    }
+    const material = object.material as THREE.MeshBasicMaterial;
+    const mapId = object.userData.mapId as string | undefined;
+    const bake = mapId && enabled ? artByMap[mapId] : undefined;
+    let art = mapArtOf(object);
+
+    if (bake) {
+      if (!art) {
+        art = makeMapArt(object, mapId || "map", bake, elapsedMs);
+        object.add(art);
+      } else if (art.userData.mapArt !== bake) {
+        object.remove(art);
+        art = makeMapArt(object, mapId || "map", bake, elapsedMs);
+        object.add(art);
+      }
+      art.visible = true;
+      material.opacity = 0;
+      material.needsUpdate = true;
+      return;
+    }
+
+    if (art) {
+      art.visible = false;
+    }
+    material.needsUpdate = true;
+  });
+}
+
+export function applyMapAnimation(root: THREE.Object3D, elapsedMs: number): void {
+  root.traverse((object) => {
+    if (!object.userData.isMapArt || !(object instanceof CSS3DObject)) {
+      return;
+    }
+    const bake = object.userData.mapArt as MapArtBake | undefined;
+    if (!bake?.needsAnimation) {
+      return;
+    }
+    if (bake.animatedDefault) {
+      const frame = tileAnimFrame(bake.animatedDefault.def, elapsedMs, { kind: "water" });
+      if (object.userData.lastDefaultFrame !== frame) {
+        object.userData.lastDefaultFrame = frame;
+        const svg = object.element.querySelector("svg");
+        if (svg) {
+          setDefaultPatternFrame(svg, bake.animatedDefault.def, frame);
+        }
+      }
+    }
+    bake.paintOverlay?.(elapsedMs);
   });
 }
 
@@ -361,6 +737,15 @@ export function setSelectedMap(root: THREE.Object3D, mapId: string | null): void
     const material = object.material as THREE.MeshBasicMaterial;
     const map = object.parent?.userData.mapId as string | undefined;
     const parsedBand = object.parent?.userData.band as MapBand | undefined;
+    const art = mapArtOf(object);
+    const hasArt = Boolean(art?.visible);
+    if (art?.element) {
+      art.element.style.filter = map === mapId ? "brightness(1.18)" : "none";
+    }
+    if (hasArt) {
+      material.opacity = 0;
+      return;
+    }
     if (map === mapId) {
       material.color.setHex(SELECTED_FLOOR_COLOR);
       material.opacity = 0.75;
@@ -374,6 +759,9 @@ export function setSelectedMap(root: THREE.Object3D, mapId: string | null): void
 
 export function disposeObject(object: THREE.Object3D): void {
   object.traverse((child) => {
+    if (child.userData.isMapArt && child instanceof CSS3DObject) {
+      child.element.remove();
+    }
     const texture = child.userData.disposeTexture as THREE.Texture | undefined;
     if (texture) {
       texture.dispose();
@@ -387,12 +775,16 @@ export function disposeObject(object: THREE.Object3D): void {
         child.geometry.dispose();
       }
       const { material } = child;
-      if (Array.isArray(material)) {
-        for (const item of material) {
-          item.dispose();
+      const materials = Array.isArray(material) ? material : material ? [material] : [];
+      for (const item of materials) {
+        const mapped = (item as THREE.MeshBasicMaterial).map;
+        if (mapped && !mapped.userData.keep) {
+          mapped.dispose();
         }
-      } else if (material) {
-        material.dispose();
+        if (mapped && mapped.userData.keep) {
+          (item as THREE.MeshBasicMaterial).map = null;
+        }
+        item.dispose();
       }
     }
   });

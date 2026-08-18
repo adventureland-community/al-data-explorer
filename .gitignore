@@ -11,6 +11,9 @@
 # production
 /build
 
+# leftover local tileset cache (not used; maps load from adventure.land)
+/public/images
+
 # misc
 .DS_Store
 .env.local
