@@ -5,6 +5,7 @@ import {
   mapArtRect,
   resolveDoorLockedSlabOverflow,
   resolveSlabOverlaps,
+  resolveWorldSlabs,
   separationPush,
 } from "./rectLayout";
 
@@ -94,5 +95,15 @@ describe("rectLayout", () => {
     resolveDoorLockedSlabOverflow(maps, poses, new Set(["forest", "town"]));
     expect(poses.forest.z).toBe(0);
     expect(poses.town.z).toBe(0);
+  });
+
+  it("reports whether a slab pass moved maps", () => {
+    const maps = { a: stubMap("a", 400, 400), b: stubMap("b", 400, 400) };
+    const overlapping = {
+      a: { x: 0, y: 0, z: 0 },
+      b: { x: 50, y: 0, z: 0 },
+    };
+    expect(resolveWorldSlabs(maps, overlapping, new Set(["a"]))).toBe(true);
+    expect(resolveWorldSlabs(maps, overlapping, new Set(["a"]))).toBe(false);
   });
 });

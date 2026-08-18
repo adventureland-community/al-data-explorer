@@ -174,8 +174,9 @@ export function realignDoorLocked(
   poses: Record<string, MapPose>,
   stackPinAnchors: Map<string, StackPinAnchor>,
   layerHeight: number,
-): void {
+): boolean {
   const maxPasses = stackPinAnchors.size + 2;
+  let anyMoved = false;
   for (let pass = 0; pass < maxPasses; pass += 1) {
     let moved = false;
     for (const [mapId, port] of stackPinAnchors) {
@@ -190,10 +191,12 @@ export function realignDoorLocked(
       if (current.x !== aligned.x || current.y !== aligned.y || current.z !== aligned.z) {
         poses[mapId] = aligned;
         moved = true;
+        anyMoved = true;
       }
     }
     if (!moved) {
       break;
     }
   }
+  return anyMoved;
 }

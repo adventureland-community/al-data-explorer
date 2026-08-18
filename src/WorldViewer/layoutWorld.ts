@@ -216,8 +216,17 @@ function runSlabRealignPasses(
   passes: number,
 ): void {
   for (let pass = 0; pass < passes; pass += 1) {
-    resolveWorldSlabs(maps, poses, slabImmovable, DEFAULT_SLAB_GAP, portalGroups);
-    realignDoorLocked(maps, poses, stackPinAnchors, layerHeight);
+    const slabsMoved = resolveWorldSlabs(
+      maps,
+      poses,
+      slabImmovable,
+      DEFAULT_SLAB_GAP,
+      portalGroups,
+    );
+    const pinsMoved = realignDoorLocked(maps, poses, stackPinAnchors, layerHeight);
+    if (!slabsMoved && !pinsMoved) {
+      break;
+    }
   }
 }
 

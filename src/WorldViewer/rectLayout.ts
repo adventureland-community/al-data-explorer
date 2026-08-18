@@ -269,7 +269,7 @@ export function resolveWorldSlabs(
   immovable: Set<string>,
   gap = DEFAULT_SLAB_GAP,
   portalGroups?: PortalRigidGroups,
-): void {
+): boolean {
   const byZ = new Map<number, string[]>();
   for (const [id, pose] of Object.entries(poses)) {
     if (!maps[id]) {
@@ -279,12 +279,14 @@ export function resolveWorldSlabs(
     list.push(id);
     byZ.set(pose.z, list);
   }
+  let moved = false;
   for (const ids of byZ.values()) {
     if (ids.length < 2) {
       continue;
     }
-    resolveSlabOverlaps(maps, poses, ids, immovable, gap, 128, portalGroups);
+    moved = resolveSlabOverlaps(maps, poses, ids, immovable, gap, 128, portalGroups) || moved;
   }
+  return moved;
 }
 
 export function countSameSlabOverlaps(
