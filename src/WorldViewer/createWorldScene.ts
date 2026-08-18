@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CSS3DObject } from "three/examples/jsm/renderers/CSS3DRenderer";
+import { CSS3DObject, CSS3DSprite } from "three/examples/jsm/renderers/CSS3DRenderer";
 import { GDimension, GImage, GMonster, GSprite } from "typed-adventureland";
 import {
   FLOOR_INDOOR_COLOR,
@@ -28,6 +28,7 @@ export interface MapSpriteContext {
 
 const SPRITE_LIFT = 14;
 const SEE_THROUGH_OVERLAY_OPACITY = 0.38;
+const _spriteWorldPos = new THREE.Vector3();
 
 /** Default debug overlay opacities (zinals-style). */
 const OVERLAY_FILL_OPACITY: Record<Exclude<OverlayKind, "bounds" | "npcs">, number> = {
@@ -253,17 +254,21 @@ function makeCssSprite(
   x: number,
   y: number,
   lift: number,
-  feetAnchored: boolean,
-): CSS3DObject | null {
+): CSS3DSprite | null {
   if (!clip) {
     return null;
   }
   const element = createSpriteElement(clip);
-  const sprite = new CSS3DObject(element);
+  const sprite = new CSS3DSprite(element);
   sprite.userData.isMapSprite = true;
-  sprite.rotation.x = -Math.PI / 2;
-  const z = feetAnchored ? y - clip.viewHeight / 2 : y;
-  sprite.position.set(x, lift, z);
+  // Center sits above the floor so sprite feet rest on the map plane at `lift`.
+  sprite.position.set(x, lift + clip.viewHeight / 2, y);
+  sprite.onBeforeRender = (_renderer, _scene, camera) => {
+    sprite.getWorldPosition(_spriteWorldPos);
+    const layerKey = Math.round(_spriteWorldPos.y * 100);
+    const depthKey = Math.round(_spriteWorldPos.distanceTo(camera.position) * 10);
+    sprite.element.style.zIndex = String(layerKey * 100_000 - depthKey);
+  };
   return sprite;
 }
 
@@ -273,7 +278,7 @@ function buildMapSprites(map: ParsedMap, ctx: MapSpriteContext): THREE.Group {
 
   for (const npc of map.npcs) {
     const clip = lookupSkinSprite(ctx.sprites, ctx.images, ctx.dimensions, npc.skin);
-    const sprite = makeCssSprite(clip, npc.x, npc.y, SPRITE_LIFT, true);
+    const sprite = makeCssSprite(clip, npc.x, npc.y, SPRITE_LIFT);
     if (!sprite) {
       continue;
     }
@@ -288,7 +293,7 @@ function buildMapSprites(map: ParsedMap, ctx: MapSpriteContext): THREE.Group {
     const skin = def?.skin || monster.type;
     const size = def?.size || 1;
     const clip = lookupSkinSprite(ctx.sprites, ctx.images, ctx.dimensions, skin, size);
-    const sprite = makeCssSprite(clip, monster.x, monster.y, SPRITE_LIFT - 2, false);
+    const sprite = makeCssSprite(clip, monster.x, monster.y, SPRITE_LIFT);
     if (!sprite) {
       continue;
     }
@@ -488,7 +493,9 @@ export function createMapGroup(
   }
 
   if (spriteContext) {
-    group.add(buildMapSprites(map, spriteContext));
+    const sprites = buildMapSprites(map, spriteContext);
+    sprites.renderOrder = 20;
+    group.add(sprites);
   }
 
   const label = makeLabelSprite(`${map.name} (${map.id})`);
@@ -507,11 +514,17 @@ export function createConnectionLines(layout: WorldLayout): THREE.Group {
   for (const connection of layout.connections) {
     const fromPose = layout.poses[connection.fromMap];
     const toPose = layout.poses[connection.toMap];
-    if (!fromPose || !toPose) {
+    const toMap = layout.maps[connection.toMap];
+    if (!fromPose || !toPose || !toMap) {
       continue;
     }
+    const reverseDoor = toMap.doors.find((door) => door.toMap === connection.fromMap);
+    const { x: toX = connection.toX, y: toY = connection.toY } = reverseDoor || {
+      x: connection.toX,
+      y: connection.toY,
+    };
     const from = [fromPose.x + connection.fromX, fromPose.z + 16, fromPose.y + connection.fromY];
-    const to = [toPose.x + connection.toX, toPose.z + 16, toPose.y + connection.toY];
+    const to = [toPose.x + toX, toPose.z + 16, toPose.y + toY];
     const target = connection.twoWay ? twoWay : oneWay;
     target.push(from[0], from[1], from[2], to[0], to[1], to[2]);
   }
@@ -760,6 +773,9 @@ export function setSelectedMap(root: THREE.Object3D, mapId: string | null): void
 export function disposeObject(object: THREE.Object3D): void {
   object.traverse((child) => {
     if (child.userData.isMapArt && child instanceof CSS3DObject) {
+      child.element.remove();
+    }
+    if (child.userData.isMapSprite && child instanceof CSS3DObject) {
       child.element.remove();
     }
     const texture = child.userData.disposeTexture as THREE.Texture | undefined;
