@@ -1,15 +1,14 @@
 import { PortalRigidGroups } from "./doorLayout";
+import { placeGroupShortestDoorClearance } from "./doorPlacement";
 import { isPortalOverworldPair } from "./layoutGraph";
+import { componentArtBounds, shiftMapPoses, ComponentArtBounds } from "./layoutBounds";
 import { mapCenterWorld } from "./worldCameraBounds";
 import { DEFAULT_SLAB_GAP, mapArtRect, minCardinalClearance } from "./rectLayout";
+import { pickShortestOption } from "./doorGeometry";
 import { DoorConnection, MapPose, ParsedMap } from "./types";
 
-export interface ComponentArtBounds {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-}
+export type { ComponentArtBounds };
+export { componentArtBounds, shiftMapPoses } from "./layoutBounds";
 
 export interface PackShelf {
   cursorX: number;
@@ -19,49 +18,6 @@ export interface PackShelf {
 
 export const COMPONENT_PACK_GAP = 2800;
 export const COMPONENT_ROW_WIDTH = 42000;
-
-export function componentArtBounds(
-  maps: Record<string, ParsedMap>,
-  poses: Record<string, MapPose>,
-  ids: string[],
-): ComponentArtBounds {
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
-  for (const id of ids) {
-    const map = maps[id];
-    const pose = poses[id];
-    if (!map || !pose) {
-      continue;
-    }
-    const rect = mapArtRect(map, pose);
-    minX = Math.min(minX, rect.minX);
-    maxX = Math.max(maxX, rect.maxX);
-    minY = Math.min(minY, rect.minY);
-    maxY = Math.max(maxY, rect.maxY);
-  }
-  if (!Number.isFinite(minX)) {
-    return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
-  }
-  return { minX, maxX, minY, maxY };
-}
-
-export function shiftMapPoses(
-  poses: Record<string, MapPose>,
-  ids: string[],
-  dx: number,
-  dy: number,
-): void {
-  for (const id of ids) {
-    const pose = poses[id];
-    if (!pose) {
-      continue;
-    }
-    pose.x += dx;
-    pose.y += dy;
-  }
-}
 
 /** Place the next disconnected component on a 2D shelf (rows that wrap). */
 export function packComponentOnShelf(
@@ -133,40 +89,6 @@ export function mainPortalAnchorIds(
     }
   }
   return anchors;
-}
-
-function doorWorld(
-  mapId: string,
-  edge: DoorConnection,
-  poses: Record<string, MapPose>,
-): { x: number; y: number } | null {
-  const pose = poses[mapId];
-  if (!pose) {
-    return null;
-  }
-  if (edge.fromMap === mapId) {
-    return { x: pose.x + edge.fromX, y: pose.y + edge.fromY };
-  }
-  if (edge.toMap === mapId) {
-    return { x: pose.x + edge.toX, y: pose.y + edge.toY };
-  }
-  return null;
-}
-
-function doorLinkedPose(anchorPose: MapPose, edge: DoorConnection, childId: string): MapPose {
-  const forward = edge.fromMap !== childId;
-  return {
-    x: forward ? anchorPose.x + edge.fromX - edge.toX : anchorPose.x - edge.fromX + edge.toX,
-    y: forward ? anchorPose.y + edge.fromY - edge.toY : anchorPose.y - edge.fromY + edge.toY,
-    z: anchorPose.z,
-  };
-}
-
-function pickShortestSeparation<T extends { dx: number; dy: number }>(
-  options: T[],
-  score: (option: T) => number,
-): T {
-  return options.reduce((best, option) => (score(option) < score(best) ? option : best));
 }
 
 function connectionDegree(connections: DoorConnection[]): Map<string, number> {
@@ -366,23 +288,6 @@ function findMainPortalEdge(
   return null;
 }
 
-function virtualShiftedPoses(
-  poses: Record<string, MapPose>,
-  ids: string[],
-  dx: number,
-  dy: number,
-): Record<string, MapPose> {
-  const next: Record<string, MapPose> = { ...poses };
-  for (const id of ids) {
-    const pose = poses[id];
-    if (!pose) {
-      continue;
-    }
-    next[id] = { x: pose.x + dx, y: pose.y + dy, z: pose.z };
-  }
-  return next;
-}
-
 /** Move a main-adjacent portal group off the hub with the shortest straight door link. */
 export function separateMainPortalGroups(
   maps: Record<string, ParsedMap>,
@@ -409,7 +314,7 @@ export function separateMainPortalGroups(
     if (!mainLink) {
       const groupRect = componentArtBounds(maps, poses, groupIds);
       const options = minCardinalClearance(mainRect, groupRect, gap);
-      const offset = pickShortestSeparation(options, (option) => Math.hypot(option.dx, option.dy));
+      const offset = pickShortestOption(options, (option) => Math.hypot(option.dx, option.dy));
       if (offset.dx !== 0 || offset.dy !== 0) {
         shiftMapPoses(poses, groupIds, offset.dx, offset.dy);
       }
@@ -417,32 +322,19 @@ export function separateMainPortalGroups(
     }
 
     const { edge, neighborId } = mainLink;
-    const neighborPose = poses[neighborId];
-    if (!neighborPose) {
-      continue;
-    }
-
-    const alignedNeighbor = doorLinkedPose(mainPose, edge, neighborId);
-    const alignDx = alignedNeighbor.x - neighborPose.x;
-    const alignDy = alignedNeighbor.y - neighborPose.y;
-    const alignedPoses = virtualShiftedPoses(poses, groupIds, alignDx, alignDy);
-    const groupRect = componentArtBounds(maps, alignedPoses, groupIds);
-    const options = minCardinalClearance(mainRect, groupRect, gap);
-    const doorMain = doorWorld("main", edge, alignedPoses);
-    if (!doorMain) {
-      continue;
-    }
-
-    const best = pickShortestSeparation(options, (option) => {
-      const candidatePoses = virtualShiftedPoses(alignedPoses, groupIds, option.dx, option.dy);
-      const doorNeighbor = doorWorld(neighborId, edge, candidatePoses);
-      if (!doorNeighbor) {
-        return Infinity;
-      }
-      return Math.hypot(doorNeighbor.x - doorMain.x, doorNeighbor.y - doorMain.y);
+    placeGroupShortestDoorClearance(maps, poses, {
+      anchorMapId: "main",
+      groupIds,
+      linkedMapId: neighborId,
+      edge,
+      fixedRect: mainRect,
+      gap,
+      anchorDoorMapId: "main",
+      groupDoorAt: (linkedPose) =>
+        edge.fromMap === neighborId
+          ? { x: linkedPose.x + edge.fromX, y: linkedPose.y + edge.fromY }
+          : { x: linkedPose.x + edge.toX, y: linkedPose.y + edge.toY },
     });
-
-    shiftMapPoses(poses, groupIds, alignDx + best.dx, alignDy + best.dy);
   }
 }
 
@@ -493,32 +385,22 @@ export function resolvePortalPairLayout(
       continue;
     }
 
-    const basePose = doorLinkedPose(anchorPose, edge, childId);
-    const anchorRect = mapArtRect(fromMap, anchorPose);
-    const childRectAtBase = mapArtRect(toMap, basePose);
-    const doorAnchor = doorWorld(anchorId, edge, { ...poses, [childId]: basePose });
-    if (!doorAnchor) {
-      continue;
-    }
-
-    const options = minCardinalClearance(anchorRect, childRectAtBase, gap);
-    const best = pickShortestSeparation(options, (option) => {
-      const candidatePose: MapPose = {
-        x: basePose.x + option.dx,
-        y: basePose.y + option.dy,
-        z: basePose.z,
-      };
-      const doorChild = {
-        x: candidatePose.x + edge.toX,
-        y: candidatePose.y + edge.toY,
-      };
-      return Math.hypot(doorChild.x - doorAnchor.x, doorChild.y - doorAnchor.y);
+    const childZ = poses[childId]?.z ?? anchorPose.z;
+    placeGroupShortestDoorClearance(maps, poses, {
+      anchorMapId: anchorId,
+      groupIds: [childId],
+      linkedMapId: childId,
+      edge,
+      fixedRect: mapArtRect(fromMap, anchorPose),
+      gap,
+      anchorDoorMapId: anchorId,
+      groupDoorAt: (linkedPose) => ({
+        x: linkedPose.x + edge.toX,
+        y: linkedPose.y + edge.toY,
+      }),
     });
-
-    poses[childId] = {
-      x: basePose.x + best.dx,
-      y: basePose.y + best.dy,
-      z: basePose.z,
-    };
+    if (poses[childId]) {
+      poses[childId].z = childZ;
+    }
   }
 }

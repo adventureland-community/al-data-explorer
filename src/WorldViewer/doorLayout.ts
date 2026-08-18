@@ -1,10 +1,4 @@
-import {
-  isDoorLayoutPin,
-  isDoorStackPin,
-  isPortalDoorAlign,
-  isPortalOverworldPair,
-  pickLayerZ,
-} from "./layoutGraph";
+import { isDoorStackPin, isPortalOverworldPair, pickLayerZ } from "./layoutGraph";
 import { DoorConnection, MapPose, ParsedMap } from "./types";
 
 export interface PortalRigidGroups {
@@ -32,7 +26,6 @@ export function buildSlabImmovable(
 export function buildPortalRigidGroups(
   maps: Record<string, ParsedMap>,
   connections: DoorConnection[],
-  doorAligned: Set<string>,
 ): PortalRigidGroups {
   const parent = new Map<string, string>();
   const find = (id: string): string => {
@@ -66,10 +59,7 @@ export function buildPortalRigidGroups(
     if (edge.fromMap === "main" || edge.toMap === "main") {
       continue;
     }
-    if (!isPortalDoorAlign(fromMap, toMap)) {
-      continue;
-    }
-    if (!doorAligned.has(edge.fromMap) && !doorAligned.has(edge.toMap)) {
+    if (!isPortalOverworldPair(fromMap, toMap)) {
       continue;
     }
     union(edge.fromMap, edge.toMap);
@@ -115,7 +105,7 @@ export function doorAlignedPose(
   if (!anchorPose || !parentMap || !childMap) {
     return null;
   }
-  if (!isDoorLayoutPin(parentMap, childMap)) {
+  if (!isDoorStackPin(parentMap, childMap, edge.twoWay)) {
     return null;
   }
   const forward = edge.fromMap === anchorId && edge.toMap === mapId;
@@ -144,19 +134,7 @@ function findPortAnchor(
     }
     const parentMap = maps[anchorId];
     const childMap = maps[mapId];
-    if (!parentMap || !childMap || !isDoorLayoutPin(parentMap, childMap)) {
-      continue;
-    }
-    // Overworld portal hops off the hub keep door XY only within the rigid group.
-    // Re-snapping them to main after slab separation would ignore map sizes.
-    if (anchorId === "main" && isPortalDoorAlign(parentMap, childMap)) {
-      continue;
-    }
-    if (isPortalOverworldPair(parentMap, childMap)) {
-      continue;
-    }
-    // Indoor/underground doors must not snap an overworld map back onto the hub slab.
-    if (childMap.band === "overworld" && parentMap.band !== "overworld") {
+    if (!parentMap || !childMap || !isDoorStackPin(parentMap, childMap, edge.twoWay)) {
       continue;
     }
     const expectedZ = pickLayerZ(parentMap, childMap, poses[anchorId], layerHeight);

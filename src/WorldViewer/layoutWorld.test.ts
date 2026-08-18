@@ -1,4 +1,6 @@
-import { GMap } from "typed-adventureland";
+import { readFileSync } from "fs";
+import { join } from "path";
+import { GMap, GNpc } from "typed-adventureland";
 import { analyzeWorldLayout } from "./layoutAnalysis";
 import { layoutWorld, pickComponentRoot, verticalDelta } from "./layoutWorld";
 import { countSameSlabOverlaps, mapArtRect, rectsOverlap } from "./rectLayout";
@@ -498,5 +500,28 @@ describe("layoutWorld", () => {
       (connection) => connection.fromMap === "main" && connection.toMap === "mansion",
     );
     expect(link?.twoWay).toBe(true);
+  });
+
+  it("keeps overworld maps separated on the production map set", () => {
+    const dataPath = join(process.cwd(), "public/data.json");
+    const gameData = JSON.parse(readFileSync(dataPath, "utf8")) as MapSource & {
+      npcs?: Record<string, unknown>;
+    };
+    const layout = layoutWorld(
+      { maps: gameData.maps, geometry: gameData.geometry },
+      480,
+      false,
+      (gameData.npcs ?? {}) as Record<string, GNpc>,
+    );
+    const overworldIds = Object.keys(layout.maps).filter(
+      (id) => layout.maps[id].band === "overworld",
+    );
+    const overworldMaps = Object.fromEntries(
+      overworldIds.map((id) => [id, layout.maps[id]]),
+    );
+    const overworldPoses = Object.fromEntries(
+      overworldIds.map((id) => [id, layout.poses[id]]),
+    );
+    expect(countSameSlabOverlaps(overworldMaps, overworldPoses, 240)).toBe(0);
   });
 });

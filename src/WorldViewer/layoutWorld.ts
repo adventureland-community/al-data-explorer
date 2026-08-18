@@ -5,7 +5,7 @@ import {
   buildSlabImmovable,
   realignDoorLocked,
 } from "./doorLayout";
-import { bandLayerZ, isDoorLayoutPin, pickComponentRoot, pickLayerZ } from "./layoutGraph";
+import { bandLayerZ, isDoorStackPin, pickComponentRoot, pickLayerZ } from "./layoutGraph";
 import {
   COMPONENT_PACK_GAP,
   componentArtBounds,
@@ -116,7 +116,7 @@ function placeFromEdge(
     : fromPose.y - edge.fromY + edge.toY;
   const z = pickLayerZ(fromMap, toMap, fromPose, layerHeight);
   poses[toId] = { x: desiredX, y: desiredY, z };
-  if (isDoorLayoutPin(fromMap, toMap, edge.twoWay)) {
+  if (isDoorStackPin(fromMap, toMap, edge.twoWay)) {
     doorAligned.add(toId);
   }
 }
@@ -202,6 +202,48 @@ function sortComponents(components: string[][]): string[][] {
   });
 }
 
+function runSlabRealignPasses(
+  maps: Record<string, ParsedMap>,
+  poses: Record<string, MapPose>,
+  connections: DoorConnection[],
+  doorLocked: Set<string>,
+  slabImmovable: Set<string>,
+  portalGroups: ReturnType<typeof buildPortalRigidGroups>,
+  layerHeight: number,
+  passes: number,
+): void {
+  for (let pass = 0; pass < passes; pass += 1) {
+    resolveWorldSlabs(maps, poses, slabImmovable, DEFAULT_SLAB_GAP, portalGroups);
+    realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
+  }
+}
+
+function applyDoorLinkedPlacements(
+  maps: Record<string, ParsedMap>,
+  poses: Record<string, MapPose>,
+  connections: DoorConnection[],
+  portalGroups: ReturnType<typeof buildPortalRigidGroups>,
+): void {
+  resolvePortalPairLayout(maps, poses, connections, portalGroups, DEFAULT_SLAB_GAP);
+  separateMainPortalGroups(maps, poses, connections, portalGroups, DEFAULT_SLAB_GAP);
+  resolveOneWayExitLayout(maps, poses, connections, DEFAULT_SLAB_GAP);
+}
+
+function finalizeOverworldSlab(
+  maps: Record<string, ParsedMap>,
+  poses: Record<string, MapPose>,
+  connections: DoorConnection[],
+  doorLocked: Set<string>,
+  slabImmovable: Set<string>,
+  portalGroups: ReturnType<typeof buildPortalRigidGroups>,
+  layerHeight: number,
+): void {
+  const overworldAnchors = mainPortalAnchorIds(maps, connections, portalGroups);
+  const overworldImmovable = new Set([...slabImmovable, ...overworldAnchors]);
+  resolveWorldSlabs(maps, poses, overworldImmovable, DEFAULT_SLAB_GAP, portalGroups);
+  realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
+}
+
 export function layoutWorld(
   source: MapSource,
   layerHeight = DEFAULT_LAYER_HEIGHT,
@@ -249,17 +291,29 @@ export function layoutWorld(
 
   const doorLocked = buildDoorLockedSet(doorAligned);
   const slabImmovable = buildSlabImmovable(maps, connections);
-  const portalGroups = buildPortalRigidGroups(maps, connections, doorAligned);
+  const portalGroups = buildPortalRigidGroups(maps, connections);
   realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
-  for (let pass = 0; pass < 6; pass += 1) {
-    resolveWorldSlabs(maps, poses, slabImmovable, DEFAULT_SLAB_GAP, portalGroups);
-    realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
-  }
+  runSlabRealignPasses(
+    maps,
+    poses,
+    connections,
+    doorLocked,
+    slabImmovable,
+    portalGroups,
+    layerHeight,
+    6,
+  );
   spreadOverworldSatellites(maps, poses, connections, portalGroups, DEFAULT_SLAB_GAP);
-  for (let pass = 0; pass < 3; pass += 1) {
-    resolveWorldSlabs(maps, poses, slabImmovable, DEFAULT_SLAB_GAP, portalGroups);
-    realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
-  }
+  runSlabRealignPasses(
+    maps,
+    poses,
+    connections,
+    doorLocked,
+    slabImmovable,
+    portalGroups,
+    layerHeight,
+    3,
+  );
   resolveDoorLockedSlabOverflow(
     maps,
     poses,
@@ -269,14 +323,17 @@ export function layoutWorld(
     DEFAULT_SLAB_GAP,
     portalGroups,
   );
-  resolvePortalPairLayout(maps, poses, connections, portalGroups, DEFAULT_SLAB_GAP);
-  separateMainPortalGroups(maps, poses, connections, portalGroups, DEFAULT_SLAB_GAP);
-  resolveOneWayExitLayout(maps, poses, connections, DEFAULT_SLAB_GAP);
+  applyDoorLinkedPlacements(maps, poses, connections, portalGroups);
   spreadIsolatedOverworldMaps(maps, poses, connections, portalGroups, DEFAULT_SLAB_GAP);
-  const overworldAnchors = mainPortalAnchorIds(maps, connections, portalGroups);
-  const overworldImmovable = new Set([...slabImmovable, ...overworldAnchors]);
-  resolveWorldSlabs(maps, poses, overworldImmovable, DEFAULT_SLAB_GAP, portalGroups);
-  realignDoorLocked(maps, poses, connections, doorLocked, layerHeight);
+  finalizeOverworldSlab(
+    maps,
+    poses,
+    connections,
+    doorLocked,
+    slabImmovable,
+    portalGroups,
+    layerHeight,
+  );
 
   return { maps, poses, connections };
 }
