@@ -70,6 +70,7 @@ interface WorldTopBarProps {
   oneWayCount: number;
   loadingLabel: string | null;
   loadProgress: number;
+  errorLabel: string | null;
 }
 
 export function WorldTopBar({
@@ -84,6 +85,7 @@ export function WorldTopBar({
   oneWayCount,
   loadingLabel,
   loadProgress,
+  errorLabel,
 }: WorldTopBarProps) {
   const selected = mapChoices.find((choice) => choice.id === selectedMap) || null;
   return (
@@ -127,6 +129,11 @@ export function WorldTopBar({
       <Typography variant="caption" sx={{ opacity: 0.8, marginLeft: "auto" }}>
         {mapCount} maps · v{dataVersion} · {twoWayCount} two-way · {oneWayCount} one-way
       </Typography>
+      {errorLabel && (
+        <Typography variant="caption" color="error" sx={{ width: "100%" }}>
+          {errorLabel}
+        </Typography>
+      )}
       {loadingLabel && (
         <Box sx={{ width: "100%" }}>
           <LinearProgress variant="determinate" value={loadProgress} />
@@ -401,7 +408,7 @@ export function WorldStatusBar({
         One-way links
       </Typography>
       <Typography variant="caption" sx={{ ...captionSx, opacity: 0.75 }}>
-        Click a door to travel · sprites load from adventure.land
+        Click a door to travel · click overlays to inspect
       </Typography>
       <Button size="small" onClick={(event) => setHelpAnchor(event.currentTarget)}>
         Camera help

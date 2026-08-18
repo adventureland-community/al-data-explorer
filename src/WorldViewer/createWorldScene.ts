@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { CSS3DObject } from "three/examples/jsm/renderers/CSS3DRenderer";
 import {
   FLOOR_INDOOR_COLOR,
   FLOOR_OUTSIDE_COLOR,
@@ -8,7 +7,7 @@ import {
   SELECTED_FLOOR_COLOR,
   TWO_WAY_CONNECTION_COLOR,
 } from "./overlayColors";
-import { applyFloorCanvases, applyMapAnimation, mapArtOf } from "./sceneMapArt";
+import { applyFloorCanvases, applyMapAnimation, floorHasMapArt, tintFloorArt } from "./sceneMapArt";
 import {
   applyOverlayDepthStyle,
   buildMapOverlays,
@@ -38,38 +37,44 @@ function floorColor(band: MapBand): number {
   }
 }
 
-function makeDepthOccluder(map: ParsedMap): THREE.Mesh {
+function mapSizedPlane(map: ParsedMap, y: number, material: THREE.MeshBasicMaterial): THREE.Mesh {
   const width = Math.max(map.artMaxX - map.artMinX, 8);
   const height = Math.max(map.artMaxY - map.artMinY, 8);
   const geometry = new THREE.PlaneGeometry(width, height);
   geometry.rotateX(-Math.PI / 2);
-  const material = new THREE.MeshBasicMaterial({
-    colorWrite: false,
-    depthWrite: true,
-    depthTest: true,
-    side: THREE.FrontSide,
-  });
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set((map.artMinX + map.artMaxX) / 2, -0.5, (map.artMinY + map.artMaxY) / 2);
+  mesh.position.set((map.artMinX + map.artMaxX) / 2, y, (map.artMinY + map.artMaxY) / 2);
+  return mesh;
+}
+
+function makeDepthOccluder(map: ParsedMap): THREE.Mesh {
+  const mesh = mapSizedPlane(
+    map,
+    -0.5,
+    new THREE.MeshBasicMaterial({
+      colorWrite: false,
+      depthWrite: true,
+      depthTest: true,
+      side: THREE.FrontSide,
+    }),
+  );
   mesh.userData.isDepthOccluder = true;
   mesh.renderOrder = -2;
   return mesh;
 }
 
 function makeFloor(map: ParsedMap): THREE.Mesh {
-  const width = Math.max(map.artMaxX - map.artMinX, 8);
-  const height = Math.max(map.artMaxY - map.artMinY, 8);
-  const geometry = new THREE.PlaneGeometry(width, height);
-  geometry.rotateX(-Math.PI / 2);
-  const material = new THREE.MeshBasicMaterial({
-    color: floorColor(map.band),
-    transparent: true,
-    opacity: 0.55,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set((map.artMinX + map.artMaxX) / 2, 0, (map.artMinY + map.artMaxY) / 2);
+  const mesh = mapSizedPlane(
+    map,
+    0,
+    new THREE.MeshBasicMaterial({
+      color: floorColor(map.band),
+      transparent: true,
+      opacity: 0.55,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  );
   mesh.userData.mapId = map.id;
   mesh.userData.isFloor = true;
   return mesh;
@@ -177,13 +182,9 @@ export function setSelectedMap(root: THREE.Object3D, mapId: string | null): void
     const material = object.material as THREE.MeshBasicMaterial;
     const map = object.parent?.userData.mapId as string | undefined;
     const parsedBand = object.parent?.userData.band as MapBand | undefined;
-    const art = mapArtOf(object);
-    const hasArt = Boolean(art?.visible);
-    if (art?.element) {
-      art.element.style.filter = map === mapId ? "brightness(1.18)" : "none";
-    }
-    if (hasArt) {
-      material.opacity = 0;
+    if (floorHasMapArt(object)) {
+      tintFloorArt(object, map === mapId);
+      material.opacity = 1;
       return;
     }
     if (map === mapId) {
@@ -198,15 +199,11 @@ export function setSelectedMap(root: THREE.Object3D, mapId: string | null): void
 }
 
 export function disposeObject(object: THREE.Object3D): void {
+  const disposed = new Set<THREE.Texture>();
   object.traverse((child) => {
-    if (child.userData.isMapArt && child instanceof CSS3DObject) {
-      child.element.remove();
-    }
-    if (child.userData.isMapSprite && child instanceof CSS3DObject) {
-      child.element.remove();
-    }
     const texture = child.userData.disposeTexture as THREE.Texture | undefined;
-    if (texture) {
+    if (texture && !disposed.has(texture)) {
+      disposed.add(texture);
       texture.dispose();
     }
     if (
@@ -221,10 +218,11 @@ export function disposeObject(object: THREE.Object3D): void {
       const materials = Array.isArray(material) ? material : material ? [material] : [];
       for (const item of materials) {
         const mapped = (item as THREE.MeshBasicMaterial).map;
-        if (mapped && !mapped.userData.keep) {
+        if (mapped && !disposed.has(mapped)) {
+          disposed.add(mapped);
           mapped.dispose();
         }
-        if (mapped && mapped.userData.keep) {
+        if (mapped) {
           (item as THREE.MeshBasicMaterial).map = null;
         }
         item.dispose();

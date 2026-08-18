@@ -1,17 +1,4 @@
-import { useState } from "react";
-import {
-  Box,
-  Button,
-  Chip,
-  Collapse,
-  Divider,
-  List,
-  ListItemButton,
-  ListItemText,
-  Paper,
-  Typography,
-} from "@mui/material";
-import { WorldLayoutReport } from "./layoutAnalysis";
+import { Box, Chip, List, ListItemButton, ListItemText, Paper, Typography } from "@mui/material";
 import { groupNeighborsByBand, LinkedNeighbor, summarizeNeighbors } from "./linkedMaps";
 import { DoorConnection, MapBand, MapPose, ParsedMap } from "./types";
 
@@ -118,7 +105,6 @@ interface WorldInspectorProps {
   maps: Record<string, ParsedMap>;
   poses: Record<string, MapPose>;
   onFocusMap: (mapId: string) => void;
-  layoutReport: WorldLayoutReport | null;
 }
 
 export function WorldInspector({
@@ -128,9 +114,7 @@ export function WorldInspector({
   maps,
   poses,
   onFocusMap,
-  layoutReport,
 }: WorldInspectorProps) {
-  const [analysisOpen, setAnalysisOpen] = useState(false);
   const neighbors = selected
     ? summarizeNeighbors(selected.id, selectedPose?.z, connections, maps, poses)
     : [];
@@ -191,36 +175,6 @@ export function WorldInspector({
           Click a map to inspect it, or pick one from Go to map.
         </Typography>
       )}
-      <Divider sx={{ marginTop: 1.5 }} />
-      <Button size="small" onClick={() => setAnalysisOpen((open) => !open)} sx={{ marginTop: 0.5 }}>
-        {analysisOpen ? "Hide" : "Show"} layout analysis
-      </Button>
-      <Collapse in={analysisOpen}>
-        {layoutReport && (
-          <Box sx={{ marginTop: 1 }}>
-            <Typography variant="body2">
-              {layoutReport.components.length} components · {layoutReport.connectionCount} door
-              edges
-            </Typography>
-            <Typography variant="body2">
-              Same-layer overlaps: {layoutReport.artOverlapsSameZ}
-            </Typography>
-            <Typography variant="body2">
-              Near origin: {layoutReport.nearOriginMaps.length} maps
-            </Typography>
-            {layoutReport.components.map((component) => (
-              <Typography
-                key={component.id}
-                variant="caption"
-                display="block"
-                sx={{ opacity: 0.85 }}
-              >
-                {component.rootId}: {component.mapIds.length} maps, depth {component.maxDepth}
-              </Typography>
-            ))}
-          </Box>
-        )}
-      </Collapse>
     </Paper>
   );
 }

@@ -45,7 +45,6 @@ describe("tileAnimFrame", () => {
 describe("parseTimedLayer", () => {
   it("reads interval and delay from geometry.animations rows", () => {
     expect(parseTimedLayer([238, 88, -232, 104, -232, 80, "0", -999])).toEqual({
-      placement: [238, 88, -232, 104, -232, 80, "0", -999],
       intervalMs: 80,
       delayMs: 0,
       alpha: 1,

@@ -1,5 +1,13 @@
-import { GGeometry } from "typed-adventureland";
-import { mapTextureScale, parseTileDef, tileFrameSource, waterFrame } from "./renderMapCanvas";
+import {
+  MAX_MAP_TEXTURE,
+  mapTextureScale,
+  mapWaterFrameIndex,
+  parseTileDef,
+  presentMapArt,
+  tileDestRect,
+  tileFrameSource,
+  waterFrame,
+} from "./renderMapCanvas";
 
 describe("parseTileDef", () => {
   it("defaults height to width when omitted", () => {
@@ -97,12 +105,79 @@ describe("waterFrame", () => {
 });
 
 describe("mapTextureScale", () => {
-  it("caps the longest side at 2048", () => {
-    expect(mapTextureScale(-1616, 2320, -1040, 2232)).toBeCloseTo(2048 / 3936);
+  it("stays 1:1 when both sides fit in MAX_MAP_TEXTURE", () => {
+    expect(mapTextureScale(-1616, 2320, -1040, 2232)).toBe(1);
   });
 
-  it("stays 1:1 for small maps", () => {
-    const geo = { min_x: -440, max_x: 440, min_y: -688, max_y: 56 } as GGeometry;
-    expect(mapTextureScale(geo.min_x, geo.max_x, geo.min_y, geo.max_y)).toBe(1);
+  it("caps the longest side at MAX_MAP_TEXTURE", () => {
+    expect(mapTextureScale(0, MAX_MAP_TEXTURE * 2, 0, 10)).toBe(0.5);
+  });
+});
+
+describe("tileDestRect", () => {
+  it("rounds dest pixels so scaled tiles share edges", () => {
+    expect(tileDestRect(16, 32, 0, 0, 16, 16, 0.5)).toEqual({ x: 8, y: 16, w: 8, h: 8 });
+    expect(tileDestRect(0, 0, -1, -1, 16, 16, 1)).toEqual({ x: 1, y: 1, w: 16, h: 16 });
+  });
+});
+
+describe("mapWaterFrameIndex", () => {
+  it("indexes the 3 baked water frames with the 0,1,2,1 cycle", () => {
+    expect(mapWaterFrameIndex(0, 3)).toBe(0);
+    expect(mapWaterFrameIndex(480, 3)).toBe(1);
+    expect(mapWaterFrameIndex(960, 3)).toBe(2);
+    expect(mapWaterFrameIndex(1440, 3)).toBe(1);
+    expect(mapWaterFrameIndex(1920, 1)).toBe(0);
+  });
+});
+
+describe("presentMapArt", () => {
+  function canvas(): HTMLCanvasElement {
+    const el = document.createElement("canvas");
+    el.width = 2;
+    el.height = 2;
+    return el;
+  }
+
+  function displayCanvas(): HTMLCanvasElement {
+    const el = canvas();
+    const ctx = {
+      imageSmoothingEnabled: false,
+      clearRect: jest.fn(),
+      drawImage: jest.fn(),
+    };
+    el.getContext = (() => ctx) as unknown as HTMLCanvasElement["getContext"];
+    return el;
+  }
+
+  it("skips work when the shown water frame is unchanged", () => {
+    const frame = canvas();
+    expect(
+      presentMapArt(
+        {
+          frames: [frame],
+          displayCanvas: frame,
+          overlay: null,
+          paintOverlay: null,
+          needsAnimation: false,
+          shownFrame: 0,
+        },
+        0,
+      ),
+    ).toBe(false);
+  });
+
+  it("blits a new water frame onto the display canvas", () => {
+    const bake = {
+      frames: [canvas(), canvas(), canvas()],
+      displayCanvas: displayCanvas(),
+      overlay: null,
+      paintOverlay: null,
+      needsAnimation: true,
+      shownFrame: -1,
+    };
+    expect(presentMapArt(bake, 0)).toBe(true);
+    expect(bake.shownFrame).toBe(0);
+    expect(presentMapArt(bake, 0)).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 import { GGeometry, GTileset } from "typed-adventureland";
 
-export const MAX_MAP_TEXTURE = 2048;
+export const MAX_MAP_TEXTURE = 4096;
 /** game.js water_frame: [0,1,2,1][round(mssince(inception) / 480) % 4] */
 export const WATER_FRAME_MS = 480;
 export const WATER_FRAME_CYCLE = [0, 1, 2, 1] as const;
@@ -82,7 +82,6 @@ export function tileAnimFrame(def: TileDef, elapsedMs: number, mode: TileAnimMod
 }
 
 export interface TimedTileLayer {
-  placement: number[];
   intervalMs: number;
   delayMs: number;
   alpha: number;
@@ -99,39 +98,10 @@ export function parseTimedLayer(raw: unknown, alpha = 1): TimedTileLayer | null 
   }
   const delayMs = raw[6] == null ? 0 : Number(raw[6]);
   return {
-    placement: raw as number[],
     intervalMs,
     delayMs: Number.isFinite(delayMs) ? delayMs : 0,
     alpha,
   };
-}
-
-export function collectTimedLayers(geometry: {
-  animations?: unknown[];
-  nights?: unknown[];
-}): TimedTileLayer[] {
-  const layers: TimedTileLayer[] = [];
-  for (const raw of geometry.animations || []) {
-    const layer = parseTimedLayer(raw, 1);
-    if (layer) {
-      layers.push(layer);
-    }
-  }
-  for (const raw of geometry.nights || []) {
-    const layer = parseTimedLayer(raw, 1);
-    if (layer) {
-      layers.push(layer);
-    }
-  }
-  return layers;
-}
-
-function timedLayerKey(placement: number[]): string {
-  return placement.map((value) => String(value)).join("|");
-}
-
-export function timedLayerKeys(layers: TimedTileLayer[]): Set<string> {
-  return new Set(layers.map((layer) => timedLayerKey(layer.placement)));
 }
 
 export function tileFrameSource(def: TileDef, frame = 0): { sx: number; sy: number } {
@@ -139,6 +109,24 @@ export function tileFrameSource(def: TileDef, frame = 0): { sx: number; sy: numb
   return {
     sx: def.sx + index * def.frameWidth,
     sy: def.sy,
+  };
+}
+
+/** Integer dest rect so tile edges do not gap or overlap after scale. */
+export function tileDestRect(
+  x: number,
+  y: number,
+  originX: number,
+  originY: number,
+  w: number,
+  h: number,
+  scale: number,
+): { x: number; y: number; w: number; h: number } {
+  return {
+    x: Math.round((x - originX) * scale),
+    y: Math.round((y - originY) * scale),
+    w: Math.max(1, Math.round(w * scale)),
+    h: Math.max(1, Math.round(h * scale)),
   };
 }
 
@@ -164,17 +152,8 @@ function drawTile(
   frame = 0,
 ): void {
   const source = tileFrameSource(def, frame);
-  ctx.drawImage(
-    image,
-    source.sx,
-    source.sy,
-    def.w,
-    def.h,
-    (x - originX) * scale,
-    (y - originY) * scale,
-    def.w * scale,
-    def.h * scale,
-  );
+  const dest = tileDestRect(x, y, originX, originY, def.w, def.h, scale);
+  ctx.drawImage(image, source.sx, source.sy, def.w, def.h, dest.x, dest.y, dest.w, dest.h);
 }
 
 function drawTileRange(
@@ -223,52 +202,55 @@ function fillDefaultTile(
   const startY = Math.floor(geometry.min_y / def.h) * def.h;
   ctx.save();
   ctx.imageSmoothingEnabled = false;
-  ctx.translate((startX - geometry.min_x) * scale, (startY - geometry.min_y) * scale);
+  ctx.translate(
+    Math.round((startX - geometry.min_x) * scale),
+    Math.round((startY - geometry.min_y) * scale),
+  );
   ctx.fillStyle = pattern;
-  ctx.fillRect(0, 0, (geometry.max_x - startX) * scale, (geometry.max_y - startY) * scale);
+  ctx.fillRect(
+    0,
+    0,
+    Math.max(1, Math.round((geometry.max_x - startX) * scale)),
+    Math.max(1, Math.round((geometry.max_y - startY) * scale)),
+  );
   ctx.restore();
 }
 
-function drawPlacement(
-  ctx: CanvasRenderingContext2D,
-  images: Record<string, HTMLImageElement>,
-  tiles: unknown[],
-  tilesets: Record<string, GTileset>,
-  placement: number[],
-  originX: number,
-  originY: number,
-  scale: number,
-  frame = 0,
-): void {
-  const raw = tiles[placement[0]];
-  const def = parseTileDef(raw, tilesets[(raw as [string])[0]]);
-  const image = def ? images[def.set] : undefined;
-  if (!def || !image) {
-    return;
-  }
-  const x2 = placement[3] == null ? placement[1] : placement[3];
-  const y2 = placement[4] == null ? placement[2] : placement[4];
-  drawTileRange(
-    ctx,
-    image,
-    def,
-    placement[1],
-    placement[2],
-    x2,
-    y2,
-    originX,
-    originY,
-    scale,
-    frame,
-  );
+interface ResolvedTile {
+  def: TileDef;
+  image: HTMLImageElement;
 }
 
-function tileDefOf(
+interface DrawOp {
+  tile: ResolvedTile;
+  x: number;
+  y: number;
+  x2: number;
+  y2: number;
+}
+
+interface TimedDrawOp extends DrawOp {
+  intervalMs: number;
+  delayMs: number;
+  alpha: number;
+}
+
+interface MapDrawList {
+  defaultTile: ResolvedTile | null;
+  placements: DrawOp[];
+  decor: DrawOp[];
+  timed: TimedDrawOp[];
+}
+
+function resolveTile(
   raw: unknown,
   tilesets: Record<string, GTileset>,
   images: Record<string, HTMLImageElement>,
-): { def: TileDef; image: HTMLImageElement } | null {
-  const def = parseTileDef(raw, tilesets[(raw as [string])?.[0]]);
+): ResolvedTile | null {
+  if (!Array.isArray(raw) || typeof raw[0] !== "string") {
+    return null;
+  }
+  const def = parseTileDef(raw, tilesets[raw[0]]);
   const image = def ? images[def.set] : undefined;
   if (!def || !image) {
     return null;
@@ -276,188 +258,258 @@ function tileDefOf(
   return { def, image };
 }
 
-function isAnimated(def: TileDef): boolean {
-  return def.frames > 1;
+function readPlacement(raw: unknown): number[] | null {
+  if (!Array.isArray(raw) || raw.length < 3) {
+    return null;
+  }
+  const tileIndex = Number(raw[0]);
+  const x = Number(raw[1]);
+  const y = Number(raw[2]);
+  if (![tileIndex, x, y].every(Number.isFinite)) {
+    return null;
+  }
+  const placement = [tileIndex, x, y];
+  if (raw.length > 3 && raw[3] != null && Number.isFinite(Number(raw[3]))) {
+    placement.push(Number(raw[3]));
+  }
+  if (raw.length > 4 && raw[4] != null && Number.isFinite(Number(raw[4]))) {
+    placement.push(Number(raw[4]));
+  }
+  return placement;
 }
 
-function defaultFillOffset(geometry: GGeometry, def: TileDef): { x: number; y: number } {
-  const startX = Math.floor(geometry.min_x / def.w) * def.w;
-  const startY = Math.floor(geometry.min_y / def.h) * def.h;
-  return { x: startX - geometry.min_x, y: startY - geometry.min_y };
+function toDrawOp(
+  raw: unknown,
+  tiles: unknown[],
+  tilesets: Record<string, GTileset>,
+  images: Record<string, HTMLImageElement>,
+): DrawOp | null {
+  const placement = readPlacement(raw);
+  if (!placement) {
+    return null;
+  }
+  const tile = resolveTile(tiles[placement[0]], tilesets, images);
+  if (!tile) {
+    return null;
+  }
+  return {
+    tile,
+    x: placement[1],
+    y: placement[2],
+    x2: placement[3] == null ? placement[1] : placement[3],
+    y2: placement[4] == null ? placement[2] : placement[4],
+  };
 }
 
-function drawPlacements(
-  ctx: CanvasRenderingContext2D,
+function collectDrawOps(
+  rawList: Iterable<unknown> | undefined,
+  tiles: unknown[],
+  tilesets: Record<string, GTileset>,
+  images: Record<string, HTMLImageElement>,
+): DrawOp[] {
+  const ops: DrawOp[] = [];
+  for (const raw of rawList || []) {
+    const op = toDrawOp(raw, tiles, tilesets, images);
+    if (op) {
+      ops.push(op);
+    }
+  }
+  return ops;
+}
+
+function classifyLayerRows(
+  rawList: Iterable<unknown> | undefined,
+  tiles: unknown[],
+  tilesets: Record<string, GTileset>,
+  images: Record<string, HTMLImageElement>,
+  timed: TimedDrawOp[],
+): DrawOp[] {
+  const decor: DrawOp[] = [];
+  for (const raw of rawList || []) {
+    const op = toDrawOp(raw, tiles, tilesets, images);
+    if (!op) {
+      continue;
+    }
+    const timedMeta = parseTimedLayer(raw, 1);
+    if (timedMeta) {
+      timed.push({
+        ...op,
+        intervalMs: timedMeta.intervalMs,
+        delayMs: timedMeta.delayMs,
+        alpha: timedMeta.alpha,
+      });
+    } else {
+      decor.push(op);
+    }
+  }
+  return decor;
+}
+
+function buildMapDrawList(
   geometry: GGeometry,
   images: Record<string, HTMLImageElement>,
   tilesets: Record<string, GTileset>,
+): MapDrawList {
+  const tiles: unknown[] = Array.isArray(geometry.tiles) ? geometry.tiles : [];
+  const placements = collectDrawOps(geometry.placements, tiles, tilesets, images);
+  for (const group of geometry.groups || []) {
+    for (const op of collectDrawOps(group, tiles, tilesets, images)) {
+      placements.push(op);
+    }
+  }
+  const timed: TimedDrawOp[] = [];
+  return {
+    defaultTile:
+      geometry.default == null ? null : resolveTile(tiles[geometry.default], tilesets, images),
+    placements,
+    decor: [
+      ...classifyLayerRows(geometry.animations, tiles, tilesets, images, timed),
+      ...collectDrawOps(geometry.lights, tiles, tilesets, images),
+      ...classifyLayerRows(geometry.nights, tiles, tilesets, images, timed),
+    ],
+    timed,
+  };
+}
+
+function drawOp(
+  ctx: CanvasRenderingContext2D,
+  op: DrawOp,
+  originX: number,
+  originY: number,
   scale: number,
   frame: number,
-  kind: "static" | "animated",
 ): void {
-  const tiles = geometry.tiles as unknown[];
-  const originX = geometry.min_x;
-  const originY = geometry.min_y;
-
-  if (kind === "static" && geometry.default != null) {
-    const parsed = tileDefOf(tiles[geometry.default], tilesets, images);
-    if (parsed && !isAnimated(parsed.def)) {
-      fillDefaultTile(ctx, parsed.image, parsed.def, geometry, scale, 0);
-    }
-  }
-
-  for (const placement of geometry.placements || []) {
-    const parsed = tileDefOf(tiles[(placement as number[])[0]], tilesets, images);
-    if (!parsed || isAnimated(parsed.def) !== (kind === "animated")) {
-      continue;
-    }
-    drawPlacement(
-      ctx,
-      images,
-      tiles,
-      tilesets,
-      placement as number[],
-      originX,
-      originY,
-      scale,
-      frame,
-    );
-  }
-
-  for (const group of geometry.groups || []) {
-    for (const placement of group) {
-      const parsed = tileDefOf(tiles[placement[0]], tilesets, images);
-      if (!parsed || isAnimated(parsed.def) !== (kind === "animated")) {
-        continue;
-      }
-      drawPlacement(
-        ctx,
-        images,
-        tiles,
-        tilesets,
-        placement as number[],
-        originX,
-        originY,
-        scale,
-        frame,
-      );
-    }
-  }
+  drawTileRange(
+    ctx,
+    op.tile.image,
+    op.tile.def,
+    op.x,
+    op.y,
+    op.x2,
+    op.y2,
+    originX,
+    originY,
+    scale,
+    frame,
+  );
 }
 
-function drawDecor(
+function waterFrameOf(def: TileDef, waterIndex: number): number {
+  return def.frames > 1 ? waterIndex : 0;
+}
+
+function paintMapFrame(
   ctx: CanvasRenderingContext2D,
   geometry: GGeometry,
-  images: Record<string, HTMLImageElement>,
-  tilesets: Record<string, GTileset>,
+  list: MapDrawList,
   scale: number,
-  skipTimed: Set<string>,
+  waterIndex: number,
 ): void {
-  const tiles = geometry.tiles as unknown[];
   const originX = geometry.min_x;
   const originY = geometry.min_y;
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-  for (const animation of geometry.animations || []) {
-    const placement = animation as number[];
-    if (skipTimed.has(placement.map((value) => String(value)).join("|"))) {
-      continue;
-    }
-    drawPlacement(ctx, images, tiles, tilesets, placement, originX, originY, scale, 0);
+  if (list.defaultTile) {
+    fillDefaultTile(
+      ctx,
+      list.defaultTile.image,
+      list.defaultTile.def,
+      geometry,
+      scale,
+      waterFrameOf(list.defaultTile.def, waterIndex),
+    );
   }
-
-  for (const light of geometry.lights || []) {
-    drawPlacement(ctx, images, tiles, tilesets, light as number[], originX, originY, scale, 0);
+  for (const op of list.placements) {
+    drawOp(ctx, op, originX, originY, scale, waterFrameOf(op.tile.def, waterIndex));
   }
-
-  for (const night of geometry.nights || []) {
-    const placement = night as number[];
-    if (skipTimed.has(placement.map((value) => String(value)).join("|"))) {
-      continue;
-    }
-    drawPlacement(ctx, images, tiles, tilesets, placement, originX, originY, scale, 0);
+  for (const op of list.decor) {
+    drawOp(ctx, op, originX, originY, scale, 0);
   }
 }
 
 function drawTimedLayers(
   ctx: CanvasRenderingContext2D,
   geometry: GGeometry,
-  images: Record<string, HTMLImageElement>,
-  tilesets: Record<string, GTileset>,
+  timed: TimedDrawOp[],
   scale: number,
   elapsedMs: number,
-  timedLayers: TimedTileLayer[],
 ): void {
-  const tiles = geometry.tiles as unknown[];
   const originX = geometry.min_x;
   const originY = geometry.min_y;
-
-  for (const timed of timedLayers) {
-    const raw = tiles[timed.placement[0]];
-    const parsed = tileDefOf(raw, tilesets, images);
-    if (!parsed) {
-      continue;
-    }
-    const frame = tileAnimFrame(parsed.def, elapsedMs, {
+  for (const op of timed) {
+    const frame = tileAnimFrame(op.tile.def, elapsedMs, {
       kind: "interval",
-      intervalMs: timed.intervalMs,
-      delayMs: timed.delayMs,
+      intervalMs: op.intervalMs,
+      delayMs: op.delayMs,
     });
-    if (timed.alpha < 1) {
+    if (op.alpha < 1) {
       ctx.save();
-      ctx.globalAlpha = timed.alpha;
+      ctx.globalAlpha = op.alpha;
     }
-    drawPlacement(ctx, images, tiles, tilesets, timed.placement, originX, originY, scale, frame);
-    if (timed.alpha < 1) {
+    drawOp(ctx, op, originX, originY, scale, frame);
+    if (op.alpha < 1) {
       ctx.restore();
     }
   }
 }
 
-function overlaySignature(
-  geometry: GGeometry,
-  images: Record<string, HTMLImageElement>,
-  tilesets: Record<string, GTileset>,
-  elapsedMs: number,
-  timedLayers: TimedTileLayer[],
-  animatedPlacements: boolean,
-): string {
-  const parts: number[] = [];
-  if (animatedPlacements) {
-    parts.push(waterFrame(elapsedMs));
-  }
-  for (const timed of timedLayers) {
-    const raw = (geometry.tiles as unknown[])[timed.placement[0]];
-    const parsed = tileDefOf(raw, tilesets, images);
-    if (!parsed) {
-      continue;
-    }
-    parts.push(
-      tileAnimFrame(parsed.def, elapsedMs, {
+function overlaySignature(timed: TimedDrawOp[], elapsedMs: number): string {
+  return timed
+    .map((op) =>
+      tileAnimFrame(op.tile.def, elapsedMs, {
         kind: "interval",
-        intervalMs: timed.intervalMs,
-        delayMs: timed.delayMs,
+        intervalMs: op.intervalMs,
+        delayMs: op.delayMs,
       }),
-    );
-  }
-  return parts.join(",");
-}
-
-export interface AnimatedDefault {
-  def: TileDef;
-  image: HTMLImageElement;
-  offsetX: number;
-  offsetY: number;
+    )
+    .join(",");
 }
 
 export interface MapArtBake {
-  staticCanvas: HTMLCanvasElement;
-  animatedDefault: AnimatedDefault | null;
+  frames: HTMLCanvasElement[];
+  displayCanvas: HTMLCanvasElement;
   overlay: HTMLCanvasElement | null;
   paintOverlay: ((elapsedMs: number) => boolean) | null;
   needsAnimation: boolean;
+  shownFrame: number;
 }
 
-const SVG_NS = "http://www.w3.org/2000/svg";
+export function mapWaterFrameIndex(elapsedMs: number, frameCount: number): number {
+  if (frameCount <= 1) {
+    return 0;
+  }
+  return waterFrame(elapsedMs) % frameCount;
+}
+
+/**
+ * Present the water-frame bake (and optional timed overlay) onto displayCanvas.
+ * Matches game.js rtextures[water_frame] — one bitmap, placement order, not a
+ * water layer stacked on top of the bridge.
+ */
+export function presentMapArt(bake: MapArtBake, elapsedMs: number): boolean {
+  const frameIndex = mapWaterFrameIndex(elapsedMs, bake.frames.length);
+  const overlayChanged = Boolean(bake.paintOverlay?.(elapsedMs));
+  if (bake.shownFrame === frameIndex && !overlayChanged) {
+    return false;
+  }
+  bake.shownFrame = frameIndex;
+  const source = bake.frames[frameIndex];
+  if (!bake.overlay && bake.displayCanvas === source) {
+    return true;
+  }
+  const ctx = bake.displayCanvas.getContext("2d");
+  if (!ctx) {
+    return false;
+  }
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, bake.displayCanvas.width, bake.displayCanvas.height);
+  ctx.drawImage(source, 0, 0);
+  if (bake.overlay) {
+    ctx.drawImage(bake.overlay, 0, 0);
+  }
+  return true;
+}
 
 function makeCanvas(width: number, height: number, scale: number): HTMLCanvasElement | null {
   const canvas = document.createElement("canvas");
@@ -466,107 +518,19 @@ function makeCanvas(width: number, height: number, scale: number): HTMLCanvasEle
   return canvas;
 }
 
-function hasAnimatedPlacements(
-  geometry: GGeometry,
-  images: Record<string, HTMLImageElement>,
-  tilesets: Record<string, GTileset>,
-): boolean {
-  const tiles = geometry.tiles as unknown[];
-  const check = (placement: number[]) => {
-    const parsed = tileDefOf(tiles[placement[0]], tilesets, images);
-    return Boolean(parsed && isAnimated(parsed.def));
-  };
-  for (const placement of geometry.placements || []) {
-    if (check(placement as number[])) {
-      return true;
-    }
+function needsWaterFrames(list: MapDrawList): boolean {
+  if (list.defaultTile && list.defaultTile.def.frames > 1) {
+    return true;
   }
-  for (const group of geometry.groups || []) {
-    for (const placement of group) {
-      if (check(placement as number[])) {
-        return true;
-      }
+  for (const op of list.placements) {
+    if (op.tile.def.frames > 1) {
+      return true;
     }
   }
   return false;
 }
 
-export function mapNeedsAnimation(
-  geometry: GGeometry,
-  images: Record<string, HTMLImageElement>,
-  tilesets: Record<string, GTileset>,
-): boolean {
-  if (geometry.default != null) {
-    const parsed = tileDefOf((geometry.tiles as unknown[])[geometry.default], tilesets, images);
-    if (parsed && isAnimated(parsed.def)) {
-      return true;
-    }
-  }
-  if (hasAnimatedPlacements(geometry, images, tilesets)) {
-    return true;
-  }
-  return collectTimedLayers(geometry).length > 0;
-}
-
-export function createDefaultPatternSvg(
-  mapId: string,
-  animated: AnimatedDefault,
-  width: number,
-  height: number,
-): SVGSVGElement {
-  const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("width", String(width));
-  svg.setAttribute("height", String(height));
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svg.style.position = "absolute";
-  svg.style.left = "0";
-  svg.style.top = "0";
-  svg.style.width = "100%";
-  svg.style.height = "100%";
-  svg.style.pointerEvents = "none";
-  svg.dataset.patternId = `al-water-${mapId}`;
-
-  const defs = document.createElementNS(SVG_NS, "defs");
-  const pattern = document.createElementNS(SVG_NS, "pattern");
-  pattern.setAttribute("id", `al-water-${mapId}`);
-  pattern.setAttribute("patternUnits", "userSpaceOnUse");
-  pattern.setAttribute("width", String(animated.def.w));
-  pattern.setAttribute("height", String(animated.def.h));
-  pattern.setAttribute("x", String(animated.offsetX));
-  pattern.setAttribute("y", String(animated.offsetY));
-
-  const source = tileFrameSource(animated.def, 0);
-  const image = document.createElementNS(SVG_NS, "image");
-  image.setAttribute("href", animated.image.src);
-  image.setAttribute("x", String(-source.sx));
-  image.setAttribute("y", String(-source.sy));
-  image.setAttribute("width", String(animated.image.naturalWidth || animated.image.width));
-  image.setAttribute("height", String(animated.image.naturalHeight || animated.image.height));
-  image.setAttribute("image-rendering", "pixelated");
-
-  pattern.appendChild(image);
-  defs.appendChild(pattern);
-  svg.appendChild(defs);
-
-  const rect = document.createElementNS(SVG_NS, "rect");
-  rect.setAttribute("width", "100%");
-  rect.setAttribute("height", "100%");
-  rect.setAttribute("fill", `url(#al-water-${mapId})`);
-  svg.appendChild(rect);
-  return svg;
-}
-
-export function setDefaultPatternFrame(svg: SVGSVGElement, def: TileDef, frame: number): void {
-  const image = svg.querySelector("image");
-  if (!image) {
-    return;
-  }
-  const source = tileFrameSource(def, frame);
-  image.setAttribute("x", String(-source.sx));
-  image.setAttribute("y", String(-source.sy));
-}
-
-/** Static land/buildings once; animated default is an SVG pattern; animated placements redraw on a thin overlay. */
+/** Bake like game.js rtextures: default water behind, then every placement in order. */
 export function renderMapArt(
   geometry: GGeometry,
   images: Record<string, HTMLImageElement>,
@@ -578,37 +542,23 @@ export function renderMapArt(
     return null;
   }
   const scale = mapTextureScale(geometry.min_x, geometry.max_x, geometry.min_y, geometry.max_y);
-  const staticCanvas = makeCanvas(width, height, scale);
-  const ctx = staticCanvas?.getContext("2d");
-  if (!staticCanvas || !ctx) {
-    return null;
-  }
-  ctx.imageSmoothingEnabled = false;
-  ctx.clearRect(0, 0, staticCanvas.width, staticCanvas.height);
-  const timedLayers = collectTimedLayers(geometry);
-  const skipTimed = timedLayerKeys(timedLayers);
-  drawPlacements(ctx, geometry, images, tilesets, scale, 0, "static");
-  drawDecor(ctx, geometry, images, tilesets, scale, skipTimed);
+  const list = buildMapDrawList(geometry, images, tilesets);
+  const frameCount = needsWaterFrames(list) ? 3 : 1;
 
-  let animatedDefault: AnimatedDefault | null = null;
-  if (geometry.default != null) {
-    const parsed = tileDefOf((geometry.tiles as unknown[])[geometry.default], tilesets, images);
-    if (parsed && isAnimated(parsed.def)) {
-      const offset = defaultFillOffset(geometry, parsed.def);
-      animatedDefault = {
-        def: parsed.def,
-        image: parsed.image,
-        offsetX: offset.x,
-        offsetY: offset.y,
-      };
+  const frames: HTMLCanvasElement[] = [];
+  for (let waterIndex = 0; waterIndex < frameCount; waterIndex += 1) {
+    const canvas = makeCanvas(width, height, scale);
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) {
+      return null;
     }
+    paintMapFrame(ctx, geometry, list, scale, waterIndex);
+    frames.push(canvas);
   }
 
-  const animatedPlacements = hasAnimatedPlacements(geometry, images, tilesets);
-  const needsOverlay = animatedPlacements || timedLayers.length > 0;
   let overlay: HTMLCanvasElement | null = null;
   let paintOverlay: ((elapsedMs: number) => boolean) | null = null;
-  if (needsOverlay) {
+  if (list.timed.length > 0) {
     overlay = makeCanvas(width, height, scale);
     const overlayCanvas = overlay;
     const overlayCtx = overlayCanvas?.getContext("2d");
@@ -616,24 +566,13 @@ export function renderMapArt(
       overlayCtx.imageSmoothingEnabled = false;
       let lastSignature = "";
       paintOverlay = (elapsedMs: number) => {
-        const signature = overlaySignature(
-          geometry,
-          images,
-          tilesets,
-          elapsedMs,
-          timedLayers,
-          animatedPlacements,
-        );
+        const signature = overlaySignature(list.timed, elapsedMs);
         if (signature === lastSignature) {
           return false;
         }
         lastSignature = signature;
         overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-        if (animatedPlacements) {
-          const waterIndex = waterFrame(elapsedMs);
-          drawPlacements(overlayCtx, geometry, images, tilesets, scale, waterIndex, "animated");
-        }
-        drawTimedLayers(overlayCtx, geometry, images, tilesets, scale, elapsedMs, timedLayers);
+        drawTimedLayers(overlayCtx, geometry, list.timed, scale, elapsedMs);
         return true;
       };
       paintOverlay(0);
@@ -642,6 +581,16 @@ export function renderMapArt(
     }
   }
 
-  const needsAnimation = Boolean(animatedDefault || overlay);
-  return { staticCanvas, animatedDefault, overlay, paintOverlay, needsAnimation };
+  const displayCanvas =
+    frameCount > 1 || overlay ? makeCanvas(width, height, scale) || frames[0] : frames[0];
+  const bake: MapArtBake = {
+    frames,
+    displayCanvas,
+    overlay,
+    paintOverlay,
+    needsAnimation: frameCount > 1 || Boolean(overlay),
+    shownFrame: -1,
+  };
+  presentMapArt(bake, 0);
+  return bake;
 }

@@ -1,7 +1,6 @@
 import * as THREE from "three";
-import { CSS3DSprite } from "three/examples/jsm/renderers/CSS3DRenderer";
 import { GDimension, GImage, GMonster, GSprite } from "typed-adventureland";
-import { createSpriteElement, lookupSkinSprite } from "./spriteLookup";
+import { lookupSkinSprite, paintSpriteClip } from "./spriteLookup";
 import { ParsedMap } from "./types";
 
 export interface MapSpriteContext {
@@ -9,41 +8,92 @@ export interface MapSpriteContext {
   images: Record<string, GImage>;
   dimensions: Record<string, GDimension>;
   monsters: Record<string, GMonster>;
+  sheets: Record<string, HTMLImageElement>;
 }
 
 const SPRITE_LIFT = 14;
-const _spriteWorldPos = new THREE.Vector3();
+const _billboardQuat = new THREE.Quaternion();
 
-function makeCssSprite(
+export function spriteCanvasTexture(canvas: HTMLCanvasElement): THREE.CanvasTexture {
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.NearestFilter;
+  texture.generateMipmaps = false;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  return texture;
+}
+
+function spriteCacheKey(clip: NonNullable<ReturnType<typeof lookupSkinSprite>>): string {
+  return [
+    clip.url,
+    clip.row,
+    clip.col,
+    clip.viewWidth,
+    clip.viewHeight,
+    clip.offsetX,
+    clip.offsetY,
+    clip.cellWidth,
+    clip.cellHeight,
+  ].join("|");
+}
+
+function faceCamera(mesh: THREE.Mesh, camera: THREE.Camera): void {
+  mesh.quaternion.copy(camera.getWorldQuaternion(_billboardQuat));
+}
+
+function makeMapSprite(
   clip: ReturnType<typeof lookupSkinSprite>,
+  sheet: HTMLImageElement | undefined,
   x: number,
   y: number,
   lift: number,
-): CSS3DSprite | null {
-  if (!clip) {
+  textures: Map<string, THREE.CanvasTexture>,
+): THREE.Mesh | null {
+  if (!clip || !sheet) {
     return null;
   }
-  const element = createSpriteElement(clip);
-  const sprite = new CSS3DSprite(element);
-  sprite.userData.isMapSprite = true;
-  // Center sits above the floor so sprite feet rest on the map plane at `lift`.
-  sprite.position.set(x, lift + clip.viewHeight / 2, y);
-  sprite.onBeforeRender = (_renderer, _scene, camera) => {
-    sprite.getWorldPosition(_spriteWorldPos);
-    const layerKey = Math.round(_spriteWorldPos.y * 100);
-    const depthKey = Math.round(_spriteWorldPos.distanceTo(camera.position) * 10);
-    sprite.element.style.zIndex = String(layerKey * 100_000 - depthKey);
+  const key = spriteCacheKey(clip);
+  let texture = textures.get(key);
+  if (!texture) {
+    texture = spriteCanvasTexture(paintSpriteClip(sheet, clip));
+    textures.set(key, texture);
+  }
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    fog: false,
+    side: THREE.DoubleSide,
+    alphaTest: 0.01,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+  mesh.userData.isMapSprite = true;
+  mesh.scale.set(clip.viewWidth, clip.viewHeight, 1);
+  mesh.position.set(x, lift + clip.viewHeight / 2, y);
+  mesh.renderOrder = 20;
+  mesh.onBeforeRender = (_renderer, _scene, camera) => {
+    faceCamera(mesh, camera);
   };
-  return sprite;
+  return mesh;
 }
 
 export function buildMapSprites(map: ParsedMap, ctx: MapSpriteContext): THREE.Group {
   const group = new THREE.Group();
   group.name = "sprites";
+  const textures = new Map<string, THREE.CanvasTexture>();
 
   for (const npc of map.npcs) {
     const clip = lookupSkinSprite(ctx.sprites, ctx.images, ctx.dimensions, npc.skin);
-    const sprite = makeCssSprite(clip, npc.x, npc.y, SPRITE_LIFT);
+    const sprite = makeMapSprite(
+      clip,
+      clip ? ctx.sheets[clip.url] : undefined,
+      npc.x,
+      npc.y,
+      SPRITE_LIFT,
+      textures,
+    );
     if (!sprite) {
       continue;
     }
@@ -54,11 +104,18 @@ export function buildMapSprites(map: ParsedMap, ctx: MapSpriteContext): THREE.Gr
   }
 
   for (const monster of map.monsters) {
-    const def = ctx.monsters[monster.type as keyof typeof ctx.monsters];
+    const def = ctx.monsters[monster.type];
     const skin = def?.skin || monster.type;
     const size = def?.size || 1;
     const clip = lookupSkinSprite(ctx.sprites, ctx.images, ctx.dimensions, skin, size);
-    const sprite = makeCssSprite(clip, monster.x, monster.y, SPRITE_LIFT);
+    const sprite = makeMapSprite(
+      clip,
+      clip ? ctx.sheets[clip.url] : undefined,
+      monster.x,
+      monster.y,
+      SPRITE_LIFT,
+      textures,
+    );
     if (!sprite) {
       continue;
     }

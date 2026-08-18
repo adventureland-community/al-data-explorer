@@ -1,75 +1,69 @@
 import * as THREE from "three";
-import { CSS3DObject } from "three/examples/jsm/renderers/CSS3DRenderer";
-import {
-  MapArtBake,
-  createDefaultPatternSvg,
-  setDefaultPatternFrame,
-  tileAnimFrame,
-} from "./renderMapCanvas";
+import { presentMapArt, MapArtBake } from "./renderMapCanvas";
 
-function styleLayer(element: HTMLElement, width: number, height: number): void {
-  element.style.position = "absolute";
-  element.style.left = "0";
-  element.style.top = "0";
-  element.style.width = `${width}px`;
-  element.style.height = `${height}px`;
-  element.style.pointerEvents = "none";
-  if (element instanceof HTMLCanvasElement) {
-    element.style.imageRendering = "pixelated";
-    element.style.display = "block";
+const SELECTED_ART_TINT = 0xffffff;
+const UNSELECTED_ART_TINT = 0xd0d0d0;
+
+/**
+ * Nearest when magnified (crisp pixels). Trilinear mipmaps when minified so
+ * perspective zoom does not moiré. Matches PIXI NEAREST up close, without the
+ * striped aliasing you get from a single unfiltered lod in 3D.
+ */
+export function nearestCanvasTexture(canvas: HTMLCanvasElement): THREE.CanvasTexture {
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 8;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  return texture;
+}
+
+function disposeMaterialMap(material: THREE.MeshBasicMaterial): void {
+  if (material.map) {
+    material.map.dispose();
+    material.map = null;
   }
 }
 
-export function mapArtOf(floor: THREE.Object3D): CSS3DObject | undefined {
-  const found = floor.children.find((child) => child.userData.isMapArt);
-  return found instanceof CSS3DObject ? found : undefined;
+export function floorHasMapArt(floor: THREE.Object3D): boolean {
+  return Boolean(floor.userData.hasMapArt);
 }
 
-function makeMapArt(
-  floor: THREE.Mesh,
-  mapId: string,
-  bake: MapArtBake,
-  elapsedMs: number,
-): CSS3DObject {
-  const geometry = floor.geometry as THREE.PlaneGeometry;
-  const { width, height } = geometry.parameters;
-  const wrap = document.createElement("div");
-  wrap.style.position = "relative";
-  wrap.style.width = `${width}px`;
-  wrap.style.height = `${height}px`;
-  wrap.style.pointerEvents = "none";
+function applyBakeToFloor(floor: THREE.Mesh, bake: MapArtBake, elapsedMs: number): void {
+  const material = floor.material as THREE.MeshBasicMaterial;
+  presentMapArt(bake, elapsedMs);
+  disposeMaterialMap(material);
+  material.map = nearestCanvasTexture(bake.displayCanvas);
+  material.transparent = true;
+  material.opacity = 1;
+  material.depthWrite = true;
+  material.alphaTest = 0.02;
+  material.fog = false;
+  material.color.setHex(UNSELECTED_ART_TINT);
+  material.needsUpdate = true;
+  floor.userData.mapArt = bake;
+  floor.userData.hasMapArt = true;
+}
 
-  if (bake.animatedDefault) {
-    const svg = createDefaultPatternSvg(mapId, bake.animatedDefault, width, height);
-    const defaultFrame = tileAnimFrame(bake.animatedDefault.def, elapsedMs, { kind: "water" });
-    setDefaultPatternFrame(svg, bake.animatedDefault.def, defaultFrame);
-    wrap.appendChild(svg);
-  }
-
-  styleLayer(bake.staticCanvas, width, height);
-  wrap.appendChild(bake.staticCanvas);
-
-  if (bake.overlay) {
-    styleLayer(bake.overlay, width, height);
-    wrap.appendChild(bake.overlay);
-    bake.paintOverlay?.(elapsedMs);
-  }
-
-  const art = new CSS3DObject(wrap);
-  art.userData.isMapArt = true;
-  art.userData.mapArt = bake;
-  art.userData.lastDefaultFrame = bake.animatedDefault
-    ? tileAnimFrame(bake.animatedDefault.def, elapsedMs, { kind: "water" })
-    : -1;
-  // Match floor plane (XZ): canvas Y-down maps to +Z, same as geometry coords.
-  art.rotation.x = -Math.PI / 2;
-  art.position.set(0, 0.02, 0);
-  return art;
+function clearFloorArt(floor: THREE.Mesh): void {
+  const material = floor.material as THREE.MeshBasicMaterial;
+  disposeMaterialMap(material);
+  material.transparent = true;
+  material.depthWrite = false;
+  material.alphaTest = 0;
+  material.fog = true;
+  material.opacity = 0.55;
+  floor.userData.mapArt = undefined;
+  floor.userData.hasMapArt = false;
+  material.needsUpdate = true;
 }
 
 /**
- * Official tileset images have no CORS headers, so they cannot become WebGL
- * textures. Baked canvases are shown with CSS3D instead (display-only is allowed).
+ * Official tilesets are fetched into public/images (same origin), so baked
+ * canvases can be WebGL textures. Water and land share one bitmap per water
+ * frame (game.js rtextures), so animated river tiles cannot cover the bridge.
  */
 export function applyFloorCanvases(
   root: THREE.Object3D,
@@ -81,56 +75,44 @@ export function applyFloorCanvases(
     if (!object.userData.isFloor || !(object instanceof THREE.Mesh)) {
       return;
     }
-    const { parent } = object;
-    if (!parent) {
-      return;
-    }
-    const material = object.material as THREE.MeshBasicMaterial;
     const mapId = object.userData.mapId as string | undefined;
     const bake = mapId && enabled ? artByMap[mapId] : undefined;
-    let art = mapArtOf(object);
 
     if (bake) {
-      if (!art) {
-        art = makeMapArt(object, mapId || "map", bake, elapsedMs);
-        object.add(art);
-      } else if (art.userData.mapArt !== bake) {
-        object.remove(art);
-        art = makeMapArt(object, mapId || "map", bake, elapsedMs);
-        object.add(art);
+      if (object.userData.mapArt !== bake) {
+        applyBakeToFloor(object, bake, elapsedMs);
+      } else {
+        object.userData.hasMapArt = true;
       }
-      art.visible = true;
-      material.opacity = 0;
-      material.needsUpdate = true;
       return;
     }
 
-    if (art) {
-      art.visible = false;
+    if (object.userData.hasMapArt || object.userData.mapArt) {
+      clearFloorArt(object);
     }
-    material.needsUpdate = true;
   });
 }
 
 export function applyMapAnimation(root: THREE.Object3D, elapsedMs: number): void {
   root.traverse((object) => {
-    if (!object.userData.isMapArt || !(object instanceof CSS3DObject)) {
+    if (!object.userData.isFloor || !(object instanceof THREE.Mesh)) {
       return;
     }
     const bake = object.userData.mapArt as MapArtBake | undefined;
     if (!bake?.needsAnimation) {
       return;
     }
-    if (bake.animatedDefault) {
-      const frame = tileAnimFrame(bake.animatedDefault.def, elapsedMs, { kind: "water" });
-      if (object.userData.lastDefaultFrame !== frame) {
-        object.userData.lastDefaultFrame = frame;
-        const svg = object.element.querySelector("svg");
-        if (svg) {
-          setDefaultPatternFrame(svg, bake.animatedDefault.def, frame);
-        }
-      }
+    if (!presentMapArt(bake, elapsedMs)) {
+      return;
     }
-    bake.paintOverlay?.(elapsedMs);
+    const material = object.material as THREE.MeshBasicMaterial;
+    if (material.map) {
+      material.map.needsUpdate = true;
+    }
   });
+}
+
+export function tintFloorArt(floor: THREE.Mesh, selected: boolean): void {
+  const material = floor.material as THREE.MeshBasicMaterial;
+  material.color.setHex(selected ? SELECTED_ART_TINT : UNSELECTED_ART_TINT);
 }

@@ -33,6 +33,7 @@ export function toWorldSource(G: CustomGData): WorldGameData {
       images: G.images as unknown as Record<string, GImage>,
       dimensions: G.dimensions as unknown as Record<string, GDimension>,
       monsters: G.monsters as unknown as Record<string, GMonster>,
+      sheets: {},
     },
     tilesets: G.tilesets as unknown as Record<string, GTileset>,
     monsters: G.monsters as unknown as Record<string, GMonster>,

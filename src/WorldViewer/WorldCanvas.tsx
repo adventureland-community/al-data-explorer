@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer";
 import {
   applyFloorCanvases,
   applyMapAnimation,
@@ -13,14 +12,15 @@ import {
   setOverlayVisibility,
   setSelectedMap,
 } from "./createWorldScene";
+import { overlayInspect, overlayPickColor, overlayTooltip, OverlayPick } from "./overlayPick";
 import { spawnPoint } from "./parseMaps";
 import { MapArtBake } from "./renderMapCanvas";
+import { setHoveredOverlay } from "./sceneOverlays";
 import {
   DoorTravel,
   MapFocus,
-  MonsterSelection,
-  NpcFeature,
-  NpcSelection,
+  OverlayInspect,
+  OverlayTooltip,
   OverlayVisibility,
   ParsedDoor,
   WorldLayout,
@@ -57,8 +57,7 @@ interface WorldCanvasProps {
   focus: MapFocus | null;
   onSelectMap: (mapId: string | null) => void;
   onDoorTravel: (travel: DoorTravel) => void;
-  onNpcSelect: (npc: NpcSelection | null) => void;
-  onMonsterSelect: (monster: MonsterSelection | null) => void;
+  onInspect: (inspect: OverlayInspect | null) => void;
   onCursorMove: (cursor: { mapId: string; x: number; y: number } | null) => void;
   mapArt: Record<string, MapArtBake>;
   pixelArt: boolean;
@@ -73,13 +72,12 @@ interface WorldRefs {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   navigation: WorldCameraControls;
-  cssRenderer: CSS3DRenderer;
 }
 
 function pickTargets(root: THREE.Object3D): THREE.Object3D[] {
   const targets: THREE.Object3D[] = [];
   root.traverse((object) => {
-    if (object.userData.pickKind || object.userData.isFloor) {
+    if (object.userData.pick || object.userData.isFloor) {
       targets.push(object);
     }
   });
@@ -116,74 +114,54 @@ function hitFromPointer(
   return raycaster.intersectObjects(pickTargets(mapsRoot), false)[0];
 }
 
-type OverlayPickKind = "door" | "npc" | "monster";
+function mapGroupFromObject(object: THREE.Object3D): THREE.Object3D | null {
+  let node: THREE.Object3D | null = object;
+  while (node) {
+    if (node.userData.mapId && node.userData.band) {
+      return node;
+    }
+    node = node.parent;
+  }
+  return null;
+}
+
+function objectPick(object: THREE.Object3D): OverlayPick | undefined {
+  return object.userData.pick as OverlayPick | undefined;
+}
 
 function applyOverlayPick(
   hit: THREE.Intersection,
   layout: WorldLayout,
   onSelectMap: (mapId: string | null) => void,
   onDoorTravel: (travel: DoorTravel) => void,
-  onNpcSelect: (npc: NpcSelection | null) => void,
-  onMonsterSelect: (monster: MonsterSelection | null) => void,
+  onInspect: (inspect: OverlayInspect | null) => void,
 ): void {
-  const pickKind = hit.object.userData.pickKind as OverlayPickKind | undefined;
-  const mapId = hit.object.userData.mapId as string | undefined;
-  if (!pickKind) {
+  const pick = objectPick(hit.object);
+  if (!pick) {
     if (hit.object.userData.isFloor) {
-      onSelectMap(mapId || null);
-      onNpcSelect(null);
-      onMonsterSelect(null);
+      onSelectMap(
+        (hit.object.userData.mapId as string | undefined) ||
+          mapGroupFromObject(hit.object)?.userData.mapId ||
+          null,
+      );
+      onInspect(null);
     }
     return;
   }
-  switch (pickKind) {
-    case "door": {
-      if (!mapId) {
-        return;
-      }
-      const door = hit.object.userData.door as ParsedDoor;
-      const travel = doorTravel(layout, mapId, door);
-      if (travel) {
-        onDoorTravel(travel);
-      }
-      return;
+  if (pick.kind === "door") {
+    const travel = doorTravel(layout, pick.mapId, pick.door);
+    if (travel) {
+      onInspect(null);
+      onDoorTravel(travel);
     }
-    case "npc": {
-      if (!mapId) {
-        return;
-      }
-      const npc = hit.object.userData.npc as NpcFeature;
-      onNpcSelect({
-        mapId,
-        id: npc.id,
-        name: npc.name || npc.label,
-        skin: npc.skin,
-        x: npc.x,
-        y: npc.y,
-      });
-      onSelectMap(mapId);
-      return;
-    }
-    case "monster": {
-      if (!mapId) {
-        return;
-      }
-      const monsterType = hit.object.userData.monsterType as string;
-      const monster = hit.object.userData.monster as { x: number; y: number };
-      onMonsterSelect({
-        mapId,
-        type: monsterType,
-        x: monster.x,
-        y: monster.y,
-      });
-      onSelectMap(mapId);
-      return;
-    }
-    default: {
-      const exhaustive: never = pickKind;
-      return exhaustive;
-    }
+    return;
   }
+  const inspect = overlayInspect(pick);
+  if (!inspect) {
+    return;
+  }
+  onInspect(inspect);
+  onSelectMap(pick.mapId);
 }
 
 export function WorldCanvas({
@@ -193,8 +171,7 @@ export function WorldCanvas({
   focus,
   onSelectMap,
   onDoorTravel,
-  onNpcSelect,
-  onMonsterSelect,
+  onInspect,
   onCursorMove,
   mapArt,
   pixelArt,
@@ -210,10 +187,8 @@ export function WorldCanvas({
   onSelectRef.current = onSelectMap;
   const onDoorTravelRef = useRef(onDoorTravel);
   onDoorTravelRef.current = onDoorTravel;
-  const onNpcSelectRef = useRef(onNpcSelect);
-  onNpcSelectRef.current = onNpcSelect;
-  const onMonsterSelectRef = useRef(onMonsterSelect);
-  onMonsterSelectRef.current = onMonsterSelect;
+  const onInspectRef = useRef(onInspect);
+  onInspectRef.current = onInspect;
   const onCursorMoveRef = useRef(onCursorMove);
   onCursorMoveRef.current = onCursorMove;
   const pixelArtRef = useRef(pixelArt);
@@ -222,7 +197,9 @@ export function WorldCanvas({
   selectedMapRef.current = selectedMap;
   const focusRef = useRef(focus);
   focusRef.current = focus;
-  const [hoveredDoor, setHoveredDoor] = useState<string | null>(null);
+  const seeThroughRef = useRef(seeThroughOverlays);
+  seeThroughRef.current = seeThroughOverlays;
+  const [tooltip, setTooltip] = useState<(OverlayTooltip & { x: number; y: number }) | null>(null);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -230,15 +207,14 @@ export function WorldCanvas({
       return undefined;
     }
 
-    const cssRenderer = new CSS3DRenderer();
-    cssRenderer.domElement.style.position = "absolute";
-    cssRenderer.domElement.style.inset = "0";
-    cssRenderer.domElement.style.pointerEvents = "none";
-    host.appendChild(cssRenderer.domElement);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x101218, 0);
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+      logarithmicDepthBuffer: true,
+      powerPreference: "high-performance",
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x101218, 1);
     renderer.domElement.style.position = "absolute";
     renderer.domElement.style.inset = "0";
     renderer.domElement.style.cursor = "crosshair";
@@ -247,7 +223,7 @@ export function WorldCanvas({
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x101218, 6000, 18000);
 
-    const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 40000);
+    const camera = new THREE.PerspectiveCamera(55, 1, 0.25, 40000);
     const bounds = computeWorldBounds(layoutRef.current);
     const navRef: { current: WorldCameraControls | null } = { current: null };
     const focusCameraOnSelection = () => {
@@ -279,7 +255,7 @@ export function WorldCanvas({
     const mapsRoot = new THREE.Group();
     mapsRoot.name = "maps";
     scene.add(mapsRoot);
-    worldRef.current = { mapsRoot, connections: null, scene, camera, navigation, cssRenderer };
+    worldRef.current = { mapsRoot, connections: null, scene, camera, navigation };
     if (focusRef.current) {
       applyMapFocus(navigation, layoutRef.current, focusRef.current);
     }
@@ -293,7 +269,6 @@ export function WorldCanvas({
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height);
-      cssRenderer.setSize(width, height);
     };
     resize();
     window.addEventListener("resize", resize);
@@ -301,7 +276,7 @@ export function WorldCanvas({
     const mapCoordsFromHit = (
       hit: THREE.Intersection,
     ): { mapId: string; x: number; y: number } | null => {
-      const mapGroup = hit.object.parent;
+      const mapGroup = mapGroupFromObject(hit.object);
       const mapId = (hit.object.userData.mapId || mapGroup?.userData.mapId) as string | undefined;
       if (!mapId || !mapGroup) {
         return null;
@@ -309,27 +284,36 @@ export function WorldCanvas({
       return {
         mapId,
         x: Math.round(hit.point.x - mapGroup.position.x),
-        y: Math.round(hit.point.z - mapGroup.position.y),
+        y: Math.round(hit.point.z - mapGroup.position.z),
       };
     };
 
+    let hovered: THREE.Object3D | null = null;
     const onPointerMove = (event: MouseEvent) => {
       const hit = hitFromPointer(event, renderer, camera, mapsRoot, raycaster, pointer);
       if (!hit) {
         onCursorMoveRef.current(null);
-        setHoveredDoor(null);
+        hovered = setHoveredOverlay(hovered, null, seeThroughRef.current);
+        setTooltip(null);
         renderer.domElement.style.cursor = "crosshair";
         return;
       }
       onCursorMoveRef.current(mapCoordsFromHit(hit));
-      if (hit.object.userData.pickKind === "door") {
-        const door = hit.object.userData.door as ParsedDoor;
-        setHoveredDoor(`${door.toMap}`);
-        renderer.domElement.style.cursor = "pointer";
+      const pick = objectPick(hit.object);
+      if (!pick) {
+        hovered = setHoveredOverlay(hovered, null, seeThroughRef.current);
+        setTooltip(null);
+        renderer.domElement.style.cursor = "crosshair";
         return;
       }
-      setHoveredDoor(null);
-      renderer.domElement.style.cursor = hit.object.userData.pickKind ? "pointer" : "crosshair";
+      hovered = setHoveredOverlay(hovered, hit.object, seeThroughRef.current);
+      renderer.domElement.style.cursor = "pointer";
+      const hostRect = host.getBoundingClientRect();
+      setTooltip({
+        ...overlayTooltip(pick, layoutRef.current.maps),
+        x: event.clientX - hostRect.left + 14,
+        y: event.clientY - hostRect.top + 14,
+      });
     };
 
     const focusCameraOnHit = (hit: THREE.Intersection) => {
@@ -351,6 +335,7 @@ export function WorldCanvas({
       const hit = hitFromPointer(event, renderer, camera, mapsRoot, raycaster, pointer);
       if (!hit) {
         onSelectRef.current(null);
+        onInspectRef.current(null);
         return;
       }
       applyOverlayPick(
@@ -358,8 +343,7 @@ export function WorldCanvas({
         layoutRef.current,
         onSelectRef.current,
         onDoorTravelRef.current,
-        onNpcSelectRef.current,
-        onMonsterSelectRef.current,
+        onInspectRef.current,
       );
     };
 
@@ -383,7 +367,6 @@ export function WorldCanvas({
         applyMapAnimation(mapsRoot, performance.now() - inception);
       }
       navigation.controls.update();
-      cssRenderer.render(scene, camera);
       renderer.render(scene, camera);
     };
     tick();
@@ -397,9 +380,6 @@ export function WorldCanvas({
       navigation.dispose();
       disposeObject(scene);
       renderer.dispose();
-      if (cssRenderer.domElement.parentElement === host) {
-        host.removeChild(cssRenderer.domElement);
-      }
       if (renderer.domElement.parentElement === host) {
         host.removeChild(renderer.domElement);
       }
@@ -487,21 +467,26 @@ export function WorldCanvas({
         background: "#101218",
       }}
     >
-      {hoveredDoor && (
+      {tooltip && (
         <div
           style={{
             position: "absolute",
-            left: 12,
-            bottom: 12,
+            left: tooltip.x,
+            top: tooltip.y,
+            maxWidth: 260,
             padding: "6px 10px",
             borderRadius: 6,
-            background: "rgba(0,0,0,0.72)",
-            color: "#33ff66",
+            background: "rgba(0,0,0,0.82)",
+            color: overlayPickColor(tooltip.kind),
             fontSize: 13,
+            lineHeight: 1.35,
+            zIndex: 3,
             pointerEvents: "none",
+            transform: "translate(-8px, 0)",
           }}
         >
-          Click to enter {hoveredDoor}
+          <div>{tooltip.title}</div>
+          <div style={{ opacity: 0.75, color: "#fff", fontSize: 11 }}>{tooltip.hint}</div>
         </div>
       )}
     </div>

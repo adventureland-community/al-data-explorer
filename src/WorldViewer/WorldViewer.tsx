@@ -6,32 +6,25 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Link,
   Typography,
 } from "@mui/material";
 import { GDataContext } from "../GDataContext";
-import { analyzeWorldLayout } from "./layoutAnalysis";
 import { DEFAULT_LAYER_HEIGHT, layoutWorld } from "./layoutWorld";
-import { collectMonsterTypes } from "./spriteLookup";
+import { collectMonsterTypes, collectUsedSpriteUrls } from "./spriteLookup";
 import {
   DEFAULT_OVERLAYS,
   DoorTravel,
   MapFocus,
-  MonsterSelection,
-  NpcSelection,
   OVERLAY_KINDS,
+  OverlayInspect,
   OverlayKind,
   OverlayVisibility,
 } from "./types";
 import { useMapCanvases } from "./useMapTextures";
 import { WorldCanvas } from "./WorldCanvas";
 import { WorldInspector } from "./WorldInspector";
-import {
-  monsterDisplayName,
-  WorldOverlayPanel,
-  WorldStatusBar,
-  WorldTopBar,
-} from "./WorldViewerHud";
+import { WorldOverlayInspect } from "./WorldOverlayInspect";
+import { WorldOverlayPanel, WorldStatusBar, WorldTopBar } from "./WorldViewerHud";
 import { toWorldSource } from "./worldData";
 
 export function WorldViewer() {
@@ -46,8 +39,7 @@ export function WorldViewer() {
   const [seeThroughOverlays, setSeeThroughOverlays] = useState(false);
   const [hiddenMonsterTypes, setHiddenMonsterTypes] = useState<Set<string>>(new Set());
   const [cursor, setCursor] = useState<{ mapId: string; x: number; y: number } | null>(null);
-  const [npcDialog, setNpcDialog] = useState<NpcSelection | null>(null);
-  const [monsterDialog, setMonsterDialog] = useState<MonsterSelection | null>(null);
+  const [inspect, setInspect] = useState<OverlayInspect | null>(null);
   const [doorDialog, setDoorDialog] = useState<DoorTravel | null>(null);
 
   const world = useMemo(() => (G ? toWorldSource(G) : null), [G]);
@@ -58,8 +50,6 @@ export function WorldViewer() {
     }
     return layoutWorld(world.source, layerHeight, includeIgnored, world.npcDefs);
   }, [world, layerHeight, includeIgnored]);
-
-  const layoutReport = useMemo(() => (layout ? analyzeWorldLayout(layout) : null), [layout]);
 
   const mapIds = useMemo(() => {
     if (!layout) {
@@ -77,11 +67,28 @@ export function WorldViewer() {
 
   const monsterTypes = useMemo(() => (layout ? collectMonsterTypes(layout.maps) : []), [layout]);
 
-  const { art, progress } = useMapCanvases(
+  const spriteUrls = useMemo(
+    () => (layout && world ? collectUsedSpriteUrls(layout.maps, world.spriteContext) : []),
+    [layout, world],
+  );
+
+  const {
+    art,
+    sheets,
+    progress,
+    error: artError,
+  } = useMapCanvases(
     world?.source.geometry || {},
     world?.tilesets || {},
+    spriteUrls,
     mapIds,
+    Boolean(world),
     Boolean(pixelArt && world),
+  );
+
+  const spriteContext = useMemo(
+    () => (world ? { ...world.spriteContext, sheets } : null),
+    [world, sheets],
   );
 
   const requestMapFocus = (mapId: string, x: number, y: number) => {
@@ -193,6 +200,7 @@ export function WorldViewer() {
         oneWayCount={oneWayCount}
         loadingLabel={loading}
         loadProgress={progress.total ? (100 * progress.done) / progress.total : 0}
+        errorLabel={artError}
       />
       <Box sx={{ display: "flex", gap: 1, flex: 1, minHeight: 0 }}>
         <WorldOverlayPanel
@@ -220,12 +228,11 @@ export function WorldViewer() {
             focus={focus}
             onSelectMap={setSelectedMap}
             onDoorTravel={handleDoorTravel}
-            onNpcSelect={setNpcDialog}
-            onMonsterSelect={setMonsterDialog}
+            onInspect={setInspect}
             onCursorMove={setCursor}
             mapArt={art}
             pixelArt={pixelArt}
-            spriteContext={world.spriteContext}
+            spriteContext={spriteContext}
             hiddenMonsterTypes={hiddenMonsterTypes}
             seeThroughOverlays={seeThroughOverlays}
           />
@@ -237,7 +244,6 @@ export function WorldViewer() {
           maps={layout.maps}
           poses={layout.poses}
           onFocusMap={focusMap}
-          layoutReport={layoutReport}
         />
       </Box>
       <WorldStatusBar
@@ -247,60 +253,12 @@ export function WorldViewer() {
         dataTimestamp={G.timestamp}
       />
 
-      <Dialog open={Boolean(npcDialog)} onClose={() => setNpcDialog(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>{npcDialog?.name || npcDialog?.id}</DialogTitle>
-        <DialogContent>
-          {npcDialog && (
-            <>
-              <Typography variant="body2">NPC id: {npcDialog.id}</Typography>
-              <Typography variant="body2">Skin: {npcDialog.skin}</Typography>
-              <Typography variant="body2">
-                Map: {layout.maps[npcDialog.mapId]?.name} ({npcDialog.mapId})
-              </Typography>
-              <Typography variant="body2">
-                Position: ({npcDialog.x}, {npcDialog.y})
-              </Typography>
-            </>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setNpcDialog(null)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={Boolean(monsterDialog)}
-        onClose={() => setMonsterDialog(null)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>
-          {monsterDialog ? monsterDisplayName(monsterDialog.type, world.monsters) : "Monster"}
-        </DialogTitle>
-        <DialogContent>
-          {monsterDialog && (
-            <>
-              <Typography variant="body2">Type: {monsterDialog.type}</Typography>
-              <Typography variant="body2">
-                Map: {layout.maps[monsterDialog.mapId]?.name} ({monsterDialog.mapId})
-              </Typography>
-              <Typography variant="body2">
-                Pack center: ({monsterDialog.x}, {monsterDialog.y})
-              </Typography>
-              <Link
-                href={`https://adventure.land/docs/guide/monsters#${monsterDialog.type}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open monster docs
-              </Link>
-            </>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setMonsterDialog(null)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+      <WorldOverlayInspect
+        inspect={inspect}
+        maps={layout.maps}
+        monsters={world.monsters}
+        onClose={() => setInspect(null)}
+      />
 
       <Dialog
         open={Boolean(doorDialog)}

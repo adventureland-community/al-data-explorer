@@ -35,6 +35,11 @@ export interface MonsterFeature {
   polygon?: Array<[number, number]>;
 }
 
+export interface QuirkFeature extends RectFeature {
+  kind: string;
+  text?: string;
+}
+
 export interface ZoneFeature {
   type: string;
   polygon: Array<[number, number]>;
@@ -81,7 +86,7 @@ export interface ParsedMap {
   yLines: Array<[number, number, number]>;
   doors: ParsedDoor[];
   spawns: PointFeature[];
-  quirks: Array<RectFeature & { kind: string; text?: string }>;
+  quirks: QuirkFeature[];
   npcs: NpcFeature[];
   monsters: MonsterFeature[];
   zones: ZoneFeature[];
@@ -130,6 +135,46 @@ export interface MonsterSelection {
   x: number;
   y: number;
 }
+
+export type OverlayPickKind = "door" | "npc" | "monster" | "quirk" | "zone" | "spawn";
+
+export interface OverlayTooltip {
+  title: string;
+  hint: string;
+  kind: OverlayPickKind;
+}
+
+export interface QuirkInspect {
+  kind: "quirk";
+  mapId: string;
+  quirkKind: string;
+  text?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface ZoneInspect {
+  kind: "zone";
+  mapId: string;
+  type: string;
+}
+
+export interface SpawnInspect {
+  kind: "spawn";
+  mapId: string;
+  label: string;
+  x: number;
+  y: number;
+}
+
+export type OverlayInspect =
+  | ({ kind: "npc" } & NpcSelection)
+  | ({ kind: "monster" } & MonsterSelection)
+  | QuirkInspect
+  | ZoneInspect
+  | SpawnInspect;
 
 export interface MapSource {
   maps: Record<string, GMap>;

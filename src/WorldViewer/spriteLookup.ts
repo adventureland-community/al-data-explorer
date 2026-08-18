@@ -1,4 +1,4 @@
-import { GDimension, GImage, GSprite } from "typed-adventureland";
+import { GDimension, GImage, GMonster, GSprite } from "typed-adventureland";
 import { adventureLandAssetUrl } from "./adventureLandAssetUrl";
 
 export interface SpriteSheetClip {
@@ -91,25 +91,42 @@ export function lookupSkinSprite(
   };
 }
 
-export function createSpriteElement(clip: SpriteSheetClip): HTMLDivElement {
-  const wrap = document.createElement("div");
-  wrap.style.overflow = "hidden";
-  wrap.style.width = `${clip.viewWidth}px`;
-  wrap.style.height = `${clip.viewHeight}px`;
-  wrap.style.pointerEvents = "none";
+/** Source rect on the natural sprite sheet that the old CSS clip window showed. */
+export function spriteClipSource(
+  clip: SpriteSheetClip,
+  naturalWidth: number,
+): { sx: number; sy: number; sw: number; sh: number } {
+  const size = clip.sheetWidth / Math.max(naturalWidth, 1);
+  return {
+    sx: (clip.col * clip.cellWidth + clip.offsetX / 2) / size,
+    sy: (clip.row * clip.cellHeight + clip.offsetY) / size,
+    sw: clip.viewWidth / size,
+    sh: clip.viewHeight / size,
+  };
+}
 
-  const image = document.createElement("img");
-  image.src = clip.url;
-  image.alt = "";
-  image.style.width = `${clip.sheetWidth}px`;
-  image.style.height = `${clip.sheetHeight}px`;
-  image.style.marginTop = `-${clip.row * clip.cellHeight + clip.offsetY}px`;
-  image.style.marginLeft = `-${clip.col * clip.cellWidth + clip.offsetX / 2}px`;
-  image.style.imageRendering = "pixelated";
-  image.style.display = "block";
-  image.style.pointerEvents = "none";
-  wrap.appendChild(image);
-  return wrap;
+export function paintSpriteClip(image: HTMLImageElement, clip: SpriteSheetClip): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(clip.viewWidth));
+  canvas.height = Math.max(1, Math.round(clip.viewHeight));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return canvas;
+  }
+  ctx.imageSmoothingEnabled = false;
+  const source = spriteClipSource(clip, image.naturalWidth || image.width);
+  ctx.drawImage(
+    image,
+    source.sx,
+    source.sy,
+    source.sw,
+    source.sh,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
+  return canvas;
 }
 
 export function collectMonsterTypes(
@@ -122,4 +139,38 @@ export function collectMonsterTypes(
     }
   }
   return [...types].sort((a, b) => a.localeCompare(b));
+}
+
+export function collectUsedSpriteUrls(
+  maps: Record<string, { npcs: Array<{ skin: string }>; monsters: Array<{ type: string }> }>,
+  ctx: {
+    sprites: Record<string, SpriteMatrixEntry>;
+    images: Record<string, GImage>;
+    dimensions: Record<string, GDimension>;
+    monsters: Record<string, GMonster>;
+  },
+): string[] {
+  const urls = new Set<string>();
+  for (const map of Object.values(maps)) {
+    for (const npc of map.npcs) {
+      const clip = lookupSkinSprite(ctx.sprites, ctx.images, ctx.dimensions, npc.skin);
+      if (clip) {
+        urls.add(clip.url);
+      }
+    }
+    for (const monster of map.monsters) {
+      const def = ctx.monsters[monster.type];
+      const clip = lookupSkinSprite(
+        ctx.sprites,
+        ctx.images,
+        ctx.dimensions,
+        def?.skin || monster.type,
+        def?.size || 1,
+      );
+      if (clip) {
+        urls.add(clip.url);
+      }
+    }
+  }
+  return [...urls].sort((a, b) => a.localeCompare(b));
 }

@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import { overlayColor } from "./overlayColors";
+import { OverlayPick } from "./overlayPick";
 import { OverlayKind, OverlayVisibility, ParsedMap } from "./types";
 
 export const SEE_THROUGH_OVERLAY_OPACITY = 0.38;
+const HOVER_WHITE = new THREE.Color(0xffffff);
 
 /** Default debug overlay opacities (zinals-style). */
 const OVERLAY_FILL_OPACITY: Record<Exclude<OverlayKind, "bounds" | "npcs">, number> = {
@@ -20,6 +22,10 @@ function markOverlayMesh(mesh: THREE.Object3D, lift: number, baseOpacity: number
   mesh.userData.overlayLift = lift;
   mesh.userData.baseOpacity = baseOpacity;
   mesh.renderOrder = lift;
+  if (mesh instanceof THREE.Mesh) {
+    const material = mesh.material as THREE.MeshBasicMaterial;
+    mesh.userData.baseColor = material.color.getHex();
+  }
 }
 
 const LIFT: Record<OverlayKind, number> = {
@@ -32,6 +38,30 @@ const LIFT: Record<OverlayKind, number> = {
   npcs: 12,
 };
 
+function overlayFillMaterial(color: number, opacity: number): THREE.MeshBasicMaterial {
+  return new THREE.MeshBasicMaterial({
+    color,
+    transparent: opacity < 1,
+    opacity,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    depthTest: true,
+  });
+}
+
+/** XY shape → XZ map plane. rotateX(-π/2) maps (x, y) to (x, z=-y). */
+function layFlatOnMap(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
+  return geometry.rotateX(-Math.PI / 2);
+}
+
+/**
+ * Game (x, y) → Shape vertex so layFlatOnMap lands on world (x, z=y),
+ * matching floors, sprites, and centered rect overlays.
+ */
+export function gameToShapePoint(x: number, y: number): [number, number] {
+  return [x, -y];
+}
+
 function makeRectMesh(
   x: number,
   y: number,
@@ -42,19 +72,9 @@ function makeRectMesh(
   opacity: number,
   bottomCentered = false,
 ): THREE.Mesh {
-  const geometry = new THREE.PlaneGeometry(Math.max(width, 2), Math.max(height, 2));
-  geometry.rotateX(-Math.PI / 2);
-  const material = new THREE.MeshBasicMaterial({
-    color,
-    transparent: opacity < 1,
-    opacity,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    depthTest: true,
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  const centerY = bottomCentered ? y - height / 2 : y;
-  mesh.position.set(x, lift, centerY);
+  const geometry = layFlatOnMap(new THREE.PlaneGeometry(Math.max(width, 2), Math.max(height, 2)));
+  const mesh = new THREE.Mesh(geometry, overlayFillMaterial(color, opacity));
+  mesh.position.set(x, lift, bottomCentered ? y - height / 2 : y);
   return mesh;
 }
 
@@ -68,22 +88,17 @@ function makePolygonMesh(
     return null;
   }
   const shape = new THREE.Shape();
-  shape.moveTo(polygon[0][0], polygon[0][1]);
+  const first = gameToShapePoint(polygon[0][0], polygon[0][1]);
+  shape.moveTo(first[0], first[1]);
   for (let i = 1; i < polygon.length; i += 1) {
-    shape.lineTo(polygon[i][0], polygon[i][1]);
+    const point = gameToShapePoint(polygon[i][0], polygon[i][1]);
+    shape.lineTo(point[0], point[1]);
   }
   shape.closePath();
-  const geometry = new THREE.ShapeGeometry(shape);
-  geometry.rotateX(-Math.PI / 2);
-  const material = new THREE.MeshBasicMaterial({
-    color,
-    transparent: opacity < 1,
-    opacity,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    depthTest: true,
-  });
-  const mesh = new THREE.Mesh(geometry, material);
+  const mesh = new THREE.Mesh(
+    layFlatOnMap(new THREE.ShapeGeometry(shape)),
+    overlayFillMaterial(color, opacity),
+  );
   mesh.position.y = lift;
   return mesh;
 }
@@ -173,38 +188,23 @@ function overlayGroup(kind: OverlayKind): THREE.Group {
   return group;
 }
 
-function makePickMesh(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  lift: number,
-  bottomCentered = false,
-): THREE.Mesh {
-  const geometry = new THREE.PlaneGeometry(Math.max(width, 2), Math.max(height, 2));
-  geometry.rotateX(-Math.PI / 2);
-  const material = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  const centerY = bottomCentered ? y - height / 2 : y;
-  mesh.position.set(x, lift, centerY);
-  return mesh;
-}
-
-function tagPick(
-  mesh: THREE.Object3D,
-  kind: string,
-  mapId: string,
-  extra: Record<string, unknown>,
+function attachOverlay(
+  group: THREE.Group,
+  mesh: THREE.Mesh | null,
+  pick: OverlayPick,
+  label: string,
+  style?: { lift: number; opacity: number },
 ): void {
-  mesh.userData.pickKind = kind;
-  mesh.userData.mapId = mapId;
-  Object.assign(mesh.userData, extra);
+  if (!mesh) {
+    return;
+  }
+  mesh.userData.label = label;
+  mesh.userData.pick = pick;
+  mesh.userData.mapId = pick.mapId;
+  if (style) {
+    markOverlayMesh(mesh, style.lift, style.opacity);
+  }
+  group.add(mesh);
 }
 
 export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
@@ -213,65 +213,76 @@ export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
 
   const doors = overlayGroup("doors");
   for (const door of map.doors) {
-    const mesh = makeRectMesh(
-      door.x,
-      door.y,
-      door.width,
-      door.height,
-      overlayColor("doors"),
-      LIFT.doors,
-      OVERLAY_FILL_OPACITY.doors,
-      true,
+    attachOverlay(
+      doors,
+      makeRectMesh(
+        door.x,
+        door.y,
+        door.width,
+        door.height,
+        overlayColor("doors"),
+        LIFT.doors,
+        OVERLAY_FILL_OPACITY.doors,
+        true,
+      ),
+      { kind: "door", mapId: map.id, door },
+      `To ${door.toMap}`,
+      { lift: LIFT.doors, opacity: OVERLAY_FILL_OPACITY.doors },
     );
-    mesh.userData.label = `To ${door.toMap}`;
-    tagPick(mesh, "door", map.id, { door });
-    markOverlayMesh(mesh, LIFT.doors, OVERLAY_FILL_OPACITY.doors);
-    doors.add(mesh);
   }
 
   const spawns = overlayGroup("spawns");
   for (const spawn of map.spawns) {
-    const mesh = makeRectMesh(
-      spawn.x,
-      spawn.y,
-      14,
-      14,
-      overlayColor("spawns"),
-      LIFT.spawns,
-      OVERLAY_FILL_OPACITY.spawns,
+    attachOverlay(
+      spawns,
+      makeRectMesh(
+        spawn.x,
+        spawn.y,
+        14,
+        14,
+        overlayColor("spawns"),
+        LIFT.spawns,
+        OVERLAY_FILL_OPACITY.spawns,
+      ),
+      { kind: "spawn", mapId: map.id, spawn },
+      spawn.label,
+      { lift: LIFT.spawns, opacity: OVERLAY_FILL_OPACITY.spawns },
     );
-    markOverlayMesh(mesh, LIFT.spawns, OVERLAY_FILL_OPACITY.spawns);
-    spawns.add(mesh);
   }
 
   const quirks = overlayGroup("quirks");
   for (const quirk of map.quirks) {
-    const mesh = makeRectMesh(
-      quirk.x,
-      quirk.y,
-      quirk.width,
-      quirk.height,
-      overlayColor("quirks"),
-      LIFT.quirks,
-      OVERLAY_FILL_OPACITY.quirks,
-      true,
+    attachOverlay(
+      quirks,
+      makeRectMesh(
+        quirk.x,
+        quirk.y,
+        quirk.width,
+        quirk.height,
+        overlayColor("quirks"),
+        LIFT.quirks,
+        OVERLAY_FILL_OPACITY.quirks,
+        true,
+      ),
+      { kind: "quirk", mapId: map.id, quirk },
+      quirk.text || quirk.kind,
+      { lift: LIFT.quirks, opacity: OVERLAY_FILL_OPACITY.quirks },
     );
-    mesh.userData.label = quirk.text || quirk.kind;
-    markOverlayMesh(mesh, LIFT.quirks, OVERLAY_FILL_OPACITY.quirks);
-    quirks.add(mesh);
   }
 
   const npcs = overlayGroup("npcs");
   for (const npc of map.npcs) {
-    const pick = makePickMesh(npc.x, npc.y, 20, 28, LIFT.npcs, true);
-    pick.userData.label = npc.label;
-    tagPick(pick, "npc", map.id, { npc });
-    npcs.add(pick);
+    attachOverlay(
+      npcs,
+      makeRectMesh(npc.x, npc.y, 20, 28, 0xffffff, LIFT.npcs, 0, true),
+      { kind: "npc", mapId: map.id, npc },
+      npc.label,
+    );
   }
 
   const monsters = overlayGroup("monsters");
   for (const monster of map.monsters) {
-    let mesh: THREE.Object3D | null = null;
+    let mesh: THREE.Mesh | null = null;
     if (monster.polygon) {
       mesh = makePolygonMesh(
         monster.polygon,
@@ -280,19 +291,11 @@ export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
         OVERLAY_FILL_OPACITY.monsters,
       );
     } else if (monster.radius) {
-      const geometry = new THREE.CircleGeometry(monster.radius, 24);
-      geometry.rotateX(-Math.PI / 2);
-      const material = new THREE.MeshBasicMaterial({
-        color: overlayColor("monsters"),
-        transparent: true,
-        opacity: OVERLAY_FILL_OPACITY.monsters,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        depthTest: true,
-      });
-      mesh = new THREE.Mesh(geometry, material);
+      mesh = new THREE.Mesh(
+        layFlatOnMap(new THREE.CircleGeometry(monster.radius, 24)),
+        overlayFillMaterial(overlayColor("monsters"), OVERLAY_FILL_OPACITY.monsters),
+      );
       mesh.position.set(monster.x, LIFT.monsters, monster.y);
-      markOverlayMesh(mesh, LIFT.monsters, OVERLAY_FILL_OPACITY.monsters);
     } else {
       mesh = makeRectMesh(
         monster.x,
@@ -304,32 +307,67 @@ export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
         OVERLAY_FILL_OPACITY.monsters,
       );
     }
-    if (mesh) {
-      mesh.userData.label = monster.type;
-      tagPick(mesh, "monster", map.id, { monsterType: monster.type, monster });
-      if (!mesh.userData.isOverlayMesh) {
-        markOverlayMesh(mesh, LIFT.monsters, OVERLAY_FILL_OPACITY.monsters);
-      }
-      monsters.add(mesh);
-    }
+    attachOverlay(monsters, mesh, { kind: "monster", mapId: map.id, monster }, monster.type, {
+      lift: LIFT.monsters,
+      opacity: OVERLAY_FILL_OPACITY.monsters,
+    });
   }
 
   const zones = overlayGroup("zones");
   for (const zone of map.zones) {
-    const mesh = makePolygonMesh(
-      zone.polygon,
-      overlayColor("zones"),
-      LIFT.zones,
-      OVERLAY_FILL_OPACITY.zones,
+    attachOverlay(
+      zones,
+      makePolygonMesh(zone.polygon, overlayColor("zones"), LIFT.zones, OVERLAY_FILL_OPACITY.zones),
+      { kind: "zone", mapId: map.id, zone },
+      zone.type,
+      { lift: LIFT.zones, opacity: OVERLAY_FILL_OPACITY.zones },
     );
-    if (mesh) {
-      mesh.userData.label = zone.type;
-      markOverlayMesh(mesh, LIFT.zones, OVERLAY_FILL_OPACITY.zones);
-      zones.add(mesh);
-    }
   }
 
   return [bounds, doors, spawns, quirks, npcs, monsters, zones];
+}
+
+export function applyOverlayMeshStyle(object: THREE.Object3D, seeThrough: boolean): void {
+  if (!(object instanceof THREE.Mesh) || !object.userData.isOverlayMesh) {
+    return;
+  }
+  const material = object.material as THREE.MeshBasicMaterial;
+  const lift = (object.userData.overlayLift as number | undefined) ?? object.position.y;
+  const baseOpacity = (object.userData.baseOpacity as number | undefined) ?? 1;
+  const baseColor = (object.userData.baseColor as number | undefined) ?? material.color.getHex();
+  const hovered = Boolean(object.userData.isHovered);
+  const opacity = seeThrough ? SEE_THROUGH_OVERLAY_OPACITY : baseOpacity;
+  material.transparent = true;
+  material.opacity = hovered ? Math.min(0.92, opacity + 0.4) : opacity;
+  material.color.setHex(baseColor);
+  if (hovered) {
+    material.color.lerp(HOVER_WHITE, 0.42);
+  }
+  material.depthWrite = false;
+  material.depthTest = true;
+  material.side = THREE.DoubleSide;
+  object.renderOrder = lift;
+  material.needsUpdate = true;
+}
+
+export function setHoveredOverlay(
+  previous: THREE.Object3D | null,
+  next: THREE.Object3D | null,
+  seeThrough: boolean,
+): THREE.Object3D | null {
+  if (previous === next) {
+    return previous;
+  }
+  if (previous) {
+    previous.userData.isHovered = false;
+    applyOverlayMeshStyle(previous, seeThrough);
+  }
+  if (!next?.userData.isOverlayMesh) {
+    return null;
+  }
+  next.userData.isHovered = true;
+  applyOverlayMeshStyle(next, seeThrough);
+  return next;
 }
 
 export function applyOverlayDepthStyle(root: THREE.Object3D, seeThrough: boolean): void {
@@ -344,26 +382,7 @@ export function applyOverlayDepthStyle(root: THREE.Object3D, seeThrough: boolean
       material.needsUpdate = true;
       return;
     }
-    if (!(object instanceof THREE.Mesh)) {
-      return;
-    }
-    if (object.userData.isDepthOccluder || object.userData.isFloor || object.userData.pickKind) {
-      return;
-    }
-    if (!object.userData.isOverlayMesh) {
-      return;
-    }
-    const material = object.material as THREE.MeshBasicMaterial;
-    const lift = (object.userData.overlayLift as number | undefined) ?? object.position.y;
-    const baseOpacity = (object.userData.baseOpacity as number | undefined) ?? 1;
-    const opacity = seeThrough ? SEE_THROUGH_OVERLAY_OPACITY : baseOpacity;
-    material.transparent = opacity < 1;
-    material.opacity = opacity;
-    material.depthWrite = false;
-    material.depthTest = true;
-    material.side = THREE.DoubleSide;
-    object.renderOrder = lift;
-    material.needsUpdate = true;
+    applyOverlayMeshStyle(object, seeThrough);
   });
 }
 
