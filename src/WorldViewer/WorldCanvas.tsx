@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer";
 import {
   applyFloorCanvases,
@@ -26,6 +25,31 @@ import {
   ParsedDoor,
   WorldLayout,
 } from "./types";
+import {
+  computeMapFocusDistance,
+  computeWorldBounds,
+  createWorldCameraControls,
+  mapCenterWorld,
+  mapPointToWorld,
+  updateWorldCameraResetPose,
+  WORLD_CONTROLS_HELP,
+  WorldCameraControls,
+} from "./worldCameraControls";
+
+function applyMapFocus(
+  navigation: WorldCameraControls,
+  layout: WorldLayout,
+  targetFocus: MapFocus,
+): void {
+  const map = layout.maps[targetFocus.mapId];
+  const pose = layout.poses[targetFocus.mapId];
+  if (!map || !pose) {
+    return;
+  }
+  const point = mapPointToWorld(pose, targetFocus.x, targetFocus.y);
+  const distance = computeMapFocusDistance(map);
+  navigation.focusOnPoint(new THREE.Vector3(point.x, point.y, point.z), distance);
+}
 
 interface WorldCanvasProps {
   layout: WorldLayout;
@@ -49,7 +73,7 @@ interface WorldRefs {
   connections: THREE.Group | null;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
-  controls: OrbitControls;
+  navigation: WorldCameraControls;
   cssRenderer: CSS3DRenderer;
 }
 
@@ -110,7 +134,14 @@ export function WorldCanvas({
   onCursorMoveRef.current = onCursorMove;
   const pixelArtRef = useRef(pixelArt);
   pixelArtRef.current = pixelArt;
+  const selectedMapRef = useRef(selectedMap);
+  selectedMapRef.current = selectedMap;
+  const layoutRefForNav = useRef(layout);
+  layoutRefForNav.current = layout;
+  const focusRef = useRef(focus);
+  focusRef.current = focus;
   const [hoveredDoor, setHoveredDoor] = useState<string | null>(null);
+  const [controlsHelpOpen, setControlsHelpOpen] = useState(false);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -135,18 +166,17 @@ export function WorldCanvas({
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x101218, 6000, 18000);
 
-    const camera = new THREE.PerspectiveCamera(55, 1, 2, 40000);
-    camera.position.set(400, 2200, 1800);
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.target.set(200, 0, 200);
+    const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 40000);
+    const bounds = computeWorldBounds(layoutRefForNav.current);
+    const navigation = createWorldCameraControls(camera, renderer.domElement, bounds);
 
     const mapsRoot = new THREE.Group();
     mapsRoot.name = "maps";
     scene.add(mapsRoot);
-    worldRef.current = { mapsRoot, connections: null, scene, camera, controls, cssRenderer };
+    worldRef.current = { mapsRoot, connections: null, scene, camera, navigation, cssRenderer };
+    if (focusRef.current) {
+      applyMapFocus(navigation, layoutRefForNav.current, focusRef.current);
+    }
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
@@ -200,6 +230,39 @@ export function WorldCanvas({
       }
       setHoveredDoor(null);
       renderer.domElement.style.cursor = hit.object.userData.pickKind ? "pointer" : "crosshair";
+    };
+
+    const focusCameraOnHit = (hit: THREE.Intersection) => {
+      const coords = mapCoordsFromHit(hit);
+      if (!coords) {
+        return;
+      }
+      const pose = layoutRefForNav.current.poses[coords.mapId];
+      if (!pose) {
+        return;
+      }
+      const point = mapPointToWorld(pose, coords.x, coords.y);
+      const map = layoutRefForNav.current.maps[coords.mapId];
+      const distance = map ? computeMapFocusDistance(map) : undefined;
+      navigation.focusOnPoint(new THREE.Vector3(point.x, point.y, point.z), distance);
+    };
+
+    const focusCameraOnSelection = () => {
+      const mapId = selectedMapRef.current;
+      if (!mapId) {
+        return;
+      }
+      const currentLayout = layoutRefForNav.current;
+      const map = currentLayout.maps[mapId];
+      const pose = currentLayout.poses[mapId];
+      if (!map || !pose) {
+        return;
+      }
+      const center = mapCenterWorld(map, pose);
+      navigation.focusOnPoint(
+        new THREE.Vector3(center.x, center.y, center.z),
+        computeMapFocusDistance(map),
+      );
     };
 
     const onClick = (event: MouseEvent) => {
@@ -260,8 +323,40 @@ export function WorldCanvas({
       }
     };
 
+    const onDoubleClick = (event: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(pickTargets(mapsRoot), false);
+      const hit = hits[0];
+      if (!hit?.object.userData.isFloor) {
+        return;
+      }
+      focusCameraOnHit(hit);
+    };
+
+    const onFocusKey = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "f" || event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+      if (
+        event.target instanceof HTMLElement &&
+        (event.target.tagName === "INPUT" ||
+          event.target.tagName === "TEXTAREA" ||
+          event.target.tagName === "SELECT" ||
+          event.target.isContentEditable)
+      ) {
+        return;
+      }
+      focusCameraOnSelection();
+      event.preventDefault();
+    };
+
     renderer.domElement.addEventListener("pointermove", onPointerMove);
     renderer.domElement.addEventListener("click", onClick);
+    renderer.domElement.addEventListener("dblclick", onDoubleClick);
+    window.addEventListener("keydown", onFocusKey);
 
     let frame = 0;
     const inception = performance.now();
@@ -270,7 +365,7 @@ export function WorldCanvas({
       if (pixelArtRef.current) {
         applyMapAnimation(mapsRoot, performance.now() - inception);
       }
-      controls.update();
+      navigation.controls.update();
       cssRenderer.render(scene, camera);
       renderer.render(scene, camera);
     };
@@ -279,9 +374,11 @@ export function WorldCanvas({
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
+      window.removeEventListener("keydown", onFocusKey);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       renderer.domElement.removeEventListener("click", onClick);
-      controls.dispose();
+      renderer.domElement.removeEventListener("dblclick", onDoubleClick);
+      navigation.dispose();
       disposeObject(scene);
       renderer.dispose();
       if (cssRenderer.domElement.parentElement === host) {
@@ -347,18 +444,19 @@ export function WorldCanvas({
 
   useEffect(() => {
     const world = worldRef.current;
+    if (!world) {
+      return;
+    }
+    const bounds = computeWorldBounds(layout);
+    updateWorldCameraResetPose(world.navigation.controls, bounds);
+  }, [layout]);
+
+  useEffect(() => {
+    const world = worldRef.current;
     if (!world || !focus) {
       return;
     }
-    const map = layout.maps[focus.mapId];
-    const pose = layout.poses[focus.mapId];
-    if (!map || !pose) {
-      return;
-    }
-    const x = pose.x + focus.x;
-    const y = pose.z;
-    const z = pose.y + focus.y;
-    world.controls.target.set(x, y, z);
+    applyMapFocus(world.navigation, layout, focus);
   }, [layout, focus]);
 
   return (
@@ -389,6 +487,45 @@ export function WorldCanvas({
           }}
         >
           Click to enter {hoveredDoor}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => setControlsHelpOpen((open) => !open)}
+        style={{
+          position: "absolute",
+          right: 12,
+          bottom: 12,
+          padding: "6px 10px",
+          borderRadius: 6,
+          border: "1px solid rgba(255,255,255,0.18)",
+          background: "rgba(0,0,0,0.72)",
+          color: "#d8dce8",
+          fontSize: 12,
+          cursor: "pointer",
+        }}
+      >
+        {controlsHelpOpen ? "Hide controls" : "Controls"}
+      </button>
+      {controlsHelpOpen && (
+        <div
+          style={{
+            position: "absolute",
+            right: 12,
+            bottom: 48,
+            padding: "10px 12px",
+            borderRadius: 8,
+            background: "rgba(0,0,0,0.82)",
+            color: "#c8ceda",
+            fontSize: 12,
+            lineHeight: 1.55,
+            maxWidth: 260,
+            pointerEvents: "none",
+          }}
+        >
+          {WORLD_CONTROLS_HELP.map((line) => (
+            <div key={line}>{line}</div>
+          ))}
         </div>
       )}
     </div>

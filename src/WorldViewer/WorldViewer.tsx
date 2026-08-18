@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -27,6 +27,7 @@ import {
 } from "typed-adventureland";
 import { GDataContext } from "../GDataContext";
 import { MapSpriteContext } from "./createWorldScene";
+import { analyzeWorldLayout } from "./layoutAnalysis";
 import { DEFAULT_LAYER_HEIGHT, layoutWorld } from "./layoutWorld";
 import { overlayHex } from "./overlayColors";
 import {
@@ -75,9 +76,10 @@ export function WorldViewer() {
   const G = useContext(GDataContext);
   const [overlays, setOverlays] = useState<OverlayVisibility>(DEFAULT_OVERLAYS);
   const [layerHeight, setLayerHeight] = useState(DEFAULT_LAYER_HEIGHT);
-  const [includeIgnored, setIncludeIgnored] = useState(true);
+  const [includeIgnored, setIncludeIgnored] = useState(false);
   const [selectedMap, setSelectedMap] = useState<string | null>("main");
   const [focus, setFocus] = useState<MapFocus | null>(null);
+  const focusSeqRef = useRef(0);
   const [pixelArt, setPixelArt] = useState(true);
   const [seeThroughOverlays, setSeeThroughOverlays] = useState(false);
   const [hiddenMonsterTypes, setHiddenMonsterTypes] = useState<Set<string>>(new Set());
@@ -86,6 +88,7 @@ export function WorldViewer() {
   const [npcDialog, setNpcDialog] = useState<NpcSelection | null>(null);
   const [monsterDialog, setMonsterDialog] = useState<MonsterSelection | null>(null);
   const [doorDialog, setDoorDialog] = useState<DoorTravel | null>(null);
+  const [layoutAnalysisOpen, setLayoutAnalysisOpen] = useState(false);
 
   const spriteContext = useMemo((): MapSpriteContext | null => {
     if (!G) {
@@ -114,6 +117,8 @@ export function WorldViewer() {
     );
   }, [G, layerHeight, includeIgnored]);
 
+  const layoutReport = useMemo(() => (layout ? analyzeWorldLayout(layout) : null), [layout]);
+
   const mapIds = layout
     ? Object.keys(layout.maps).sort((a, b) => {
         const nameA = layout.maps[a].name;
@@ -131,13 +136,29 @@ export function WorldViewer() {
     Boolean(pixelArt && G),
   );
 
+  const requestMapFocus = (mapId: string, x: number, y: number) => {
+    focusSeqRef.current += 1;
+    setFocus({ mapId, x, y, seq: focusSeqRef.current });
+  };
+
+  useEffect(() => {
+    if (!layout || !selectedMap || focusSeqRef.current > 0) {
+      return;
+    }
+    const map = layout.maps[selectedMap];
+    if (!map) {
+      return;
+    }
+    requestMapFocus(selectedMap, (map.artMinX + map.artMaxX) / 2, (map.artMinY + map.artMaxY) / 2);
+  }, [layout, selectedMap]);
+
   const handleDoorTravel = (travel: DoorTravel) => {
     if (travel.lock) {
       setDoorDialog(travel);
       return;
     }
     setSelectedMap(travel.toMap);
-    setFocus({ mapId: travel.toMap, x: travel.toX, y: travel.toY });
+    requestMapFocus(travel.toMap, travel.toX, travel.toY);
   };
 
   const confirmDoorTravel = () => {
@@ -145,7 +166,7 @@ export function WorldViewer() {
       return;
     }
     setSelectedMap(doorDialog.toMap);
-    setFocus({ mapId: doorDialog.toMap, x: doorDialog.toX, y: doorDialog.toY });
+    requestMapFocus(doorDialog.toMap, doorDialog.toX, doorDialog.toY);
     setDoorDialog(null);
   };
 
@@ -166,6 +187,12 @@ export function WorldViewer() {
   }
 
   const selected = selectedMap ? layout.maps[selectedMap] : undefined;
+  const selectedPose = selectedMap ? layout.poses[selectedMap] : undefined;
+  const selectedConnections = selectedMap
+    ? layout.connections.filter(
+        (connection) => connection.fromMap === selectedMap || connection.toMap === selectedMap,
+      )
+    : [];
   const twoWayCount = layout.connections.filter((connection) => connection.twoWay).length;
   const oneWayCount = layout.connections.length - twoWayCount;
   const cursorMap = cursor ? layout.maps[cursor.mapId] : undefined;
@@ -206,11 +233,11 @@ export function WorldViewer() {
             setSelectedMap(mapId);
             if (mapId) {
               const map = layout.maps[mapId];
-              setFocus({
+              requestMapFocus(
                 mapId,
-                x: (map.minX + map.maxX) / 2,
-                y: (map.minY + map.maxY) / 2,
-              });
+                (map.artMinX + map.artMaxX) / 2,
+                (map.artMinY + map.artMaxY) / 2,
+              );
             }
           }}
           sx={{ marginBottom: 2 }}
@@ -271,7 +298,7 @@ export function WorldViewer() {
                 onChange={(event) => setIncludeIgnored(event.target.checked)}
               />
             }
-            label="Unlisted maps (gateway, ucliffs, …)"
+            label="Include hidden maps (unlist / ignore flags in map data)"
           />
         </FormGroup>
         <Box sx={{ marginBottom: 2 }}>
@@ -318,6 +345,40 @@ export function WorldViewer() {
         <Typography variant="body2">
           {mapIds.length} maps · data v{G.version} · {twoWayCount} two-way · {oneWayCount} one-way
         </Typography>
+        <Box sx={{ marginTop: 2 }}>
+          <Button size="small" onClick={() => setLayoutAnalysisOpen((open) => !open)}>
+            {layoutAnalysisOpen ? "▼" : "▶"} Layout analysis
+          </Button>
+          {layoutAnalysisOpen && layoutReport && (
+            <Box sx={{ marginTop: 1 }}>
+              <Typography variant="body2">
+                {layoutReport.components.length} components · {layoutReport.connectionCount} door
+                edges
+              </Typography>
+              <Typography variant="body2">
+                Same-layer overlaps: {layoutReport.artOverlapsSameZ} · cross-layer footprints:{" "}
+                {layoutReport.artOverlapsAnyZ}
+              </Typography>
+              <Typography variant="body2">
+                Near hub (±2500): {layoutReport.nearOriginMaps.length} maps
+              </Typography>
+              {layoutReport.components.map((component) => (
+                <Typography
+                  key={component.id}
+                  variant="caption"
+                  display="block"
+                  sx={{ opacity: 0.85 }}
+                >
+                  {component.rootId}: {component.mapIds.length} maps, depth {component.maxDepth}
+                </Typography>
+              ))}
+              <Typography variant="caption" display="block" sx={{ marginTop: 1, opacity: 0.75 }}>
+                Z from band + dungeon depth. Door ports lock XY; slab separation on every Z layer;
+                port-locked overlap uses small Z steps.
+              </Typography>
+            </Box>
+          )}
+        </Box>
         {cursor && cursorMap && (
           <Typography variant="body2" sx={{ marginTop: 1 }}>
             Cursor: {cursorMap.name} ({cursor.x}, {cursor.y})
@@ -334,7 +395,39 @@ export function WorldViewer() {
               {selected.name} ({selected.id})
             </Typography>
             <Typography variant="body2">Band: {selected.band}</Typography>
+            {selectedPose && (
+              <Typography variant="body2">
+                World pose: ({Math.round(selectedPose.x)}, {Math.round(selectedPose.y)}, z{" "}
+                {Math.round(selectedPose.z)})
+              </Typography>
+            )}
             <Typography variant="body2">Doors: {selected.doors.length}</Typography>
+            {selectedConnections.length > 0 && (
+              <Box sx={{ marginTop: 1 }}>
+                <Typography variant="caption">Door graph links</Typography>
+                {selectedConnections.map((connection) => {
+                  const outbound = connection.fromMap === selected.id;
+                  const otherId = outbound ? connection.toMap : connection.fromMap;
+                  const other = layout.maps[otherId];
+                  const otherPose = layout.poses[otherId];
+                  return (
+                    <Typography
+                      key={`${connection.fromMap}-${connection.toMap}`}
+                      variant="caption"
+                      display="block"
+                    >
+                      {outbound ? "→" : "←"} {other?.name || otherId}
+                      {otherPose
+                        ? ` (${Math.round(otherPose.x)}, ${Math.round(otherPose.y)}, z ${Math.round(
+                            otherPose.z,
+                          )})`
+                        : ""}
+                      {connection.twoWay ? " · two-way" : " · one-way"}
+                    </Typography>
+                  );
+                })}
+              </Box>
+            )}
             <Typography variant="body2">NPCs: {selected.npcs.length}</Typography>
             <Typography variant="body2">Monster packs: {selected.monsters.length}</Typography>
           </Box>

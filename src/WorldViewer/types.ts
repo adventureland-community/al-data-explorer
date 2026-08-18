@@ -103,6 +103,8 @@ export interface MapFocus {
   mapId: string;
   x: number;
   y: number;
+  /** Bumped on each focus request so re-selecting the same map still recenters. */
+  seq: number;
 }
 
 export interface DoorTravel {
