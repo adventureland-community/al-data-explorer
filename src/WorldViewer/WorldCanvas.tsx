@@ -32,7 +32,6 @@ import {
   mapCenterWorld,
   mapPointToWorld,
   updateWorldCameraResetPose,
-  WORLD_CONTROLS_HELP,
   WorldCameraControls,
 } from "./worldCameraControls";
 
@@ -102,6 +101,91 @@ function doorTravel(layout: WorldLayout, mapId: string, door: ParsedDoor): DoorT
   };
 }
 
+function hitFromPointer(
+  event: MouseEvent,
+  renderer: THREE.WebGLRenderer,
+  camera: THREE.Camera,
+  mapsRoot: THREE.Group,
+  raycaster: THREE.Raycaster,
+  pointer: THREE.Vector2,
+): THREE.Intersection | undefined {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  return raycaster.intersectObjects(pickTargets(mapsRoot), false)[0];
+}
+
+type OverlayPickKind = "door" | "npc" | "monster";
+
+function applyOverlayPick(
+  hit: THREE.Intersection,
+  layout: WorldLayout,
+  onSelectMap: (mapId: string | null) => void,
+  onDoorTravel: (travel: DoorTravel) => void,
+  onNpcSelect: (npc: NpcSelection | null) => void,
+  onMonsterSelect: (monster: MonsterSelection | null) => void,
+): void {
+  const pickKind = hit.object.userData.pickKind as OverlayPickKind | undefined;
+  const mapId = hit.object.userData.mapId as string | undefined;
+  if (!pickKind) {
+    if (hit.object.userData.isFloor) {
+      onSelectMap(mapId || null);
+      onNpcSelect(null);
+      onMonsterSelect(null);
+    }
+    return;
+  }
+  switch (pickKind) {
+    case "door": {
+      if (!mapId) {
+        return;
+      }
+      const door = hit.object.userData.door as ParsedDoor;
+      const travel = doorTravel(layout, mapId, door);
+      if (travel) {
+        onDoorTravel(travel);
+      }
+      return;
+    }
+    case "npc": {
+      if (!mapId) {
+        return;
+      }
+      const npc = hit.object.userData.npc as NpcFeature;
+      onNpcSelect({
+        mapId,
+        id: npc.id,
+        name: npc.name || npc.label,
+        skin: npc.skin,
+        x: npc.x,
+        y: npc.y,
+      });
+      onSelectMap(mapId);
+      return;
+    }
+    case "monster": {
+      if (!mapId) {
+        return;
+      }
+      const monsterType = hit.object.userData.monsterType as string;
+      const monster = hit.object.userData.monster as { x: number; y: number };
+      onMonsterSelect({
+        mapId,
+        type: monsterType,
+        x: monster.x,
+        y: monster.y,
+      });
+      onSelectMap(mapId);
+      return;
+    }
+    default: {
+      const exhaustive: never = pickKind;
+      return exhaustive;
+    }
+  }
+}
+
 export function WorldCanvas({
   layout,
   overlays,
@@ -136,12 +220,9 @@ export function WorldCanvas({
   pixelArtRef.current = pixelArt;
   const selectedMapRef = useRef(selectedMap);
   selectedMapRef.current = selectedMap;
-  const layoutRefForNav = useRef(layout);
-  layoutRefForNav.current = layout;
   const focusRef = useRef(focus);
   focusRef.current = focus;
   const [hoveredDoor, setHoveredDoor] = useState<string | null>(null);
-  const [controlsHelpOpen, setControlsHelpOpen] = useState(false);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -167,15 +248,40 @@ export function WorldCanvas({
     scene.fog = new THREE.Fog(0x101218, 6000, 18000);
 
     const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 40000);
-    const bounds = computeWorldBounds(layoutRefForNav.current);
-    const navigation = createWorldCameraControls(camera, renderer.domElement, bounds);
+    const bounds = computeWorldBounds(layoutRef.current);
+    const navRef: { current: WorldCameraControls | null } = { current: null };
+    const focusCameraOnSelection = () => {
+      const navigation = navRef.current;
+      const mapId = selectedMapRef.current;
+      if (!navigation || !mapId) {
+        return;
+      }
+      const currentLayout = layoutRef.current;
+      const map = currentLayout.maps[mapId];
+      const pose = currentLayout.poses[mapId];
+      if (!map || !pose) {
+        return;
+      }
+      const center = mapCenterWorld(map, pose);
+      navigation.focusOnPoint(
+        new THREE.Vector3(center.x, center.y, center.z),
+        computeMapFocusDistance(map),
+      );
+    };
+    const navigation = createWorldCameraControls(
+      camera,
+      renderer.domElement,
+      bounds,
+      focusCameraOnSelection,
+    );
+    navRef.current = navigation;
 
     const mapsRoot = new THREE.Group();
     mapsRoot.name = "maps";
     scene.add(mapsRoot);
     worldRef.current = { mapsRoot, connections: null, scene, camera, navigation, cssRenderer };
     if (focusRef.current) {
-      applyMapFocus(navigation, layoutRefForNav.current, focusRef.current);
+      applyMapFocus(navigation, layoutRef.current, focusRef.current);
     }
 
     const raycaster = new THREE.Raycaster();
@@ -208,20 +314,14 @@ export function WorldCanvas({
     };
 
     const onPointerMove = (event: MouseEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      const hits = raycaster.intersectObjects(pickTargets(mapsRoot), false);
-      const hit = hits[0];
+      const hit = hitFromPointer(event, renderer, camera, mapsRoot, raycaster, pointer);
       if (!hit) {
         onCursorMoveRef.current(null);
         setHoveredDoor(null);
         renderer.domElement.style.cursor = "crosshair";
         return;
       }
-      const coords = mapCoordsFromHit(hit);
-      onCursorMoveRef.current(coords);
+      onCursorMoveRef.current(mapCoordsFromHit(hit));
       if (hit.object.userData.pickKind === "door") {
         const door = hit.object.userData.door as ParsedDoor;
         setHoveredDoor(`${door.toMap}`);
@@ -237,126 +337,43 @@ export function WorldCanvas({
       if (!coords) {
         return;
       }
-      const pose = layoutRefForNav.current.poses[coords.mapId];
+      const pose = layoutRef.current.poses[coords.mapId];
       if (!pose) {
         return;
       }
       const point = mapPointToWorld(pose, coords.x, coords.y);
-      const map = layoutRefForNav.current.maps[coords.mapId];
+      const map = layoutRef.current.maps[coords.mapId];
       const distance = map ? computeMapFocusDistance(map) : undefined;
       navigation.focusOnPoint(new THREE.Vector3(point.x, point.y, point.z), distance);
     };
 
-    const focusCameraOnSelection = () => {
-      const mapId = selectedMapRef.current;
-      if (!mapId) {
-        return;
-      }
-      const currentLayout = layoutRefForNav.current;
-      const map = currentLayout.maps[mapId];
-      const pose = currentLayout.poses[mapId];
-      if (!map || !pose) {
-        return;
-      }
-      const center = mapCenterWorld(map, pose);
-      navigation.focusOnPoint(
-        new THREE.Vector3(center.x, center.y, center.z),
-        computeMapFocusDistance(map),
-      );
-    };
-
     const onClick = (event: MouseEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      const hits = raycaster.intersectObjects(pickTargets(mapsRoot), false);
-      const hit = hits[0];
+      const hit = hitFromPointer(event, renderer, camera, mapsRoot, raycaster, pointer);
       if (!hit) {
         onSelectRef.current(null);
         return;
       }
-
-      const pickKind = hit.object.userData.pickKind as string | undefined;
-      const mapId = hit.object.userData.mapId as string | undefined;
-
-      if (pickKind === "door" && mapId) {
-        const door = hit.object.userData.door as ParsedDoor;
-        const travel = doorTravel(layoutRef.current, mapId, door);
-        if (travel) {
-          onDoorTravelRef.current(travel);
-        }
-        return;
-      }
-
-      if (pickKind === "npc" && mapId) {
-        const npc = hit.object.userData.npc as NpcFeature;
-        onNpcSelectRef.current({
-          mapId,
-          id: npc.id,
-          name: npc.name || npc.label,
-          skin: npc.skin,
-          x: npc.x,
-          y: npc.y,
-        });
-        onSelectRef.current(mapId);
-        return;
-      }
-
-      if (pickKind === "monster" && mapId) {
-        const monsterType = hit.object.userData.monsterType as string;
-        const monster = hit.object.userData.monster as { x: number; y: number };
-        onMonsterSelectRef.current({
-          mapId,
-          type: monsterType,
-          x: monster.x,
-          y: monster.y,
-        });
-        onSelectRef.current(mapId);
-        return;
-      }
-
-      if (hit.object.userData.isFloor) {
-        onSelectRef.current(mapId || null);
-        onNpcSelectRef.current(null);
-        onMonsterSelectRef.current(null);
-      }
+      applyOverlayPick(
+        hit,
+        layoutRef.current,
+        onSelectRef.current,
+        onDoorTravelRef.current,
+        onNpcSelectRef.current,
+        onMonsterSelectRef.current,
+      );
     };
 
     const onDoubleClick = (event: MouseEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      const hits = raycaster.intersectObjects(pickTargets(mapsRoot), false);
-      const hit = hits[0];
+      const hit = hitFromPointer(event, renderer, camera, mapsRoot, raycaster, pointer);
       if (!hit?.object.userData.isFloor) {
         return;
       }
       focusCameraOnHit(hit);
     };
 
-    const onFocusKey = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "f" || event.ctrlKey || event.metaKey || event.altKey) {
-        return;
-      }
-      if (
-        event.target instanceof HTMLElement &&
-        (event.target.tagName === "INPUT" ||
-          event.target.tagName === "TEXTAREA" ||
-          event.target.tagName === "SELECT" ||
-          event.target.isContentEditable)
-      ) {
-        return;
-      }
-      focusCameraOnSelection();
-      event.preventDefault();
-    };
-
     renderer.domElement.addEventListener("pointermove", onPointerMove);
     renderer.domElement.addEventListener("click", onClick);
     renderer.domElement.addEventListener("dblclick", onDoubleClick);
-    window.addEventListener("keydown", onFocusKey);
 
     let frame = 0;
     const inception = performance.now();
@@ -374,7 +391,6 @@ export function WorldCanvas({
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
-      window.removeEventListener("keydown", onFocusKey);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       renderer.domElement.removeEventListener("click", onClick);
       renderer.domElement.removeEventListener("dblclick", onDoubleClick);
@@ -420,8 +436,7 @@ export function WorldCanvas({
     const connections = createConnectionLines(layout);
     scene.add(connections);
     world.connections = connections;
-    applyOverlayDepthStyle(mapsRoot, seeThroughOverlays);
-  }, [layout, spriteContext, seeThroughOverlays]);
+  }, [layout, spriteContext]);
 
   useEffect(() => {
     const world = worldRef.current;
@@ -487,45 +502,6 @@ export function WorldCanvas({
           }}
         >
           Click to enter {hoveredDoor}
-        </div>
-      )}
-      <button
-        type="button"
-        onClick={() => setControlsHelpOpen((open) => !open)}
-        style={{
-          position: "absolute",
-          right: 12,
-          bottom: 12,
-          padding: "6px 10px",
-          borderRadius: 6,
-          border: "1px solid rgba(255,255,255,0.18)",
-          background: "rgba(0,0,0,0.72)",
-          color: "#d8dce8",
-          fontSize: 12,
-          cursor: "pointer",
-        }}
-      >
-        {controlsHelpOpen ? "Hide controls" : "Controls"}
-      </button>
-      {controlsHelpOpen && (
-        <div
-          style={{
-            position: "absolute",
-            right: 12,
-            bottom: 48,
-            padding: "10px 12px",
-            borderRadius: 8,
-            background: "rgba(0,0,0,0.82)",
-            color: "#c8ceda",
-            fontSize: 12,
-            lineHeight: 1.55,
-            maxWidth: 260,
-            pointerEvents: "none",
-          }}
-        >
-          {WORLD_CONTROLS_HELP.map((line) => (
-            <div key={line}>{line}</div>
-          ))}
         </div>
       )}
     </div>

@@ -124,6 +124,7 @@ export function createWorldCameraControls(
   camera: THREE.PerspectiveCamera,
   domElement: HTMLElement,
   bounds: WorldBounds,
+  onFocusSelection?: () => void,
 ): WorldCameraControls {
   const controls = new OrbitControls(camera, domElement);
   controls.enableDamping = true;
@@ -278,6 +279,13 @@ export function createWorldCameraControls(
       case "home":
       case "0":
         resetView();
+        event.preventDefault();
+        break;
+      case "f":
+        if (event.ctrlKey || event.metaKey || event.altKey) {
+          break;
+        }
+        onFocusSelection?.();
         event.preventDefault();
         break;
       default:

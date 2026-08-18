@@ -1,4 +1,9 @@
-import { computeMapFocusDistance, computeOverviewPose, computeWorldBounds, mapCenterWorld } from "./worldCameraBounds";
+import {
+  computeMapFocusDistance,
+  computeOverviewPose,
+  computeWorldBounds,
+  mapCenterWorld,
+} from "./worldCameraBounds";
 import { ParsedMap, WorldLayout } from "./types";
 
 function stubMap(
