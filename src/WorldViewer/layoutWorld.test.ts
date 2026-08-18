@@ -516,12 +516,8 @@ describe("layoutWorld", () => {
     const overworldIds = Object.keys(layout.maps).filter(
       (id) => layout.maps[id].band === "overworld",
     );
-    const overworldMaps = Object.fromEntries(
-      overworldIds.map((id) => [id, layout.maps[id]]),
-    );
-    const overworldPoses = Object.fromEntries(
-      overworldIds.map((id) => [id, layout.poses[id]]),
-    );
+    const overworldMaps = Object.fromEntries(overworldIds.map((id) => [id, layout.maps[id]]));
+    const overworldPoses = Object.fromEntries(overworldIds.map((id) => [id, layout.poses[id]]));
     expect(countSameSlabOverlaps(overworldMaps, overworldPoses, 240)).toBe(0);
   });
 });

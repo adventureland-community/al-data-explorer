@@ -8,7 +8,14 @@ import {
   StackPinAnchor,
 } from "./doorLayout";
 import { doorLinkedPose } from "./doorGeometry";
-import { bandLayerZ, isDoorStackPin, pickComponentRoot, pickLayerZ } from "./layoutGraph";
+import {
+  bandLayerZ,
+  buildAdjacency,
+  findComponents,
+  isDoorStackPin,
+  pickComponentRoot,
+  pickLayerZ,
+} from "./layoutGraph";
 import { componentArtBounds, shiftMapPoses } from "./layoutBounds";
 import { resolveOneWayExitLayout } from "./oneWayExitLayout";
 import {
@@ -152,47 +159,6 @@ function placeComponent(
       }
     }
   }
-}
-
-function buildAdjacency(connections: DoorConnection[]): Map<string, Set<string>> {
-  const adj = new Map<string, Set<string>>();
-  const touch = (a: string, b: string) => {
-    if (!adj.has(a)) {
-      adj.set(a, new Set());
-    }
-    adj.get(a)?.add(b);
-  };
-  for (const edge of connections) {
-    touch(edge.fromMap, edge.toMap);
-    touch(edge.toMap, edge.fromMap);
-  }
-  return adj;
-}
-
-function findComponents(mapIds: string[], adj: Map<string, Set<string>>): string[][] {
-  const remaining = new Set(mapIds);
-  const components: string[][] = [];
-  while (remaining.size > 0) {
-    const start = [...remaining].sort()[0];
-    const queue = [start];
-    const component: string[] = [];
-    remaining.delete(start);
-    while (queue.length > 0) {
-      const id = queue.shift();
-      if (!id) {
-        break;
-      }
-      component.push(id);
-      for (const next of adj.get(id) || []) {
-        if (remaining.has(next)) {
-          remaining.delete(next);
-          queue.push(next);
-        }
-      }
-    }
-    components.push(component);
-  }
-  return components;
 }
 
 function sortComponents(components: string[][]): string[][] {
@@ -347,32 +313,6 @@ export function layoutWorld(
   );
 
   return { maps, poses, connections };
-}
-
-/** Door-graph depth from a root within one connected component (for analysis UI). */
-export function doorGraphDepth(
-  rootId: string,
-  component: string[],
-  connections: DoorConnection[],
-): number {
-  const adj = buildAdjacency(connections);
-  const depths = new Map<string, number>([[rootId, 0]]);
-  const queue = [rootId];
-  while (queue.length > 0) {
-    const id = queue.shift();
-    if (!id) {
-      break;
-    }
-    const depth = depths.get(id) || 0;
-    for (const next of adj.get(id) || []) {
-      if (!component.includes(next) || depths.has(next)) {
-        continue;
-      }
-      depths.set(next, depth + 1);
-      queue.push(next);
-    }
-  }
-  return Math.max(0, ...depths.values());
 }
 
 export { bandLabel, pickComponentRoot } from "./layoutGraph";

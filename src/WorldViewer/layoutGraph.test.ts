@@ -1,11 +1,14 @@
 import {
+  buildAdjacency,
+  doorGraphDepth,
+  findComponents,
   isDoorStackPin,
   isLateralCaveLink,
   isPortalDoorAlign,
   isSequentialDungeonDescent,
   pickLayerZ,
 } from "./layoutGraph";
-import { MapPose, ParsedMap } from "./types";
+import { DoorConnection, MapPose, ParsedMap } from "./types";
 
 function mapBand(band: ParsedMap["band"]): ParsedMap {
   return {
@@ -106,5 +109,27 @@ describe("isDoorStackPin", () => {
     expect(isSequentialDungeonDescent(level1, level2)).toBe(true);
     expect(isDoorStackPin(level1, level2)).toBe(true);
     expect(isDoorStackPin(level2, level2n)).toBe(false);
+  });
+});
+
+function edge(fromMap: string, toMap: string): DoorConnection {
+  return { fromMap, toMap, fromX: 0, fromY: 0, toX: 0, toY: 0, twoWay: true };
+}
+
+describe("door graph helpers", () => {
+  it("finds one component and BFS depth from the root", () => {
+    const connections = [edge("main", "mansion"), edge("mansion", "tomb")];
+    const adj = buildAdjacency(connections);
+    const components = findComponents(["tomb", "main", "mansion"], adj);
+    expect(components).toHaveLength(1);
+    expect(components[0].sort()).toEqual(["main", "mansion", "tomb"]);
+    expect(doorGraphDepth("main", components[0], connections)).toBe(2);
+  });
+
+  it("keeps disconnected maps in separate components", () => {
+    const connections = [edge("main", "mansion")];
+    const adj = buildAdjacency(connections);
+    const components = findComponents(["main", "mansion", "duelland"], adj);
+    expect(components).toHaveLength(2);
   });
 });
