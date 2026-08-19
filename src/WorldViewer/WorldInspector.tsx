@@ -1,4 +1,14 @@
-import { Box, Chip, List, ListItemButton, ListItemText, Paper, Typography } from "@mui/material";
+import {
+  Autocomplete,
+  Box,
+  Chip,
+  List,
+  ListItemButton,
+  ListItemText,
+  Paper,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { groupNeighborsByBand, LinkedNeighbor, summarizeNeighbors } from "./linkedMaps";
 import { DoorConnection, MapBand, MapPose, ParsedMap } from "./types";
 
@@ -98,6 +108,11 @@ function NeighborRows({
   );
 }
 
+interface MapChoice {
+  id: string;
+  name: string;
+}
+
 interface WorldInspectorProps {
   selected: ParsedMap | undefined;
   selectedPose: MapPose | undefined;
@@ -105,6 +120,10 @@ interface WorldInspectorProps {
   maps: Record<string, ParsedMap>;
   poses: Record<string, MapPose>;
   onFocusMap: (mapId: string) => void;
+  mapChoices: MapChoice[];
+  pathTarget: string | null;
+  onPathTarget: (mapId: string | null) => void;
+  highlightPath: string[] | null;
 }
 
 export function WorldInspector({
@@ -114,6 +133,10 @@ export function WorldInspector({
   maps,
   poses,
   onFocusMap,
+  mapChoices,
+  pathTarget,
+  onPathTarget,
+  highlightPath,
 }: WorldInspectorProps) {
   const neighbors = selected
     ? summarizeNeighbors(selected.id, selectedPose?.z, connections, maps, poses)
@@ -148,6 +171,26 @@ export function WorldInspector({
             {selected.doors.length} doors · {selected.npcs.length} NPCs · {selected.monsters.length}{" "}
             packs
           </Typography>
+          <Autocomplete
+            size="small"
+            sx={{ marginTop: 1.5 }}
+            options={mapChoices}
+            value={mapChoices.find((c) => c.id === pathTarget) ?? null}
+            onChange={(_event, choice) => onPathTarget(choice?.id ?? null)}
+            getOptionLabel={(choice) => `${choice.name} (${choice.id})`}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            renderInput={(params) => <TextField {...params} label="Path to…" />}
+          />
+          {highlightPath && (
+            <Typography variant="caption" sx={{ opacity: 0.85, marginTop: 0.5 }}>
+              Path: {highlightPath.length} maps ({highlightPath.length - 1} hops)
+            </Typography>
+          )}
+          {pathTarget && !highlightPath && (
+            <Typography variant="caption" color="error" sx={{ marginTop: 0.5 }}>
+              No path found
+            </Typography>
+          )}
           <Box sx={{ flex: 1, minHeight: 0, overflow: "auto", marginTop: 0.5 }}>
             {exits.length > 0 && <NeighborRows neighbors={exits} onFocusMap={onFocusMap} />}
             {arrivals.length > 0 && (
