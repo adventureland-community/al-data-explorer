@@ -1,30 +1,9 @@
 import { groupNeighborsByBand, summarizeNeighbors } from "./linkedMaps";
+import { stubParsedMap } from "./parsedMapStub";
 import { DoorConnection, MapPose, ParsedMap } from "./types";
 
 function stubMap(id: string, band: ParsedMap["band"], name = id): ParsedMap {
-  return {
-    id,
-    name,
-    ignore: false,
-    outside: band === "overworld",
-    band,
-    minX: 0,
-    maxX: 10,
-    minY: 0,
-    maxY: 10,
-    artMinX: 0,
-    artMaxX: 10,
-    artMinY: 0,
-    artMaxY: 10,
-    xLines: [],
-    yLines: [],
-    doors: [],
-    spawns: [],
-    quirks: [],
-    npcs: [],
-    monsters: [],
-    zones: [],
-  };
+  return stubParsedMap(id, { band, name, outside: band === "overworld" });
 }
 
 function edge(fromMap: string, toMap: string, twoWay = true): DoorConnection {

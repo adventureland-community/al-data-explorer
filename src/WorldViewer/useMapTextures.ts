@@ -24,15 +24,44 @@ async function loadTilesetImages(
   return images;
 }
 
-async function loadSpriteSheets(urls: string[]): Promise<Record<string, HTMLImageElement>> {
+async function loadSpriteSheets(
+  urls: string[],
+  cache: Record<string, HTMLImageElement>,
+): Promise<Record<string, HTMLImageElement>> {
   const unique = [...new Set(urls)];
   const images: Record<string, HTMLImageElement> = {};
   await Promise.all(
     unique.map(async (url) => {
+      const cached = cache[url];
+      if (cached) {
+        images[url] = cached;
+        return;
+      }
       images[url] = await loadImage(url);
     }),
   );
   return images;
+}
+
+function mergeSheetCache(
+  prev: Record<string, HTMLImageElement>,
+  cache: Record<string, HTMLImageElement>,
+): Record<string, HTMLImageElement> {
+  const prevKeys = Object.keys(prev);
+  const cacheKeys = Object.keys(cache);
+  if (prevKeys.length === cacheKeys.length) {
+    let same = true;
+    for (const key of prevKeys) {
+      if (prev[key] !== cache[key]) {
+        same = false;
+        break;
+      }
+    }
+    if (same) {
+      return prev;
+    }
+  }
+  return { ...cache };
 }
 
 export function useMapCanvases(
@@ -49,6 +78,7 @@ export function useMapCanvases(
   error: string | null;
 } {
   const cacheRef = useRef<Record<string, MapArtBake>>({});
+  const sheetCacheRef = useRef<Record<string, HTMLImageElement>>({});
   const [art, setArt] = useState<Record<string, MapArtBake>>({});
   const [sheets, setSheets] = useState<Record<string, HTMLImageElement>>({});
   const [error, setError] = useState<string | null>(null);
@@ -71,18 +101,24 @@ export function useMapCanvases(
       const missing = bakeMaps ? ids.filter((id) => !cacheRef.current[id] && geometry[id]) : [];
       setError(null);
       setProgress({ done: 0, total: missing.length, current: "tilesets" });
+      if (Object.keys(cacheRef.current).length > 0) {
+        setArt({ ...cacheRef.current });
+      }
 
       const tilesetPromise = bakeMaps
         ? loadTilesetImages(tilesets)
         : Promise.resolve<Record<string, HTMLImageElement>>({});
       const [tilesetImages, spriteSheets] = await Promise.all([
         tilesetPromise,
-        loadSpriteSheets(spriteKey ? spriteKey.split("|") : []),
+        loadSpriteSheets(spriteKey ? spriteKey.split("|") : [], sheetCacheRef.current),
       ]);
       if (cancelled) {
         return;
       }
-      setSheets(spriteSheets);
+      for (const [url, image] of Object.entries(spriteSheets)) {
+        sheetCacheRef.current[url] = image;
+      }
+      setSheets((prev) => mergeSheetCache(prev, sheetCacheRef.current));
 
       for (let i = 0; i < missing.length; i += 1) {
         if (cancelled) {

@@ -43,7 +43,9 @@ export function loadImage(url: string): Promise<HTMLImageElement> {
     image.crossOrigin = "anonymous";
     image.decoding = "async";
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`Missing local art ${url}. ${MISSING_LOCAL_ART_HINT}`));
+    image.onerror = () => {
+      reject(new Error(`Missing local art ${url}. ${MISSING_LOCAL_ART_HINT}`));
+    };
     image.src = url;
   });
 }

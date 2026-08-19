@@ -25,7 +25,7 @@ const sections = [
   {
     title: "World",
     path: "/world",
-    description: "Explore every map at once in 3D, stacked by door connections.",
+    description: "Explore a map top-down like the game, or view every map at once in 3D.",
   },
 ];
 
