@@ -119,32 +119,6 @@ export function createMapGroup(
   return group;
 }
 
-function createTextSprite(text: string, color = "#fff"): THREE.Sprite {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d")!;
-  ctx.font = "bold 24px sans-serif";
-  const metrics = ctx.measureText(text);
-  canvas.width = Math.ceil(metrics.width) + 8;
-  canvas.height = 32;
-  ctx.font = "bold 24px sans-serif";
-  ctx.fillStyle = color;
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, 4, 16);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.minFilter = THREE.LinearFilter;
-  const material = new THREE.SpriteMaterial({
-    map: texture,
-    transparent: true,
-    opacity: 0.7,
-    depthTest: false,
-    fog: false,
-  });
-  const sprite = new THREE.Sprite(material);
-  sprite.scale.set(canvas.width * 2, canvas.height * 2, 1);
-  sprite.userData.disposeTexture = texture;
-  return sprite;
-}
-
 export interface ConnectionEndpoints {
   from: [number, number, number];
   to: [number, number, number];
@@ -168,12 +142,15 @@ export function createConnectionLines(layout: WorldLayout): ConnectionsResult {
   const twoWay: number[] = [];
   const oneWay: number[] = [];
   const labelData: ConnectionLabelData[] = [];
+  const hoverTargets = new THREE.Group();
+  hoverTargets.name = "connectionHoverTargets";
 
   for (const connection of layout.connections) {
     const fromPose = layout.poses[connection.fromMap];
     const toPose = layout.poses[connection.toMap];
+    const fromMap = layout.maps[connection.fromMap];
     const toMap = layout.maps[connection.toMap];
-    if (!fromPose || !toPose || !toMap) {
+    if (!fromPose || !toPose || !fromMap || !toMap) {
       continue;
     }
     const reverseDoor = toMap.doors.find((door) => door.toMap === connection.fromMap);
@@ -194,6 +171,31 @@ export function createConnectionLines(layout: WorldLayout): ConnectionsResult {
       toMap: connection.toMap,
       endpoints: { from, to },
     });
+
+    const hoverGeometry = new THREE.BufferGeometry();
+    hoverGeometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute([from[0], from[1], from[2], to[0], to[1], to[2]], 3),
+    );
+    const hoverLine = new THREE.Line(
+      hoverGeometry,
+      new THREE.LineBasicMaterial({
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        depthTest: false,
+        fog: false,
+      }),
+    );
+    hoverLine.renderOrder = 39;
+    hoverLine.userData.connectionTooltip = {
+      kind: "door",
+      title: toMap.name,
+      hint: connection.twoWay
+        ? `Two-way: ${fromMap.name} <-> ${toMap.name}`
+        : `One-way: ${fromMap.name} -> ${toMap.name}`,
+    };
+    hoverTargets.add(hoverLine);
   }
 
   const addLines = (positions: number[], color: number, name: string) => {
@@ -219,33 +221,12 @@ export function createConnectionLines(layout: WorldLayout): ConnectionsResult {
 
   addLines(twoWay, TWO_WAY_CONNECTION_COLOR, "twoWay");
   addLines(oneWay, ONE_WAY_CONNECTION_COLOR, "oneWay");
-
-  const labels = new THREE.Group();
-  labels.name = "connectionLabels";
-  for (const data of labelData) {
-    const destName = layout.maps[data.toMap]?.name ?? data.toMap;
-    const sprite = createTextSprite(destName);
-    const { from, to } = data.endpoints;
-    sprite.position.set((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, (from[2] + to[2]) / 2);
-    labels.add(sprite);
-  }
-  group.add(labels);
+  group.add(hoverTargets);
 
   return { group, labelData };
 }
 
-export function setConnectionLabelsVisible(
-  connectionsGroup: THREE.Group | null,
-  visible: boolean,
-): void {
-  if (!connectionsGroup) {
-    return;
-  }
-  const labels = connectionsGroup.getObjectByName("connectionLabels");
-  if (labels) {
-    labels.visible = visible;
-  }
-}
+export function setConnectionLabelsVisible(): void {}
 
 export function disposeObject(object: THREE.Object3D): void {
   const disposed = new Set<THREE.Texture>();
@@ -315,32 +296,9 @@ export function setSelectedMap(root: THREE.Object3D, mapId: string | null): void
   });
 }
 
-export function setBandVisibility(
-  mapsRoot: THREE.Group,
-  connectionsGroup: THREE.Group | null,
-  labelData: ConnectionLabelData[],
-  soloBand: MapBand | null,
-  maps: Record<string, ParsedMap>,
-): void {
+export function setBandVisibility(mapsRoot: THREE.Group, soloBand: MapBand | null): void {
   for (const child of mapsRoot.children) {
     const band = child.userData.band as MapBand | undefined;
     child.visible = !soloBand || band === soloBand;
-  }
-  if (!connectionsGroup) {
-    return;
-  }
-  const labels = connectionsGroup.getObjectByName("connectionLabels");
-  if (labels) {
-    for (let i = 0; i < labels.children.length; i += 1) {
-      const sprite = labels.children[i];
-      const data = labelData[i];
-      if (!soloBand || !data) {
-        sprite.visible = !soloBand;
-        continue;
-      }
-      const fromBand = maps[data.fromMap]?.band;
-      const toBand = maps[data.toMap]?.band;
-      sprite.visible = fromBand === soloBand && toBand === soloBand;
-    }
   }
 }

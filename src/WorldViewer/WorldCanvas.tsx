@@ -125,14 +125,24 @@ function hitFromPointer(
   renderer: THREE.WebGLRenderer,
   camera: THREE.Camera,
   mapsRoot: THREE.Group,
+  connections: THREE.Group | null,
   raycaster: THREE.Raycaster,
   pointer: THREE.Vector2,
+  includeConnections = false,
 ): THREE.Intersection | undefined {
   const rect = renderer.domElement.getBoundingClientRect();
   pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
-  return raycaster.intersectObjects(pickTargets(mapsRoot), false)[0];
+  const targets = pickTargets(mapsRoot);
+  if (includeConnections && connections) {
+    connections.traverse((object) => {
+      if (object.userData.connectionTooltip) {
+        targets.push(object);
+      }
+    });
+  }
+  return raycaster.intersectObjects(targets, false)[0];
 }
 
 function mapGroupFromObject(object: THREE.Object3D): THREE.Object3D | null {
@@ -148,6 +158,10 @@ function mapGroupFromObject(object: THREE.Object3D): THREE.Object3D | null {
 
 function objectPick(object: THREE.Object3D): OverlayPick | undefined {
   return object.userData.pick as OverlayPick | undefined;
+}
+
+function connectionTooltip(object: THREE.Object3D): OverlayTooltip | undefined {
+  return object.userData.connectionTooltip as OverlayTooltip | undefined;
 }
 
 function applyOverlayPick(
@@ -312,6 +326,9 @@ export function WorldCanvas({
     }
 
     const raycaster = new THREE.Raycaster();
+    if (raycaster.params.Line) {
+      raycaster.params.Line.threshold = 12;
+    }
     const pointer = new THREE.Vector2();
 
     const resize = () => {
@@ -347,7 +364,16 @@ export function WorldCanvas({
         renderer.domElement.style.cursor = "grabbing";
         return;
       }
-      const hit = hitFromPointer(event, renderer, camera, mapsRoot, raycaster, pointer);
+      const hit = hitFromPointer(
+        event,
+        renderer,
+        camera,
+        mapsRoot,
+        worldRef.current?.connections ?? null,
+        raycaster,
+        pointer,
+        true,
+      );
       if (!hit) {
         onCursorMoveRef.current(null);
         hovered = setHoveredOverlay(hovered, null, seeThroughRef.current);
@@ -357,10 +383,21 @@ export function WorldCanvas({
       }
       onCursorMoveRef.current(mapCoordsFromHit(hit));
       const pick = objectPick(hit.object);
+      const lineTooltip = connectionTooltip(hit.object);
       if (!pick) {
         hovered = setHoveredOverlay(hovered, null, seeThroughRef.current);
-        setTooltip(null);
-        renderer.domElement.style.cursor = "crosshair";
+        if (!lineTooltip) {
+          setTooltip(null);
+          renderer.domElement.style.cursor = "crosshair";
+          return;
+        }
+        renderer.domElement.style.cursor = "pointer";
+        const hostRect = host.getBoundingClientRect();
+        setTooltip({
+          ...lineTooltip,
+          x: event.clientX - hostRect.left + 14,
+          y: event.clientY - hostRect.top + 14,
+        });
         return;
       }
       hovered = setHoveredOverlay(hovered, hit.object, seeThroughRef.current);
@@ -397,7 +434,15 @@ export function WorldCanvas({
       if (navigation.isDragging() || navigation.wasDragging()) {
         return;
       }
-      const hit = hitFromPointer(event, renderer, camera, mapsRoot, raycaster, pointer);
+      const hit = hitFromPointer(
+        event,
+        renderer,
+        camera,
+        mapsRoot,
+        worldRef.current?.connections ?? null,
+        raycaster,
+        pointer,
+      );
       if (!hit) {
         onSelectRef.current(null);
         onInspectRef.current(null);
@@ -413,7 +458,15 @@ export function WorldCanvas({
     };
 
     const onDoubleClick = (event: MouseEvent) => {
-      const hit = hitFromPointer(event, renderer, camera, mapsRoot, raycaster, pointer);
+      const hit = hitFromPointer(
+        event,
+        renderer,
+        camera,
+        mapsRoot,
+        worldRef.current?.connections ?? null,
+        raycaster,
+        pointer,
+      );
       if (!hit?.object.userData.isFloor) {
         return;
       }
@@ -578,15 +631,9 @@ export function WorldCanvas({
       applyMapFocus(world.navigation, scene, focus, viewMode);
     }
     setSelectedMap(world.mapsRoot, selectedMap);
-    setBandVisibility(
-      world.mapsRoot,
-      world.connections,
-      world.labelData,
-      viewMode === "world" ? soloBand ?? null : null,
-      maps,
-    );
-    setConnectionLabelsVisible(world.connections, viewMode === "world");
-  }, [scene, focus, viewMode, selectedMap, soloBand, maps]);
+    setBandVisibility(world.mapsRoot, viewMode === "world" ? soloBand ?? null : null);
+    setConnectionLabelsVisible();
+  }, [scene, focus, viewMode, selectedMap, soloBand]);
 
   return (
     <div
