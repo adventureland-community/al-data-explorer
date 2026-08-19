@@ -323,6 +323,7 @@ function classifyLayerRows(
   tilesets: Record<string, GTileset>,
   images: Record<string, HTMLImageElement>,
   timed: TimedDrawOp[],
+  defaultAlpha = 1,
 ): DrawOp[] {
   const decor: DrawOp[] = [];
   for (const raw of rawList || []) {
@@ -330,7 +331,7 @@ function classifyLayerRows(
     if (!op) {
       continue;
     }
-    const timedMeta = parseTimedLayer(raw, 1);
+    const timedMeta = parseTimedLayer(raw, defaultAlpha);
     if (timedMeta) {
       timed.push({
         ...op,
@@ -364,8 +365,7 @@ function buildMapDrawList(
     placements,
     decor: [
       ...classifyLayerRows(geometry.animations, tiles, tilesets, images, timed),
-      ...collectDrawOps(geometry.lights, tiles, tilesets, images),
-      ...classifyLayerRows(geometry.nights, tiles, tilesets, images, timed),
+      ...classifyLayerRows(geometry.nights, tiles, tilesets, images, timed, 0.7),
     ],
     timed,
   };

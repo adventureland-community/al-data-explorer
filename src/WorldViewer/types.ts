@@ -214,16 +214,16 @@ export interface MapSource {
 
 export const DEFAULT_OVERLAYS: OverlayVisibility = {
   bounds: true,
-  spawns: false,
-  quirks: false,
+  spawns: true,
+  quirks: true,
   doors: true,
   npcs: true,
-  zones: false,
-  monsters: false,
+  zones: true,
+  monsters: true,
   rage: false,
-  machines: false,
-  animatables: false,
-  traps: false,
+  machines: true,
+  animatables: true,
+  traps: true,
 };
 
 export const OVERLAY_KINDS: OverlayKind[] = [
