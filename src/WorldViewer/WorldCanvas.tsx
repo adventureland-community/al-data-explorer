@@ -7,7 +7,6 @@ import {
   applyFloorCanvases,
   applyMapAnimation,
   applyOverlayDepthStyle,
-  applyPathHighlight,
   ConnectionLabelData,
   createConnectionLines,
   createMapGroup,
@@ -84,7 +83,6 @@ interface WorldCanvasProps {
   seeThroughOverlays: boolean;
   monsterDefs?: Record<string, GMonster>;
   fogDensity: number;
-  highlightPath?: string[] | null;
   soloBand?: MapBand | null;
 }
 
@@ -201,7 +199,6 @@ export function WorldCanvas({
   seeThroughOverlays,
   monsterDefs,
   fogDensity,
-  highlightPath,
   soloBand,
 }: WorldCanvasProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -580,13 +577,16 @@ export function WorldCanvas({
     if (focus) {
       applyMapFocus(world.navigation, scene, focus, viewMode);
     }
-    applyPathHighlight(world.connections, world.mapsRoot, world.labelData, highlightPath ?? null);
-    if (!highlightPath) {
-      setSelectedMap(world.mapsRoot, selectedMap);
-    }
-    setBandVisibility(world.mapsRoot, world.connections, world.labelData, soloBand ?? null, maps);
+    setSelectedMap(world.mapsRoot, selectedMap);
+    setBandVisibility(
+      world.mapsRoot,
+      world.connections,
+      world.labelData,
+      viewMode === "world" ? soloBand ?? null : null,
+      maps,
+    );
     setConnectionLabelsVisible(world.connections, viewMode === "world");
-  }, [scene, focus, viewMode, highlightPath, selectedMap, soloBand, maps]);
+  }, [scene, focus, viewMode, selectedMap, soloBand, maps]);
 
   return (
     <div

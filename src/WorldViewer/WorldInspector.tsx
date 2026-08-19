@@ -1,15 +1,9 @@
-import {
-  Autocomplete,
-  Box,
-  Chip,
-  List,
-  ListItemButton,
-  ListItemText,
-  Paper,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Chip, List, ListItemButton, ListItemText, Paper, Typography } from "@mui/material";
+import { GMonster, GNpc } from "typed-adventureland";
+import { GItems } from "../GDataContext";
+import { InspectPanel } from "./InspectPanel";
 import { groupNeighborsByBand, LinkedNeighbor, summarizeNeighbors } from "./linkedMaps";
+import { OverlayPick } from "./overlayPick";
 import { DoorConnection, MapBand, MapPose, ParsedMap } from "./types";
 
 const panelSx = {
@@ -108,11 +102,6 @@ function NeighborRows({
   );
 }
 
-interface MapChoice {
-  id: string;
-  name: string;
-}
-
 interface WorldInspectorProps {
   selected: ParsedMap | undefined;
   selectedPose: MapPose | undefined;
@@ -120,10 +109,12 @@ interface WorldInspectorProps {
   maps: Record<string, ParsedMap>;
   poses: Record<string, MapPose>;
   onFocusMap: (mapId: string) => void;
-  mapChoices: MapChoice[];
-  pathTarget: string | null;
-  onPathTarget: (mapId: string | null) => void;
-  highlightPath: string[] | null;
+  inspect: OverlayPick | null;
+  monsters: Record<string, GMonster>;
+  drops: Record<string, unknown[]>;
+  items: GItems;
+  npcs: Record<string, GNpc>;
+  onInspectClose: () => void;
 }
 
 export function WorldInspector({
@@ -133,10 +124,12 @@ export function WorldInspector({
   maps,
   poses,
   onFocusMap,
-  mapChoices,
-  pathTarget,
-  onPathTarget,
-  highlightPath,
+  inspect,
+  monsters,
+  drops,
+  items,
+  npcs,
+  onInspectClose,
 }: WorldInspectorProps) {
   const neighbors = selected
     ? summarizeNeighbors(selected.id, selectedPose?.z, connections, maps, poses)
@@ -171,26 +164,6 @@ export function WorldInspector({
             {selected.doors.length} doors · {selected.npcs.length} NPCs · {selected.monsters.length}{" "}
             packs
           </Typography>
-          <Autocomplete
-            size="small"
-            sx={{ marginTop: 1.5 }}
-            options={mapChoices}
-            value={mapChoices.find((c) => c.id === pathTarget) ?? null}
-            onChange={(_event, choice) => onPathTarget(choice?.id ?? null)}
-            getOptionLabel={(choice) => `${choice.name} (${choice.id})`}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            renderInput={(params) => <TextField {...params} label="Path to…" />}
-          />
-          {highlightPath && (
-            <Typography variant="caption" sx={{ opacity: 0.85, marginTop: 0.5 }}>
-              Path: {highlightPath.length} maps ({highlightPath.length - 1} hops)
-            </Typography>
-          )}
-          {pathTarget && !highlightPath && (
-            <Typography variant="caption" color="error" sx={{ marginTop: 0.5 }}>
-              No path found
-            </Typography>
-          )}
           <Box sx={{ flex: 1, minHeight: 0, overflow: "auto", marginTop: 0.5 }}>
             {exits.length > 0 && <NeighborRows neighbors={exits} onFocusMap={onFocusMap} />}
             {arrivals.length > 0 && (
@@ -211,11 +184,22 @@ export function WorldInspector({
                 <NeighborRows neighbors={arrivals} onFocusMap={onFocusMap} />
               </Box>
             )}
+            {inspect && inspect.kind !== "door" && (
+              <InspectPanel
+                inspect={inspect}
+                maps={maps}
+                monsters={monsters}
+                drops={drops}
+                items={items}
+                npcs={npcs}
+                onClose={onInspectClose}
+              />
+            )}
           </Box>
         </>
       ) : (
         <Typography variant="body2" sx={{ opacity: 0.7 }}>
-          Click a map to inspect it, or pick one from Go to map.
+          Click a map to inspect it, or use the search bar to jump.
         </Typography>
       )}
     </Paper>

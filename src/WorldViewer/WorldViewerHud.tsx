@@ -272,6 +272,7 @@ function MonsterFilterPopover({
 }
 
 interface WorldOverlayPanelProps {
+  viewMode: ViewerMode;
   overlays: OverlayVisibility;
   overlayKinds: OverlayKind[];
   onToggleOverlay: (kind: OverlayKind, visible: boolean) => void;
@@ -294,6 +295,7 @@ interface WorldOverlayPanelProps {
 }
 
 export function WorldOverlayPanel({
+  viewMode,
   overlays,
   overlayKinds,
   onToggleOverlay,
@@ -394,22 +396,26 @@ export function WorldOverlayPanel({
           />
         </Box>
       </Tooltip>
-      <Typography variant="overline" sx={{ lineHeight: 1, opacity: 0.7 }}>
-        Fog
-      </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <Slider
-          size="small"
-          min={0}
-          max={0.00005}
-          step={0.000001}
-          value={fogDensity}
-          onChange={(_event, value) => onFogDensity(Array.isArray(value) ? value[0] : value)}
-        />
-        <Typography variant="caption" sx={{ whiteSpace: "nowrap", minWidth: 50 }}>
-          {fogDensity === 0 ? "Off" : fogDensity.toFixed(6)}
-        </Typography>
-      </Box>
+      {cameraMode(viewMode).useFog && (
+        <>
+          <Typography variant="overline" sx={{ lineHeight: 1, opacity: 0.7 }}>
+            Fog
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Slider
+              size="small"
+              min={0}
+              max={0.00005}
+              step={0.000001}
+              value={fogDensity}
+              onChange={(_event, value) => onFogDensity(Array.isArray(value) ? value[0] : value)}
+            />
+            <Typography variant="caption" sx={{ whiteSpace: "nowrap", minWidth: 50 }}>
+              {fogDensity === 0 ? "Off" : fogDensity.toFixed(6)}
+            </Typography>
+          </Box>
+        </>
+      )}
       <Button
         size="small"
         variant="outlined"
@@ -427,26 +433,30 @@ export function WorldOverlayPanel({
         onHideAll={onHideAllMonsters}
         onShowAll={onShowAllMonsters}
       />
-      <Typography variant="overline" sx={{ lineHeight: 1, opacity: 0.7 }}>
-        Band
-      </Typography>
-      <ToggleButtonGroup
-        size="small"
-        value={soloBand}
-        exclusive
-        onChange={(_event, value: MapBand | null) => onSoloBand(value)}
-        sx={{ display: "flex" }}
-      >
-        <ToggleButton value="overworld" sx={{ flex: 1, fontSize: 11, padding: "4px 6px" }}>
-          Over
-        </ToggleButton>
-        <ToggleButton value="indoor" sx={{ flex: 1, fontSize: 11, padding: "4px 6px" }}>
-          Indoor
-        </ToggleButton>
-        <ToggleButton value="underground" sx={{ flex: 1, fontSize: 11, padding: "4px 6px" }}>
-          Under
-        </ToggleButton>
-      </ToggleButtonGroup>
+      {viewMode === "world" && (
+        <>
+          <Typography variant="overline" sx={{ lineHeight: 1, opacity: 0.7 }}>
+            Band
+          </Typography>
+          <ToggleButtonGroup
+            size="small"
+            value={soloBand}
+            exclusive
+            onChange={(_event, value: MapBand | null) => onSoloBand(value)}
+            sx={{ display: "flex" }}
+          >
+            <ToggleButton value="overworld" sx={{ flex: 1, fontSize: 11, padding: "4px 6px" }}>
+              Over
+            </ToggleButton>
+            <ToggleButton value="indoor" sx={{ flex: 1, fontSize: 11, padding: "4px 6px" }}>
+              Indoor
+            </ToggleButton>
+            <ToggleButton value="underground" sx={{ flex: 1, fontSize: 11, padding: "4px 6px" }}>
+              Under
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </>
+      )}
     </Paper>
   );
 }

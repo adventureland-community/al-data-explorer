@@ -10,7 +10,6 @@ import {
 } from "@mui/material";
 import { GDataContext } from "../GDataContext";
 import { DEFAULT_LAYER_HEIGHT, layoutWorld } from "./layoutWorld";
-import { findShortestPath } from "./pathFinder";
 import { collectMonsterTypes, collectUsedSpriteUrls } from "./spriteLookup";
 import { TravelBreadcrumb } from "./TravelBreadcrumb";
 import {
@@ -29,7 +28,6 @@ import { useMapCanvases } from "./useMapTextures";
 import { nextSelectedMap, selectedMapForMode, visibleWorldLayout } from "./viewerMode";
 import { WorldCanvas } from "./WorldCanvas";
 import { WorldInspector } from "./WorldInspector";
-import { WorldOverlayInspect } from "./WorldOverlayInspect";
 import { WorldOverlayPanel, WorldStatusBar, WorldTopBar } from "./WorldViewerHud";
 import { WorldSearchBar } from "./WorldSearchBar";
 import { toWorldSource } from "./worldData";
@@ -60,7 +58,6 @@ export function WorldViewer() {
   const [inspect, setInspect] = useState<OverlayPick | null>(null);
   const [doorDialog, setDoorDialog] = useState<DoorTravel | null>(null);
   const [fogDensity, setFogDensity] = useState(0.000025);
-  const [pathTarget, setPathTarget] = useState<string | null>(null);
   const [soloBand, setSoloBand] = useState<MapBand | null>(null);
 
   const world = useMemo(() => (G ? toWorldSource(G) : null), [G]);
@@ -238,13 +235,6 @@ export function WorldViewer() {
     setOverlays((current) => ({ ...current, [kind]: visible }));
   };
 
-  const highlightPath = useMemo(() => {
-    if (!selectedMap || !pathTarget || !layout) {
-      return null;
-    }
-    return findShortestPath(selectedMap, pathTarget, layout.connections);
-  }, [selectedMap, pathTarget, layout]);
-
   if (!G || !world || !layout || !visibleLayout) {
     return <>WAITING!</>;
   }
@@ -315,6 +305,7 @@ export function WorldViewer() {
       />
       <Box sx={{ display: "flex", gap: 1, flex: 1, minHeight: 0 }}>
         <WorldOverlayPanel
+          viewMode={viewMode}
           overlays={overlays}
           overlayKinds={OVERLAY_KINDS}
           onToggleOverlay={toggleOverlay}
@@ -353,7 +344,6 @@ export function WorldViewer() {
             hiddenMonsterTypes={hiddenMonsterTypes}
             seeThroughOverlays={seeThroughOverlays}
             monsterDefs={world.monsters}
-            highlightPath={highlightPath}
             soloBand={soloBand}
             fogDensity={fogDensity}
           />
@@ -365,10 +355,12 @@ export function WorldViewer() {
           maps={layout.maps}
           poses={layout.poses}
           onFocusMap={focusMap}
-          mapChoices={mapChoices}
-          pathTarget={pathTarget}
-          onPathTarget={setPathTarget}
-          highlightPath={highlightPath}
+          inspect={inspect}
+          monsters={world.monsters}
+          drops={world.drops}
+          items={world.items}
+          npcs={world.npcs}
+          onInspectClose={() => setInspect(null)}
         />
       </Box>
       <WorldStatusBar
@@ -377,16 +369,6 @@ export function WorldViewer() {
         cursorMapName={cursorMap?.name}
         dataVersion={G.version}
         dataTimestamp={G.timestamp}
-      />
-
-      <WorldOverlayInspect
-        inspect={inspect}
-        maps={layout.maps}
-        monsters={world.monsters}
-        drops={world.drops}
-        items={world.items}
-        npcs={world.npcs}
-        onClose={() => setInspect(null)}
       />
 
       <Dialog

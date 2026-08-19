@@ -5,8 +5,6 @@ import {
   FLOOR_OUTSIDE_COLOR,
   FLOOR_UNDERGROUND_COLOR,
   ONE_WAY_CONNECTION_COLOR,
-  PATH_HIGHLIGHT_COLOR,
-  PATH_HIGHLIGHT_FLOOR_COLOR,
   SELECTED_FLOOR_COLOR,
   TWO_WAY_CONNECTION_COLOR,
 } from "./overlayColors";
@@ -236,16 +234,6 @@ export function createConnectionLines(layout: WorldLayout): ConnectionsResult {
   return { group, labelData };
 }
 
-/** Set of map-pair keys on the highlight path, for fast lookup. */
-function buildPathEdgeSet(path: string[]): Set<string> {
-  const set = new Set<string>();
-  for (let i = 0; i < path.length - 1; i++) {
-    set.add(`${path[i]}→${path[i + 1]}`);
-    set.add(`${path[i + 1]}→${path[i]}`);
-  }
-  return set;
-}
-
 export function setConnectionLabelsVisible(
   connectionsGroup: THREE.Group | null,
   visible: boolean,
@@ -290,87 +278,6 @@ export function disposeObject(object: THREE.Object3D): void {
       }
     }
   });
-}
-
-export function applyPathHighlight(
-  connectionsGroup: THREE.Group | null,
-  mapsRoot: THREE.Group,
-  labelData: ConnectionLabelData[],
-  path: string[] | null,
-): void {
-  if (!connectionsGroup) {
-    return;
-  }
-
-  const old = connectionsGroup.getObjectByName("pathHighlight");
-  if (old) {
-    connectionsGroup.remove(old);
-    disposeObject(old);
-  }
-
-  const pathSet = path ? new Set(path) : null;
-  const edgeSet = path ? buildPathEdgeSet(path) : null;
-
-  for (const child of connectionsGroup.children) {
-    if (child instanceof THREE.LineSegments) {
-      const material = child.material as THREE.LineBasicMaterial;
-      if (!edgeSet) {
-        material.opacity = CONNECTION_LINE_OPACITY;
-        material.color.setHex(
-          child.name === "twoWay" ? TWO_WAY_CONNECTION_COLOR : ONE_WAY_CONNECTION_COLOR,
-        );
-      } else {
-        material.opacity = 0.12;
-      }
-    }
-  }
-
-  // Highlight floors of maps on the path (direct children only, not full traverse)
-  for (const mapGroup of mapsRoot.children) {
-    const mapId = mapGroup.userData.mapId as string | undefined;
-    if (!mapId || !pathSet?.has(mapId)) {
-      continue;
-    }
-    for (const child of mapGroup.children) {
-      if (child.userData.isFloor && child instanceof THREE.Mesh && !floorHasMapArt(child)) {
-        const material = child.material as THREE.MeshBasicMaterial;
-        material.color.setHex(PATH_HIGHLIGHT_FLOOR_COLOR);
-        material.opacity = 0.75;
-      }
-    }
-  }
-
-  if (!edgeSet || !path) {
-    return;
-  }
-
-  const positions: number[] = [];
-  for (const data of labelData) {
-    if (!edgeSet.has(`${data.fromMap}→${data.toMap}`)) {
-      continue;
-    }
-    const { from, to } = data.endpoints;
-    positions.push(from[0], from[1], from[2], to[0], to[1], to[2]);
-  }
-  if (positions.length === 0) {
-    return;
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  const material = new THREE.LineBasicMaterial({
-    color: PATH_HIGHLIGHT_COLOR,
-    transparent: true,
-    opacity: 1,
-    depthWrite: false,
-    depthTest: false,
-    fog: false,
-    linewidth: 2,
-  });
-  const highlight = new THREE.LineSegments(geometry, material);
-  highlight.name = "pathHighlight";
-  highlight.frustumCulled = false;
-  highlight.renderOrder = 41;
-  connectionsGroup.add(highlight);
 }
 
 export function setMonsterTypeVisibility(root: THREE.Object3D, hiddenTypes: Set<string>): void {
