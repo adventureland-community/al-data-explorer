@@ -322,6 +322,7 @@ export function WorldCanvas({
       if (navigation.isDragging()) {
         hovered = setHoveredOverlay(hovered, null, seeThroughRef.current);
         setTooltip(null);
+        renderer.domElement.style.cursor = "grabbing";
         return;
       }
       const hit = hitFromPointer(event, renderer, camera, mapsRoot, raycaster, pointer);
@@ -371,7 +372,7 @@ export function WorldCanvas({
     };
 
     const onClick = (event: MouseEvent) => {
-      if (navigation.isDragging()) {
+      if (navigation.isDragging() || navigation.wasDragging()) {
         return;
       }
       const hit = hitFromPointer(event, renderer, camera, mapsRoot, raycaster, pointer);

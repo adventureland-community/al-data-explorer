@@ -28,6 +28,7 @@ export interface WorldCameraControls {
   saveDefaultView: () => void;
   setViewMode: (mode: ViewerMode, bounds: WorldBounds, options?: { resetCamera?: boolean }) => void;
   isDragging: () => boolean;
+  wasDragging: () => boolean;
   dispose: () => void;
 }
 
@@ -310,7 +311,8 @@ export function createWorldCameraControls(
     panDragActive = false;
   };
 
-  const isDragging = () => panDragActive || panDragOccurred;
+  const isDragging = () => panDragActive;
+  const wasDragging = () => panDragOccurred;
 
   const onWheel = (event: WheelEvent) => {
     if (!controls.enabled) {
@@ -419,6 +421,7 @@ export function createWorldCameraControls(
     saveDefaultView,
     setViewMode,
     isDragging,
+    wasDragging,
     dispose: () => {
       domElement.removeEventListener("pointerdown", onPointerDown);
       domElement.removeEventListener("pointermove", onPointerMove);
