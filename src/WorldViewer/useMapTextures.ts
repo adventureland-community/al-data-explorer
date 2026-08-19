@@ -64,6 +64,23 @@ function mergeSheetCache(
   return { ...cache };
 }
 
+/** Sort map IDs so `priority` (and its immediate context) bake first. */
+function prioritizeBakeOrder(ids: string[], priority: string | null): string[] {
+  if (!priority) {
+    return ids;
+  }
+  const first: string[] = [];
+  const rest: string[] = [];
+  for (const id of ids) {
+    if (id === priority) {
+      first.unshift(id);
+    } else {
+      rest.push(id);
+    }
+  }
+  return [...first, ...rest];
+}
+
 export function useMapCanvases(
   geometry: Record<string, GGeometry | undefined>,
   tilesets: Record<string, GTileset>,
@@ -71,6 +88,7 @@ export function useMapCanvases(
   mapIds: string[],
   enabled: boolean,
   bakeMaps: boolean,
+  priorityMap?: string | null,
 ): {
   art: Record<string, MapArtBake>;
   sheets: Record<string, HTMLImageElement>;
@@ -79,6 +97,8 @@ export function useMapCanvases(
 } {
   const cacheRef = useRef<Record<string, MapArtBake>>({});
   const sheetCacheRef = useRef<Record<string, HTMLImageElement>>({});
+  const priorityRef = useRef(priorityMap);
+  priorityRef.current = priorityMap;
   const [art, setArt] = useState<Record<string, MapArtBake>>({});
   const [sheets, setSheets] = useState<Record<string, HTMLImageElement>>({});
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +118,8 @@ export function useMapCanvases(
 
     const run = async () => {
       const ids = mapKey ? mapKey.split("|") : [];
-      const missing = bakeMaps ? ids.filter((id) => !cacheRef.current[id] && geometry[id]) : [];
+      const unsorted = bakeMaps ? ids.filter((id) => !cacheRef.current[id] && geometry[id]) : [];
+      const missing = prioritizeBakeOrder(unsorted, priorityRef.current ?? null);
       setError(null);
       setProgress({ done: 0, total: missing.length, current: "tilesets" });
       if (Object.keys(cacheRef.current).length > 0) {

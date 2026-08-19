@@ -122,6 +122,7 @@ export function WorldViewer() {
     bakeIds,
     Boolean(world),
     Boolean(pixelArt && world),
+    selectedMap,
   );
 
   const spriteContext = useMemo(
