@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { GMonster, GNpc } from "typed-adventureland";
 import { GItems } from "../GDataContext";
+import { parseDropTable } from "./dropTypes";
 import { OverlayPick, spawnOverlayHint } from "./overlayPick";
 import { ParsedMap } from "./types";
 import { monsterDisplayName } from "./WorldViewerHud";
@@ -239,19 +240,7 @@ function MonsterDrops({
   drops: Record<string, unknown[]>;
   items: GItems;
 }) {
-  const dropEntry = drops[monsterType];
-  if (!dropEntry || dropEntry.length <= 1) {
-    return null;
-  }
-  const parsed: Array<{ key: string; probability?: number }> = [];
-  for (let i = 1; i < dropEntry.length; i += 1) {
-    const entry = dropEntry[i];
-    if (typeof entry === "string") {
-      parsed.push({ key: entry });
-    } else if (Array.isArray(entry) && entry.length >= 2) {
-      parsed.push({ probability: entry[0] as number, key: entry[1] as string });
-    }
-  }
+  const parsed = parseDropTable(drops[monsterType]);
   if (parsed.length === 0) {
     return null;
   }
@@ -261,7 +250,7 @@ function MonsterDrops({
       <Typography variant="subtitle2">Drops</Typography>
       <List dense disablePadding>
         {parsed.map((drop) => {
-          const itemDef = items[drop.key as keyof GItems];
+          const itemDef = (items as Record<string, { name?: string } | undefined>)[drop.key];
           const displayName = itemDef?.name ?? drop.key;
           const prob = drop.probability != null ? ` (${(drop.probability * 100).toFixed(2)}%)` : "";
           return (
@@ -300,7 +289,7 @@ function NpcDetails({
             {npcDef.items
               .filter((itemKey): itemKey is string => itemKey != null)
               .map((itemKey) => {
-                const itemDef = items[itemKey as keyof GItems];
+                const itemDef = (items as Record<string, { name?: string } | undefined>)[itemKey];
                 return (
                   <ListItem key={itemKey} disableGutters disablePadding>
                     <ListItemText primary={itemDef?.name ?? itemKey} />

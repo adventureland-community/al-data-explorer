@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GMonster } from "typed-adventureland";
-import { cameraMode, fogForMode } from "./cameraMode";
+import { applyFog, cameraMode } from "./cameraMode";
 import { ViewportBounds, WorldMinimap } from "./WorldMinimap";
 import {
   applyFloorCanvases,
   applyMapAnimation,
   applyOverlayDepthStyle,
   applyPathHighlight,
+  ConnectionLabelData,
   createConnectionLines,
   createMapGroup,
   disposeObject,
@@ -90,6 +91,7 @@ interface WorldCanvasProps {
 interface WorldRefs {
   mapsRoot: THREE.Group;
   connections: THREE.Group | null;
+  labelData: ConnectionLabelData[];
   threeScene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   navigation: WorldCameraControls;
@@ -208,7 +210,8 @@ export function WorldCanvas({
   mapsRef.current = maps;
   const fogDensityRef = useRef(fogDensity);
   fogDensityRef.current = fogDensity;
-  const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
+  const viewportBoundsRef = useRef<ViewportBounds | null>(null);
+  const minimapRef = useRef<{ update: (bounds: ViewportBounds) => void } | null>(null);
   const sceneRef = useRef(scene);
   sceneRef.current = scene;
   const viewModeRef = useRef(viewMode);
@@ -260,7 +263,7 @@ export function WorldCanvas({
     host.appendChild(renderer.domElement);
 
     const threeScene = new THREE.Scene();
-    threeScene.fog = fogForMode(viewModeRef.current, fogDensityRef.current);
+    applyFog(threeScene, viewModeRef.current, fogDensityRef.current);
 
     const camera = new THREE.PerspectiveCamera(55, 1, 0.25, 200000);
     const bounds = computeWorldBounds(sceneRef.current);
@@ -299,7 +302,14 @@ export function WorldCanvas({
     const mapsRoot = new THREE.Group();
     mapsRoot.name = "maps";
     threeScene.add(mapsRoot);
-    worldRef.current = { mapsRoot, connections: null, threeScene, camera, navigation };
+    worldRef.current = {
+      mapsRoot,
+      connections: null,
+      labelData: [],
+      threeScene,
+      camera,
+      navigation,
+    };
     if (focusRef.current) {
       applyMapFocus(navigation, sceneRef.current, focusRef.current, viewModeRef.current);
     }
@@ -434,12 +444,14 @@ export function WorldCanvas({
       const vFov = (camera.fov * Math.PI) / 180;
       const halfH = Math.tan(vFov / 2) * dist;
       const halfW = halfH * camera.aspect;
-      setViewportBounds({
+      const vp: ViewportBounds = {
         minX: target.x - halfW,
         maxX: target.x + halfW,
         minZ: target.z - halfH,
         maxZ: target.z + halfH,
-      });
+      };
+      viewportBoundsRef.current = vp;
+      minimapRef.current?.update(vp);
     };
     const tick = () => {
       frame = requestAnimationFrame(tick);
@@ -496,9 +508,10 @@ export function WorldCanvas({
     }
 
     if (scene.connections.length > 0) {
-      const connections = createConnectionLines(scene);
-      threeScene.add(connections);
-      world.connections = connections;
+      const result = createConnectionLines(scene);
+      threeScene.add(result.group);
+      world.connections = result.group;
+      world.labelData = result.labelData;
     }
 
     applyFloorCanvases(mapsRoot, mapArtRef.current, pixelArtRef.current, 0);
@@ -540,7 +553,7 @@ export function WorldCanvas({
     if (!world) {
       return;
     }
-    world.threeScene.fog = fogForMode(viewMode, fogDensityRef.current);
+    applyFog(world.threeScene, viewMode, fogDensityRef.current);
     if (prevViewModeRef.current === viewMode) {
       return;
     }
@@ -555,43 +568,25 @@ export function WorldCanvas({
     if (!world) {
       return;
     }
-    world.threeScene.fog = fogForMode(viewMode, fogDensity);
+    applyFog(world.threeScene, viewMode, fogDensity);
   }, [fogDensity, viewMode]);
 
-  useEffect(() => {
-    const world = worldRef.current;
-    if (!world || !focus) {
-      return;
-    }
-    applyMapFocus(world.navigation, scene, focus, viewMode);
-  }, [scene, focus, viewMode]);
-
+  /** Consolidated scene-state sync: applies all scene-graph mutations that depend on props. */
   useEffect(() => {
     const world = worldRef.current;
     if (!world) {
       return;
     }
-    applyPathHighlight(world.connections, world.mapsRoot, highlightPath ?? null);
+    if (focus) {
+      applyMapFocus(world.navigation, scene, focus, viewMode);
+    }
+    applyPathHighlight(world.connections, world.mapsRoot, world.labelData, highlightPath ?? null);
     if (!highlightPath) {
       setSelectedMap(world.mapsRoot, selectedMap);
     }
-  }, [highlightPath, selectedMap, scene]);
-
-  useEffect(() => {
-    const world = worldRef.current;
-    if (!world) {
-      return;
-    }
-    setBandVisibility(world.mapsRoot, world.connections, soloBand ?? null, maps);
-  }, [soloBand, maps, scene]);
-
-  useEffect(() => {
-    const world = worldRef.current;
-    if (!world) {
-      return;
-    }
+    setBandVisibility(world.mapsRoot, world.connections, world.labelData, soloBand ?? null, maps);
     setConnectionLabelsVisible(world.connections, viewMode === "world");
-  }, [viewMode, scene]);
+  }, [scene, focus, viewMode, highlightPath, selectedMap, soloBand, maps]);
 
   return (
     <div
@@ -606,9 +601,7 @@ export function WorldCanvas({
         background: "#101218",
       }}
     >
-      {viewMode === "world" && (
-        <WorldMinimap layout={scene} maps={maps} viewport={viewportBounds} />
-      )}
+      {viewMode === "world" && <WorldMinimap ref={minimapRef} layout={scene} maps={maps} />}
       {tooltip && (
         <div
           style={{

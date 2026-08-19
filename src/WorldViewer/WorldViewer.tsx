@@ -2,18 +2,17 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import {
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Typography,
 } from "@mui/material";
-import ClearIcon from "@mui/icons-material/Clear";
 import { GDataContext } from "../GDataContext";
 import { DEFAULT_LAYER_HEIGHT, layoutWorld } from "./layoutWorld";
 import { findShortestPath } from "./pathFinder";
 import { collectMonsterTypes, collectUsedSpriteUrls } from "./spriteLookup";
+import { TravelBreadcrumb } from "./TravelBreadcrumb";
 import {
   DEFAULT_OVERLAYS,
   DoorTravel,
@@ -24,37 +23,16 @@ import {
   OverlayVisibility,
   ViewerMode,
 } from "./types";
+import { parseHash, syncHashFromState } from "./urlState";
 import { OverlayPick } from "./overlayPick";
 import { useMapCanvases } from "./useMapTextures";
 import { nextSelectedMap, selectedMapForMode, visibleWorldLayout } from "./viewerMode";
 import { WorldCanvas } from "./WorldCanvas";
 import { WorldInspector } from "./WorldInspector";
 import { WorldOverlayInspect } from "./WorldOverlayInspect";
-import { WorldOverlayPanel, WorldSearchBar, WorldStatusBar, WorldTopBar } from "./WorldViewerHud";
+import { WorldOverlayPanel, WorldStatusBar, WorldTopBar } from "./WorldViewerHud";
+import { WorldSearchBar } from "./WorldSearchBar";
 import { toWorldSource } from "./worldData";
-
-function parseHash(): Record<string, string> {
-  const raw = window.location.hash.replace(/^#/, "");
-  const result: Record<string, string> = {};
-  for (const part of raw.split("&")) {
-    const [key, value] = part.split("=");
-    if (key && value !== undefined) {
-      result[decodeURIComponent(key)] = decodeURIComponent(value);
-    }
-  }
-  return result;
-}
-
-function writeHash(params: Record<string, string | undefined>) {
-  const parts: string[] = [];
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== "") {
-      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
-    }
-  }
-  const hash = parts.length > 0 ? `#${parts.join("&")}` : "";
-  window.history.replaceState(null, "", hash || window.location.pathname);
-}
 
 const MAX_TRAVEL_HISTORY = 15;
 
@@ -153,13 +131,7 @@ export function WorldViewer() {
 
   // Sync state → URL hash
   useEffect(() => {
-    writeHash({
-      map: selectedMap ?? undefined,
-      x: focus?.x !== undefined ? String(Math.round(focus.x)) : undefined,
-      y: focus?.y !== undefined ? String(Math.round(focus.y)) : undefined,
-      mode: viewMode,
-      layers: layerHeight !== DEFAULT_LAYER_HEIGHT ? String(layerHeight) : undefined,
-    });
+    syncHashFromState(selectedMap, focus, viewMode, layerHeight);
   }, [selectedMap, focus, viewMode, layerHeight]);
 
   const requestMapFocus = (mapId: string, x: number, y: number) => {
@@ -334,40 +306,12 @@ export function WorldViewer() {
           onSelectMap={selectMap}
         />
       </WorldTopBar>
-      {travelHistory.length > 0 && (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5,
-            overflowX: "auto",
-            flexShrink: 0,
-            paddingX: 1,
-            paddingY: 0.5,
-          }}
-        >
-          <Typography variant="caption" sx={{ opacity: 0.6, whiteSpace: "nowrap", mr: 0.5 }}>
-            Travel:
-          </Typography>
-          {travelHistory.map((entry) => (
-            <Chip
-              key={entry.key}
-              size="small"
-              label={layout.maps[entry.mapId]?.name ?? entry.mapId}
-              onClick={() => focusMap(entry.mapId)}
-              variant="outlined"
-            />
-          ))}
-          <Chip
-            size="small"
-            icon={<ClearIcon />}
-            label="Clear"
-            onClick={() => setTravelHistory([])}
-            variant="outlined"
-            color="default"
-          />
-        </Box>
-      )}
+      <TravelBreadcrumb
+        history={travelHistory}
+        maps={layout.maps}
+        onFocusMap={focusMap}
+        onClear={() => setTravelHistory([])}
+      />
       <Box sx={{ display: "flex", gap: 1, flex: 1, minHeight: 0 }}>
         <WorldOverlayPanel
           overlays={overlays}

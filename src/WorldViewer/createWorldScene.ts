@@ -147,19 +147,29 @@ function createTextSprite(text: string, color = "#fff"): THREE.Sprite {
   return sprite;
 }
 
-interface ConnectionEndpoints {
+export interface ConnectionEndpoints {
   from: [number, number, number];
   to: [number, number, number];
 }
 
-export function createConnectionLines(layout: WorldLayout): THREE.Group {
+export interface ConnectionLabelData {
+  fromMap: string;
+  toMap: string;
+  endpoints: ConnectionEndpoints;
+}
+
+export interface ConnectionsResult {
+  group: THREE.Group;
+  labelData: ConnectionLabelData[];
+}
+
+export function createConnectionLines(layout: WorldLayout): ConnectionsResult {
   const group = new THREE.Group();
   group.name = "connections";
   group.frustumCulled = false;
   const twoWay: number[] = [];
   const oneWay: number[] = [];
-  const endpoints: Array<{ conn: typeof layout.connections[number]; pts: ConnectionEndpoints }> =
-    [];
+  const labelData: ConnectionLabelData[] = [];
 
   for (const connection of layout.connections) {
     const fromPose = layout.poses[connection.fromMap];
@@ -181,7 +191,11 @@ export function createConnectionLines(layout: WorldLayout): THREE.Group {
     const to: [number, number, number] = [toPose.x + toX, toPose.z + 16, toPose.y + toY];
     const target = connection.twoWay ? twoWay : oneWay;
     target.push(from[0], from[1], from[2], to[0], to[1], to[2]);
-    endpoints.push({ conn: connection, pts: { from, to } });
+    labelData.push({
+      fromMap: connection.fromMap,
+      toMap: connection.toMap,
+      endpoints: { from, to },
+    });
   }
 
   const addLines = (positions: number[], color: number, name: string) => {
@@ -210,22 +224,16 @@ export function createConnectionLines(layout: WorldLayout): THREE.Group {
 
   const labels = new THREE.Group();
   labels.name = "connectionLabels";
-  for (const { conn, pts } of endpoints) {
-    const destName = layout.maps[conn.toMap]?.name ?? conn.toMap;
+  for (const data of labelData) {
+    const destName = layout.maps[data.toMap]?.name ?? data.toMap;
     const sprite = createTextSprite(destName);
-    sprite.position.set(
-      (pts.from[0] + pts.to[0]) / 2,
-      (pts.from[1] + pts.to[1]) / 2,
-      (pts.from[2] + pts.to[2]) / 2,
-    );
-    sprite.userData.fromMap = conn.fromMap;
-    sprite.userData.toMap = conn.toMap;
-    sprite.userData.endpoints = pts;
+    const { from, to } = data.endpoints;
+    sprite.position.set((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, (from[2] + to[2]) / 2);
     labels.add(sprite);
   }
   group.add(labels);
 
-  return group;
+  return { group, labelData };
 }
 
 /** Set of map-pair keys on the highlight path, for fast lookup. */
@@ -287,13 +295,13 @@ export function disposeObject(object: THREE.Object3D): void {
 export function applyPathHighlight(
   connectionsGroup: THREE.Group | null,
   mapsRoot: THREE.Group,
+  labelData: ConnectionLabelData[],
   path: string[] | null,
 ): void {
   if (!connectionsGroup) {
     return;
   }
 
-  // Remove old highlight overlay
   const old = connectionsGroup.getObjectByName("pathHighlight");
   if (old) {
     connectionsGroup.remove(old);
@@ -303,7 +311,6 @@ export function applyPathHighlight(
   const pathSet = path ? new Set(path) : null;
   const edgeSet = path ? buildPathEdgeSet(path) : null;
 
-  // Dim/restore base connection lines
   for (const child of connectionsGroup.children) {
     if (child instanceof THREE.LineSegments) {
       const material = child.material as THREE.LineBasicMaterial;
@@ -318,42 +325,32 @@ export function applyPathHighlight(
     }
   }
 
-  // Highlight path floors
-  mapsRoot.traverse((object) => {
-    if (!object.userData.isFloor || !(object instanceof THREE.Mesh)) {
-      return;
+  // Highlight floors of maps on the path (direct children only, not full traverse)
+  for (const mapGroup of mapsRoot.children) {
+    const mapId = mapGroup.userData.mapId as string | undefined;
+    if (!mapId || !pathSet?.has(mapId)) {
+      continue;
     }
-    const mapId = object.parent?.userData.mapId as string | undefined;
-    if (!mapId || !pathSet) {
-      return;
-    }
-    if (pathSet.has(mapId)) {
-      const material = object.material as THREE.MeshBasicMaterial;
-      if (!floorHasMapArt(object)) {
+    for (const child of mapGroup.children) {
+      if (child.userData.isFloor && child instanceof THREE.Mesh && !floorHasMapArt(child)) {
+        const material = child.material as THREE.MeshBasicMaterial;
         material.color.setHex(PATH_HIGHLIGHT_FLOOR_COLOR);
         material.opacity = 0.75;
       }
     }
-  });
+  }
 
   if (!edgeSet || !path) {
     return;
   }
 
-  // Build highlight lines from stored endpoint data on labels
-  const labels = connectionsGroup.getObjectByName("connectionLabels");
-  if (!labels) {
-    return;
-  }
   const positions: number[] = [];
-  for (const sprite of labels.children) {
-    const from = sprite.userData.fromMap as string | undefined;
-    const to = sprite.userData.toMap as string | undefined;
-    const pts = sprite.userData.endpoints as ConnectionEndpoints | undefined;
-    if (!from || !to || !pts || !edgeSet.has(`${from}→${to}`)) {
+  for (const data of labelData) {
+    if (!edgeSet.has(`${data.fromMap}→${data.toMap}`)) {
       continue;
     }
-    positions.push(pts.from[0], pts.from[1], pts.from[2], pts.to[0], pts.to[1], pts.to[2]);
+    const { from, to } = data.endpoints;
+    positions.push(from[0], from[1], from[2], to[0], to[1], to[2]);
   }
   if (positions.length === 0) {
     return;
@@ -414,6 +411,7 @@ export function setSelectedMap(root: THREE.Object3D, mapId: string | null): void
 export function setBandVisibility(
   mapsRoot: THREE.Group,
   connectionsGroup: THREE.Group | null,
+  labelData: ConnectionLabelData[],
   soloBand: MapBand | null,
   maps: Record<string, ParsedMap>,
 ): void {
@@ -424,18 +422,17 @@ export function setBandVisibility(
   if (!connectionsGroup) {
     return;
   }
-  // Hide connection lines/labels for maps not in the solo band
   const labels = connectionsGroup.getObjectByName("connectionLabels");
   if (labels) {
-    for (const sprite of labels.children) {
-      const from = sprite.userData.fromMap as string | undefined;
-      const to = sprite.userData.toMap as string | undefined;
-      if (!soloBand || !from || !to) {
+    for (let i = 0; i < labels.children.length; i += 1) {
+      const sprite = labels.children[i];
+      const data = labelData[i];
+      if (!soloBand || !data) {
         sprite.visible = !soloBand;
         continue;
       }
-      const fromBand = maps[from]?.band;
-      const toBand = maps[to]?.band;
+      const fromBand = maps[data.fromMap]?.band;
+      const toBand = maps[data.toMap]?.band;
       sprite.visible = fromBand === soloBand && toBand === soloBand;
     }
   }

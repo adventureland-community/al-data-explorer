@@ -96,12 +96,18 @@ export function controlsHelpForMode(mode: ViewerMode): readonly string[] {
 const FOG_COLOR = 0x101218;
 
 /**
- * Build the fog object for a given viewer mode and density.
- * Density 0 means no fog.
+ * Apply fog settings to a scene. Reuses an existing FogExp2 instance when
+ * possible, mutating only the density, to avoid allocating on every slider tick.
  */
-export function fogForMode(mode: ViewerMode, density: number): THREE.FogExp2 | null {
+export function applyFog(scene: THREE.Scene, mode: ViewerMode, density: number): void {
   if (!cameraMode(mode).useFog || density <= 0) {
-    return null;
+    scene.fog = null;
+    return;
   }
-  return new THREE.FogExp2(FOG_COLOR, density);
+  const existing = scene.fog;
+  if (existing instanceof THREE.FogExp2) {
+    existing.density = density;
+  } else {
+    scene.fog = new THREE.FogExp2(FOG_COLOR, density);
+  }
 }
