@@ -27,6 +27,7 @@ export interface WorldCameraControls {
   resetView: () => void;
   saveDefaultView: () => void;
   setViewMode: (mode: ViewerMode, bounds: WorldBounds, options?: { resetCamera?: boolean }) => void;
+  isDragging: () => boolean;
   dispose: () => void;
 }
 
@@ -269,6 +270,7 @@ export function createWorldCameraControls(
 
   let panning = false;
   let panDragActive = false;
+  let panDragOccurred = false;
   let panStartX = 0;
   let panStartY = 0;
   const PAN_DRAG_THRESHOLD_PX = 4;
@@ -279,6 +281,7 @@ export function createWorldCameraControls(
     }
     panning = true;
     panDragActive = false;
+    panDragOccurred = false;
     panStartX = event.clientX;
     panStartY = event.clientY;
     domElement.focus({ preventScroll: true });
@@ -295,6 +298,7 @@ export function createWorldCameraControls(
         return;
       }
       panDragActive = true;
+      panDragOccurred = true;
     }
     panFromScreenDelta(controls, camera, deltaX, deltaY);
     panStartX = event.clientX;
@@ -305,6 +309,8 @@ export function createWorldCameraControls(
     panning = false;
     panDragActive = false;
   };
+
+  const isDragging = () => panDragActive || panDragOccurred;
 
   const onWheel = (event: WheelEvent) => {
     if (!controls.enabled) {
@@ -412,6 +418,7 @@ export function createWorldCameraControls(
     resetView,
     saveDefaultView,
     setViewMode,
+    isDragging,
     dispose: () => {
       domElement.removeEventListener("pointerdown", onPointerDown);
       domElement.removeEventListener("pointermove", onPointerMove);

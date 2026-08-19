@@ -319,6 +319,11 @@ export function WorldCanvas({
 
     let hovered: THREE.Object3D | null = null;
     const onPointerMove = (event: MouseEvent) => {
+      if (navigation.isDragging()) {
+        hovered = setHoveredOverlay(hovered, null, seeThroughRef.current);
+        setTooltip(null);
+        return;
+      }
       const hit = hitFromPointer(event, renderer, camera, mapsRoot, raycaster, pointer);
       if (!hit) {
         onCursorMoveRef.current(null);
@@ -366,6 +371,9 @@ export function WorldCanvas({
     };
 
     const onClick = (event: MouseEvent) => {
+      if (navigation.isDragging()) {
+        return;
+      }
       const hit = hitFromPointer(event, renderer, camera, mapsRoot, raycaster, pointer);
       if (!hit) {
         onSelectRef.current(null);
