@@ -1,18 +1,24 @@
 import * as THREE from "three";
-import { overlayColor } from "./overlayColors";
+import { EXTRA_PACK_BOUNDS_COLOR, GROW_PACK_LINE_COLOR, overlayColor } from "./overlayColors";
 import { OverlayPick } from "./overlayPick";
-import { OverlayKind, OverlayVisibility, ParsedMap } from "./types";
+import { packOverlayLabel } from "./packSpriteSlots";
+import { MonsterFeature, OverlayKind, OverlayVisibility, ParsedMap } from "./types";
 
 export const SEE_THROUGH_OVERLAY_OPACITY = 0.38;
 const HOVER_WHITE = new THREE.Color(0xffffff);
 
 /** Default debug overlay opacities (zinals-style). */
-const OVERLAY_FILL_OPACITY: Record<Exclude<OverlayKind, "bounds" | "npcs">, number> = {
+const OVERLAY_FILL_OPACITY: Record<Exclude<OverlayKind, "bounds">, number> = {
   zones: 0.18,
   monsters: 0.22,
+  rage: 0.2,
+  traps: 0.28,
   quirks: 0.4,
+  machines: 0.4,
+  animatables: 0.4,
   doors: 0.45,
   spawns: 0.7,
+  npcs: 0.35,
 };
 
 const BOUNDS_LINE_OPACITY = 0.7;
@@ -32,11 +38,80 @@ const LIFT: Record<OverlayKind, number> = {
   bounds: 2,
   zones: 3,
   monsters: 4,
-  quirks: 6,
-  doors: 8,
-  spawns: 10,
+  rage: 5,
+  traps: 6,
+  quirks: 7,
+  machines: 8,
+  doors: 9,
+  animatables: 10,
+  spawns: 11,
   npcs: 12,
 };
+
+function makeLineLoop(
+  points: Array<[number, number]>,
+  color: number,
+  lift: number,
+  opacity: number,
+): THREE.LineLoop | null {
+  if (points.length < 2) {
+    return null;
+  }
+  const positions: number[] = [];
+  for (const [x, y] of points) {
+    positions.push(x, lift, y);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  const material = new THREE.LineBasicMaterial({
+    color,
+    transparent: opacity < 1,
+    opacity,
+    depthWrite: false,
+    depthTest: true,
+    fog: false,
+  });
+  const line = new THREE.LineLoop(geometry, material);
+  line.userData.isOverlayLine = true;
+  line.userData.overlayLift = lift;
+  line.userData.baseOpacity = opacity;
+  line.renderOrder = lift + 0.5;
+  return line;
+}
+
+function growPackOutline(monster: MonsterFeature, lift: number): THREE.LineLoop | null {
+  if (!monster.grow) {
+    return null;
+  }
+  if (monster.polygon && monster.polygon.length >= 3) {
+    return makeLineLoop(monster.polygon, GROW_PACK_LINE_COLOR, lift, 0.95);
+  }
+  if (monster.radius) {
+    const points: Array<[number, number]> = [];
+    const steps = 24;
+    for (let i = 0; i < steps; i += 1) {
+      const angle = (i / steps) * Math.PI * 2;
+      points.push([
+        monster.x + Math.cos(angle) * monster.radius,
+        monster.y + Math.sin(angle) * monster.radius,
+      ]);
+    }
+    return makeLineLoop(points, GROW_PACK_LINE_COLOR, lift, 0.95);
+  }
+  const halfW = monster.width / 2;
+  const halfH = monster.height / 2;
+  return makeLineLoop(
+    [
+      [monster.x - halfW, monster.y - halfH],
+      [monster.x + halfW, monster.y - halfH],
+      [monster.x + halfW, monster.y + halfH],
+      [monster.x - halfW, monster.y + halfH],
+    ],
+    GROW_PACK_LINE_COLOR,
+    lift,
+    0.95,
+  );
+}
 
 function overlayFillMaterial(color: number, opacity: number): THREE.MeshBasicMaterial {
   return new THREE.MeshBasicMaterial({
@@ -46,6 +121,7 @@ function overlayFillMaterial(color: number, opacity: number): THREE.MeshBasicMat
     side: THREE.DoubleSide,
     depthWrite: false,
     depthTest: true,
+    fog: false,
   });
 }
 
@@ -75,6 +151,22 @@ function makeRectMesh(
   const geometry = layFlatOnMap(new THREE.PlaneGeometry(Math.max(width, 2), Math.max(height, 2)));
   const mesh = new THREE.Mesh(geometry, overlayFillMaterial(color, opacity));
   mesh.position.set(x, lift, bottomCentered ? y - height / 2 : y);
+  return mesh;
+}
+
+function makeCircleMesh(
+  x: number,
+  y: number,
+  radius: number,
+  color: number,
+  lift: number,
+  opacity: number,
+): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    layFlatOnMap(new THREE.CircleGeometry(Math.max(radius, 1), 20)),
+    overlayFillMaterial(color, opacity),
+  );
+  mesh.position.set(x, lift, y);
   return mesh;
 }
 
@@ -172,6 +264,7 @@ function boundsLines(map: ParsedMap): THREE.LineSegments {
     opacity: BOUNDS_LINE_OPACITY,
     depthWrite: false,
     depthTest: true,
+    fog: false,
   });
   const lines = new THREE.LineSegments(geometry, material);
   lines.userData.isOverlayLine = true;
@@ -207,12 +300,35 @@ function attachOverlay(
   group.add(mesh);
 }
 
+function attachKindRect(
+  group: THREE.Group,
+  pick: OverlayPick,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  kind: Exclude<OverlayKind, "bounds">,
+  label: string,
+  outline = false,
+): void {
+  const lift = LIFT[kind];
+  const opacity = OVERLAY_FILL_OPACITY[kind];
+  attachOverlay(
+    group,
+    makeRectMesh(x, y, width, height, overlayColor(kind), lift, opacity, outline),
+    pick,
+    label,
+    { lift, opacity },
+  );
+}
+
 export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
   const bounds = overlayGroup("bounds");
   bounds.add(boundsLines(map));
 
   const doors = overlayGroup("doors");
   for (const door of map.doors) {
+    const pick = { kind: "door" as const, mapId: map.id, door };
     attachOverlay(
       doors,
       makeRectMesh(
@@ -225,9 +341,16 @@ export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
         OVERLAY_FILL_OPACITY.doors,
         true,
       ),
-      { kind: "door", mapId: map.id, door },
+      pick,
       `To ${door.toMap}`,
       { lift: LIFT.doors, opacity: OVERLAY_FILL_OPACITY.doors },
+    );
+    attachOverlay(
+      doors,
+      makeCircleMesh(door.x, door.y, 2.5, overlayColor("doors"), LIFT.doors + 0.2, 0.95),
+      pick,
+      `To ${door.toMap}`,
+      { lift: LIFT.doors + 0.2, opacity: 0.95 },
     );
   }
 
@@ -235,11 +358,10 @@ export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
   for (const spawn of map.spawns) {
     attachOverlay(
       spawns,
-      makeRectMesh(
+      makeCircleMesh(
         spawn.x,
         spawn.y,
-        14,
-        14,
+        10,
         overlayColor("spawns"),
         LIFT.spawns,
         OVERLAY_FILL_OPACITY.spawns,
@@ -252,6 +374,7 @@ export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
 
   const quirks = overlayGroup("quirks");
   for (const quirk of map.quirks) {
+    const pick = { kind: "quirk" as const, mapId: map.id, quirk };
     attachOverlay(
       quirks,
       makeRectMesh(
@@ -264,36 +387,58 @@ export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
         OVERLAY_FILL_OPACITY.quirks,
         true,
       ),
-      { kind: "quirk", mapId: map.id, quirk },
+      pick,
       quirk.text || quirk.kind,
       { lift: LIFT.quirks, opacity: OVERLAY_FILL_OPACITY.quirks },
+    );
+    attachOverlay(
+      quirks,
+      makeCircleMesh(quirk.x, quirk.y, 2.5, overlayColor("quirks"), LIFT.quirks + 0.2, 0.95),
+      pick,
+      quirk.text || quirk.kind,
+      { lift: LIFT.quirks + 0.2, opacity: 0.95 },
     );
   }
 
   const npcs = overlayGroup("npcs");
   for (const npc of map.npcs) {
+    const pick = { kind: "npc" as const, mapId: map.id, npc };
+    if (npc.roam) {
+      attachOverlay(
+        npcs,
+        makeRectMesh(
+          npc.roam.x,
+          npc.roam.y,
+          npc.roam.width,
+          npc.roam.height,
+          overlayColor("npcs"),
+          LIFT.npcs,
+          OVERLAY_FILL_OPACITY.npcs,
+        ),
+        pick,
+        npc.label,
+        { lift: LIFT.npcs, opacity: OVERLAY_FILL_OPACITY.npcs },
+      );
+    }
     attachOverlay(
       npcs,
-      makeRectMesh(npc.x, npc.y, 20, 28, 0xffffff, LIFT.npcs, 0, true),
-      { kind: "npc", mapId: map.id, npc },
+      makeRectMesh(npc.x, npc.y, 20, 28, overlayColor("npcs"), LIFT.npcs + 0.2, 0.85, true),
+      pick,
       npc.label,
+      { lift: LIFT.npcs + 0.2, opacity: 0.85 },
     );
   }
 
   const monsters = overlayGroup("monsters");
   for (const monster of map.monsters) {
+    const fill = overlayColor("monsters");
     let mesh: THREE.Mesh | null = null;
     if (monster.polygon) {
-      mesh = makePolygonMesh(
-        monster.polygon,
-        overlayColor("monsters"),
-        LIFT.monsters,
-        OVERLAY_FILL_OPACITY.monsters,
-      );
+      mesh = makePolygonMesh(monster.polygon, fill, LIFT.monsters, OVERLAY_FILL_OPACITY.monsters);
     } else if (monster.radius) {
       mesh = new THREE.Mesh(
         layFlatOnMap(new THREE.CircleGeometry(monster.radius, 24)),
-        overlayFillMaterial(overlayColor("monsters"), OVERLAY_FILL_OPACITY.monsters),
+        overlayFillMaterial(fill, OVERLAY_FILL_OPACITY.monsters),
       );
       mesh.position.set(monster.x, LIFT.monsters, monster.y);
     } else {
@@ -302,14 +447,108 @@ export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
         monster.y,
         monster.width,
         monster.height,
-        overlayColor("monsters"),
+        fill,
         LIFT.monsters,
         OVERLAY_FILL_OPACITY.monsters,
       );
     }
-    attachOverlay(monsters, mesh, { kind: "monster", mapId: map.id, monster }, monster.type, {
-      lift: LIFT.monsters,
-      opacity: OVERLAY_FILL_OPACITY.monsters,
+    attachOverlay(
+      monsters,
+      mesh,
+      { kind: "monster", mapId: map.id, monster },
+      packOverlayLabel(monster),
+      {
+        lift: LIFT.monsters,
+        opacity: OVERLAY_FILL_OPACITY.monsters,
+      },
+    );
+    for (const extra of monster.extraBounds || []) {
+      attachOverlay(
+        monsters,
+        makeRectMesh(
+          extra.x,
+          extra.y,
+          extra.width,
+          extra.height,
+          EXTRA_PACK_BOUNDS_COLOR,
+          LIFT.monsters,
+          OVERLAY_FILL_OPACITY.monsters,
+        ),
+        { kind: "monster", mapId: map.id, monster },
+        packOverlayLabel(monster),
+        { lift: LIFT.monsters, opacity: OVERLAY_FILL_OPACITY.monsters },
+      );
+    }
+    const outline = growPackOutline(monster, LIFT.monsters + 0.4);
+    if (outline) {
+      outline.userData.pick = { kind: "monster", mapId: map.id, monster };
+      outline.userData.mapId = map.id;
+      monsters.add(outline);
+    }
+  }
+
+  const rage = overlayGroup("rage");
+  for (const monster of map.monsters) {
+    if (!monster.rage) {
+      continue;
+    }
+    attachKindRect(
+      rage,
+      { kind: "rage", mapId: map.id, monster },
+      monster.rage.x,
+      monster.rage.y,
+      monster.rage.width,
+      monster.rage.height,
+      "rage",
+      `${monster.type} rage`,
+    );
+  }
+
+  const machines = overlayGroup("machines");
+  for (const machine of map.machines) {
+    attachKindRect(
+      machines,
+      { kind: "machine", mapId: map.id, machine },
+      machine.x,
+      machine.y,
+      machine.width,
+      machine.height,
+      "machines",
+      machine.type,
+      true,
+    );
+  }
+
+  const animatables = overlayGroup("animatables");
+  for (const animatable of map.animatables) {
+    attachKindRect(
+      animatables,
+      { kind: "animatable", mapId: map.id, animatable },
+      animatable.x,
+      animatable.y,
+      24,
+      32,
+      "animatables",
+      animatable.id,
+      true,
+    );
+  }
+
+  const traps = overlayGroup("traps");
+  for (const trap of map.traps) {
+    const mesh = trap.polygon
+      ? makePolygonMesh(trap.polygon, overlayColor("traps"), LIFT.traps, OVERLAY_FILL_OPACITY.traps)
+      : makeCircleMesh(
+          trap.x,
+          trap.y,
+          12,
+          overlayColor("traps"),
+          LIFT.traps,
+          OVERLAY_FILL_OPACITY.traps,
+        );
+    attachOverlay(traps, mesh, { kind: "trap", mapId: map.id, trap }, trap.type, {
+      lift: LIFT.traps,
+      opacity: OVERLAY_FILL_OPACITY.traps,
     });
   }
 
@@ -324,7 +563,7 @@ export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
     );
   }
 
-  return [bounds, doors, spawns, quirks, npcs, monsters, zones];
+  return [bounds, doors, spawns, quirks, npcs, monsters, rage, machines, animatables, traps, zones];
 }
 
 export function applyOverlayMeshStyle(object: THREE.Object3D, seeThrough: boolean): void {

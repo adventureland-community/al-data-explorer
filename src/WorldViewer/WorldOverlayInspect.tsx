@@ -8,58 +8,106 @@ import {
   Typography,
 } from "@mui/material";
 import { GMonster } from "typed-adventureland";
-import { OverlayInspect, ParsedMap } from "./types";
+import { OverlayPick, spawnOverlayHint } from "./overlayPick";
+import { ParsedMap } from "./types";
 import { monsterDisplayName } from "./WorldViewerHud";
 
-function inspectTitle(inspect: OverlayInspect | null, monsters: Record<string, GMonster>): string {
-  if (!inspect) {
+function MapLines({
+  mapId,
+  mapName,
+  x,
+  y,
+  size,
+}: {
+  mapId: string;
+  mapName: string | undefined;
+  x?: number;
+  y?: number;
+  size?: string;
+}) {
+  return (
+    <>
+      <Typography variant="body2">
+        Map: {mapName} ({mapId})
+      </Typography>
+      {typeof x === "number" && typeof y === "number" && (
+        <Typography variant="body2">
+          Position: ({x}, {y}){size ? ` · ${size}` : ""}
+        </Typography>
+      )}
+    </>
+  );
+}
+
+function inspectTitle(pick: OverlayPick | null, monsters: Record<string, GMonster>): string {
+  if (!pick || pick.kind === "door") {
     return "Inspect";
   }
-  switch (inspect.kind) {
+  switch (pick.kind) {
     case "npc":
-      return inspect.name || inspect.id;
+      return pick.npc.name || pick.npc.label || pick.npc.id;
     case "monster":
-      return monsterDisplayName(inspect.type, monsters);
+      return `${monsterDisplayName(pick.monster.type, monsters)} ×${pick.monster.count}`;
     case "quirk":
-      return inspect.text || inspect.quirkKind;
+      return pick.quirk.text || pick.quirk.kind;
     case "zone":
-      return inspect.type;
-    case "spawn":
-      return `Spawn ${inspect.label}`;
+      return pick.zone.type;
+    case "spawn": {
+      const hint = spawnOverlayHint(pick.spawn);
+      return hint === "Click to inspect" ? `Spawn ${pick.spawn.label}` : "Possible connections";
+    }
+    case "rage":
+      return `${monsterDisplayName(pick.monster.type, monsters)} rage`;
+    case "machine":
+      return pick.machine.type;
+    case "animatable":
+      return pick.animatable.id;
+    case "trap":
+      return `${pick.trap.type} trap`;
     default: {
-      const exhaustive: never = inspect;
+      const exhaustive: never = pick;
       return exhaustive;
     }
   }
 }
 
-function inspectBody(inspect: OverlayInspect, mapName: string | undefined) {
-  switch (inspect.kind) {
+function inspectBody(pick: OverlayPick, mapName: string | undefined) {
+  switch (pick.kind) {
+    case "door":
+      return null;
     case "npc":
       return (
         <>
-          <Typography variant="body2">NPC id: {inspect.id}</Typography>
-          <Typography variant="body2">Skin: {inspect.skin}</Typography>
-          <Typography variant="body2">
-            Map: {mapName} ({inspect.mapId})
-          </Typography>
-          <Typography variant="body2">
-            Position: ({inspect.x}, {inspect.y})
-          </Typography>
+          <Typography variant="body2">NPC id: {pick.npc.id}</Typography>
+          <Typography variant="body2">Skin: {pick.npc.skin}</Typography>
+          <MapLines mapId={pick.mapId} mapName={mapName} x={pick.npc.x} y={pick.npc.y} />
+          {pick.npc.roam && (
+            <Typography variant="body2">
+              Moves around in this area ({Math.round(pick.npc.roam.width)}×
+              {Math.round(pick.npc.roam.height)}).
+            </Typography>
+          )}
+          {pick.npc.moving && !pick.npc.roam && (
+            <Typography variant="body2">Roams the map.</Typography>
+          )}
         </>
       );
     case "monster":
       return (
         <>
-          <Typography variant="body2">Type: {inspect.type}</Typography>
-          <Typography variant="body2">
-            Map: {mapName} ({inspect.mapId})
-          </Typography>
-          <Typography variant="body2">
-            Pack center: ({inspect.x}, {inspect.y})
-          </Typography>
+          <Typography variant="body2">Type: {pick.monster.type}</Typography>
+          <MapLines mapId={pick.mapId} mapName={mapName} x={pick.monster.x} y={pick.monster.y} />
+          <Typography variant="body2">Spawn quantity: {pick.monster.count}</Typography>
+          {pick.monster.grow && (
+            <Typography variant="body2">
+              Grow pack — extra monsters spawn if this pack is thinned.
+            </Typography>
+          )}
+          {pick.monster.roam && (
+            <Typography variant="body2">Roams beyond this pack box.</Typography>
+          )}
           <Link
-            href={`https://adventure.land/docs/guide/monsters#${inspect.type}`}
+            href={`https://adventure.land/docs/guide/monsters#${pick.monster.type}`}
             target="_blank"
             rel="noreferrer"
           >
@@ -70,46 +118,99 @@ function inspectBody(inspect: OverlayInspect, mapName: string | undefined) {
     case "quirk":
       return (
         <>
-          <Typography variant="body2">Kind: {inspect.quirkKind}</Typography>
-          {inspect.text && <Typography variant="body2">{inspect.text}</Typography>}
-          <Typography variant="body2">
-            Map: {mapName} ({inspect.mapId})
-          </Typography>
-          <Typography variant="body2">
-            Position: ({inspect.x}, {inspect.y}) · {inspect.width}×{inspect.height}
-          </Typography>
+          <Typography variant="body2">Kind: {pick.quirk.kind}</Typography>
+          {pick.quirk.text && <Typography variant="body2">{pick.quirk.text}</Typography>}
+          <MapLines
+            mapId={pick.mapId}
+            mapName={mapName}
+            x={pick.quirk.x}
+            y={pick.quirk.y}
+            size={`${pick.quirk.width}×${pick.quirk.height}`}
+          />
         </>
       );
     case "zone":
       return (
         <>
-          <Typography variant="body2">Zone type: {inspect.type}</Typography>
-          <Typography variant="body2">
-            Map: {mapName} ({inspect.mapId})
-          </Typography>
+          <Typography variant="body2">Zone type: {pick.zone.type}</Typography>
+          <MapLines mapId={pick.mapId} mapName={mapName} />
         </>
       );
     case "spawn":
       return (
         <>
-          <Typography variant="body2">Spawn index: {inspect.label}</Typography>
-          <Typography variant="body2">
-            Map: {mapName} ({inspect.mapId})
+          {pick.spawn.arrivals.length > 0 && (
+            <>
+              {pick.spawn.arrivals.map((arrival) => (
+                <Typography key={`${arrival.kind}-${arrival.label}`} variant="body2">
+                  {arrival.label}
+                </Typography>
+              ))}
+            </>
+          )}
+          {pick.spawn.departures.length > 0 &&
+            pick.spawn.departures.map((departure) => (
+              <Typography key={`to-${departure.label}`} variant="body2">
+                Door to {departure.label}
+              </Typography>
+            ))}
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Spawn {pick.spawn.label}
           </Typography>
-          <Typography variant="body2">
-            Position: ({inspect.x}, {inspect.y})
-          </Typography>
+          <MapLines mapId={pick.mapId} mapName={mapName} x={pick.spawn.x} y={pick.spawn.y} />
+        </>
+      );
+    case "rage": {
+      const box = pick.monster.rage;
+      return (
+        <>
+          <Typography variant="body2">Type: {pick.monster.type}</Typography>
+          <MapLines
+            mapId={pick.mapId}
+            mapName={mapName}
+            x={box?.x ?? pick.monster.x}
+            y={box?.y ?? pick.monster.y}
+            size={box ? `${box.width}×${box.height}` : undefined}
+          />
+        </>
+      );
+    }
+    case "machine":
+      return (
+        <>
+          <Typography variant="body2">Machine: {pick.machine.type}</Typography>
+          <MapLines mapId={pick.mapId} mapName={mapName} x={pick.machine.x} y={pick.machine.y} />
+        </>
+      );
+    case "animatable":
+      return (
+        <>
+          <Typography variant="body2">Id: {pick.animatable.id}</Typography>
+          <Typography variant="body2">Position key: {pick.animatable.position}</Typography>
+          <MapLines
+            mapId={pick.mapId}
+            mapName={mapName}
+            x={pick.animatable.x}
+            y={pick.animatable.y}
+          />
+        </>
+      );
+    case "trap":
+      return (
+        <>
+          <Typography variant="body2">Trap: {pick.trap.type}</Typography>
+          <MapLines mapId={pick.mapId} mapName={mapName} x={pick.trap.x} y={pick.trap.y} />
         </>
       );
     default: {
-      const exhaustive: never = inspect;
+      const exhaustive: never = pick;
       return exhaustive;
     }
   }
 }
 
 interface WorldOverlayInspectProps {
-  inspect: OverlayInspect | null;
+  inspect: OverlayPick | null;
   maps: Record<string, ParsedMap>;
   monsters: Record<string, GMonster>;
   onClose: () => void;
@@ -124,7 +225,12 @@ export function WorldOverlayInspect({
   const mapName = inspect ? maps[inspect.mapId]?.name : undefined;
   const title = inspectTitle(inspect, monsters);
   return (
-    <Dialog open={Boolean(inspect)} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog
+      open={Boolean(inspect) && inspect?.kind !== "door"}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+    >
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>{inspect && inspectBody(inspect, mapName)}</DialogContent>
       <DialogActions>

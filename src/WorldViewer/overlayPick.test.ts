@@ -1,39 +1,17 @@
-import { overlayInspect, overlayKindForPick, overlayTooltip } from "./overlayPick";
-import { ParsedMap } from "./types";
-
-function stubMap(id: string, name: string): ParsedMap {
-  return {
-    id,
-    name,
-    ignore: false,
-    outside: true,
-    band: "overworld",
-    minX: 0,
-    maxX: 10,
-    minY: 0,
-    maxY: 10,
-    artMinX: 0,
-    artMaxX: 10,
-    artMinY: 0,
-    artMaxY: 10,
-    xLines: [],
-    yLines: [],
-    doors: [],
-    spawns: [],
-    quirks: [],
-    npcs: [],
-    monsters: [],
-    zones: [],
-  };
-}
+import { overlayKindForPick, overlayTooltip } from "./overlayPick";
+import { stubParsedMap } from "./parsedMapStub";
 
 describe("overlayPick", () => {
-  const maps = { mansion: stubMap("mansion", "The Mansion") };
+  const maps = { mansion: stubParsedMap("mansion", { name: "The Mansion" }) };
 
   it("maps pick kinds onto overlay kinds", () => {
     expect(overlayKindForPick("door")).toBe("doors");
     expect(overlayKindForPick("quirk")).toBe("quirks");
     expect(overlayKindForPick("zone")).toBe("zones");
+    expect(overlayKindForPick("rage")).toBe("rage");
+    expect(overlayKindForPick("machine")).toBe("machines");
+    expect(overlayKindForPick("animatable")).toBe("animatables");
+    expect(overlayKindForPick("trap")).toBe("traps");
   });
 
   it("builds door and overlay tooltips", () => {
@@ -64,11 +42,46 @@ describe("overlayPick", () => {
         {
           kind: "monster",
           mapId: "main",
-          monster: { type: "bee", x: 1, y: 2, width: 8, height: 8 },
+          monster: { type: "bee", x: 1, y: 2, width: 8, height: 8, count: 6, grow: false },
         },
         maps,
       ),
-    ).toMatchObject({ title: "bee pack", hint: "Click to inspect" });
+    ).toMatchObject({ title: "bee ×6", hint: "Click to inspect" });
+    expect(
+      overlayTooltip(
+        {
+          kind: "monster",
+          mapId: "main",
+          monster: { type: "bee", x: 1, y: 2, width: 8, height: 8, count: 6, grow: true },
+        },
+        maps,
+      ),
+    ).toMatchObject({
+      title: "bee ×6 · grow",
+      hint: "Grows when thinned · click to inspect",
+    });
+    expect(
+      overlayTooltip(
+        {
+          kind: "monster",
+          mapId: "main",
+          monster: {
+            type: "a7",
+            x: 1,
+            y: 2,
+            width: 8,
+            height: 8,
+            count: 1,
+            grow: false,
+            roam: true,
+          },
+        },
+        maps,
+      ),
+    ).toMatchObject({
+      title: "a7 ×1 · roam",
+      hint: "Roams this area · click to inspect",
+    });
     expect(
       overlayTooltip(
         {
@@ -81,48 +94,66 @@ describe("overlayPick", () => {
     ).toMatchObject({ title: "Welcome", hint: "info" });
   });
 
-  it("inspects quirks, zones, and packs but not doors", () => {
+  it("lists spawn arrivals and npc roaming", () => {
     expect(
-      overlayInspect({
-        kind: "door",
-        mapId: "main",
-        door: {
-          fromMap: "main",
-          toMap: "mansion",
-          x: 0,
-          y: 0,
-          width: 10,
-          height: 10,
-          destSpawn: 0,
+      overlayTooltip(
+        {
+          kind: "spawn",
+          mapId: "main",
+          spawn: {
+            x: 0,
+            y: 0,
+            label: "0",
+            index: 0,
+            arrivals: [{ kind: "town", label: "Town skill location" }],
+            departures: [],
+          },
         },
-      }),
-    ).toBeNull();
-    expect(
-      overlayInspect({
-        kind: "quirk",
-        mapId: "main",
-        quirk: { x: 1, y: 2, width: 8, height: 12, kind: "note", text: "Hi" },
-      }),
+        maps,
+      ),
     ).toEqual({
-      kind: "quirk",
-      mapId: "main",
-      quirkKind: "note",
-      text: "Hi",
-      x: 1,
-      y: 2,
-      width: 8,
-      height: 12,
+      kind: "spawn",
+      title: "Possible connections:\nTown skill location",
+      hint: "Spawn 0",
     });
     expect(
-      overlayInspect({
-        kind: "zone",
-        mapId: "main",
-        zone: { type: "fishing", polygon: [] },
-      }),
-    ).toEqual({
-      kind: "zone",
-      mapId: "main",
-      type: "fishing",
+      overlayTooltip(
+        {
+          kind: "spawn",
+          mapId: "main",
+          spawn: {
+            x: 10,
+            y: 20,
+            label: "3",
+            index: 3,
+            arrivals: [{ kind: "door", label: "The Bank" }],
+            departures: [{ kind: "door", label: "The Mansion" }],
+          },
+        },
+        maps,
+      ),
+    ).toMatchObject({
+      title: "Possible connections:\nThe Bank\nDoor to The Mansion",
+      hint: "Spawn 3",
     });
+    expect(
+      overlayTooltip(
+        {
+          kind: "npc",
+          mapId: "main",
+          npc: {
+            id: "bean",
+            skin: "lionsuit",
+            name: "Bean",
+            x: 74,
+            y: -34,
+            label: "Bean",
+            roam: { x: 0, y: 0, width: 200, height: 200 },
+            moving: true,
+          },
+        },
+        maps,
+      ),
+    ).toMatchObject({ title: "Bean", hint: "Moves around in this area" });
   });
 });

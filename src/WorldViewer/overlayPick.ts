@@ -1,17 +1,85 @@
 import { overlayHex } from "./overlayColors";
+import { packOverlayLabel } from "./packSpriteSlots";
 import {
+  AnimatableFeature,
+  MachineFeature,
   MonsterFeature,
   NpcFeature,
-  OverlayInspect,
   OverlayKind,
   OverlayPickKind,
   OverlayTooltip,
   ParsedDoor,
   ParsedMap,
-  PointFeature,
   QuirkFeature,
+  SpawnFeature,
+  SpawnLink,
+  TrapFeature,
   ZoneFeature,
 } from "./types";
+
+function spawnLinkOrder(kind: SpawnLink["kind"]): number {
+  switch (kind) {
+    case "town":
+      return 0;
+    case "transporter":
+      return 1;
+    case "door":
+      return 2;
+    case "exit":
+      return 3;
+    case "death":
+      return 4;
+    default: {
+      const exhaustive: never = kind;
+      return exhaustive;
+    }
+  }
+}
+
+export function spawnOverlayHint(spawn: SpawnFeature): string {
+  const lines: string[] = [];
+  const arrivals = [...spawn.arrivals].sort(
+    (a, b) => spawnLinkOrder(a.kind) - spawnLinkOrder(b.kind),
+  );
+  if (arrivals.length > 0) {
+    lines.push("Possible connections:");
+    for (const arrival of arrivals) {
+      lines.push(arrival.label);
+    }
+  }
+  if (spawn.departures.length > 0) {
+    for (const departure of spawn.departures) {
+      lines.push(`Door to ${departure.label}`);
+    }
+  }
+  if (lines.length === 0) {
+    return "Click to inspect";
+  }
+  return lines.join("\n");
+}
+
+function npcOverlayHint(npc: NpcFeature): string {
+  if (npc.roam) {
+    return "Moves around in this area";
+  }
+  if (npc.moving) {
+    return "Roams the map · click to inspect";
+  }
+  return "Click to inspect";
+}
+
+function monsterOverlayHint(monster: MonsterFeature): string {
+  if (monster.grow && monster.roam) {
+    return "Grows when thinned · roams this area · click to inspect";
+  }
+  if (monster.grow) {
+    return "Grows when thinned · click to inspect";
+  }
+  if (monster.roam) {
+    return "Roams this area · click to inspect";
+  }
+  return "Click to inspect";
+}
 
 export type OverlayPick =
   | { kind: "door"; mapId: string; door: ParsedDoor }
@@ -19,7 +87,11 @@ export type OverlayPick =
   | { kind: "monster"; mapId: string; monster: MonsterFeature }
   | { kind: "quirk"; mapId: string; quirk: QuirkFeature }
   | { kind: "zone"; mapId: string; zone: ZoneFeature }
-  | { kind: "spawn"; mapId: string; spawn: PointFeature };
+  | { kind: "spawn"; mapId: string; spawn: SpawnFeature }
+  | { kind: "rage"; mapId: string; monster: MonsterFeature }
+  | { kind: "machine"; mapId: string; machine: MachineFeature }
+  | { kind: "animatable"; mapId: string; animatable: AnimatableFeature }
+  | { kind: "trap"; mapId: string; trap: TrapFeature };
 
 export function overlayKindForPick(kind: OverlayPickKind): OverlayKind {
   switch (kind) {
@@ -35,6 +107,14 @@ export function overlayKindForPick(kind: OverlayPickKind): OverlayKind {
       return "zones";
     case "spawn":
       return "spawns";
+    case "rage":
+      return "rage";
+    case "machine":
+      return "machines";
+    case "animatable":
+      return "animatables";
+    case "trap":
+      return "traps";
     default: {
       const exhaustive: never = kind;
       return exhaustive;
@@ -53,7 +133,11 @@ export function isOverlayPickKind(value: unknown): value is OverlayPickKind {
     value === "monster" ||
     value === "quirk" ||
     value === "zone" ||
-    value === "spawn"
+    value === "spawn" ||
+    value === "rage" ||
+    value === "machine" ||
+    value === "animatable" ||
+    value === "trap"
   );
 }
 
@@ -72,13 +156,13 @@ export function overlayTooltip(pick: OverlayPick, maps: Record<string, ParsedMap
       return {
         kind: pick.kind,
         title: pick.npc.name || pick.npc.label || pick.npc.id,
-        hint: "Click to inspect",
+        hint: npcOverlayHint(pick.npc),
       };
     case "monster":
       return {
         kind: pick.kind,
-        title: `${pick.monster.type} pack`,
-        hint: "Click to inspect",
+        title: packOverlayLabel(pick.monster),
+        hint: monsterOverlayHint(pick.monster),
       };
     case "quirk":
       return {
@@ -92,65 +176,45 @@ export function overlayTooltip(pick: OverlayPick, maps: Record<string, ParsedMap
         title: pick.zone.type,
         hint: "Click to inspect",
       };
-    case "spawn":
+    case "spawn": {
+      const connections = spawnOverlayHint(pick.spawn);
+      const spawnLabel = `Spawn ${pick.spawn.label}`.trim();
+      if (connections === "Click to inspect") {
+        return {
+          kind: pick.kind,
+          title: spawnLabel,
+          hint: connections,
+        };
+      }
       return {
         kind: pick.kind,
-        title: `Spawn ${pick.spawn.label}`.trim(),
+        title: connections,
+        hint: spawnLabel,
+      };
+    }
+    case "rage":
+      return {
+        kind: pick.kind,
+        title: `${pick.monster.type} rage`,
         hint: "Click to inspect",
       };
-    default: {
-      const exhaustive: never = pick;
-      return exhaustive;
-    }
-  }
-}
-
-export function overlayInspect(pick: OverlayPick): OverlayInspect | null {
-  switch (pick.kind) {
-    case "door":
-      return null;
-    case "npc":
+    case "machine":
       return {
-        kind: "npc",
-        mapId: pick.mapId,
-        id: pick.npc.id,
-        name: pick.npc.name || pick.npc.label,
-        skin: pick.npc.skin,
-        x: pick.npc.x,
-        y: pick.npc.y,
+        kind: pick.kind,
+        title: pick.machine.type,
+        hint: "Click to inspect",
       };
-    case "monster":
+    case "animatable":
       return {
-        kind: "monster",
-        mapId: pick.mapId,
-        type: pick.monster.type,
-        x: pick.monster.x,
-        y: pick.monster.y,
+        kind: pick.kind,
+        title: pick.animatable.id,
+        hint: "Click to inspect",
       };
-    case "quirk":
+    case "trap":
       return {
-        kind: "quirk",
-        mapId: pick.mapId,
-        quirkKind: pick.quirk.kind,
-        text: pick.quirk.text,
-        x: pick.quirk.x,
-        y: pick.quirk.y,
-        width: pick.quirk.width,
-        height: pick.quirk.height,
-      };
-    case "zone":
-      return {
-        kind: "zone",
-        mapId: pick.mapId,
-        type: pick.zone.type,
-      };
-    case "spawn":
-      return {
-        kind: "spawn",
-        mapId: pick.mapId,
-        label: pick.spawn.label,
-        x: pick.spawn.x,
-        y: pick.spawn.y,
+        kind: pick.kind,
+        title: `${pick.trap.type} trap`,
+        hint: "Click to inspect",
       };
     default: {
       const exhaustive: never = pick;

@@ -1,5 +1,14 @@
 import { GGeometry, GMap, GNpc } from "typed-adventureland";
-import { MapBand, MapSource, NpcFeature, ParsedDoor, ParsedMap, PointFeature } from "./types";
+import { packCountValue } from "./packSpriteSlots";
+import {
+  MapBand,
+  MapSource,
+  NpcFeature,
+  ParsedDoor,
+  ParsedMap,
+  SpawnFeature,
+  SpawnLink,
+} from "./types";
 
 const UNDERGROUND_PATTERN = /cave|cove|tunnel|crypt|tomb|level|bank_b|bank_u|dungeon|mtunnel/i;
 
@@ -53,6 +62,71 @@ function doorTuple(door: GMap["doors"][number]): ParsedDoor | null {
   };
 }
 
+function mapExit(exit: [string, number] | undefined): ParsedMap["onDeath"] {
+  if (!exit || typeof exit[1] !== "number") {
+    return undefined;
+  }
+  return { map: String(exit[0]), spawn: exit[1] };
+}
+
+function pushSpawnLink(list: SpawnLink[], link: SpawnLink): void {
+  for (const existing of list) {
+    if (existing.kind === link.kind && existing.label === link.label) {
+      return;
+    }
+  }
+  list.push(link);
+}
+
+function annotateSpawnLinks(
+  parsed: Record<string, ParsedMap>,
+  npcDefs: Record<string, GNpc>,
+): void {
+  for (const map of Object.values(parsed)) {
+    if (map.spawns[0]) {
+      pushSpawnLink(map.spawns[0].arrivals, { kind: "town", label: "Town skill location" });
+    }
+    for (const door of map.doors) {
+      const dest = parsed[door.toMap]?.spawns[door.destSpawn];
+      if (dest) {
+        pushSpawnLink(dest.arrivals, { kind: "door", label: map.name || map.id });
+      }
+      if (typeof door.sourceSpawn === "number") {
+        const source = map.spawns[door.sourceSpawn];
+        const destName = parsed[door.toMap]?.name || door.toMap;
+        if (source) {
+          pushSpawnLink(source.departures, { kind: "door", label: destName });
+        }
+      }
+    }
+    if (map.onDeath) {
+      const dest = parsed[map.onDeath.map]?.spawns[map.onDeath.spawn];
+      if (dest) {
+        pushSpawnLink(dest.arrivals, { kind: "death", label: `Death from ${map.name || map.id}` });
+      }
+    }
+    if (map.onExit) {
+      const dest = parsed[map.onExit.map]?.spawns[map.onExit.spawn];
+      if (dest) {
+        pushSpawnLink(dest.arrivals, { kind: "exit", label: `Exit from ${map.name || map.id}` });
+      }
+    }
+  }
+  for (const npc of Object.values(npcDefs)) {
+    const places = npc.places as Record<string, number> | undefined;
+    if (!places) {
+      continue;
+    }
+    const label = npc.name || npc.id || "Transporter";
+    for (const [mapId, spawnIndex] of Object.entries(places)) {
+      const dest = parsed[mapId]?.spawns[spawnIndex];
+      if (dest) {
+        pushSpawnLink(dest.arrivals, { kind: "transporter", label });
+      }
+    }
+  }
+}
+
 function includeMap(map: GMap, includeIgnored: boolean): boolean {
   if (!includeIgnored && (map.ignore || map.unlist)) {
     return false;
@@ -71,6 +145,32 @@ function expandBounds(
   return [Math.min(minX, x), Math.min(minY, y), Math.max(maxX, x), Math.max(maxY, y)];
 }
 
+function boxRect(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  return {
+    x: (x1 + x2) / 2,
+    y: (y1 + y2) / 2,
+    width: Math.abs(x2 - x1),
+    height: Math.abs(y2 - y1),
+  };
+}
+
+function npcRoam(npc: GMap["npcs"][number]): NpcFeature["roam"] {
+  if (!npc.boundary) {
+    return undefined;
+  }
+  return boxRect(npc.boundary[0], npc.boundary[1], npc.boundary[2], npc.boundary[3]);
+}
+
 function npcPoints(map: GMap, npcDefs: Record<string, GNpc>): NpcFeature[] {
   const points: NpcFeature[] = [];
   for (const npc of map.npcs || []) {
@@ -78,11 +178,15 @@ function npcPoints(map: GMap, npcDefs: Record<string, GNpc>): NpcFeature[] {
     const skin = def?.skin || npc.id;
     const label = npc.name || def?.name || npc.id;
     const name = npc.name || def?.name;
+    const roam = npcRoam(npc);
+    const moving = Boolean(def?.moving);
     if (npc.position) {
       points.push({
         id: npc.id,
         skin,
         name,
+        roam,
+        moving,
         x: npc.position[0],
         y: npc.position[1],
         label,
@@ -94,6 +198,8 @@ function npcPoints(map: GMap, npcDefs: Record<string, GNpc>): NpcFeature[] {
           id: npc.id,
           skin,
           name,
+          roam,
+          moving,
           x: position[0],
           y: position[1],
           label,
@@ -102,6 +208,51 @@ function npcPoints(map: GMap, npcDefs: Record<string, GNpc>): NpcFeature[] {
     }
   }
   return points;
+}
+
+function localExtraBounds(
+  mapId: string,
+  monster: NonNullable<GMap["monsters"]>[number],
+): ParsedMap["monsters"][number]["extraBounds"] {
+  const extras: NonNullable<ParsedMap["monsters"][number]["extraBounds"]> = [];
+  for (const bound of monster.boundaries || []) {
+    if (bound[0] !== mapId) {
+      continue;
+    }
+    extras.push(boxRect(bound[1], bound[2], bound[3], bound[4]));
+  }
+  return extras.length ? extras : undefined;
+}
+
+function rageBox(
+  rage: [number, number, number, number] | undefined,
+): ParsedMap["monsters"][number]["rage"] {
+  if (!rage) {
+    return undefined;
+  }
+  const rect = boxRect(rage[0], rage[1], rage[2], rage[3]);
+  return { ...rect, width: rect.width + 6, height: rect.height + 6 };
+}
+
+function monsterPack(
+  monster: NonNullable<GMap["monsters"]>[number],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  extra?: Pick<ParsedMap["monsters"][number], "radius" | "polygon" | "rage" | "extraBounds">,
+): ParsedMap["monsters"][number] {
+  return {
+    type: monster.type,
+    x,
+    y,
+    width,
+    height,
+    count: packCountValue(monster.count),
+    grow: Boolean(monster.grow),
+    roam: Boolean(monster.roam),
+    ...extra,
+  };
 }
 
 function parseOneMap(
@@ -120,11 +271,22 @@ function parseOneMap(
     doors.push(parsed);
   }
 
-  const spawns: PointFeature[] = [];
+  const spawns: SpawnFeature[] = [];
   const spawnList = map.spawns || [];
   for (let i = 0; i < spawnList.length; i += 1) {
     const spawn = spawnList[i];
-    spawns.push({ x: spawn[0], y: spawn[1], label: `${i}` });
+    const direction = spawn.length > 2 ? spawn[2] : undefined;
+    const size = spawn.length > 3 ? spawn[3] : undefined;
+    spawns.push({
+      x: spawn[0],
+      y: spawn[1],
+      label: `${i}`,
+      index: i,
+      direction: typeof direction === "number" ? direction : undefined,
+      size: typeof size === "number" ? size : undefined,
+      arrivals: [],
+      departures: [],
+    });
   }
 
   const quirks: ParsedMap["quirks"] = [];
@@ -141,15 +303,16 @@ function parseOneMap(
 
   const monsters: ParsedMap["monsters"] = [];
   for (const monster of map.monsters || []) {
+    const extraBounds = localExtraBounds(id, monster);
+    const rage = rageBox(monster.rage);
     if (monster.boundary) {
       const [x1, y1, x2, y2] = monster.boundary;
-      monsters.push({
-        type: monster.type,
-        x: (x1 + x2) / 2,
-        y: (y1 + y2) / 2,
-        width: Math.abs(x2 - x1),
-        height: Math.abs(y2 - y1),
-      });
+      monsters.push(
+        monsterPack(monster, (x1 + x2) / 2, (y1 + y2) / 2, Math.abs(x2 - x1), Math.abs(y2 - y1), {
+          extraBounds,
+          rage,
+        }),
+      );
     } else if (monster.polygon) {
       let minX = Infinity;
       let minY = Infinity;
@@ -158,29 +321,74 @@ function parseOneMap(
       for (const [px, py] of monster.polygon) {
         [minX, minY, maxX, maxY] = expandBounds(minX, minY, maxX, maxY, px, py);
       }
-      monsters.push({
-        type: monster.type,
-        x: (minX + maxX) / 2,
-        y: (minY + maxY) / 2,
-        width: maxX - minX,
-        height: maxY - minY,
-        polygon: monster.polygon,
-      });
+      monsters.push(
+        monsterPack(monster, (minX + maxX) / 2, (minY + maxY) / 2, maxX - minX, maxY - minY, {
+          polygon: monster.polygon,
+          extraBounds,
+          rage,
+        }),
+      );
     } else if (monster.position) {
-      monsters.push({
-        type: monster.type,
-        x: monster.position[0],
-        y: monster.position[1],
-        width: monster.radius ? monster.radius * 2 : 24,
-        height: monster.radius ? monster.radius * 2 : 24,
-        radius: monster.radius,
-      });
+      monsters.push(
+        monsterPack(
+          monster,
+          monster.position[0],
+          monster.position[1],
+          monster.radius ? monster.radius * 2 : 24,
+          monster.radius ? monster.radius * 2 : 24,
+          { radius: monster.radius, extraBounds, rage },
+        ),
+      );
+    } else if (extraBounds && extraBounds.length > 0) {
+      for (const box of extraBounds) {
+        monsters.push(
+          monsterPack(monster, box.x, box.y, box.width, box.height, {
+            rage,
+          }),
+        );
+      }
     }
   }
 
   const zones: ParsedMap["zones"] = [];
   for (const zone of map.zones || []) {
     zones.push({ type: zone.type, polygon: zone.polygon });
+  }
+
+  const machines: ParsedMap["machines"] = [];
+  for (const machine of map.machines || []) {
+    const frame = machine.frames?.[0];
+    machines.push({
+      type: machine.type,
+      x: machine.x,
+      y: machine.y,
+      width: frame ? frame[2] : 32,
+      height: frame ? frame[3] : 40,
+    });
+  }
+
+  const animatables: ParsedMap["animatables"] = [];
+  for (const [key, data] of Object.entries(map.animatables || {})) {
+    if (!data || typeof data.x !== "number" || typeof data.y !== "number") {
+      continue;
+    }
+    animatables.push({
+      id: key,
+      x: data.x,
+      y: data.y,
+      position: String(data.position || key),
+      label: key,
+    });
+  }
+
+  const traps: ParsedMap["traps"] = [];
+  for (const trap of map.traps || []) {
+    traps.push({
+      type: trap.type,
+      x: trap.position?.[0] ?? 0,
+      y: trap.position?.[1] ?? 0,
+      polygon: trap.polygon ? [...trap.polygon] : undefined,
+    });
   }
 
   const npcs = npcPoints(map, npcDefs);
@@ -210,6 +418,15 @@ function parseOneMap(
   }
   for (const monster of monsters) {
     bump(monster.x, monster.y);
+  }
+  for (const machine of machines) {
+    bump(machine.x, machine.y);
+  }
+  for (const animatable of animatables) {
+    bump(animatable.x, animatable.y);
+  }
+  for (const trap of traps) {
+    bump(trap.x, trap.y);
   }
 
   if (!Number.isFinite(minX)) {
@@ -246,7 +463,64 @@ function parseOneMap(
     npcs,
     monsters,
     zones,
+    machines,
+    animatables,
+    traps,
+    onDeath: mapExit(map.on_death),
+    onExit: mapExit(map.on_exit),
+    exitsToOverworld: false,
   };
+}
+
+function expandParsedMap(map: ParsedMap, x: number, y: number): void {
+  map.minX = Math.min(map.minX, x);
+  map.maxX = Math.max(map.maxX, x);
+  map.minY = Math.min(map.minY, y);
+  map.maxY = Math.max(map.maxY, y);
+}
+
+function packNear(map: ParsedMap, type: string, x: number, y: number): boolean {
+  for (const pack of map.monsters) {
+    if (pack.type === type && Math.abs(pack.x - x) < 0.5 && Math.abs(pack.y - y) < 0.5) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Random-respawn lists live on one map; copy other-map boxes onto those maps. */
+function distributeCrossMapBoundaries(parsed: Record<string, ParsedMap>, source: MapSource): void {
+  for (const fromId of Object.keys(parsed)) {
+    const gmap = source.maps[fromId];
+    if (!gmap) {
+      continue;
+    }
+    for (const monster of gmap.monsters || []) {
+      if (!monster.boundaries) {
+        continue;
+      }
+      for (const bound of monster.boundaries) {
+        const targetId = String(bound[0]);
+        if (targetId === fromId) {
+          continue;
+        }
+        const target = parsed[targetId];
+        if (!target) {
+          continue;
+        }
+        const rect = boxRect(bound[1], bound[2], bound[3], bound[4]);
+        if (packNear(target, monster.type, rect.x, rect.y)) {
+          continue;
+        }
+        target.monsters.push(
+          monsterPack(monster, rect.x, rect.y, rect.width, rect.height, {
+            rage: rageBox(monster.rage),
+          }),
+        );
+        expandParsedMap(target, rect.x, rect.y);
+      }
+    }
+  }
 }
 
 export function parseMaps(
@@ -261,6 +535,18 @@ export function parseMaps(
     }
     parsed[id] = parseOneMap(id, map, source.geometry[id], npcDefs);
   }
+  for (const map of Object.values(parsed)) {
+    let exitsToOverworld = false;
+    for (const door of map.doors) {
+      if (parsed[door.toMap]?.band === "overworld") {
+        exitsToOverworld = true;
+        break;
+      }
+    }
+    map.exitsToOverworld = exitsToOverworld;
+  }
+  distributeCrossMapBoundaries(parsed, source);
+  annotateSpawnLinks(parsed, npcDefs);
   return parsed;
 }
 

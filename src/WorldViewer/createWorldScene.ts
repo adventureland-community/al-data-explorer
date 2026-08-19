@@ -120,6 +120,7 @@ export function createMapGroup(
 export function createConnectionLines(layout: WorldLayout): THREE.Group {
   const group = new THREE.Group();
   group.name = "connections";
+  group.frustumCulled = false;
   const twoWay: number[] = [];
   const oneWay: number[] = [];
 
@@ -152,9 +153,13 @@ export function createConnectionLines(layout: WorldLayout): THREE.Group {
       transparent: true,
       opacity: CONNECTION_LINE_OPACITY,
       depthWrite: false,
+      depthTest: false,
+      fog: false,
     });
     const lines = new THREE.LineSegments(geometry, material);
     lines.name = name;
+    lines.frustumCulled = false;
+    lines.renderOrder = 40;
     group.add(lines);
   };
 

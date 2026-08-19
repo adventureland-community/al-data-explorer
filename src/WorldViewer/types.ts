@@ -1,6 +1,20 @@
 import { GGeometry, GMap } from "typed-adventureland";
 
-export type OverlayKind = "bounds" | "spawns" | "quirks" | "doors" | "npcs" | "zones" | "monsters";
+export type OverlayKind =
+  | "bounds"
+  | "spawns"
+  | "quirks"
+  | "doors"
+  | "npcs"
+  | "zones"
+  | "monsters"
+  | "rage"
+  | "machines"
+  | "animatables"
+  | "traps";
+
+/** Single-map top-down (default) vs full 3D world layout. */
+export type ViewerMode = "map" | "world";
 
 export type OverlayVisibility = Record<OverlayKind, boolean>;
 
@@ -23,6 +37,10 @@ export interface NpcFeature extends PointFeature {
   id: string;
   skin: string;
   name?: string;
+  /** NPC wander box (`G.maps[…].npcs[].boundary`). */
+  roam?: RectFeature;
+  /** True when `G.npcs[id].moving` — walks the map without a fixed box. */
+  moving?: boolean;
 }
 
 export interface MonsterFeature {
@@ -31,8 +49,34 @@ export interface MonsterFeature {
   y: number;
   width: number;
   height: number;
+  /** Spawn quantity for this pack (`G.maps[…].monsters[].count`). */
+  count: number;
+  /** Extra monsters spawn if the pack is thinned. */
+  grow: boolean;
+  /** Pack may leave its box (`G.maps[…].monsters[].roam`). */
+  roam?: boolean;
   radius?: number;
   polygon?: Array<[number, number]>;
+  /** Aggro / rage box (`G.maps[…].monsters[].rage`). */
+  rage?: RectFeature;
+  /** Same-map extra roam boxes (`boundaries` entries for this map). */
+  extraBounds?: RectFeature[];
+}
+
+export type SpawnLinkKind = "door" | "town" | "death" | "exit" | "transporter";
+
+/** How you can arrive at a spawn, or a door that leaves from it. */
+export interface SpawnLink {
+  kind: SpawnLinkKind;
+  label: string;
+}
+
+export interface SpawnFeature extends PointFeature {
+  index: number;
+  direction?: number;
+  size?: number;
+  arrivals: SpawnLink[];
+  departures: SpawnLink[];
 }
 
 export interface QuirkFeature extends RectFeature {
@@ -43,6 +87,22 @@ export interface QuirkFeature extends RectFeature {
 export interface ZoneFeature {
   type: string;
   polygon: Array<[number, number]>;
+}
+
+export interface MachineFeature extends RectFeature {
+  type: string;
+}
+
+export interface AnimatableFeature extends PointFeature {
+  id: string;
+  position: string;
+}
+
+export interface TrapFeature {
+  type: string;
+  x: number;
+  y: number;
+  polygon?: Array<[number, number]>;
 }
 
 export interface ParsedDoor {
@@ -85,11 +145,20 @@ export interface ParsedMap {
   xLines: Array<[number, number, number]>;
   yLines: Array<[number, number, number]>;
   doors: ParsedDoor[];
-  spawns: PointFeature[];
+  spawns: SpawnFeature[];
+  /** Where this map sends you on death (`G.maps[…].on_death`). */
+  onDeath?: { map: string; spawn: number };
+  /** Where this map sends you on exit (`G.maps[…].on_exit`). */
+  onExit?: { map: string; spawn: number };
   quirks: QuirkFeature[];
   npcs: NpcFeature[];
   monsters: MonsterFeature[];
   zones: ZoneFeature[];
+  machines: MachineFeature[];
+  animatables: AnimatableFeature[];
+  traps: TrapFeature[];
+  /** Indoor maps with a door onto an overworld map (town interiors). Not stack-pinned. */
+  exitsToOverworld: boolean;
 }
 
 export interface MapPose {
@@ -120,61 +189,23 @@ export interface DoorTravel {
   lock?: string;
 }
 
-export interface NpcSelection {
-  mapId: string;
-  id: string;
-  name: string;
-  skin: string;
-  x: number;
-  y: number;
-}
-
-export interface MonsterSelection {
-  mapId: string;
-  type: string;
-  x: number;
-  y: number;
-}
-
-export type OverlayPickKind = "door" | "npc" | "monster" | "quirk" | "zone" | "spawn";
+export type OverlayPickKind =
+  | "door"
+  | "npc"
+  | "monster"
+  | "quirk"
+  | "zone"
+  | "spawn"
+  | "rage"
+  | "machine"
+  | "animatable"
+  | "trap";
 
 export interface OverlayTooltip {
   title: string;
   hint: string;
   kind: OverlayPickKind;
 }
-
-export interface QuirkInspect {
-  kind: "quirk";
-  mapId: string;
-  quirkKind: string;
-  text?: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export interface ZoneInspect {
-  kind: "zone";
-  mapId: string;
-  type: string;
-}
-
-export interface SpawnInspect {
-  kind: "spawn";
-  mapId: string;
-  label: string;
-  x: number;
-  y: number;
-}
-
-export type OverlayInspect =
-  | ({ kind: "npc" } & NpcSelection)
-  | ({ kind: "monster" } & MonsterSelection)
-  | QuirkInspect
-  | ZoneInspect
-  | SpawnInspect;
 
 export interface MapSource {
   maps: Record<string, GMap>;
@@ -189,6 +220,10 @@ export const DEFAULT_OVERLAYS: OverlayVisibility = {
   npcs: true,
   zones: true,
   monsters: true,
+  rage: true,
+  machines: true,
+  animatables: true,
+  traps: true,
 };
 
 export const OVERLAY_KINDS: OverlayKind[] = [
@@ -199,4 +234,8 @@ export const OVERLAY_KINDS: OverlayKind[] = [
   "npcs",
   "zones",
   "monsters",
+  "rage",
+  "machines",
+  "animatables",
+  "traps",
 ];
