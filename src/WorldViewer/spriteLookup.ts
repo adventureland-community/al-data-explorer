@@ -136,21 +136,39 @@ export function lookupSkinSprite(
   };
 }
 
-/** Source rect on the natural sprite sheet (facing direction 0, frame 0). */
-export function spriteClipSource(
+/** Source rect on the natural sprite sheet for a specific facing column and animation row. */
+export function spriteClipSourceFrame(
   clip: SpriteSheetClip,
   naturalWidth: number,
+  facingCol: number,
+  animRow: number,
 ): { sx: number; sy: number; sw: number; sh: number } {
   const scale = clip.sheetWidth / Math.max(naturalWidth, 1);
+  const skinOriginX = clip.col * clip.colNum * clip.cellWidth;
+  const skinOriginY = clip.row * clip.rowNum * clip.cellHeight;
   return {
-    sx: (clip.col * clip.colNum * clip.cellWidth + clip.offsetX) / scale,
-    sy: (clip.row * clip.rowNum * clip.cellHeight + clip.offsetY) / scale,
+    sx: (skinOriginX + facingCol * clip.cellWidth + clip.offsetX) / scale,
+    sy: (skinOriginY + animRow * clip.cellHeight + clip.offsetY) / scale,
     sw: clip.viewWidth / scale,
     sh: clip.viewHeight / scale,
   };
 }
 
-export function paintSpriteClip(image: HTMLImageElement, clip: SpriteSheetClip): HTMLCanvasElement {
+/** Source rect on the natural sprite sheet (facing direction 0, frame 0). */
+export function spriteClipSource(
+  clip: SpriteSheetClip,
+  naturalWidth: number,
+): { sx: number; sy: number; sw: number; sh: number } {
+  return spriteClipSourceFrame(clip, naturalWidth, 0, 0);
+}
+
+/** Paint a specific facing + animation frame from the sprite sheet. */
+export function paintSpriteClipFrame(
+  image: HTMLImageElement,
+  clip: SpriteSheetClip,
+  facingCol: number,
+  animRow: number,
+): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(clip.viewWidth));
   canvas.height = Math.max(1, Math.round(clip.viewHeight));
@@ -159,7 +177,7 @@ export function paintSpriteClip(image: HTMLImageElement, clip: SpriteSheetClip):
     return canvas;
   }
   ctx.imageSmoothingEnabled = false;
-  const source = spriteClipSource(clip, image.naturalWidth || image.width);
+  const source = spriteClipSourceFrame(clip, image.naturalWidth || image.width, facingCol, animRow);
   ctx.drawImage(
     image,
     source.sx,
@@ -172,6 +190,10 @@ export function paintSpriteClip(image: HTMLImageElement, clip: SpriteSheetClip):
     canvas.height,
   );
   return canvas;
+}
+
+export function paintSpriteClip(image: HTMLImageElement, clip: SpriteSheetClip): HTMLCanvasElement {
+  return paintSpriteClipFrame(image, clip, 0, 0);
 }
 
 export function collectMonsterTypes(

@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import { ViewerMode } from "./types";
 import {
   CameraPose,
@@ -90,4 +91,17 @@ export function cameraMode(mode: ViewerMode): CameraMode {
 
 export function controlsHelpForMode(mode: ViewerMode): readonly string[] {
   return cameraMode(mode).help;
+}
+
+const FOG_COLOR = 0x101218;
+
+/**
+ * Build the fog object for a given viewer mode and density.
+ * Density 0 means no fog.
+ */
+export function fogForMode(mode: ViewerMode, density: number): THREE.FogExp2 | null {
+  if (!cameraMode(mode).useFog || density <= 0) {
+    return null;
+  }
+  return new THREE.FogExp2(FOG_COLOR, density);
 }

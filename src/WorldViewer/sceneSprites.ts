@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { GDimension, GImage, GMonster, GSprite } from "typed-adventureland";
 import { packSpriteSlots, packTypeHash } from "./packSpriteSlots";
-import { lookupSkinSprite, paintSpriteClip } from "./spriteLookup";
+import { lookupSkinSprite, paintSpriteClipFrame, SpriteSheetClip } from "./spriteLookup";
+import { SpriteAtlas, buildSpriteAtlas } from "./spriteAtlas";
 import { ParsedMap } from "./types";
 
 export interface MapSpriteContext {
@@ -56,53 +57,132 @@ function typeLift(type: string): number {
   return (packTypeHash(type) % 8) * 0.4;
 }
 
+const ANIM_FRAME_MS = 300;
+
+function buildFrameTextures(
+  clip: SpriteSheetClip,
+  sheet: HTMLImageElement,
+  cache: Map<string, THREE.CanvasTexture[]>,
+): THREE.CanvasTexture[] {
+  const key = spriteCacheKey(clip);
+  const cached = cache.get(key);
+  if (cached) {
+    return cached;
+  }
+  const textures: THREE.CanvasTexture[] = [];
+  for (let row = 0; row < clip.rowNum; row += 1) {
+    textures.push(spriteCanvasTexture(paintSpriteClipFrame(sheet, clip, 0, row)));
+  }
+  cache.set(key, textures);
+  return textures;
+}
+
 function makeMapSprite(
   clip: ReturnType<typeof lookupSkinSprite>,
   sheet: HTMLImageElement | undefined,
   x: number,
   y: number,
   lift: number,
-  textures: Map<string, THREE.CanvasTexture>,
+  frameCache: Map<string, THREE.CanvasTexture[]>,
+  atlas: SpriteAtlas | null,
 ): THREE.Mesh | null {
   if (!clip || !sheet) {
     return null;
   }
+
   const key = spriteCacheKey(clip);
-  let texture = textures.get(key);
-  if (!texture) {
-    texture = spriteCanvasTexture(paintSpriteClip(sheet, clip));
-    textures.set(key, texture);
+
+  let material: THREE.MeshBasicMaterial;
+  let geometry: THREE.PlaneGeometry;
+  let frameTextures: THREE.CanvasTexture[] | null = null;
+
+  const atlasEntry = atlas?.entries.get(key);
+  if (atlas && atlasEntry) {
+    material = atlas.material.clone();
+    geometry = new THREE.PlaneGeometry(1, 1);
+    geometry.translate(0, 0.5, 0);
+    const uv = geometry.getAttribute("uv") as THREE.BufferAttribute;
+    const uvArray = uv.array as Float32Array;
+    // PlaneGeometry UV order: (0,1), (1,1), (0,0), (1,0)
+    uvArray[0] = atlasEntry.u0;
+    uvArray[1] = atlasEntry.v1;
+    uvArray[2] = atlasEntry.u1;
+    uvArray[3] = atlasEntry.v1;
+    uvArray[4] = atlasEntry.u0;
+    uvArray[5] = atlasEntry.v0;
+    uvArray[6] = atlasEntry.u1;
+    uvArray[7] = atlasEntry.v0;
+    uv.needsUpdate = true;
+  } else {
+    frameTextures = buildFrameTextures(clip, sheet, frameCache);
+    material = new THREE.MeshBasicMaterial({
+      map: frameTextures[0],
+      transparent: true,
+      depthWrite: false,
+      depthTest: true,
+      fog: false,
+      side: THREE.DoubleSide,
+      alphaTest: 0.01,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
+    });
+    geometry = new THREE.PlaneGeometry(1, 1);
+    geometry.translate(0, 0.5, 0);
   }
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
-    transparent: true,
-    depthWrite: false,
-    depthTest: true,
-    fog: false,
-    side: THREE.DoubleSide,
-    alphaTest: 0.01,
-    polygonOffset: true,
-    polygonOffsetFactor: -4,
-    polygonOffsetUnits: -4,
-  });
-  const geometry = new THREE.PlaneGeometry(1, 1);
-  geometry.translate(0, 0.5, 0);
+
   const mesh = new THREE.Mesh(geometry, material);
   mesh.userData.isMapSprite = true;
   mesh.scale.set(clip.viewWidth, clip.viewHeight, 1);
   mesh.position.set(x, lift, y);
   mesh.renderOrder = 20;
+
+  const { rowNum } = clip;
+  const frames = frameTextures;
   mesh.onBeforeRender = (_renderer, _scene, camera) => {
     faceCamera(mesh, camera);
     material.depthTest = !lookingDown(camera);
+    if (frames && rowNum > 1) {
+      const frameIndex = Math.floor(performance.now() / ANIM_FRAME_MS) % rowNum;
+      if (material.map !== frames[frameIndex]) {
+        material.map = frames[frameIndex];
+        material.needsUpdate = true;
+      }
+    }
   };
   return mesh;
+}
+
+function collectMapClips(
+  map: ParsedMap,
+  ctx: MapSpriteContext,
+): Map<string, { clip: SpriteSheetClip; sheet: HTMLImageElement }> {
+  const clips = new Map<string, { clip: SpriteSheetClip; sheet: HTMLImageElement }>();
+  for (const npc of map.npcs) {
+    const clip = lookupSkinSprite(ctx.sprites, ctx.images, ctx.dimensions, npc.skin);
+    if (clip && ctx.sheets[clip.url]) {
+      clips.set(spriteCacheKey(clip), { clip, sheet: ctx.sheets[clip.url] });
+    }
+  }
+  for (const monster of map.monsters) {
+    const def = ctx.monsters[monster.type];
+    const skin = def?.skin || monster.type;
+    const size = def?.size || 1;
+    const clip = lookupSkinSprite(ctx.sprites, ctx.images, ctx.dimensions, skin, size);
+    if (clip && ctx.sheets[clip.url]) {
+      clips.set(spriteCacheKey(clip), { clip, sheet: ctx.sheets[clip.url] });
+    }
+  }
+  return clips;
 }
 
 export function buildMapSprites(map: ParsedMap, ctx: MapSpriteContext): THREE.Group {
   const group = new THREE.Group();
   group.name = "sprites";
-  const textures = new Map<string, THREE.CanvasTexture>();
+  const frameCache = new Map<string, THREE.CanvasTexture[]>();
+
+  const clips = collectMapClips(map, ctx);
+  const atlas = clips.size > 4 ? buildSpriteAtlas(clips) : null;
 
   for (const npc of map.npcs) {
     const clip = lookupSkinSprite(ctx.sprites, ctx.images, ctx.dimensions, npc.skin);
@@ -112,7 +192,8 @@ export function buildMapSprites(map: ParsedMap, ctx: MapSpriteContext): THREE.Gr
       npc.x,
       npc.y,
       SPRITE_LIFT,
-      textures,
+      frameCache,
+      atlas,
     );
     if (!sprite) {
       continue;
@@ -137,7 +218,8 @@ export function buildMapSprites(map: ParsedMap, ctx: MapSpriteContext): THREE.Gr
         slot.x,
         slot.y,
         SPRITE_LIFT + typeLift(monster.type),
-        textures,
+        frameCache,
+        atlas,
       );
       if (!sprite) {
         continue;
