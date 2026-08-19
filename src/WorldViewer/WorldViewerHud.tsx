@@ -11,13 +11,15 @@ import {
   Popover,
   Slider,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
 import { GMonster } from "typed-adventureland";
 import { overlayHex } from "./overlayColors";
-import { OverlayKind, OverlayVisibility } from "./types";
-import { WORLD_CONTROLS_HELP } from "./worldCameraControls";
+import { OverlayKind, OverlayVisibility, ViewerMode } from "./types";
+import { cameraMode, controlsHelpForMode } from "./cameraMode";
 
 export function overlayLabel(kind: OverlayKind): string {
   switch (kind) {
@@ -35,6 +37,14 @@ export function overlayLabel(kind: OverlayKind): string {
       return "Zones";
     case "monsters":
       return "Monsters";
+    case "rage":
+      return "Rage";
+    case "machines":
+      return "Machines";
+    case "animatables":
+      return "Animatables";
+    case "traps":
+      return "Traps";
     default: {
       const exhaustive: never = kind;
       return exhaustive;
@@ -62,6 +72,8 @@ interface WorldTopBarProps {
   mapChoices: MapChoice[];
   selectedMap: string | null;
   onSelectMap: (mapId: string | null) => void;
+  viewMode: ViewerMode;
+  onViewMode: (mode: ViewerMode) => void;
   layerHeight: number;
   onLayerHeight: (value: number) => void;
   mapCount: number;
@@ -77,6 +89,8 @@ export function WorldTopBar({
   mapChoices,
   selectedMap,
   onSelectMap,
+  viewMode,
+  onViewMode,
   layerHeight,
   onLayerHeight,
   mapCount,
@@ -101,33 +115,51 @@ export function WorldTopBar({
         paddingY: 1,
       }}
     >
+      <ToggleButtonGroup
+        exclusive
+        size="small"
+        value={viewMode}
+        onChange={(_event, value: ViewerMode | null) => {
+          if (value) {
+            onViewMode(value);
+          }
+        }}
+      >
+        <ToggleButton value="map">Single map</ToggleButton>
+        <ToggleButton value="world">World</ToggleButton>
+      </ToggleButtonGroup>
       <Autocomplete
         size="small"
         sx={{ minWidth: 280, flex: "1 1 240px", maxWidth: 420 }}
         options={mapChoices}
         value={selected}
+        disableClearable={!cameraMode(viewMode).allowClearSelection}
         onChange={(_event, choice) => onSelectMap(choice?.id ?? null)}
         getOptionLabel={(choice) => `${choice.name} (${choice.id})`}
         isOptionEqualToValue={(option, value) => option.id === value.id}
         renderInput={(params) => <TextField {...params} label="Go to map" />}
       />
-      <Box
-        sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 220, flex: "1 1 200px" }}
-      >
-        <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
-          Layer {layerHeight}px
-        </Typography>
-        <Slider
-          size="small"
-          min={120}
-          max={1400}
-          step={20}
-          value={layerHeight}
-          onChange={(_event, value) => onLayerHeight(Array.isArray(value) ? value[0] : value)}
-        />
-      </Box>
+      {cameraMode(viewMode).showLayerSlider && (
+        <Box
+          sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 220, flex: "1 1 200px" }}
+        >
+          <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
+            Layer {layerHeight}px
+          </Typography>
+          <Slider
+            size="small"
+            min={120}
+            max={1400}
+            step={20}
+            value={layerHeight}
+            onChange={(_event, value) => onLayerHeight(Array.isArray(value) ? value[0] : value)}
+          />
+        </Box>
+      )}
       <Typography variant="caption" sx={{ opacity: 0.8, marginLeft: "auto" }}>
-        {mapCount} maps · v{dataVersion} · {twoWayCount} two-way · {oneWayCount} one-way
+        {cameraMode(viewMode).showConnectionLegend
+          ? `${mapCount} maps · v${dataVersion} · ${twoWayCount} two-way · ${oneWayCount} one-way`
+          : `${mapCount} maps · v${dataVersion}`}
       </Typography>
       {errorLabel && (
         <Typography variant="caption" color="error" sx={{ width: "100%" }}>
@@ -373,6 +405,7 @@ export function WorldOverlayPanel({
 }
 
 interface WorldStatusBarProps {
+  viewMode: ViewerMode;
   cursor: { mapId: string; x: number; y: number } | null;
   cursorMapName: string | undefined;
   dataVersion: number;
@@ -380,6 +413,7 @@ interface WorldStatusBarProps {
 }
 
 export function WorldStatusBar({
+  viewMode,
   cursor,
   cursorMapName,
   dataVersion,
@@ -387,6 +421,7 @@ export function WorldStatusBar({
 }: WorldStatusBarProps) {
   const [helpAnchor, setHelpAnchor] = useState<HTMLElement | null>(null);
   const captionSx = { lineHeight: 1.4, whiteSpace: "nowrap" } as const;
+  const helpLines = controlsHelpForMode(viewMode);
   return (
     <Paper
       elevation={0}
@@ -401,12 +436,16 @@ export function WorldStatusBar({
         overflow: "hidden",
       }}
     >
-      <Typography variant="caption" sx={{ ...captionSx, color: "#33ff66" }}>
-        Two-way links
-      </Typography>
-      <Typography variant="caption" sx={{ ...captionSx, color: "#ffaa33" }}>
-        One-way links
-      </Typography>
+      {cameraMode(viewMode).showConnectionLegend && (
+        <>
+          <Typography variant="caption" sx={{ ...captionSx, color: "#33ff66" }}>
+            Two-way links
+          </Typography>
+          <Typography variant="caption" sx={{ ...captionSx, color: "#ffaa33" }}>
+            One-way links
+          </Typography>
+        </>
+      )}
       <Typography variant="caption" sx={{ ...captionSx, opacity: 0.75 }}>
         Click a door to travel · click overlays to inspect
       </Typography>
@@ -424,7 +463,7 @@ export function WorldStatusBar({
           <Typography variant="subtitle2" sx={{ marginBottom: 0.5 }}>
             Move the camera
           </Typography>
-          {WORLD_CONTROLS_HELP.map((line) => (
+          {helpLines.map((line) => (
             <Typography key={line} variant="caption" display="block" sx={{ lineHeight: 1.7 }}>
               {line}
             </Typography>

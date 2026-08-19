@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -16,11 +16,13 @@ import {
   DoorTravel,
   MapFocus,
   OVERLAY_KINDS,
-  OverlayInspect,
   OverlayKind,
   OverlayVisibility,
+  ViewerMode,
 } from "./types";
+import { OverlayPick } from "./overlayPick";
 import { useMapCanvases } from "./useMapTextures";
+import { nextSelectedMap, selectedMapForMode, visibleWorldLayout } from "./viewerMode";
 import { WorldCanvas } from "./WorldCanvas";
 import { WorldInspector } from "./WorldInspector";
 import { WorldOverlayInspect } from "./WorldOverlayInspect";
@@ -30,6 +32,7 @@ import { toWorldSource } from "./worldData";
 export function WorldViewer() {
   const G = useContext(GDataContext);
   const [overlays, setOverlays] = useState<OverlayVisibility>(DEFAULT_OVERLAYS);
+  const [viewMode, setViewMode] = useState<ViewerMode>("map");
   const [layerHeight, setLayerHeight] = useState(DEFAULT_LAYER_HEIGHT);
   const [includeIgnored, setIncludeIgnored] = useState(false);
   const [selectedMap, setSelectedMap] = useState<string | null>("main");
@@ -39,7 +42,7 @@ export function WorldViewer() {
   const [seeThroughOverlays, setSeeThroughOverlays] = useState(false);
   const [hiddenMonsterTypes, setHiddenMonsterTypes] = useState<Set<string>>(new Set());
   const [cursor, setCursor] = useState<{ mapId: string; x: number; y: number } | null>(null);
-  const [inspect, setInspect] = useState<OverlayInspect | null>(null);
+  const [inspect, setInspect] = useState<OverlayPick | null>(null);
   const [doorDialog, setDoorDialog] = useState<DoorTravel | null>(null);
 
   const world = useMemo(() => (G ? toWorldSource(G) : null), [G]);
@@ -65,11 +68,28 @@ export function WorldViewer() {
     [layout, mapIds],
   );
 
-  const monsterTypes = useMemo(() => (layout ? collectMonsterTypes(layout.maps) : []), [layout]);
+  const visibleLayout = useMemo(
+    () => (layout ? visibleWorldLayout(layout, viewMode, selectedMap) : null),
+    [layout, viewMode, selectedMap],
+  );
 
-  const spriteUrls = useMemo(
-    () => (layout && world ? collectUsedSpriteUrls(layout.maps, world.spriteContext) : []),
-    [layout, world],
+  const monsterTypes = useMemo(() => {
+    if (!visibleLayout) {
+      return [];
+    }
+    return collectMonsterTypes(visibleLayout.maps);
+  }, [visibleLayout]);
+
+  const spriteUrls = useMemo(() => {
+    if (!visibleLayout || !world) {
+      return [];
+    }
+    return collectUsedSpriteUrls(visibleLayout.maps, world.spriteContext);
+  }, [visibleLayout, world]);
+
+  const bakeIds = useMemo(
+    () => (visibleLayout ? Object.keys(visibleLayout.maps) : []),
+    [visibleLayout],
   );
 
   const {
@@ -81,7 +101,7 @@ export function WorldViewer() {
     world?.source.geometry || {},
     world?.tilesets || {},
     spriteUrls,
-    mapIds,
+    bakeIds,
     Boolean(world),
     Boolean(pixelArt && world),
   );
@@ -96,41 +116,56 @@ export function WorldViewer() {
     setFocus({ mapId, x, y, seq: focusSeqRef.current });
   };
 
+  const selectMap = (mapId: string | null, focusAt?: { x: number; y: number }) => {
+    setSelectedMap((current) => nextSelectedMap(viewMode, current, mapId));
+    if (mapId && focusAt) {
+      requestMapFocus(mapId, focusAt.x, focusAt.y);
+    }
+  };
+
   const focusMap = (mapId: string) => {
     const map = layout?.maps[mapId];
     if (!map) {
       return;
     }
-    setSelectedMap(mapId);
-    requestMapFocus(mapId, (map.artMinX + map.artMaxX) / 2, (map.artMinY + map.artMaxY) / 2);
+    selectMap(mapId, { x: (map.artMinX + map.artMaxX) / 2, y: (map.artMinY + map.artMaxY) / 2 });
   };
 
-  useEffect(() => {
-    if (!layout || !selectedMap || focusSeqRef.current > 0) {
+  const applyViewMode = (mode: ViewerMode) => {
+    if (mode === viewMode) {
       return;
     }
-    const map = layout.maps[selectedMap];
-    if (!map) {
+    setViewMode(mode);
+    if (!layout) {
       return;
     }
-    requestMapFocus(selectedMap, (map.artMinX + map.artMaxX) / 2, (map.artMinY + map.artMaxY) / 2);
-  }, [layout, selectedMap]);
+    const next = selectedMapForMode(mode, selectedMap, layout.maps);
+    if (next !== selectedMap) {
+      setSelectedMap(next);
+    }
+    if (next) {
+      const map = layout.maps[next];
+      if (map) {
+        requestMapFocus(next, (map.artMinX + map.artMaxX) / 2, (map.artMinY + map.artMaxY) / 2);
+      }
+      return;
+    }
+    setSelectedMap(null);
+  };
 
   const handleDoorTravel = (travel: DoorTravel) => {
     if (travel.lock) {
       setDoorDialog(travel);
       return;
     }
-    setSelectedMap(travel.toMap);
-    requestMapFocus(travel.toMap, travel.toX, travel.toY);
+    selectMap(travel.toMap, { x: travel.toX, y: travel.toY });
   };
 
   const confirmDoorTravel = () => {
     if (!doorDialog) {
       return;
     }
-    setSelectedMap(doorDialog.toMap);
-    requestMapFocus(doorDialog.toMap, doorDialog.toX, doorDialog.toY);
+    selectMap(doorDialog.toMap, { x: doorDialog.toX, y: doorDialog.toY });
     setDoorDialog(null);
   };
 
@@ -150,7 +185,7 @@ export function WorldViewer() {
     setOverlays((current) => ({ ...current, [kind]: visible }));
   };
 
-  if (!G || !world || !layout) {
+  if (!G || !world || !layout || !visibleLayout) {
     return <>WAITING!</>;
   }
 
@@ -189,9 +224,11 @@ export function WorldViewer() {
           if (mapId) {
             focusMap(mapId);
           } else {
-            setSelectedMap(null);
+            selectMap(null);
           }
         }}
+        viewMode={viewMode}
+        onViewMode={applyViewMode}
         layerHeight={layerHeight}
         onLayerHeight={setLayerHeight}
         mapCount={mapIds.length}
@@ -222,11 +259,13 @@ export function WorldViewer() {
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <WorldCanvas
-            layout={layout}
+            scene={visibleLayout}
+            maps={layout.maps}
+            viewMode={viewMode}
             overlays={overlays}
             selectedMap={selectedMap}
             focus={focus}
-            onSelectMap={setSelectedMap}
+            onSelectMap={selectMap}
             onDoorTravel={handleDoorTravel}
             onInspect={setInspect}
             onCursorMove={setCursor}
@@ -247,6 +286,7 @@ export function WorldViewer() {
         />
       </Box>
       <WorldStatusBar
+        viewMode={viewMode}
         cursor={cursor}
         cursorMapName={cursorMap?.name}
         dataVersion={G.version}

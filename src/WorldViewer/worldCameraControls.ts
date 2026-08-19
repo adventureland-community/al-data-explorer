@@ -1,34 +1,41 @@
 import * as THREE from "three";
 import { MOUSE, TOUCH } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { computeOverviewPose, WorldBounds } from "./worldCameraBounds";
+import { cameraMode } from "./cameraMode";
+import { ViewerMode } from "./types";
+import { CameraPose, WorldBounds, worldFocusDirection } from "./worldCameraBounds";
+import { panDeltaFromScreen, WORLD_UNITS_PER_PIXEL } from "./worldCameraPan";
 
 export {
   computeMapFocusDistance,
   computeOverviewPose,
+  computeTopDownPose,
   computeWorldBounds,
+  computeWorldFocusPose,
+  computeWorldFocusPoseAtPoint,
   mapCenterWorld,
   mapPointToWorld,
+  worldFocusDirection,
 } from "./worldCameraBounds";
 export type { CameraPose, WorldBounds } from "./worldCameraBounds";
+export { panDeltaFromScreen, WORLD_UNITS_PER_PIXEL } from "./worldCameraPan";
 
 export interface WorldCameraControls {
   controls: OrbitControls;
   focusOnPoint: (point: THREE.Vector3, distance?: number) => void;
+  focusOnPose: (pose: CameraPose) => void;
   resetView: () => void;
   saveDefaultView: () => void;
+  setViewMode: (mode: ViewerMode, bounds: WorldBounds, options?: { resetCamera?: boolean }) => void;
   dispose: () => void;
 }
 
-/** World units moved per screen pixel when panning — fixed, not tied to zoom distance. */
-const WORLD_UNITS_PER_PIXEL = 1.8;
 /** World units moved per keyboard pan step. */
 const KEYBOARD_PAN_STEP = 48;
 /** World units moved per wheel notch / +/- key. */
 const ZOOM_STEP = 140;
+const MAP_ZOOM_MIN_HEIGHT = 80;
 
-const _panRight = new THREE.Vector3();
-const _panForward = new THREE.Vector3();
 const _panDelta = new THREE.Vector3();
 const _zoomDirection = new THREE.Vector3();
 
@@ -46,35 +53,9 @@ function panCamera(controls: OrbitControls, delta: THREE.Vector3): void {
   controls.update();
 }
 
-/** Pan in world XZ using screen-pixel delta — speed does not scale with zoom distance. */
-export function panFromScreenDelta(
-  controls: OrbitControls,
-  camera: THREE.PerspectiveCamera,
-  deltaX: number,
-  deltaY: number,
-  worldPerPixel = WORLD_UNITS_PER_PIXEL,
-): void {
-  _panRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
-  _panRight.y = 0;
-  if (_panRight.lengthSq() > 1e-8) {
-    _panRight.normalize();
-  } else {
-    _panRight.set(1, 0, 0);
-  }
-
-  _panForward.set(0, 0, -1).applyQuaternion(camera.quaternion);
-  _panForward.y = 0;
-  if (_panForward.lengthSq() > 1e-8) {
-    _panForward.normalize();
-  } else {
-    _panForward.set(0, 0, 1);
-  }
-
-  _panDelta
-    .copy(_panRight)
-    .multiplyScalar(-deltaX * worldPerPixel)
-    .addScaledVector(_panForward, deltaY * worldPerPixel);
-  panCamera(controls, _panDelta);
+export function clearWorldCameraDistanceLimits(controls: OrbitControls): void {
+  controls.minDistance = 0;
+  controls.maxDistance = Infinity;
 }
 
 /**
@@ -108,23 +89,90 @@ export function linearZoom(controls: OrbitControls, wheelDelta: number, step = Z
   controls.update();
 }
 
-export function clearWorldCameraDistanceLimits(controls: OrbitControls): void {
-  controls.minDistance = 0;
-  controls.maxDistance = Infinity;
+function mapZoomHeightLimits(bounds: WorldBounds): { min: number; max: number } {
+  const span = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ, 240);
+  return { min: MAP_ZOOM_MIN_HEIGHT, max: Math.max(span * 3, MAP_ZOOM_MIN_HEIGHT * 4) };
 }
 
-export function updateWorldCameraResetPose(controls: OrbitControls, bounds: WorldBounds): void {
+function zoomMapHeight(controls: OrbitControls, wheelDelta: number, bounds: WorldBounds): void {
+  const camera = controls.object as THREE.PerspectiveCamera;
+  const { min, max } = mapZoomHeightLimits(bounds);
+  const height = camera.position.y - controls.target.y;
+  const sign = wheelDelta > 0 ? 1 : wheelDelta < 0 ? -1 : 0;
+  if (sign === 0) {
+    return;
+  }
+  const next = Math.min(max, Math.max(min, height + sign * ZOOM_STEP));
+  camera.position.y = controls.target.y + next;
+  controls.update();
+}
+
+function zoomForMode(
+  mode: ViewerMode,
+  controls: OrbitControls,
+  wheelDelta: number,
+  bounds: WorldBounds,
+): void {
+  switch (mode) {
+    case "map":
+      zoomMapHeight(controls, wheelDelta, bounds);
+      return;
+    case "world":
+      linearZoom(controls, wheelDelta);
+      return;
+    default: {
+      const exhaustive: never = mode;
+      return exhaustive;
+    }
+  }
+}
+
+function applyCameraUp(camera: THREE.PerspectiveCamera, mode: ViewerMode): void {
+  camera.up.set(...cameraMode(mode).up);
+}
+
+function applyOrbitLimits(controls: OrbitControls, mode: ViewerMode): void {
+  const next = cameraMode(mode);
+  controls.enableRotate = next.enableRotate;
+  controls.minPolarAngle = next.minPolarAngle;
+  controls.maxPolarAngle = next.maxPolarAngle;
+  controls.minAzimuthAngle = next.minAzimuthAngle;
+  controls.maxAzimuthAngle = next.maxAzimuthAngle;
+}
+
+function applyResetPose(controls: OrbitControls, mode: ViewerMode, bounds: WorldBounds): void {
   clearWorldCameraDistanceLimits(controls);
-  const overview = computeOverviewPose(bounds);
-  controls.target0.set(overview.target.x, overview.target.y, overview.target.z);
-  controls.position0.set(overview.position.x, overview.position.y, overview.position.z);
+  const pose = cameraMode(mode).pose(bounds);
+  controls.target0.set(pose.target.x, pose.target.y, pose.target.z);
+  controls.position0.set(pose.position.x, pose.position.y, pose.position.z);
+}
+
+/** Pan in world XZ using screen-pixel delta — speed does not scale with zoom distance. */
+export function panFromScreenDelta(
+  controls: OrbitControls,
+  camera: THREE.PerspectiveCamera,
+  deltaX: number,
+  deltaY: number,
+  worldPerPixel = WORLD_UNITS_PER_PIXEL,
+): void {
+  panDeltaFromScreen(camera, deltaX, deltaY, worldPerPixel, _panDelta);
+  panCamera(controls, _panDelta);
+}
+
+export function updateWorldCameraResetPose(
+  controls: OrbitControls,
+  bounds: WorldBounds,
+  mode: ViewerMode,
+): void {
+  applyResetPose(controls, mode, bounds);
 }
 
 export function createWorldCameraControls(
   camera: THREE.PerspectiveCamera,
   domElement: HTMLElement,
   bounds: WorldBounds,
-  onFocusSelection?: () => void,
+  onFocusSelection: () => void,
+  initialMode: ViewerMode,
 ): WorldCameraControls {
   const controls = new OrbitControls(camera, domElement);
   controls.enableDamping = true;
@@ -141,40 +189,82 @@ export function createWorldCameraControls(
     RIGHT: MOUSE.ROTATE,
   };
   controls.touches = { ONE: TOUCH.PAN, TWO: TOUCH.DOLLY_PAN };
-  controls.minPolarAngle = 0.08;
-  controls.maxPolarAngle = Math.PI - 0.08;
+
+  const modeRef = { current: initialMode };
+  const boundsRef = { current: bounds };
+
+  applyOrbitLimits(controls, initialMode);
+  applyCameraUp(camera, initialMode);
 
   domElement.tabIndex = 0;
   domElement.style.outline = "none";
 
-  const overview = computeOverviewPose(bounds);
-  camera.position.set(overview.position.x, overview.position.y, overview.position.z);
-  controls.target.set(overview.target.x, overview.target.y, overview.target.z);
+  const start = cameraMode(initialMode).pose(bounds);
+  camera.position.set(start.position.x, start.position.y, start.position.z);
+  controls.target.set(start.target.x, start.target.y, start.target.z);
   controls.update();
   controls.saveState();
 
-  const focusOnPoint = (point: THREE.Vector3, distance?: number) => {
-    const offset = new THREE.Vector3().subVectors(camera.position, controls.target);
-    const currentDistance = offset.length() || bounds.radius * 1.4;
-    const nextDistance = distance ?? currentDistance;
-    if (offset.lengthSq() < 1e-6) {
-      offset.set(0.55, 0.82, 0.62).normalize();
-    } else {
-      offset.normalize();
-    }
+  const focusOnPose = (pose: CameraPose) => {
     controls.enableDamping = false;
+    applyCameraUp(camera, modeRef.current);
+    controls.target.set(pose.target.x, pose.target.y, pose.target.z);
+    camera.position.set(pose.position.x, pose.position.y, pose.position.z);
+    controls.update();
+    controls.enableDamping = true;
+  };
+
+  const focusOnPoint = (point: THREE.Vector3, distance?: number) => {
+    controls.enableDamping = false;
+    const mode = cameraMode(modeRef.current);
+    const currentHeight = Math.abs(camera.position.y - controls.target.y);
+    const offset = new THREE.Vector3().subVectors(camera.position, controls.target);
+    applyCameraUp(camera, modeRef.current);
     controls.target.copy(point);
-    camera.position.copy(point).addScaledVector(offset, nextDistance);
+    if (mode.keepFocusHeight) {
+      camera.position.set(point.x, point.y + (distance ?? currentHeight), point.z);
+    } else {
+      const currentDistance = offset.length() || boundsRef.current.radius * 1.4;
+      const nextDistance = distance ?? currentDistance;
+      if (offset.lengthSq() < 1e-6) {
+        const focusDir = worldFocusDirection();
+        offset.set(focusDir.x, focusDir.y, focusDir.z);
+      } else {
+        offset.normalize();
+      }
+      camera.position.copy(point).addScaledVector(offset, nextDistance);
+    }
     controls.update();
     controls.enableDamping = true;
   };
 
   const resetView = () => {
+    applyCameraUp(camera, modeRef.current);
     controls.reset();
+    applyCameraUp(camera, modeRef.current);
+    controls.update();
   };
 
   const saveDefaultView = () => {
     controls.saveState();
+  };
+
+  const setViewMode = (
+    mode: ViewerMode,
+    nextBounds: WorldBounds,
+    options: { resetCamera?: boolean } = {},
+  ) => {
+    modeRef.current = mode;
+    boundsRef.current = nextBounds;
+    applyOrbitLimits(controls, mode);
+    applyCameraUp(camera, mode);
+    applyResetPose(controls, mode, nextBounds);
+    if (options.resetCamera !== false) {
+      controls.reset();
+      applyCameraUp(camera, mode);
+      controls.update();
+      controls.saveState();
+    }
   };
 
   let panning = false;
@@ -220,7 +310,7 @@ export function createWorldCameraControls(
     if (!controls.enabled) {
       return;
     }
-    linearZoom(controls, event.deltaY);
+    zoomForMode(modeRef.current, controls, event.deltaY, boundsRef.current);
     event.preventDefault();
   };
 
@@ -234,46 +324,55 @@ export function createWorldCameraControls(
 
     const key = event.key.toLowerCase();
     const step = (event.shiftKey ? 2.4 : 1) * KEYBOARD_PAN_STEP;
+    const { allowVerticalPan } = cameraMode(modeRef.current);
 
     switch (key) {
       case "w":
       case "arrowup":
-        panCamera(controls, new THREE.Vector3(0, 0, -step));
+        panDeltaFromScreen(camera, 0, -step, 1, _panDelta);
+        panCamera(controls, _panDelta);
         event.preventDefault();
         break;
       case "s":
       case "arrowdown":
-        panCamera(controls, new THREE.Vector3(0, 0, step));
+        panDeltaFromScreen(camera, 0, step, 1, _panDelta);
+        panCamera(controls, _panDelta);
         event.preventDefault();
         break;
       case "a":
       case "arrowleft":
-        panCamera(controls, new THREE.Vector3(-step, 0, 0));
+        panDeltaFromScreen(camera, -step, 0, 1, _panDelta);
+        panCamera(controls, _panDelta);
         event.preventDefault();
         break;
       case "d":
       case "arrowright":
-        panCamera(controls, new THREE.Vector3(step, 0, 0));
+        panDeltaFromScreen(camera, step, 0, 1, _panDelta);
+        panCamera(controls, _panDelta);
         event.preventDefault();
         break;
       case "q":
       case "pageup":
-        panCamera(controls, new THREE.Vector3(0, step, 0));
-        event.preventDefault();
+        if (allowVerticalPan) {
+          panCamera(controls, new THREE.Vector3(0, step, 0));
+          event.preventDefault();
+        }
         break;
       case "e":
       case "pagedown":
-        panCamera(controls, new THREE.Vector3(0, -step, 0));
-        event.preventDefault();
+        if (allowVerticalPan) {
+          panCamera(controls, new THREE.Vector3(0, -step, 0));
+          event.preventDefault();
+        }
         break;
       case "+":
       case "=":
-        linearZoom(controls, -100);
+        zoomForMode(modeRef.current, controls, -100, boundsRef.current);
         event.preventDefault();
         break;
       case "-":
       case "_":
-        linearZoom(controls, 100);
+        zoomForMode(modeRef.current, controls, 100, boundsRef.current);
         event.preventDefault();
         break;
       case "home":
@@ -285,7 +384,7 @@ export function createWorldCameraControls(
         if (event.ctrlKey || event.metaKey || event.altKey) {
           break;
         }
-        onFocusSelection?.();
+        onFocusSelection();
         event.preventDefault();
         break;
       default:
@@ -309,8 +408,10 @@ export function createWorldCameraControls(
   return {
     controls,
     focusOnPoint,
+    focusOnPose,
     resetView,
     saveDefaultView,
+    setViewMode,
     dispose: () => {
       domElement.removeEventListener("pointerdown", onPointerDown);
       domElement.removeEventListener("pointermove", onPointerMove);
@@ -324,15 +425,3 @@ export function createWorldCameraControls(
     },
   };
 }
-
-export const WORLD_CONTROLS_HELP = [
-  "Left drag — pan (fixed speed)",
-  "Right / middle drag — orbit",
-  "Scroll — zoom (linear, fly-through layers)",
-  "WASD / arrows — pan",
-  "Q / E — up / down layers",
-  "+ / − — zoom",
-  "Home — reset view",
-  "F — focus selection",
-  "Double-click map — focus point",
-] as const;
