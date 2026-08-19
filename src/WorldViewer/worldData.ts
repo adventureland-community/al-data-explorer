@@ -8,7 +8,7 @@ import {
   GSprite,
   GTileset,
 } from "typed-adventureland";
-import { CustomGData } from "../GDataContext";
+import { CustomGData, GItems } from "../GDataContext";
 import { MapSpriteContext } from "./createWorldScene";
 import { MapSource } from "./types";
 
@@ -18,6 +18,9 @@ export interface WorldGameData {
   spriteContext: MapSpriteContext;
   tilesets: Record<string, GTileset>;
   monsters: Record<string, GMonster>;
+  drops: Record<string, unknown[]>;
+  items: GItems;
+  npcs: Record<string, GNpc>;
 }
 
 /** Single GData → World Viewer boundary. Downstream code should not recast G. */
@@ -37,5 +40,8 @@ export function toWorldSource(G: CustomGData): WorldGameData {
     },
     tilesets: G.tilesets as unknown as Record<string, GTileset>,
     monsters: G.monsters as unknown as Record<string, GMonster>,
+    drops: (G.drops ?? {}) as Record<string, unknown[]>,
+    items: G.items as unknown as GItems,
+    npcs: G.npcs as unknown as Record<string, GNpc>,
   };
 }

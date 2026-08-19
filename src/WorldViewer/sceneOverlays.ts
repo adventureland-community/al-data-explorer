@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { GMonster } from "typed-adventureland";
 import { EXTRA_PACK_BOUNDS_COLOR, GROW_PACK_LINE_COLOR, overlayColor } from "./overlayColors";
 import { OverlayPick } from "./overlayPick";
 import { packOverlayLabel } from "./packSpriteSlots";
@@ -322,7 +323,23 @@ function attachKindRect(
   );
 }
 
-export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
+function monsterDifficultyColor(hp: number): number {
+  if (hp > 100000) {
+    return 0x9c27b0; // purple — boss
+  }
+  if (hp > 5000) {
+    return 0xe53935; // red — high
+  }
+  if (hp >= 200) {
+    return 0xffa726; // orange — medium
+  }
+  return 0x66bb6a; // green — low
+}
+
+export function buildMapOverlays(
+  map: ParsedMap,
+  monsterDefs?: Record<string, GMonster>,
+): THREE.Group[] {
   const bounds = overlayGroup("bounds");
   bounds.add(boundsLines(map));
 
@@ -431,7 +448,9 @@ export function buildMapOverlays(map: ParsedMap): THREE.Group[] {
 
   const monsters = overlayGroup("monsters");
   for (const monster of map.monsters) {
-    const fill = overlayColor("monsters");
+    const monsterDef = monsterDefs?.[monster.type];
+    const fill =
+      monsterDef?.hp != null ? monsterDifficultyColor(monsterDef.hp) : overlayColor("monsters");
     let mesh: THREE.Mesh | null = null;
     if (monster.polygon) {
       mesh = makePolygonMesh(monster.polygon, fill, LIFT.monsters, OVERLAY_FILL_OPACITY.monsters);

@@ -4,10 +4,15 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   Link,
+  List,
+  ListItem,
+  ListItemText,
   Typography,
 } from "@mui/material";
-import { GMonster } from "typed-adventureland";
+import { GMonster, GNpc } from "typed-adventureland";
+import { GItems } from "../GDataContext";
 import { OverlayPick, spawnOverlayHint } from "./overlayPick";
 import { ParsedMap } from "./types";
 import { monsterDisplayName } from "./WorldViewerHud";
@@ -209,10 +214,113 @@ function inspectBody(pick: OverlayPick, mapName: string | undefined) {
   }
 }
 
+function MonsterStats({ monster }: { monster: GMonster }) {
+  return (
+    <>
+      {monster.hp != null && (
+        <Typography variant="body2">HP: {monster.hp.toLocaleString()}</Typography>
+      )}
+      {monster.xp != null && (
+        <Typography variant="body2">XP: {monster.xp.toLocaleString()}</Typography>
+      )}
+      {monster.speed != null && <Typography variant="body2">Speed: {monster.speed}</Typography>}
+      {monster.attack != null && <Typography variant="body2">Attack: {monster.attack}</Typography>}
+      {monster.range != null && <Typography variant="body2">Range: {monster.range}</Typography>}
+    </>
+  );
+}
+
+function MonsterDrops({
+  monsterType,
+  drops,
+  items,
+}: {
+  monsterType: string;
+  drops: Record<string, unknown[]>;
+  items: GItems;
+}) {
+  const dropEntry = drops[monsterType];
+  if (!dropEntry || dropEntry.length <= 1) {
+    return null;
+  }
+  const parsed: Array<{ key: string; probability?: number }> = [];
+  for (let i = 1; i < dropEntry.length; i += 1) {
+    const entry = dropEntry[i];
+    if (typeof entry === "string") {
+      parsed.push({ key: entry });
+    } else if (Array.isArray(entry) && entry.length >= 2) {
+      parsed.push({ probability: entry[0] as number, key: entry[1] as string });
+    }
+  }
+  if (parsed.length === 0) {
+    return null;
+  }
+  return (
+    <>
+      <Divider sx={{ my: 1 }} />
+      <Typography variant="subtitle2">Drops</Typography>
+      <List dense disablePadding>
+        {parsed.map((drop) => {
+          const itemDef = items[drop.key as keyof GItems];
+          const displayName = itemDef?.name ?? drop.key;
+          const prob = drop.probability != null ? ` (${(drop.probability * 100).toFixed(2)}%)` : "";
+          return (
+            <ListItem key={drop.key} disableGutters disablePadding>
+              <ListItemText primary={`${displayName}${prob}`} />
+            </ListItem>
+          );
+        })}
+      </List>
+    </>
+  );
+}
+
+function NpcDetails({
+  npcId,
+  npcs,
+  items,
+}: {
+  npcId: string;
+  npcs: Record<string, GNpc>;
+  items: GItems;
+}) {
+  const npcDef = npcs[npcId];
+  if (!npcDef) {
+    return null;
+  }
+  return (
+    <>
+      {npcDef.role && <Typography variant="body2">Role: {npcDef.role}</Typography>}
+      {npcDef.quest && <Typography variant="body2">Quest: {npcDef.quest}</Typography>}
+      {npcDef.items && npcDef.items.length > 0 && (
+        <>
+          <Divider sx={{ my: 1 }} />
+          <Typography variant="subtitle2">Shop Items</Typography>
+          <List dense disablePadding>
+            {npcDef.items
+              .filter((itemKey): itemKey is string => itemKey != null)
+              .map((itemKey) => {
+                const itemDef = items[itemKey as keyof GItems];
+                return (
+                  <ListItem key={itemKey} disableGutters disablePadding>
+                    <ListItemText primary={itemDef?.name ?? itemKey} />
+                  </ListItem>
+                );
+              })}
+          </List>
+        </>
+      )}
+    </>
+  );
+}
+
 interface WorldOverlayInspectProps {
   inspect: OverlayPick | null;
   maps: Record<string, ParsedMap>;
   monsters: Record<string, GMonster>;
+  drops: Record<string, unknown[]>;
+  items: GItems;
+  npcs: Record<string, GNpc>;
   onClose: () => void;
 }
 
@@ -220,6 +328,9 @@ export function WorldOverlayInspect({
   inspect,
   maps,
   monsters,
+  drops,
+  items,
+  npcs,
   onClose,
 }: WorldOverlayInspectProps) {
   const mapName = inspect ? maps[inspect.mapId]?.name : undefined;
@@ -232,7 +343,17 @@ export function WorldOverlayInspect({
       fullWidth
     >
       <DialogTitle>{title}</DialogTitle>
-      <DialogContent>{inspect && inspectBody(inspect, mapName)}</DialogContent>
+      <DialogContent>
+        {inspect && inspectBody(inspect, mapName)}
+        {inspect?.kind === "monster" && (
+          <>
+            <Divider sx={{ my: 1 }} />
+            <MonsterStats monster={monsters[inspect.monster.type] ?? ({} as GMonster)} />
+            <MonsterDrops monsterType={inspect.monster.type} drops={drops} items={items} />
+          </>
+        )}
+        {inspect?.kind === "npc" && <NpcDetails npcId={inspect.npc.id} npcs={npcs} items={items} />}
+      </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
       </DialogActions>

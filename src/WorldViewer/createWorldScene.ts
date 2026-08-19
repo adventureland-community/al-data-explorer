@@ -1,9 +1,12 @@
 import * as THREE from "three";
+import { GMonster } from "typed-adventureland";
 import {
   FLOOR_INDOOR_COLOR,
   FLOOR_OUTSIDE_COLOR,
   FLOOR_UNDERGROUND_COLOR,
   ONE_WAY_CONNECTION_COLOR,
+  PATH_HIGHLIGHT_COLOR,
+  PATH_HIGHLIGHT_FLOOR_COLOR,
   SELECTED_FLOOR_COLOR,
   TWO_WAY_CONNECTION_COLOR,
 } from "./overlayColors";
@@ -88,6 +91,7 @@ export function createMapGroup(
   map: ParsedMap,
   pose: { x: number; y: number; z: number },
   spriteContext?: MapSpriteContext,
+  monsterDefs?: Record<string, GMonster>,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = map.id;
@@ -99,7 +103,7 @@ export function createMapGroup(
   const floor = makeFloor(map);
   group.add(floor);
 
-  const overlays = buildMapOverlays(map);
+  const overlays = buildMapOverlays(map, monsterDefs);
   for (const overlay of overlays) {
     group.add(overlay);
   }
@@ -117,12 +121,45 @@ export function createMapGroup(
   return group;
 }
 
+function createTextSprite(text: string, color = "#fff"): THREE.Sprite {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+  ctx.font = "bold 24px sans-serif";
+  const metrics = ctx.measureText(text);
+  canvas.width = Math.ceil(metrics.width) + 8;
+  canvas.height = 32;
+  ctx.font = "bold 24px sans-serif";
+  ctx.fillStyle = color;
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, 4, 16);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    opacity: 0.7,
+    depthTest: false,
+    fog: false,
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(canvas.width * 2, canvas.height * 2, 1);
+  sprite.userData.disposeTexture = texture;
+  return sprite;
+}
+
+interface ConnectionEndpoints {
+  from: [number, number, number];
+  to: [number, number, number];
+}
+
 export function createConnectionLines(layout: WorldLayout): THREE.Group {
   const group = new THREE.Group();
   group.name = "connections";
   group.frustumCulled = false;
   const twoWay: number[] = [];
   const oneWay: number[] = [];
+  const endpoints: Array<{ conn: typeof layout.connections[number]; pts: ConnectionEndpoints }> =
+    [];
 
   for (const connection of layout.connections) {
     const fromPose = layout.poses[connection.fromMap];
@@ -136,10 +173,15 @@ export function createConnectionLines(layout: WorldLayout): THREE.Group {
       x: connection.toX,
       y: connection.toY,
     };
-    const from = [fromPose.x + connection.fromX, fromPose.z + 16, fromPose.y + connection.fromY];
-    const to = [toPose.x + toX, toPose.z + 16, toPose.y + toY];
+    const from: [number, number, number] = [
+      fromPose.x + connection.fromX,
+      fromPose.z + 16,
+      fromPose.y + connection.fromY,
+    ];
+    const to: [number, number, number] = [toPose.x + toX, toPose.z + 16, toPose.y + toY];
     const target = connection.twoWay ? twoWay : oneWay;
     target.push(from[0], from[1], from[2], to[0], to[1], to[2]);
+    endpoints.push({ conn: connection, pts: { from, to } });
   }
 
   const addLines = (positions: number[], color: number, name: string) => {
@@ -165,7 +207,173 @@ export function createConnectionLines(layout: WorldLayout): THREE.Group {
 
   addLines(twoWay, TWO_WAY_CONNECTION_COLOR, "twoWay");
   addLines(oneWay, ONE_WAY_CONNECTION_COLOR, "oneWay");
+
+  const labels = new THREE.Group();
+  labels.name = "connectionLabels";
+  for (const { conn, pts } of endpoints) {
+    const destName = layout.maps[conn.toMap]?.name ?? conn.toMap;
+    const sprite = createTextSprite(destName);
+    sprite.position.set(
+      (pts.from[0] + pts.to[0]) / 2,
+      (pts.from[1] + pts.to[1]) / 2,
+      (pts.from[2] + pts.to[2]) / 2,
+    );
+    sprite.userData.fromMap = conn.fromMap;
+    sprite.userData.toMap = conn.toMap;
+    sprite.userData.endpoints = pts;
+    labels.add(sprite);
+  }
+  group.add(labels);
+
   return group;
+}
+
+/** Set of map-pair keys on the highlight path, for fast lookup. */
+function buildPathEdgeSet(path: string[]): Set<string> {
+  const set = new Set<string>();
+  for (let i = 0; i < path.length - 1; i++) {
+    set.add(`${path[i]}→${path[i + 1]}`);
+    set.add(`${path[i + 1]}→${path[i]}`);
+  }
+  return set;
+}
+
+export function setConnectionLabelsVisible(
+  connectionsGroup: THREE.Group | null,
+  visible: boolean,
+): void {
+  if (!connectionsGroup) {
+    return;
+  }
+  const labels = connectionsGroup.getObjectByName("connectionLabels");
+  if (labels) {
+    labels.visible = visible;
+  }
+}
+
+export function disposeObject(object: THREE.Object3D): void {
+  const disposed = new Set<THREE.Texture>();
+  object.traverse((child) => {
+    const texture = child.userData.disposeTexture as THREE.Texture | undefined;
+    if (texture && !disposed.has(texture)) {
+      disposed.add(texture);
+      texture.dispose();
+    }
+    if (
+      child instanceof THREE.Mesh ||
+      child instanceof THREE.LineSegments ||
+      child instanceof THREE.Sprite
+    ) {
+      if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments) {
+        child.geometry.dispose();
+      }
+      const { material } = child;
+      const materials = Array.isArray(material) ? material : material ? [material] : [];
+      for (const item of materials) {
+        const mapped = (item as THREE.MeshBasicMaterial).map;
+        if (mapped && !disposed.has(mapped)) {
+          disposed.add(mapped);
+          mapped.dispose();
+        }
+        if (mapped) {
+          (item as THREE.MeshBasicMaterial).map = null;
+        }
+        item.dispose();
+      }
+    }
+  });
+}
+
+export function applyPathHighlight(
+  connectionsGroup: THREE.Group | null,
+  mapsRoot: THREE.Group,
+  path: string[] | null,
+): void {
+  if (!connectionsGroup) {
+    return;
+  }
+
+  // Remove old highlight overlay
+  const old = connectionsGroup.getObjectByName("pathHighlight");
+  if (old) {
+    connectionsGroup.remove(old);
+    disposeObject(old);
+  }
+
+  const pathSet = path ? new Set(path) : null;
+  const edgeSet = path ? buildPathEdgeSet(path) : null;
+
+  // Dim/restore base connection lines
+  for (const child of connectionsGroup.children) {
+    if (child instanceof THREE.LineSegments) {
+      const material = child.material as THREE.LineBasicMaterial;
+      if (!edgeSet) {
+        material.opacity = CONNECTION_LINE_OPACITY;
+        material.color.setHex(
+          child.name === "twoWay" ? TWO_WAY_CONNECTION_COLOR : ONE_WAY_CONNECTION_COLOR,
+        );
+      } else {
+        material.opacity = 0.12;
+      }
+    }
+  }
+
+  // Highlight path floors
+  mapsRoot.traverse((object) => {
+    if (!object.userData.isFloor || !(object instanceof THREE.Mesh)) {
+      return;
+    }
+    const mapId = object.parent?.userData.mapId as string | undefined;
+    if (!mapId || !pathSet) {
+      return;
+    }
+    if (pathSet.has(mapId)) {
+      const material = object.material as THREE.MeshBasicMaterial;
+      if (!floorHasMapArt(object)) {
+        material.color.setHex(PATH_HIGHLIGHT_FLOOR_COLOR);
+        material.opacity = 0.75;
+      }
+    }
+  });
+
+  if (!edgeSet || !path) {
+    return;
+  }
+
+  // Build highlight lines from stored endpoint data on labels
+  const labels = connectionsGroup.getObjectByName("connectionLabels");
+  if (!labels) {
+    return;
+  }
+  const positions: number[] = [];
+  for (const sprite of labels.children) {
+    const from = sprite.userData.fromMap as string | undefined;
+    const to = sprite.userData.toMap as string | undefined;
+    const pts = sprite.userData.endpoints as ConnectionEndpoints | undefined;
+    if (!from || !to || !pts || !edgeSet.has(`${from}→${to}`)) {
+      continue;
+    }
+    positions.push(pts.from[0], pts.from[1], pts.from[2], pts.to[0], pts.to[1], pts.to[2]);
+  }
+  if (positions.length === 0) {
+    return;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  const material = new THREE.LineBasicMaterial({
+    color: PATH_HIGHLIGHT_COLOR,
+    transparent: true,
+    opacity: 1,
+    depthWrite: false,
+    depthTest: false,
+    fog: false,
+    linewidth: 2,
+  });
+  const highlight = new THREE.LineSegments(geometry, material);
+  highlight.name = "pathHighlight";
+  highlight.frustumCulled = false;
+  highlight.renderOrder = 41;
+  connectionsGroup.add(highlight);
 }
 
 export function setMonsterTypeVisibility(root: THREE.Object3D, hiddenTypes: Set<string>): void {
@@ -203,35 +411,32 @@ export function setSelectedMap(root: THREE.Object3D, mapId: string | null): void
   });
 }
 
-export function disposeObject(object: THREE.Object3D): void {
-  const disposed = new Set<THREE.Texture>();
-  object.traverse((child) => {
-    const texture = child.userData.disposeTexture as THREE.Texture | undefined;
-    if (texture && !disposed.has(texture)) {
-      disposed.add(texture);
-      texture.dispose();
-    }
-    if (
-      child instanceof THREE.Mesh ||
-      child instanceof THREE.LineSegments ||
-      child instanceof THREE.Sprite
-    ) {
-      if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments) {
-        child.geometry.dispose();
+export function setBandVisibility(
+  mapsRoot: THREE.Group,
+  connectionsGroup: THREE.Group | null,
+  soloBand: MapBand | null,
+  maps: Record<string, ParsedMap>,
+): void {
+  for (const child of mapsRoot.children) {
+    const band = child.userData.band as MapBand | undefined;
+    child.visible = !soloBand || band === soloBand;
+  }
+  if (!connectionsGroup) {
+    return;
+  }
+  // Hide connection lines/labels for maps not in the solo band
+  const labels = connectionsGroup.getObjectByName("connectionLabels");
+  if (labels) {
+    for (const sprite of labels.children) {
+      const from = sprite.userData.fromMap as string | undefined;
+      const to = sprite.userData.toMap as string | undefined;
+      if (!soloBand || !from || !to) {
+        sprite.visible = !soloBand;
+        continue;
       }
-      const { material } = child;
-      const materials = Array.isArray(material) ? material : material ? [material] : [];
-      for (const item of materials) {
-        const mapped = (item as THREE.MeshBasicMaterial).map;
-        if (mapped && !disposed.has(mapped)) {
-          disposed.add(mapped);
-          mapped.dispose();
-        }
-        if (mapped) {
-          (item as THREE.MeshBasicMaterial).map = null;
-        }
-        item.dispose();
-      }
+      const fromBand = maps[from]?.band;
+      const toBand = maps[to]?.band;
+      sprite.visible = fromBand === soloBand && toBand === soloBand;
     }
-  });
+  }
 }

@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { cameraMode } from "./cameraMode";
+import { GMonster } from "typed-adventureland";
+import { cameraMode, fogForMode } from "./cameraMode";
+import { ViewportBounds, WorldMinimap } from "./WorldMinimap";
 import {
   applyFloorCanvases,
   applyMapAnimation,
   applyOverlayDepthStyle,
+  applyPathHighlight,
   createConnectionLines,
   createMapGroup,
   disposeObject,
   MapSpriteContext,
+  setBandVisibility,
+  setConnectionLabelsVisible,
   setMonsterTypeVisibility,
   setOverlayVisibility,
   setSelectedMap,
@@ -19,6 +24,7 @@ import { MapArtBake } from "./renderMapCanvas";
 import { setHoveredOverlay } from "./sceneOverlays";
 import {
   DoorTravel,
+  MapBand,
   MapFocus,
   OverlayTooltip,
   OverlayVisibility,
@@ -59,8 +65,6 @@ function applyMapFocus(
   navigation.focusOnPoint(new THREE.Vector3(point.x, point.y, point.z), distance);
 }
 
-const WORLD_FOG = new THREE.Fog(0x101218, 25000, 90000);
-
 interface WorldCanvasProps {
   scene: WorldLayout;
   maps: Record<string, ParsedMap>;
@@ -77,6 +81,10 @@ interface WorldCanvasProps {
   spriteContext: MapSpriteContext | null;
   hiddenMonsterTypes: Set<string>;
   seeThroughOverlays: boolean;
+  monsterDefs?: Record<string, GMonster>;
+  fogDensity: number;
+  highlightPath?: string[] | null;
+  soloBand?: MapBand | null;
 }
 
 interface WorldRefs {
@@ -189,11 +197,18 @@ export function WorldCanvas({
   spriteContext,
   hiddenMonsterTypes,
   seeThroughOverlays,
+  monsterDefs,
+  fogDensity,
+  highlightPath,
+  soloBand,
 }: WorldCanvasProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<WorldRefs | null>(null);
   const mapsRef = useRef(maps);
   mapsRef.current = maps;
+  const fogDensityRef = useRef(fogDensity);
+  fogDensityRef.current = fogDensity;
+  const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
   const sceneRef = useRef(scene);
   sceneRef.current = scene;
   const viewModeRef = useRef(viewMode);
@@ -221,6 +236,8 @@ export function WorldCanvas({
   overlaysRef.current = overlays;
   const hiddenMonsterTypesRef = useRef(hiddenMonsterTypes);
   hiddenMonsterTypesRef.current = hiddenMonsterTypes;
+  const monsterDefsRef = useRef(monsterDefs);
+  monsterDefsRef.current = monsterDefs;
   const [tooltip, setTooltip] = useState<(OverlayTooltip & { x: number; y: number }) | null>(null);
 
   useEffect(() => {
@@ -243,9 +260,7 @@ export function WorldCanvas({
     host.appendChild(renderer.domElement);
 
     const threeScene = new THREE.Scene();
-    if (cameraMode(viewModeRef.current).useFog) {
-      threeScene.fog = WORLD_FOG;
-    }
+    threeScene.fog = fogForMode(viewModeRef.current, fogDensityRef.current);
 
     const camera = new THREE.PerspectiveCamera(55, 1, 0.25, 200000);
     const bounds = computeWorldBounds(sceneRef.current);
@@ -404,12 +419,36 @@ export function WorldCanvas({
 
     let frame = 0;
     const inception = performance.now();
+    let lastViewportUpdate = 0;
+    const frustumHelper = new THREE.Frustum();
+    const projScreenMatrix = new THREE.Matrix4();
+    const computeViewport = (now: number): void => {
+      if (now - lastViewportUpdate < 100) {
+        return;
+      }
+      lastViewportUpdate = now;
+      projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      frustumHelper.setFromProjectionMatrix(projScreenMatrix);
+      const { target } = navigation.controls;
+      const dist = camera.position.distanceTo(target);
+      const vFov = (camera.fov * Math.PI) / 180;
+      const halfH = Math.tan(vFov / 2) * dist;
+      const halfW = halfH * camera.aspect;
+      setViewportBounds({
+        minX: target.x - halfW,
+        maxX: target.x + halfW,
+        minZ: target.z - halfH,
+        maxZ: target.z + halfH,
+      });
+    };
     const tick = () => {
       frame = requestAnimationFrame(tick);
+      const now = performance.now();
       if (pixelArtRef.current) {
-        applyMapAnimation(mapsRoot, performance.now() - inception);
+        applyMapAnimation(mapsRoot, now - inception);
       }
       navigation.controls.update();
+      computeViewport(now);
       renderer.render(threeScene, camera);
     };
     tick();
@@ -453,7 +492,7 @@ export function WorldCanvas({
       if (!pose) {
         continue;
       }
-      mapsRoot.add(createMapGroup(map, pose, spriteContext || undefined));
+      mapsRoot.add(createMapGroup(map, pose, spriteContext || undefined, monsterDefsRef.current));
     }
 
     if (scene.connections.length > 0) {
@@ -501,7 +540,7 @@ export function WorldCanvas({
     if (!world) {
       return;
     }
-    world.threeScene.fog = cameraMode(viewMode).useFog ? WORLD_FOG : null;
+    world.threeScene.fog = fogForMode(viewMode, fogDensityRef.current);
     if (prevViewModeRef.current === viewMode) {
       return;
     }
@@ -513,11 +552,46 @@ export function WorldCanvas({
 
   useEffect(() => {
     const world = worldRef.current;
+    if (!world) {
+      return;
+    }
+    world.threeScene.fog = fogForMode(viewMode, fogDensity);
+  }, [fogDensity, viewMode]);
+
+  useEffect(() => {
+    const world = worldRef.current;
     if (!world || !focus) {
       return;
     }
     applyMapFocus(world.navigation, scene, focus, viewMode);
   }, [scene, focus, viewMode]);
+
+  useEffect(() => {
+    const world = worldRef.current;
+    if (!world) {
+      return;
+    }
+    applyPathHighlight(world.connections, world.mapsRoot, highlightPath ?? null);
+    if (!highlightPath) {
+      setSelectedMap(world.mapsRoot, selectedMap);
+    }
+  }, [highlightPath, selectedMap, scene]);
+
+  useEffect(() => {
+    const world = worldRef.current;
+    if (!world) {
+      return;
+    }
+    setBandVisibility(world.mapsRoot, world.connections, soloBand ?? null, maps);
+  }, [soloBand, maps, scene]);
+
+  useEffect(() => {
+    const world = worldRef.current;
+    if (!world) {
+      return;
+    }
+    setConnectionLabelsVisible(world.connections, viewMode === "world");
+  }, [viewMode, scene]);
 
   return (
     <div
@@ -532,6 +606,9 @@ export function WorldCanvas({
         background: "#101218",
       }}
     >
+      {viewMode === "world" && (
+        <WorldMinimap layout={scene} maps={maps} viewport={viewportBounds} />
+      )}
       {tooltip && (
         <div
           style={{

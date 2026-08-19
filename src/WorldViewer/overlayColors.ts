@@ -35,3 +35,5 @@ export const FLOOR_UNDERGROUND_COLOR = 0x1a2230;
 export const SELECTED_FLOOR_COLOR = 0x3d5a80;
 /** Packs with `grow` — extra monsters spawn if the pack is thinned. */
 export const GROW_PACK_LINE_COLOR = 0xfff1a8;
+export const PATH_HIGHLIGHT_COLOR = 0x00ffff;
+export const PATH_HIGHLIGHT_FLOOR_COLOR = 0x00a8cc;
