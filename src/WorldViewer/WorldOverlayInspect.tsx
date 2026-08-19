@@ -287,12 +287,13 @@ function NpcDetails({
           <Typography variant="subtitle2">Shop Items</Typography>
           <List dense disablePadding>
             {npcDef.items
-              .filter((itemKey): itemKey is string => itemKey != null)
+              .filter((itemKey): itemKey is NonNullable<typeof itemKey> => itemKey != null)
               .map((itemKey) => {
-                const itemDef = (items as Record<string, { name?: string } | undefined>)[itemKey];
+                const key = String(itemKey);
+                const itemDef = (items as Record<string, { name?: string } | undefined>)[key];
                 return (
-                  <ListItem key={itemKey} disableGutters disablePadding>
-                    <ListItemText primary={itemDef?.name ?? itemKey} />
+                  <ListItem key={key} disableGutters disablePadding>
+                    <ListItemText primary={itemDef?.name ?? key} />
                   </ListItem>
                 );
               })}
