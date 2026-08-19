@@ -1,31 +1,10 @@
 import { COMPONENT_PACK_GAP, packComponentOnShelf, PackShelf } from "./overworldLayout";
 import { componentArtBounds } from "./layoutBounds";
+import { stubParsedMap } from "./parsedMapStub";
 import { ParsedMap, MapPose } from "./types";
 
 function stubMap(id: string, w: number, h: number): ParsedMap {
-  return {
-    id,
-    name: id,
-    ignore: false,
-    outside: true,
-    band: "overworld",
-    minX: 0,
-    maxX: w,
-    minY: 0,
-    maxY: h,
-    artMinX: 0,
-    artMaxX: w,
-    artMinY: 0,
-    artMaxY: h,
-    xLines: [],
-    yLines: [],
-    doors: [],
-    spawns: [],
-    quirks: [],
-    npcs: [],
-    monsters: [],
-    zones: [],
-  };
+  return stubParsedMap(id, { maxX: w, maxY: h, artMaxX: w, artMaxY: h });
 }
 
 describe("overworldLayout", () => {

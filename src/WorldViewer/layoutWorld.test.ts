@@ -60,13 +60,17 @@ describe("layoutWorld", () => {
     expect(mansion.z).toBe(480);
   });
 
-  it("places tomb underground and door-aligned to mansion", () => {
+  it("places tomb between main and mansion, door-aligned to mansion", () => {
     const layout = layoutWorld(source, 480);
-    const { mansion, tomb } = layout.poses;
+    const { main, mansion, tomb } = layout.poses;
     const edge = layout.connections.find(
       (connection) => connection.fromMap === "mansion" && connection.toMap === "tomb",
     );
     expect(tomb.z).toBeLessThan(mansion.z);
+    expect(tomb.z).toBeGreaterThan(main.z);
+    expect(tomb.z).toBe(240);
+    expect(mansion.z).toBe(480);
+    expect(main.z).toBe(0);
     expect(edge).toBeDefined();
     if (edge) {
       expect(tomb.x + edge.toX).toBeCloseTo(mansion.x + edge.fromX);
@@ -140,9 +144,10 @@ describe("layoutWorld", () => {
     expect(layout.poses.mansion.z).not.toBe(layout.poses.main.z);
   });
 
-  it("puts the tomb on a different layer than the mansion", () => {
+  it("puts stack-pinned underground maps between hub and indoor parent", () => {
     const layout = layoutWorld(source, 480);
-    expect(layout.poses.tomb.z).not.toBe(layout.poses.mansion.z);
+    expect(layout.poses.tomb.z).toBeLessThan(layout.poses.mansion.z);
+    expect(layout.poses.tomb.z).toBeGreaterThan(layout.poses.main.z);
     expect(verticalDelta(layout.maps.mansion, layout.maps.tomb)).toBe(-1);
   });
 
@@ -515,5 +520,110 @@ describe("layoutWorld", () => {
     const overworldMaps = Object.fromEntries(overworldIds.map((id) => [id, layout.maps[id]]));
     const overworldPoses = Object.fromEntries(overworldIds.map((id) => [id, layout.poses[id]]));
     expect(countSameSlabOverlaps(overworldMaps, overworldPoses, 240)).toBe(0);
+  });
+
+  it("separates sibling town interiors instead of stacking them on the hub", () => {
+    const interiorSource: MapSource = {
+      maps: {
+        main: emptyMap({
+          name: "Town",
+          outside: true,
+          doors: [
+            [0, 0, 32, 40, "bank", 0, 0],
+            [80, 0, 32, 40, "tavern", 0, 1],
+          ],
+          spawns: [
+            [0, 10],
+            [80, 10],
+          ],
+        }),
+        bank: emptyMap({
+          name: "The Bank",
+          doors: [
+            [0, 0, 32, 40, "main", 0, 0],
+            [0, -200, 32, 40, "bank_b", 0, 1],
+          ],
+          spawns: [
+            [0, 0],
+            [0, -180],
+          ],
+        }),
+        bank_b: emptyMap({
+          name: "The Bank [Basement]",
+          doors: [[0, 0, 32, 40, "bank", 1, 0]],
+          spawns: [[0, 0]],
+        }),
+        tavern: emptyMap({
+          name: "The Tavern",
+          doors: [
+            [0, 0, 32, 40, "main", 1, 0],
+            [100, -50, 32, 40, "resort_e", 0, 1],
+          ],
+          spawns: [
+            [0, 0],
+            [100, -40],
+          ],
+        }),
+        resort_e: emptyMap({
+          name: "Resort",
+          doors: [[0, 0, 32, 40, "tavern", 1, 0]],
+          spawns: [[0, 0]],
+        }),
+      },
+      geometry: {
+        main: { min_x: 0, max_x: 400, min_y: 0, max_y: 400, tiles: [], placements: [] },
+        bank: { min_x: -250, max_x: 250, min_y: -400, max_y: 50, tiles: [], placements: [] },
+        bank_b: { min_x: -250, max_x: 250, min_y: -400, max_y: 50, tiles: [], placements: [] },
+        tavern: { min_x: -250, max_x: 250, min_y: -400, max_y: 50, tiles: [], placements: [] },
+        resort_e: { min_x: -200, max_x: 200, min_y: -200, max_y: 50, tiles: [], placements: [] },
+      },
+    };
+    const layout = layoutWorld(interiorSource, 480);
+    expect(layout.poses.bank.z).toBe(layout.poses.tavern.z);
+    expect(layout.poses.bank_b.z).toBeLessThan(layout.poses.bank.z);
+    expect(layout.poses.bank_b.z).toBeGreaterThan(layout.poses.main.z);
+    expect(layout.poses.resort_e.z).toBeGreaterThan(layout.poses.tavern.z);
+    expect(
+      rectsOverlap(
+        mapArtRect(layout.maps.bank, layout.poses.bank),
+        mapArtRect(layout.maps.tavern, layout.poses.tavern),
+        0,
+      ),
+    ).toBe(false);
+  });
+
+  it("separates town interiors that share the indoor slab", () => {
+    const dataPath = join(process.cwd(), "public/data.json");
+    const gameData = JSON.parse(readFileSync(dataPath, "utf8")) as MapSource & {
+      npcs?: Record<string, unknown>;
+    };
+    const layout = layoutWorld(
+      { maps: gameData.maps, geometry: gameData.geometry },
+      480,
+      false,
+      (gameData.npcs ?? {}) as Record<string, GNpc>,
+    );
+    const townInteriors = ["mansion", "arena", "bank", "tavern"];
+    for (const id of townInteriors) {
+      expect(layout.maps[id]).toBeDefined();
+      expect(layout.poses[id]).toBeDefined();
+    }
+    for (let i = 0; i < townInteriors.length; i += 1) {
+      for (let j = i + 1; j < townInteriors.length; j += 1) {
+        const idA = townInteriors[i];
+        const idB = townInteriors[j];
+        expect(
+          rectsOverlap(
+            mapArtRect(layout.maps[idA], layout.poses[idA]),
+            mapArtRect(layout.maps[idB], layout.poses[idB]),
+            0,
+          ),
+        ).toBe(false);
+      }
+    }
+    const indoorIds = Object.keys(layout.maps).filter((id) => layout.maps[id].band === "indoor");
+    const indoorMaps = Object.fromEntries(indoorIds.map((id) => [id, layout.maps[id]]));
+    const indoorPoses = Object.fromEntries(indoorIds.map((id) => [id, layout.poses[id]]));
+    expect(countSameSlabOverlaps(indoorMaps, indoorPoses)).toBe(0);
   });
 });

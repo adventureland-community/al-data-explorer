@@ -291,15 +291,6 @@ export function layoutWorld(
     layerHeight,
     SLAB_REALIGN_PASSES_POST_SPREAD,
   );
-  resolveDoorLockedSlabOverflow(
-    maps,
-    poses,
-    doorLocked,
-    PINNED_SLAB_STEP,
-    512,
-    DEFAULT_SLAB_GAP,
-    portalGroups,
-  );
   applyDoorLinkedPlacements(maps, poses, connections, portalGroups);
   spreadIsolatedOverworldMaps(maps, poses, connections, portalGroups, DEFAULT_SLAB_GAP);
   finalizeOverworldSlab(
@@ -310,6 +301,15 @@ export function layoutWorld(
     portalGroups,
     connections,
     layerHeight,
+  );
+  resolveDoorLockedSlabOverflow(
+    maps,
+    poses,
+    doorLocked,
+    PINNED_SLAB_STEP,
+    512,
+    DEFAULT_SLAB_GAP,
+    portalGroups,
   );
 
   return { maps, poses, connections };

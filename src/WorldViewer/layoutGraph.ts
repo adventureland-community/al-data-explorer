@@ -53,22 +53,29 @@ export function isPortalDoorAlign(fromMap: ParsedMap, toMap: ParsedMap): boolean
   return false;
 }
 
-/** Whether a door step should stay fixed on its slab (vertical stack pins only). */
+/**
+ * Whether a door step should stay fixed on its slab (vertical stack pins only).
+ * Sibling town interiors (main→mansion/bank/arena/tavern) are not pins: they share
+ * the indoor slab and must separate in XY. Nested floors still pin (indoor→indoor,
+ * indoor/overworld→underground, dungeon descent).
+ */
 export function isDoorStackPin(fromMap: ParsedMap, toMap: ParsedMap, twoWay = true): boolean {
   if (!twoWay) {
     return false;
   }
   if (fromMap.band === "indoor" && toMap.band === "indoor") {
-    return true;
-  }
-  if (toMap.band === "indoor") {
-    return true;
+    return !toMap.exitsToOverworld;
   }
   if (fromMap.band === "indoor" && toMap.band === "underground") {
     return true;
   }
   if (fromMap.band === "overworld" && toMap.band === "underground") {
     return true;
+  }
+  if (fromMap.band === "overworld" && toMap.band === "indoor") {
+    // Satellite overworld maps (winterland, halloween, …) pin their interiors.
+    // Town interiors from main stay on the shared indoor slab and separate in XY.
+    return fromMap.id !== "main";
   }
   if (fromMap.band === "underground" && toMap.band === "underground") {
     return isSequentialDungeonDescent(fromMap, toMap) || isLateralCaveLink(fromMap, toMap);
@@ -98,6 +105,14 @@ export function pickLayerZ(
   }
   if (fromMap.band === "indoor" && toMap.band === "indoor") {
     return fromPose.z + layerHeight;
+  }
+  if (fromMap.band === "overworld" && toMap.band === "underground") {
+    return fromPose.z - layerHeight;
+  }
+  if (fromMap.band === "indoor" && toMap.band === "underground") {
+    // Descend from a raised interior without snapping to the global underground
+    // band (mansion→tomb). Half a layer keeps the link between hub and parent.
+    return fromPose.z - layerHeight / 2;
   }
   if (fromMap.band === toMap.band) {
     return fromPose.z;

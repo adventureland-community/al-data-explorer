@@ -8,32 +8,19 @@ import {
   isSequentialDungeonDescent,
   pickLayerZ,
 } from "./layoutGraph";
+import { stubParsedMap } from "./parsedMapStub";
 import { DoorConnection, MapPose, ParsedMap } from "./types";
 
 function mapBand(band: ParsedMap["band"]): ParsedMap {
-  return {
-    id: "x",
+  return stubParsedMap("x", {
     name: "X",
-    ignore: false,
-    outside: band === "overworld",
     band,
-    minX: 0,
+    outside: band === "overworld",
     maxX: 100,
-    minY: 0,
     maxY: 100,
-    artMinX: 0,
     artMaxX: 100,
-    artMinY: 0,
     artMaxY: 100,
-    xLines: [],
-    yLines: [],
-    doors: [],
-    spawns: [],
-    quirks: [],
-    npcs: [],
-    monsters: [],
-    zones: [],
-  };
+  });
 }
 
 describe("pickLayerZ", () => {
@@ -44,6 +31,13 @@ describe("pickLayerZ", () => {
     expect(pickLayerZ(mapBand("overworld"), mapBand("indoor"), origin, layerHeight)).toBe(480);
     expect(pickLayerZ(mapBand("overworld"), mapBand("underground"), origin, layerHeight)).toBe(
       -480,
+    );
+  });
+
+  it("places underground halfway under an elevated indoor parent", () => {
+    const mansionPose = { x: 0, y: 0, z: 480 };
+    expect(pickLayerZ(mapBand("indoor"), mapBand("underground"), mansionPose, layerHeight)).toBe(
+      240,
     );
   });
 
@@ -92,11 +86,37 @@ describe("isDoorStackPin", () => {
     expect(isDoorStackPin(forest, town)).toBe(false);
   });
 
-  it("does not stack-pin a one-way exit onto its destination", () => {
+  it("stack-pins nested indoor floors above their parent", () => {
+    const tavern = mapBand("indoor");
+    tavern.exitsToOverworld = true;
+    const resort = mapBand("indoor");
+    expect(isDoorStackPin(tavern, resort, true)).toBe(true);
+    expect(isDoorStackPin(resort, tavern, true)).toBe(false);
+  });
+
+  it("does not stack-pin town interiors onto the overworld hub", () => {
     const town = mapBand("overworld");
+    town.id = "main";
     const arena = mapBand("indoor");
-    expect(isDoorStackPin(town, arena, true)).toBe(true);
+    expect(isDoorStackPin(town, arena, true)).toBe(false);
     expect(isDoorStackPin(town, arena, false)).toBe(false);
+  });
+
+  it("stack-pins satellite overworld interiors to their parent map", () => {
+    const winterland = mapBand("overworld");
+    winterland.id = "winterland";
+    const inn = mapBand("indoor");
+    inn.id = "winter_inn";
+    expect(isDoorStackPin(winterland, inn, true)).toBe(true);
+  });
+
+  it("stack-pins basements and caves under their parent", () => {
+    const town = mapBand("overworld");
+    const bank = mapBand("indoor");
+    const basement = mapBand("underground");
+    const cave = mapBand("underground");
+    expect(isDoorStackPin(bank, basement, true)).toBe(true);
+    expect(isDoorStackPin(town, cave, true)).toBe(true);
   });
 
   it("locks sequential dungeon descent but not same-depth branches", () => {
