@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import {
   Autocomplete,
   Box,
@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import { GMonster } from "typed-adventureland";
 import { overlayHex } from "./overlayColors";
-import { OverlayKind, OverlayVisibility, ViewerMode } from "./types";
+import { MapBand, OverlayKind, OverlayVisibility, ParsedMap, ViewerMode } from "./types";
 import { cameraMode, controlsHelpForMode } from "./cameraMode";
 
 export function overlayLabel(kind: OverlayKind): string {
@@ -83,6 +83,7 @@ interface WorldTopBarProps {
   loadingLabel: string | null;
   loadProgress: number;
   errorLabel: string | null;
+  children?: ReactNode;
 }
 
 export function WorldTopBar({
@@ -100,6 +101,7 @@ export function WorldTopBar({
   loadingLabel,
   loadProgress,
   errorLabel,
+  children,
 }: WorldTopBarProps) {
   const selected = mapChoices.find((choice) => choice.id === selectedMap) || null;
   return (
@@ -139,6 +141,7 @@ export function WorldTopBar({
         isOptionEqualToValue={(option, value) => option.id === value.id}
         renderInput={(params) => <TextField {...params} label="Go to map" />}
       />
+      {children}
       {cameraMode(viewMode).showLayerSlider && (
         <Box
           sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 220, flex: "1 1 200px" }}
@@ -284,6 +287,10 @@ interface WorldOverlayPanelProps {
   onToggleMonster: (type: string, visible: boolean) => void;
   onHideAllMonsters: () => void;
   onShowAllMonsters: () => void;
+  fogDensity: number;
+  onFogDensity: (value: number) => void;
+  soloBand: MapBand | null;
+  onSoloBand: (band: MapBand | null) => void;
 }
 
 export function WorldOverlayPanel({
@@ -302,6 +309,10 @@ export function WorldOverlayPanel({
   onToggleMonster,
   onHideAllMonsters,
   onShowAllMonsters,
+  fogDensity,
+  onFogDensity,
+  soloBand,
+  onSoloBand,
 }: WorldOverlayPanelProps) {
   const [monsterAnchor, setMonsterAnchor] = useState<HTMLElement | null>(null);
   const hiddenCount = hiddenMonsterTypes.size;
@@ -383,6 +394,22 @@ export function WorldOverlayPanel({
           />
         </Box>
       </Tooltip>
+      <Typography variant="overline" sx={{ lineHeight: 1, opacity: 0.7 }}>
+        Fog
+      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Slider
+          size="small"
+          min={0}
+          max={0.00005}
+          step={0.000001}
+          value={fogDensity}
+          onChange={(_event, value) => onFogDensity(Array.isArray(value) ? value[0] : value)}
+        />
+        <Typography variant="caption" sx={{ whiteSpace: "nowrap", minWidth: 50 }}>
+          {fogDensity === 0 ? "Off" : fogDensity.toFixed(6)}
+        </Typography>
+      </Box>
       <Button
         size="small"
         variant="outlined"
@@ -400,6 +427,26 @@ export function WorldOverlayPanel({
         onHideAll={onHideAllMonsters}
         onShowAll={onShowAllMonsters}
       />
+      <Typography variant="overline" sx={{ lineHeight: 1, opacity: 0.7 }}>
+        Band
+      </Typography>
+      <ToggleButtonGroup
+        size="small"
+        value={soloBand}
+        exclusive
+        onChange={(_event, value: MapBand | null) => onSoloBand(value)}
+        sx={{ display: "flex" }}
+      >
+        <ToggleButton value="overworld" sx={{ flex: 1, fontSize: 11, padding: "4px 6px" }}>
+          Over
+        </ToggleButton>
+        <ToggleButton value="indoor" sx={{ flex: 1, fontSize: 11, padding: "4px 6px" }}>
+          Indoor
+        </ToggleButton>
+        <ToggleButton value="underground" sx={{ flex: 1, fontSize: 11, padding: "4px 6px" }}>
+          Under
+        </ToggleButton>
+      </ToggleButtonGroup>
     </Paper>
   );
 }
@@ -475,5 +522,138 @@ export function WorldStatusBar({
         data v{dataVersion} | {new Date(dataTimestamp).toLocaleString()}
       </Typography>
     </Paper>
+  );
+}
+
+type SearchGroup = "Maps" | "Monsters" | "NPCs";
+
+interface SearchOption {
+  group: SearchGroup;
+  label: string;
+  detail: string;
+  mapId: string;
+  x?: number;
+  y?: number;
+}
+
+interface WorldSearchBarProps {
+  maps: Record<string, ParsedMap>;
+  monsters: Record<string, GMonster>;
+  mapChoices: MapChoice[];
+  onFocusMap: (mapId: string) => void;
+  onSelectMap: (mapId: string | null, focusAt?: { x: number; y: number }) => void;
+}
+
+export function WorldSearchBar({
+  maps,
+  monsters,
+  mapChoices,
+  onFocusMap,
+  onSelectMap,
+}: WorldSearchBarProps) {
+  const options = useMemo(() => {
+    const result: SearchOption[] = [];
+
+    for (const choice of mapChoices) {
+      result.push({
+        group: "Maps",
+        label: choice.name,
+        detail: choice.id,
+        mapId: choice.id,
+      });
+    }
+
+    const monsterLocations = new Map<string, string[]>();
+    for (const [mapId, map] of Object.entries(maps)) {
+      for (const m of map.monsters) {
+        const list = monsterLocations.get(m.type);
+        if (list) {
+          if (!list.includes(mapId)) list.push(mapId);
+        } else {
+          monsterLocations.set(m.type, [mapId]);
+        }
+      }
+    }
+
+    for (const [type, mapIds] of monsterLocations) {
+      const displayName = monsters[type]?.name ?? type;
+      const firstMap = mapIds[0];
+      const map = maps[firstMap];
+      const spawn = map?.monsters.find((m) => m.type === type);
+      result.push({
+        group: "Monsters",
+        label: displayName,
+        detail: `${type} — ${mapIds.map((id) => maps[id]?.name ?? id).join(", ")}`,
+        mapId: firstMap,
+        x: spawn ? spawn.x + spawn.width / 2 : undefined,
+        y: spawn ? spawn.y + spawn.height / 2 : undefined,
+      });
+    }
+
+    for (const [mapId, map] of Object.entries(maps)) {
+      for (const npc of map.npcs) {
+        result.push({
+          group: "NPCs",
+          label: npc.name ?? npc.label,
+          detail: `${npc.id} — ${map.name}`,
+          mapId,
+          x: npc.x,
+          y: npc.y,
+        });
+      }
+    }
+
+    return result;
+  }, [maps, monsters, mapChoices]);
+
+  return (
+    <Autocomplete<SearchOption, false, false, false>
+      size="small"
+      sx={{ minWidth: 240, flex: "1 1 200px", maxWidth: 360 }}
+      options={options}
+      groupBy={(option) => option.group}
+      getOptionLabel={(option) => option.label}
+      renderOption={(props, option) => (
+        <li {...props} key={`${option.group}-${option.mapId}-${option.label}`}>
+          <Box>
+            <Typography variant="body2">{option.label}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {option.detail}
+            </Typography>
+          </Box>
+        </li>
+      )}
+      filterOptions={(opts, state) => {
+        const needle = state.inputValue.toLowerCase().trim();
+        if (!needle) return opts;
+        return opts.filter(
+          (o) => o.label.toLowerCase().includes(needle) || o.detail.toLowerCase().includes(needle),
+        );
+      }}
+      onChange={(_event, option) => {
+        if (!option) return;
+        switch (option.group) {
+          case "Maps":
+            onFocusMap(option.mapId);
+            break;
+          case "Monsters":
+          case "NPCs":
+            if (option.x !== undefined && option.y !== undefined) {
+              onSelectMap(option.mapId, { x: option.x, y: option.y });
+            } else {
+              onFocusMap(option.mapId);
+            }
+            break;
+          default: {
+            const exhaustive: never = option.group;
+            throw new Error(`Unhandled group: ${exhaustive}`);
+          }
+        }
+      }}
+      value={null}
+      blurOnSelect
+      clearOnBlur
+      renderInput={(params) => <TextField {...params} label="Search maps, monsters, NPCs" />}
+    />
   );
 }
