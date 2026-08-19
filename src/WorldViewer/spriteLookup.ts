@@ -9,6 +9,8 @@ export interface SpriteSheetClip {
   cellHeight: number;
   row: number;
   col: number;
+  colNum: number;
+  rowNum: number;
   offsetX: number;
   offsetY: number;
   viewWidth: number;
@@ -20,7 +22,42 @@ type SpriteMatrixEntry = GSprite & {
   file?: string;
   columns?: number;
   rows?: number;
+  type?: string;
 };
+
+function spriteGridSize(type: string | undefined): { colNum: number; rowNum: number } {
+  switch (type) {
+    case "animation":
+      return { colNum: 3, rowNum: 1 };
+    case "tail":
+      return { colNum: 4, rowNum: 4 };
+    case "v_animation":
+    case "head":
+    case "hair":
+    case "hat":
+    case "s_wings":
+    case "face":
+    case "makeup":
+    case "beard":
+      return { colNum: 1, rowNum: 4 };
+    case "emblem":
+    case "gravestone":
+      return { colNum: 1, rowNum: 1 };
+    case "full":
+    case "wings":
+    case "body":
+    case "armor":
+    case "skin":
+    case "character":
+    case "upper":
+    case "a_makeup":
+    case "a_hat":
+    case undefined:
+      return { colNum: 3, rowNum: 4 };
+    default:
+      return { colNum: 3, rowNum: 4 };
+  }
+}
 
 function matrixPosition(value: unknown, matrix: unknown[][]): { row: number; col: number } | null {
   for (let row = 0; row < matrix.length; row += 1) {
@@ -66,42 +103,50 @@ export function lookupSkinSprite(
 
   const columns = match.data.columns || 1;
   const rows = match.data.rows || 1;
-  const cellWidth = (image.width / columns) * size;
-  const cellHeight = (image.height / rows) * size;
+  const { colNum, rowNum } = spriteGridSize(match.data.type);
+  const cellWidth = image.width / (columns * colNum);
+  const cellHeight = image.height / (rows * rowNum);
+
   const dimension = dimensions[skin];
+  let viewWidth = cellWidth;
+  let viewHeight = cellHeight;
   let offsetX = 0;
   let offsetY = 0;
   if (dimension) {
-    offsetX = cellWidth / 3 - dimension[0] * size;
-    offsetY = cellHeight / 4 - (dimension[2] || 0) - dimension[1] * size;
+    viewWidth = dimension[0] * size;
+    viewHeight = dimension[1] * size;
+    offsetX = Math.round((cellWidth * size - viewWidth) / 2 + (dimension[2] || 0) * size);
+    offsetY = Math.round(cellHeight * size - viewHeight);
   }
 
   return {
     url: adventureLandAssetUrl(match.data.file),
     sheetWidth: image.width * size,
     sheetHeight: image.height * size,
-    cellWidth,
-    cellHeight,
+    cellWidth: cellWidth * size,
+    cellHeight: cellHeight * size,
     row: match.row,
     col: match.col,
+    colNum,
+    rowNum,
     offsetX,
     offsetY,
-    viewWidth: Math.max(1, cellWidth / 3 - offsetX),
-    viewHeight: Math.max(1, cellHeight / 4 - offsetY),
+    viewWidth: Math.max(1, viewWidth),
+    viewHeight: Math.max(1, viewHeight),
   };
 }
 
-/** Source rect on the natural sprite sheet that the old CSS clip window showed. */
+/** Source rect on the natural sprite sheet (facing direction 0, frame 0). */
 export function spriteClipSource(
   clip: SpriteSheetClip,
   naturalWidth: number,
 ): { sx: number; sy: number; sw: number; sh: number } {
-  const size = clip.sheetWidth / Math.max(naturalWidth, 1);
+  const scale = clip.sheetWidth / Math.max(naturalWidth, 1);
   return {
-    sx: (clip.col * clip.cellWidth + clip.offsetX / 2) / size,
-    sy: (clip.row * clip.cellHeight + clip.offsetY) / size,
-    sw: clip.viewWidth / size,
-    sh: clip.viewHeight / size,
+    sx: (clip.col * clip.colNum * clip.cellWidth + clip.offsetX) / scale,
+    sy: (clip.row * clip.rowNum * clip.cellHeight + clip.offsetY) / scale,
+    sw: clip.viewWidth / scale,
+    sh: clip.viewHeight / scale,
   };
 }
 
