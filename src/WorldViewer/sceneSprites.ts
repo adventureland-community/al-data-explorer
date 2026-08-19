@@ -85,10 +85,12 @@ function makeMapSprite(
     polygonOffsetFactor: -4,
     polygonOffsetUnits: -4,
   });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+  const geometry = new THREE.PlaneGeometry(1, 1);
+  geometry.translate(0, 0.5, 0);
+  const mesh = new THREE.Mesh(geometry, material);
   mesh.userData.isMapSprite = true;
   mesh.scale.set(clip.viewWidth, clip.viewHeight, 1);
-  mesh.position.set(x, lift + clip.viewHeight / 2, y);
+  mesh.position.set(x, lift, y);
   mesh.renderOrder = 20;
   mesh.onBeforeRender = (_renderer, _scene, camera) => {
     faceCamera(mesh, camera);
