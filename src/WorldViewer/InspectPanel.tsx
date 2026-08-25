@@ -1,7 +1,7 @@
-import { Box, Chip, Divider, Link, List, ListItem, ListItemText, Typography } from "@mui/material";
+import { Box, Divider, Link, Typography } from "@mui/material";
 import { GMonster, GNpc } from "typed-adventureland";
 import { GItems } from "../GDataContext";
-import { parseDropTable } from "./dropTypes";
+import { MonsterDropList, NpcShopItemList } from "./InspectSourceLists";
 import { OverlayPick, spawnOverlayHint } from "./overlayPick";
 import { ParsedMap } from "./types";
 import { monsterDisplayName } from "./WorldViewerHud";
@@ -36,119 +36,11 @@ function MonsterStats({ monster }: { monster: GMonster }) {
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
       {stats.map((stat) => (
-        <Chip
-          key={stat}
-          size="small"
-          label={stat}
-          variant="outlined"
-          sx={{ height: 22, fontSize: 11 }}
-        />
+        <Typography key={stat} variant="caption" component="span" sx={{ opacity: 0.8 }}>
+          {stat}
+        </Typography>
       ))}
     </Box>
-  );
-}
-
-function MonsterDrops({
-  monsterType,
-  drops,
-  items,
-}: {
-  monsterType: string;
-  drops: Record<string, unknown[]>;
-  items: GItems;
-}) {
-  const parsed = parseDropTable(drops[monsterType]);
-  if (parsed.length === 0) {
-    return null;
-  }
-  return (
-    <>
-      <Typography variant="overline" sx={{ lineHeight: 1, opacity: 0.7, mt: 1, display: "block" }}>
-        Drops
-      </Typography>
-      <List dense disablePadding sx={{ mt: 0.25 }}>
-        {parsed.map((drop) => {
-          const itemDef = (items as Record<string, { name?: string } | undefined>)[drop.key];
-          const displayName = itemDef?.name ?? drop.key;
-          const prob = drop.probability != null ? `${(drop.probability * 100).toFixed(1)}%` : "";
-          return (
-            <ListItem key={drop.key} disableGutters disablePadding sx={{ minHeight: 24 }}>
-              <ListItemText
-                primary={displayName}
-                primaryTypographyProps={{ variant: "body2", noWrap: true }}
-              />
-              {prob && (
-                <Typography variant="caption" sx={{ opacity: 0.5, flexShrink: 0, ml: 1 }}>
-                  {prob}
-                </Typography>
-              )}
-            </ListItem>
-          );
-        })}
-      </List>
-    </>
-  );
-}
-
-function NpcShop({
-  npcId,
-  npcs,
-  items,
-}: {
-  npcId: string;
-  npcs: Record<string, GNpc>;
-  items: GItems;
-}) {
-  const npcDef = npcs[npcId];
-  if (!npcDef) {
-    return null;
-  }
-  const badges = [npcDef.role, npcDef.quest && `Quest: ${npcDef.quest}`].filter(
-    (b): b is string => typeof b === "string",
-  );
-  const shopItems = npcDef.items
-    ? npcDef.items.filter((k): k is NonNullable<typeof k> => k != null)
-    : [];
-  return (
-    <>
-      {badges.length > 0 && (
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
-          {badges.map((b) => (
-            <Chip
-              key={b}
-              size="small"
-              label={b}
-              variant="outlined"
-              sx={{ height: 22, fontSize: 11 }}
-            />
-          ))}
-        </Box>
-      )}
-      {shopItems.length > 0 && (
-        <>
-          <Typography
-            variant="overline"
-            sx={{ lineHeight: 1, opacity: 0.7, mt: 1, display: "block" }}
-          >
-            Shop
-          </Typography>
-          <List dense disablePadding sx={{ mt: 0.25 }}>
-            {shopItems.map((itemKey) => {
-              const key = String(itemKey);
-              const itemDef = (items as Record<string, { name?: string } | undefined>)[key];
-              return (
-                <ListItem key={key} disableGutters disablePadding sx={{ minHeight: 24 }}>
-                  <ListItemText
-                    primary={itemDef?.name ?? key}
-                    primaryTypographyProps={{ variant: "body2", noWrap: true }}
-                  />
-                </ListItem>
-              );
-            })}
-          </List>
-        </>
-      )}
-    </>
   );
 }
 
@@ -184,9 +76,6 @@ function inspectTitle(pick: OverlayPick, monsters: Record<string, GMonster>): st
 }
 
 function monsterDocsUrl(monsterType: unknown): string | null {
-  // The official client links monsters as `/docs/guide/all/monsters/` + `name`.
-  // Some parsed map data can contain unexpected suffixes (e.g. `goo/null`), so we
-  // hard-sanitize to the base slug to avoid broken routes.
   if (typeof monsterType !== "string") {
     return null;
   }
@@ -387,10 +276,12 @@ export function InspectPanel({
       {inspect.kind === "monster" && (
         <>
           {monsterDef && <MonsterStats monster={monsterDef} />}
-          <MonsterDrops monsterType={inspect.monster.type} drops={drops} items={items} />
+          <MonsterDropList monsterType={inspect.monster.type} drops={drops} items={items} />
         </>
       )}
-      {inspect.kind === "npc" && <NpcShop npcId={inspect.npc.id} npcs={npcs} items={items} />}
+      {inspect.kind === "npc" && (
+        <NpcShopItemList npcId={inspect.npc.id} npcs={npcs} items={items} />
+      )}
     </Box>
   );
 }
