@@ -50,11 +50,20 @@ export type AcquisitionExchangeView = {
   linkTo: string;
 };
 
+export type AcquisitionCraftView = {
+  /** Ways to obtain via craft/dismantle — not "used as ingredient" (that's ItemDetail cards). */
+  kind: "craft" | "dismantle" | "dismantle-ingredient";
+  label: string;
+  secondary?: string;
+  linkTo?: string;
+};
+
 export type ItemAcquisition = {
   drops: AcquisitionDropView[];
   shops: AcquisitionShopView[];
   tokens: AcquisitionTokenView[];
   exchanges: AcquisitionExchangeView[];
+  crafts: AcquisitionCraftView[];
   hasSources: boolean;
 };
 
@@ -247,12 +256,50 @@ export function getItemAcquisition(itemKey: ItemKey, G: CustomGData): ItemAcquis
   const shops = toShopViews(itemKey, G.indexes.shopsByItem.get(itemKey) ?? [], lookups, G.items);
   const tokens = toTokenViews(G.indexes.tokenOffersByItem.get(itemKey) ?? [], G.items);
 
+  const crafts: AcquisitionCraftView[] = [];
+  const craftRecipe = (G.craft as Record<string, { cost?: number }> | undefined)?.[itemKey];
+  if (craftRecipe) {
+    crafts.push({
+      kind: "craft",
+      label: "Craftable",
+      secondary:
+        craftRecipe.cost != null ? `${craftRecipe.cost.toLocaleString("en-US")}g` : undefined,
+      linkTo: `/items/${itemKey}`,
+    });
+  }
+  const dismantleRecipe = (G.dismantle as Record<string, { cost?: number }> | undefined)?.[itemKey];
+  if (dismantleRecipe) {
+    crafts.push({
+      kind: "dismantle",
+      label: "Dismantleable",
+      secondary:
+        dismantleRecipe.cost != null
+          ? `${dismantleRecipe.cost.toLocaleString("en-US")}g`
+          : undefined,
+    });
+  }
+  for (const output of G.indexes.dismantlesByIngredient.get(itemKey) ?? []) {
+    const name = G.items[output]?.name ?? output;
+    crafts.push({
+      kind: "dismantle-ingredient",
+      label: `From dismantling: ${name}`,
+      secondary: output,
+      linkTo: `/items/${output}`,
+    });
+  }
+
   return {
     drops,
     shops,
     tokens,
     exchanges,
-    hasSources: drops.length > 0 || shops.length > 0 || tokens.length > 0 || exchanges.length > 0,
+    crafts,
+    hasSources:
+      drops.length > 0 ||
+      shops.length > 0 ||
+      tokens.length > 0 ||
+      exchanges.length > 0 ||
+      crafts.length > 0,
   };
 }
 

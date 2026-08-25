@@ -1,12 +1,9 @@
-// TODO: search for items by name
-// TODO: search for property by name
-// TODO: filters for properties
-// TODO: render source of item, buy,exchange, so forth
-import { Dialog, DialogContent, DialogTitle } from "@mui/material";
+import { Dialog, DialogContent, DialogTitle, Grid } from "@mui/material";
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { GItem, ItemKey, ItemType, OffhandType, SlotType, WeaponType } from "typed-adventureland";
 
 import { GDataContext, GItems } from "../GDataContext";
+import { ItemSourcesPanel } from "../Items/components/ItemSourcesPanel";
 import { ItemPicker, ItemPickerRow } from "../Shared/ItemPicker";
 import { SelectedCharacterClass } from "./types";
 
@@ -64,9 +61,13 @@ export function GearSelectDialog({
 }) {
   const G = useContext(GDataContext);
   const [open, setOpen] = useState(false);
+  const [focusKey, setFocusKey] = useState<ItemKey | null>(null);
 
   useEffect(() => {
-    if (slot) setOpen(true);
+    if (slot) {
+      setOpen(true);
+      setFocusKey(null);
+    }
   }, [slot]);
 
   const filterItem = useMemo(
@@ -103,12 +104,22 @@ export function GearSelectDialog({
     >
       <DialogTitle id="scroll-dialog-title">Choose {slot}</DialogTitle>
       <DialogContent dividers>
-        <ItemPicker
-          items={items}
-          filterItem={filterItem}
-          onSelect={onSelectItem}
-          searchAttributes
-        />
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={focusKey ? 8 : 12}>
+            <ItemPicker
+              items={items}
+              filterItem={filterItem}
+              onSelect={onSelectItem}
+              onFocusItem={setFocusKey}
+              searchAttributes
+            />
+          </Grid>
+          {focusKey && (
+            <Grid item xs={12} md={4}>
+              <ItemSourcesPanel itemKey={focusKey} G={G} compact showMarket={false} />
+            </Grid>
+          )}
+        </Grid>
       </DialogContent>
     </Dialog>
   );

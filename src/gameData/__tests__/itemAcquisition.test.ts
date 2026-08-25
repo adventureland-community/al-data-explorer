@@ -100,6 +100,22 @@ describe("getItemAcquisition", () => {
     expect(acq.tokens[0]?.costLabel).toBe("120 × Fun Token");
   });
 
+  it("does not list 'used in craft' — that belongs on ItemDetail craft cards", () => {
+    const G = stubG({
+      items: {
+        vitearring: { name: "Earring of Vitality", type: "earring" },
+        saffronloop: { name: "Saffron Loop", type: "earring" },
+      } as unknown as CustomGData["items"],
+      craft: {
+        saffronloop: { items: [[1, "vitearring"], [1, "feather"]], cost: 1000 },
+      },
+    });
+
+    const acq = getItemAcquisition("vitearring" as ItemKey, G);
+    expect(acq.crafts.some((c) => c.label.includes("Used in craft"))).toBe(false);
+    expect(acq.crafts).toHaveLength(0);
+  });
+
   it("lists exchange rewards separately from monster drops", () => {
     const G = stubG({
       items: {
@@ -108,7 +124,11 @@ describe("getItemAcquisition", () => {
       } as unknown as CustomGData["items"],
       drops: {
         monsters: {},
-        gem0: [[100], [0.5, "armorbox"]],
+        // Weighted exchange table — odds are weight / sum (server_functions.js).
+        gem0: [
+          [1, "armorbox"],
+          [1, "helmet"],
+        ],
       },
     });
 

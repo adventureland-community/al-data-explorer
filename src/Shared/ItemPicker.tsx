@@ -30,6 +30,7 @@ export function ItemPicker({
   filterItem,
   onSelect,
   onAddAll,
+  onFocusItem,
   selectedKey,
   showLevelSlider = true,
   level: controlledLevel,
@@ -44,6 +45,8 @@ export function ItemPicker({
   onSelect?: (row: ItemPickerRow) => void;
   /** When set, shows “Add all matching” for the current filtered list. */
   onAddAll?: (rows: ItemPickerRow[]) => void;
+  /** Fires when a row is hovered so hosts can show acquisition / preview. */
+  onFocusItem?: (itemKey: ItemKey | null) => void;
   selectedKey?: ItemKey;
   showLevelSlider?: boolean;
   level?: number;
@@ -181,6 +184,7 @@ export function ItemPicker({
                     hover
                     selected={selectedKey === row.itemName}
                     onClick={() => onSelect?.({ ...row, level: itemLevel })}
+                    onMouseEnter={() => onFocusItem?.(row.itemName)}
                     sx={{ cursor: onSelect ? "pointer" : "default" }}
                   >
                     <TableCell width={50}>
