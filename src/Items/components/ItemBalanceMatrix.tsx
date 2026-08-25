@@ -19,6 +19,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { ItemKey } from "typed-adventureland";
 
 import {
@@ -26,6 +27,7 @@ import {
   CompareStatKey,
   LevelStats,
   MATRIX_MAX_LEVEL,
+  MATRIX_STAT_PRIORITY,
   buildAllLevelStats,
   isEquippable,
   isValidLevel,
@@ -84,43 +86,27 @@ function keysPresentOrDiffering(stats: LevelStats, baseline?: LevelStats): Compa
   });
 }
 
-function withPreferredAttr0(
-  keys: CompareStatKey[],
-  preferAttr0: boolean,
-  hasAttr0: boolean,
-): CompareStatKey[] {
-  let next = keys.slice(0, MATRIX_STAT_LIMIT);
-  if (preferAttr0 && hasAttr0 && !next.includes("attr0")) {
-    const promoted: CompareStatKey[] = ["attr0", ...next.filter((k) => k !== "attr0")];
-    next = promoted.slice(0, MATRIX_STAT_LIMIT);
-  }
-  return next;
-}
-
 /**
- * One key set for the whole row so a stat that matches the baseline at one level
- * (e.g. armor on +2) does not vanish and reshuffle the cell.
+ * Order relevant stats by MATRIX_STAT_PRIORITY so on-hit stats (attr0, explosion, blast)
+ * surface before generic armor columns. Cap still applies.
  */
 export function pickRowStatKeys(
   levelStats: LevelStats[],
   baselineLevelStats?: LevelStats[] | null,
-  preferAttr0 = false,
 ): CompareStatKey[] {
   const relevant = new Set<CompareStatKey>();
-  let hasAttr0 = false;
   for (let i = 0; i < levelStats.length; i += 1) {
     const stats = levelStats[i];
     if (!stats || Object.keys(stats).length === 0) continue;
-    if (stats.attr0 != null && stats.attr0 !== 0) hasAttr0 = true;
     for (const key of keysPresentOrDiffering(stats, baselineLevelStats?.[i])) {
       relevant.add(key);
     }
   }
-  return withPreferredAttr0(
-    COMPARE_STAT_KEYS.filter((key) => relevant.has(key)),
-    preferAttr0,
-    hasAttr0,
-  );
+  const ordered = MATRIX_STAT_PRIORITY.filter((key) => relevant.has(key));
+  for (const key of COMPARE_STAT_KEYS) {
+    if (relevant.has(key) && !ordered.includes(key)) ordered.push(key);
+  }
+  return ordered.slice(0, MATRIX_STAT_LIMIT);
 }
 
 /** Stats-only cell — no icons — so rows scan horizontally. */
@@ -223,11 +209,12 @@ function LevelStatCell({
 
 export function ItemBalanceMatrix({
   items,
-  onRowClick,
+  itemHref,
   effectLookups,
 }: {
   items: GItems;
-  onRowClick?: (itemKey: ItemKey) => void;
+  /** Real `/items/:key` href so Ctrl/Cmd/middle-click open a new tab. */
+  itemHref?: (itemKey: ItemKey) => string;
   effectLookups?: Parameters<typeof getItemEffects>[2];
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -423,65 +410,78 @@ export function ItemBalanceMatrix({
             <TableBody>
               {rows.map(({ itemKey, gItem, levelStats, effectLines }) => {
                 const isBaseline = baselineItemKey === itemKey;
-                const rowStatKeys = pickRowStatKeys(
-                  levelStats,
-                  isBaseline ? null : baselineStats,
-                  Boolean((gItem as { ability?: string }).ability),
-                );
+                const rowStatKeys = pickRowStatKeys(levelStats, isBaseline ? null : baselineStats);
+                const href = itemHref?.(itemKey);
                 return (
                   <TableRow
                     key={itemKey}
                     hover
                     sx={{
-                      cursor: onRowClick ? "pointer" : "default",
                       bgcolor: isBaseline ? "action.selected" : undefined,
                     }}
-                    onClick={() => onRowClick?.(itemKey)}
                   >
                     <TableCell sx={STICKY_CELL_SX}>
                       <Box
                         sx={{
                           display: "grid",
-                          gridTemplateColumns: "auto minmax(0, 1fr) auto",
+                          gridTemplateColumns: "minmax(0, 1fr) auto",
                           columnGap: 0.75,
                           alignItems: "center",
                           width: "100%",
                         }}
                       >
-                        <Box sx={{ lineHeight: 0 }}>
-                          <ItemInstance
-                            itemInfo={{ name: itemKey, level: 0 }}
-                            size={36}
-                            tooltip={false}
-                          />
-                        </Box>
-                        <Box sx={{ minWidth: 0, overflow: "hidden" }}>
-                          <Typography variant="body2" noWrap title={gItem.name}>
-                            {gItem.name}
-                            {isBaseline ? " · baseline" : ""}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            noWrap
-                            display="block"
-                          >
-                            {gItem.type}
-                            {gItem.wtype ? ` · ${gItem.wtype}` : ""}
-                            {gItem.tier != null ? ` · t${gItem.tier}` : ""}
-                          </Typography>
-                          {effectLines.map((line) => (
+                        <Box
+                          component={href ? RouterLink : "div"}
+                          {...(href ? { to: href } : {})}
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: "auto minmax(0, 1fr)",
+                            columnGap: 0.75,
+                            alignItems: "center",
+                            minWidth: 0,
+                            textDecoration: "none",
+                            color: "inherit",
+                            borderRadius: 0.5,
+                            "&:hover": href
+                              ? { bgcolor: "action.hover", color: "primary.main" }
+                              : undefined,
+                          }}
+                        >
+                          <Box sx={{ lineHeight: 0 }}>
+                            <ItemInstance
+                              itemInfo={{ name: itemKey, level: 0 }}
+                              size={36}
+                              tooltip={false}
+                            />
+                          </Box>
+                          <Box sx={{ minWidth: 0, overflow: "hidden" }}>
+                            <Typography variant="body2" noWrap title={gItem.name}>
+                              {gItem.name}
+                              {isBaseline ? " · baseline" : ""}
+                            </Typography>
                             <Typography
-                              key={line}
                               variant="caption"
-                              color="warning.light"
+                              color="text.secondary"
                               noWrap
                               display="block"
-                              title={line}
                             >
-                              {line}
+                              {gItem.type}
+                              {gItem.wtype ? ` · ${gItem.wtype}` : ""}
+                              {gItem.tier != null ? ` · t${gItem.tier}` : ""}
                             </Typography>
-                          ))}
+                            {effectLines.map((line) => (
+                              <Typography
+                                key={line}
+                                variant="caption"
+                                color="warning.light"
+                                noWrap
+                                display="block"
+                                title={line}
+                              >
+                                {line}
+                              </Typography>
+                            ))}
+                          </Box>
                         </Box>
                         <Stack direction="row" spacing={0} sx={{ flexShrink: 0 }}>
                           {selectedItemKeys.length >= 2 && (
@@ -496,10 +496,7 @@ export function ItemBalanceMatrix({
                                     ? `Clear baseline ${gItem.name}`
                                     : `Set ${gItem.name} as baseline`
                                 }
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setBaseline(isBaseline ? null : itemKey);
-                                }}
+                                onClick={() => setBaseline(isBaseline ? null : itemKey)}
                               >
                                 <FlagIcon fontSize="small" />
                               </IconButton>
@@ -508,10 +505,7 @@ export function ItemBalanceMatrix({
                           <IconButton
                             size="small"
                             aria-label={`Remove ${gItem.name}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeItem(itemKey);
-                            }}
+                            onClick={() => removeItem(itemKey)}
                           >
                             <CloseIcon fontSize="small" />
                           </IconButton>

@@ -30,4 +30,6 @@ export const STAT_DISPLAY_LABELS: Record<string, string> = {
   xp: "XP",
   mp_cost: "Attack MP Cost",
   mp_reduction: "Skill MP Reduction",
+  explosion: "Explosion",
+  blast: "Blast",
 };

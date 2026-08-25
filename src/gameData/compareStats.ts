@@ -27,6 +27,8 @@ export const COMPARE_STAT_KEYS = [
   "apiercing",
   "rpiercing",
   "crit",
+  "explosion",
+  "blast",
   "luck",
   "gold",
   "mp_cost",
@@ -40,6 +42,37 @@ export const COMPARE_STAT_KEYS = [
 ] as const;
 
 export type CompareStatKey = typeof COMPARE_STAT_KEYS[number];
+
+/** Promote on-hit / ability-like stats when present (attr0, splash). Cap still applies in matrix. */
+export const MATRIX_STAT_PRIORITY: readonly CompareStatKey[] = [
+  "attr0",
+  "explosion",
+  "blast",
+  "crit",
+  "attack",
+  "hp",
+  "armor",
+  "resistance",
+  "dex",
+  "int",
+  "str",
+  "vit",
+  "for",
+  "speed",
+  "range",
+  "apiercing",
+  "rpiercing",
+  "luck",
+  "gold",
+  "mp_cost",
+  "mp_reduction",
+  "courage",
+  "mcourage",
+  "pcourage",
+  "aura",
+  "stat",
+  "mp",
+];
 
 export const MATRIX_MAX_LEVEL = 13;
 
