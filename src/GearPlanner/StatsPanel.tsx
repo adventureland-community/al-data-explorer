@@ -1,5 +1,3 @@
-// we need character class, level, gear
-
 import {
   Grid,
   Divider,
@@ -20,41 +18,11 @@ import {
 import { ItemInfo, MonsterKey, SlotType, StatType } from "typed-adventureland";
 import { useContext, useState } from "react";
 import { ATTRIBUTES } from "../constants";
-import { GDataContext, MainStatType } from "../GDataContext";
-import {
-  calculateItemStatsByLevel,
-  modifyPlayerStatsByAttributes,
-  addItemSetStats,
-} from "../Utils";
+import { GDataContext, CustomGData, MainStatType } from "../GDataContext";
+import { getItemEffects } from "../gameData/itemEffects";
+import { computeLoadoutStats } from "../gameData/loadoutStats";
 import { SelectedCharacterClass } from "./types";
 import { theo_dps } from "./calculations";
-
-// https://discord.com/channels/238332476743745536/1039945553640968353/1109104463018475630
-function calculateStatsByLevel(
-  stat: MainStatType,
-  level: number,
-  characterClass: SelectedCharacterClass,
-) {
-  // for(stat in class_def.stats)
-  //   {
-  const base = characterClass.stats[stat];
-  const scaling = characterClass.lstats[stat];
-  let value = base + level * scaling;
-  if (level > 40) value += (level - 40) * scaling;
-  if (level > 55) value += (level - 55) * scaling;
-  if (level > 65) value += (level - 65) * scaling;
-  if (level > 80) value += (level - 80) * scaling;
-
-  return Math.floor(value);
-
-  // player[stat] = class_def.stats[stat] + player.level * class_def.lstats[stat];
-  // if (player.level > 40) player[stat] += (player.level - 40) * class_def.lstats[stat];
-  // if (player.level > 55) player[stat] += (player.level - 55) * class_def.lstats[stat];
-  // if (player.level > 65) player[stat] += (player.level - 65) * class_def.lstats[stat];
-  // if (player.level > 80) player[stat] -= (player.level - 80) * class_def.lstats[stat];
-  // player[stat] = floor(player[stat]);
-  // }
-}
 
 function DamageVisualization({ source, target }: { source: any; target: any }) {
   const damage = theo_dps(source, target);
@@ -97,7 +65,39 @@ function DamageVisualization({ source, target }: { source: any; target: any }) {
   );
 }
 
-// buffs? mluck?
+function AbilityLines({ gear, G }: { gear: { [slot in SlotType]?: ItemInfo }; G: CustomGData }) {
+  const lines: string[] = [];
+  for (const itemInfo of Object.values(gear)) {
+    if (!itemInfo) continue;
+    const gItem = G.items[itemInfo.name];
+    if (!gItem) continue;
+    const effects = getItemEffects(gItem, itemInfo.level, {
+      skills: G.skills as never,
+      conditions: G.conditions as never,
+    });
+    for (const effect of effects) {
+      if (effect.kindLabel === "Ability" || effect.kindLabel === "Aura") {
+        lines.push(`${gItem.name}: ${effect.title}${effect.summary ? ` — ${effect.summary}` : ""}`);
+      }
+    }
+  }
+  if (lines.length === 0) return null;
+  return (
+    <>
+      <Divider textAlign="left">ABILITIES / AURAS</Divider>
+      <Table size="small">
+        <TableBody>
+          {lines.map((line) => (
+            <TableRow key={line}>
+              <TableCell>{line}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </>
+  );
+}
+
 export function StatsPanel({
   selectedCharacterClass,
   level,
@@ -107,19 +107,14 @@ export function StatsPanel({
   level: number;
   gear: { [slot in SlotType]?: ItemInfo };
 }) {
-  const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent"); // TODO: store last selected mob in localstorage and load it from there.
+  const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
   const G = useContext(GDataContext);
 
   if (!G) {
     return <></>;
   }
 
-  // TODO: determine stats for character
-  let stats: { [T in StatType]?: number } = {};
-  // https://discord.com/channels/238332476743745536/238332476743745536/1008354654939263076
-  // so it is probably 1*lstat to 40 and 3*lstat after
   const mainStatTypes: MainStatType[] = ["dex", "int", "vit", "str", "for"];
-  // heal?
   const defenseStatTypes: StatType[] = [
     "resistance",
     "armor",
@@ -131,7 +126,6 @@ export function StatsPanel({
     "manasteal",
     "evasion",
   ] as StatType[];
-
   const offenseStatTypes: StatType[] = [
     "frequency",
     "attack",
@@ -139,39 +133,20 @@ export function StatsPanel({
     "rpiercing",
     "crit",
     "critdamage",
-  ] as StatType[]; // is range offensive?
+    "explosion",
+    "blast",
+  ] as StatType[];
+  const otherStatTypes: StatType[] = ["speed", "range", "mp_cost", "mp_reduction"];
 
-  const otherStatTypes: StatType[] = [
-    "speed",
-    "range",
-    "mp_cost",
-    "mp_reduction" /* , "goldm", "xpm", "luckm" */,
-  ];
-  // "miss", "reflection", "lifesteal", "manasteal","rpiercing", "apiercing", "crit", "critdamage", "dreturn", "xrange"
-  // "pnresistance", "fireresistance", "fzresistance", "stun", "blast", "explosion"
-  // "courage", "mcourage", "pcourage", "fear", "pzazz"
-
+  let stats: { [T in StatType]?: number } = {};
   if (selectedCharacterClass) {
-    stats = { ...stats, ...selectedCharacterClass };
-
-    for (const stat of mainStatTypes) {
-      stats[stat] = calculateStatsByLevel(stat, level, selectedCharacterClass);
-    }
-    // console.log("main stats", stats);
-  }
-
-  for (const [, itemInfo] of Object.entries(gear)) {
-    const itemName = itemInfo.name;
-    const gItem = G.items[itemName];
-    // TODO: what about special achievements on items?
-    const itemStats = calculateItemStatsByLevel(gItem, itemInfo.level);
-    Object.entries(itemStats).forEach(([key, value]) => {
-      const stat = key as StatType;
-      stats[stat] = (stats[stat] ?? 0) + (value ?? 0);
+    stats = computeLoadoutStats({
+      characterClass: selectedCharacterClass,
+      level,
+      gear,
+      G,
     });
   }
-
-  addItemSetStats(G, stats, gear);
 
   Object.entries(stats)
     .filter(
@@ -185,14 +160,13 @@ export function StatsPanel({
         stat !== "g" &&
         stat !== "s" &&
         stat !== "tier" &&
-        stat !== "s" && // stack size
-        stat !== "a" && // ???
-        stat !== "e" && // ???
+        stat !== "a" &&
+        stat !== "e" &&
+        stat !== "attr0" &&
+        stat !== "attr1" &&
         typeof value === "number",
     )
     .forEach(([stat]) => otherStatTypes.push(stat as unknown as StatType));
-
-  modifyPlayerStatsByAttributes(level, stats);
 
   const fakePlayer = {
     ...stats,
@@ -232,7 +206,7 @@ export function StatsPanel({
               <TableRow key={`stat_${stat}`}>
                 <TableCell
                   title={getStatsDescription(stat)}
-                  style={{
+                  sx={{
                     fontWeight: selectedCharacterClass?.main_stat === stat ? "bold" : "normal",
                   }}
                 >
@@ -248,13 +222,14 @@ export function StatsPanel({
       </Grid>
       <Grid item xs={3}>
         <Divider textAlign="left">OFFENSE</Divider>
-        <Table size="small" aria-label="a dense table">
+        <Table size="small">
           <TableBody>
             {offenseStatTypes.map((stat) => (
               <TableRow key={`stat_${stat}`}>
                 <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
                 <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
-                  {Math.round(stats[stat] ?? 0)}
+                  {Math.round((stats[stat] ?? 0) * (stat === "frequency" ? 100 : 1)) /
+                    (stat === "frequency" ? 100 : 1)}
                 </TableCell>
               </TableRow>
             ))}
@@ -263,7 +238,7 @@ export function StatsPanel({
       </Grid>
       <Grid item xs={3}>
         <Divider textAlign="left">DEFENSE</Divider>
-        <Table size="small" aria-label="a dense table">
+        <Table size="small">
           <TableBody>
             {defenseStatTypes.map((stat) => (
               <TableRow key={`stat_${stat}`}>
@@ -278,7 +253,7 @@ export function StatsPanel({
       </Grid>
       <Grid item xs={3}>
         <Divider textAlign="left">OTHER</Divider>
-        <Table size="small" aria-label="a dense table">
+        <Table size="small">
           <TableBody>
             {otherStatTypes
               .filter((stat) => stats[stat])
@@ -292,65 +267,26 @@ export function StatsPanel({
               ))}
           </TableBody>
         </Table>
+        <AbilityLines gear={gear} G={G} />
       </Grid>
-      <Grid item xs={8}>
-        <FormControl fullWidth>
-          <InputLabel id="monster-target-label">Monster</InputLabel>
-          {/* TODO: AutoComplete / search https://mui.com/material-ui/react-autocomplete/ */}
+      <Grid item xs={12}>
+        <FormControl fullWidth sx={{ mt: 2 }}>
+          <InputLabel id="monster-select-label">Target monster</InputLabel>
           <Select
-            labelId="monster-target-label"
+            labelId="monster-select-label"
             value={targetMonster}
-            label={G.monsters[targetMonster].name}
+            label="Target monster"
             onChange={handleChange}
           >
-            {Object.entries(G.monsters).map(([key, monster]) => (
+            {Object.keys(G.monsters).map((key) => (
               <MenuItem key={key} value={key}>
-                {monster.name}
+                {G.monsters[key as MonsterKey].name ?? key}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
-        <br />
-        {/* // G.monsters.ent
-          // there is attack, frequency, damage_type
-          // we could also use range to verify if we can kite it.
-          // G.monsters.ent.abilities has a key and a cooldown mtangle
-          // G.skills.mtangle applies a condition called tangled
-          // G.conditions.tangled appears to set speed to 24
-          // TODO: we need a "fake player" object instead of "stats" should be easier to reason about. 
-          // TODO: color monster dps red if you will be 1shot, perhaps add a warning icon.
-          // TODO: render minimum damage and maximum damage in case of crit.
-          // TODO: render your abilities damage / dps against the target
-          */}
         <DamageVisualization source={G.monsters[targetMonster]} target={fakePlayer} />
-        <br />
-        you vs {targetMonster} dps: {theo_dps(fakePlayer, G.monsters[targetMonster])}
       </Grid>
     </Grid>
   );
 }
-
-// Rising
-// function stat_from_level(stat,lvl,ctype){
-//   //Only for non merchant characters
-//   const base = G.classes[ctype].stats[stat]
-//   const scaling = G.classes[ctype].lstats[stat]
-//   return base + Math.min(lvl,40)*scaling + (Math.max(40,lvl)-40)*3*scaling
-// }
-
-/**
-   * merchant
-  base
-    dex: 4
-    int: 12
-    vit: 1
-    str: 1
-    for: 0
-
-  lstats
-    dex: 0.4
-    int: 1
-    vit: 0.25
-    str: 0.1
-    for: 0
-   */

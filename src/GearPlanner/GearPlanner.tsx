@@ -49,16 +49,22 @@ import { LoadLinkButton } from "./LoadLinkButton";
 import { ImportLinkButton } from "./ImportLinkButton";
 import { CLASS_COLOR } from "../constants";
 import { StatsPanel } from "./StatsPanel";
+import {
+  loadoutHasDoublehandConflict,
+  withDoublehandEquipInvariant,
+} from "../gameData/loadoutStats";
 
 // https://mui.com/material-ui/react-modal/
 export function GearSlot({
   slot,
   onClick,
   gear,
+  invalid = false,
 }: {
   slot: SlotType;
   onClick: (slot: SlotType) => void;
   gear: { [slot in SlotType]?: ItemInfo };
+  invalid?: boolean;
 }) {
   const itemInfo = gear[slot];
   let itemName: ItemKey;
@@ -79,35 +85,28 @@ export function GearSlot({
   }
 
   return (
-    <>
-      {/* <ItemTooltip itemName={itemName} level={itemInfo?.level}> */}
-      <Box
-        onClick={() => onClick(slot)}
-        title={itemInfo ? itemInfo.name : slot}
-        sx={{
-          width: 50,
-          height: 50,
-          border: "1px solid black",
-          display: "inline-block",
-          alignItems: "center",
-          justifyContent: "center",
-          paddingTop: 0.5,
-          paddingLeft: 0.5,
-          cursor: "pointer",
-          "&:hover": { border: "1px solid white" }, // TODO: theme support
-        }}
-      >
-        {/* tooltip ain't working */}
-        {itemInfo ? (
-          // <ItemTooltip itemName={itemName} level={itemInfo?.level}>
-          <ItemInstance itemInfo={itemInfo} />
-        ) : (
-          // </ItemTooltip>
-          <ItemImage itemName={itemName} opacity={0.25} />
-        )}
-      </Box>
-      {/* </ItemTooltip> */}
-    </>
+    <Box
+      onClick={() => onClick(slot)}
+      title={itemInfo ? itemInfo.name : slot}
+      sx={{
+        width: 50,
+        height: 50,
+        border: invalid ? "2px solid #d32f2f" : "1px solid black",
+        display: "inline-block",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingTop: 0.5,
+        paddingLeft: 0.5,
+        cursor: "pointer",
+        "&:hover": { border: invalid ? "2px solid #d32f2f" : "1px solid white" },
+      }}
+    >
+      {itemInfo ? (
+        <ItemInstance itemInfo={itemInfo} />
+      ) : (
+        <ItemImage itemName={itemName} opacity={0.25} />
+      )}
+    </Box>
   );
 }
 
@@ -125,15 +124,11 @@ function Info() {
           Planned:
         </Typography>
         <ul style={{ textAlign: "left" }}>
-          <li>handle doublehand items</li>
           <li>stat scrolls on items with stat</li>
-          <li>export loadout</li>
-          <li>import loadout</li>
           <li>better item tooltips</li>
           <li>
             compare gain / loss with currently equipped item on item tooltip when selecting new
           </li>
-          <li>set items</li>
           <li>titles</li>
           <li>tracktrix</li>
           <li>compare loadout</li>
@@ -170,39 +165,19 @@ export function GearPlanner() {
   };
 
   const onSelectGear = (slot: SlotType, row?: RowItem) => {
-    console.log(slot, row);
     setSelectedGearSlot(false);
     if (!row) return;
-
-    const equippedItem = gear[slot];
-    if (!equippedItem) {
-      gear[slot] = {
-        name: row.itemName,
-        level: row.level,
-      };
-      return;
-    }
-
-    if (equippedItem.name !== row.itemName) {
-      gear[slot] = {
-        name: row.itemName,
-        level: row.level,
-      };
-      return;
-    }
-
-    if (equippedItem.level !== row.level) {
-      equippedItem.level = row.level;
-    }
+    setGear((prev) =>
+      withDoublehandEquipInvariant(
+        selectedClass,
+        prev,
+        slot,
+        { name: row.itemName, level: row.level },
+        G.items,
+      ),
+    );
   };
 
-  // item.mainhand seems to define valid mainhand types and their impact.
-  // item.offhand does the same
-  // item.doublehand defines twohanded weapons
-  // then we have a bunch of stat attributes
-  // resistance, frequency, mcourage, speed, armor, range, attack, hp, pcourage, mp_cost, courage, mp, output, main_stat
-  // there is also .stats that contain dex,int,vit,str,for
-  // .lstats I presume defines the gains per lvl
   const classes = Object.entries(G.classes ?? []).map(
     ([className, item]) => ({ className, ...item } as SelectedCharacterClass),
   );
@@ -214,16 +189,21 @@ export function GearPlanner() {
   };
 
   const onRemoveGear = (slot: SlotType) => {
-    delete gear[slot];
-    setGear({ ...gear });
+    setGear((prev) => {
+      const next = { ...prev };
+      delete next[slot];
+      return next;
+    });
   };
 
   const onLoadSavedLoadout = (name: string, data: SavedLoadout) => {
-    console.log("loaded", name); // TODO: store this saved loadout in a variable we can use later when saving again
+    console.log("loaded", name);
     setLevel(data.level);
     setGear(data.gear);
     setSelectedClass(classes.find((c) => c.className === data.classKey));
   };
+
+  const dhConflict = loadoutHasDoublehandConflict(selectedClass, gear, G.items);
 
   return (
     <Container>
@@ -282,9 +262,19 @@ export function GearPlanner() {
               <GearSlot gear={gear} onClick={onShowAvailableGear} slot="amulet" />
             </div>
             <div>
-              <GearSlot gear={gear} onClick={onShowAvailableGear} slot="mainhand" />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="mainhand"
+                invalid={dhConflict}
+              />
               <GearSlot gear={gear} onClick={onShowAvailableGear} slot="chest" />
-              <GearSlot gear={gear} onClick={onShowAvailableGear} slot="offhand" />
+              <GearSlot
+                gear={gear}
+                onClick={onShowAvailableGear}
+                slot="offhand"
+                invalid={dhConflict}
+              />
               <GearSlot gear={gear} onClick={onShowAvailableGear} slot="cape" />
             </div>
             <div>
