@@ -1,5 +1,5 @@
 {
-  "version": 2538,
+  "version": 5092,
   "achievements": {
     "reach40": { "name": "Become Level 40", "item": "gem1" },
     "reach50": { "name": "Become Level 50", "shells": 50 },
@@ -156,6 +156,21 @@
       "continuous": true,
       "directional": true,
       "speed": 700
+    },
+    "fanknife": {
+      "file": "/images/sprites/animations/FanKnife.png?v=1",
+      "frames": 3,
+      "continuous": true,
+      "directional": true,
+      "speed": 560
+    },
+    "worldroot_projectile": {
+      "file": "/images/sprites/animations/WorldrootProjectile.png?v=1",
+      "frames": 4,
+      "continuous": true,
+      "directional": true,
+      "speed": 400,
+      "framefps": 9
     },
     "garrow": {
       "file": "/images/sprites/animations/garrow.png",
@@ -343,6 +358,18 @@
       "frames": 7,
       "alpha": 0.9,
       "size": 0.8
+    },
+    "fanknife_hit": {
+      "file": "/images/sprites/animations/Slash0FanKnife.png?v=1",
+      "frames": 7,
+      "alpha": 0.9,
+      "size": 0.8
+    },
+    "worldroot_impact": {
+      "file": "/images/sprites/animations/WorldrootImpact.png?v=1",
+      "frames": 12,
+      "alpha": 0.9,
+      "aspeed": "mild"
     },
     "icecrack": {
       "file": "/images/sprites/animations/crackingIce.png",
@@ -140001,7 +140028,7 @@
       "role": "merchant",
       "items": [
         "licence",
-        null,
+        "softstepgloves",
         null,
         null,
         null,
@@ -141209,7 +141236,7 @@
         null,
         null
       ],
-      "items": ["cosmo0", "cosmo2", "cosmo3"],
+      "items": ["cosmo0", "cosmo2", "cosmo3", "cosmo5"],
       "skin": "fancyd",
       "says": "Sup",
       "type": "fullstatic",
@@ -141791,6 +141818,20 @@
       "rows": 9,
       "columns": 7,
       "file": "/images/tiles/items/community.png?v=1",
+      "load": true
+    },
+    "items40": {
+      "size": 20,
+      "rows": 4,
+      "columns": 10,
+      "file": "/images/tiles/items/items_40_remastered.png?v=1",
+      "load": true
+    },
+    "rawitems": {
+      "size": 20,
+      "rows": 40,
+      "columns": 20,
+      "file": "/images/tiles/items/raw_items.png?v=2",
       "load": true
     }
   },
@@ -145204,6 +145245,152 @@
       "range": 60.5,
       "attack": 42.5
     },
+    "worldrootcrook": {
+      "type": "weapon",
+      "exclusive": true,
+      "wtype": "staff",
+      "tier": 4,
+      "class": ["priest"],
+      "skin": "worldrootcrook",
+      "int": 6,
+      "str": 7,
+      "dex": 16,
+      "vit": 6,
+      "rpiercing": 50,
+      "mp_reduction": 4,
+      "projectile": "worldroot",
+      "damage_type": "magical",
+      "upgrade": {
+        "int": 1.25,
+        "dex": 2,
+        "vit": 1,
+        "rpiercing": 8,
+        "mp_reduction": 1,
+        "range": 4.5,
+        "attack": 6.5
+      },
+      "name": "Worldroot Crook",
+      "explanation": "Its roots remember every hand that carried the light.",
+      "g": 300000000,
+      "grades": [0, 0, 8, 10],
+      "range": 68,
+      "attack": 55
+    },
+    "threadneedle": {
+      "type": "weapon",
+      "exclusive": true,
+      "wtype": "dagger",
+      "tier": 1.4,
+      "skin": "threadneedle",
+      "luck": 2,
+      "damage_type": "physical",
+      "upgrade": { "range": 2, "attack": 3.4 },
+      "name": "Threadneedle",
+      "explanation": "Fine enough to split a spider's silk without disturbing the web.",
+      "g": 62000,
+      "grades": [5, 8, 10, 12],
+      "range": 5.4,
+      "attack": 14,
+      "cx": { "scale": 0.5, "extension": true }
+    },
+    "brinefang": {
+      "type": "weapon",
+      "exclusive": true,
+      "wtype": "short_sword",
+      "tier": 2.75,
+      "skin": "brinefang",
+      "vit": 6,
+      "resistance": 8,
+      "damage_type": "physical",
+      "upgrade": { "resistance": 1.5, "range": 1.5, "attack": 4.875 },
+      "name": "Brinefang",
+      "explanation": "Salt gathers along its edge, but the blade never rusts.",
+      "g": 180000,
+      "grades": [0, 3, 10, 12],
+      "range": 8.5,
+      "attack": 25.5
+    },
+    "cinderwand": {
+      "type": "weapon",
+      "exclusive": true,
+      "wtype": "wand",
+      "tier": 2,
+      "skin": "cinderwand",
+      "skin_r": "cinderwand_r",
+      "int": 2,
+      "firesistance": 4,
+      "damage_type": "magical",
+      "projectile": "fireball",
+      "ability": "burn",
+      "attr0": 1,
+      "upgrade": { "attr0": 0.25, "range": 6.333333333333334, "attack": 3.6 },
+      "name": "Cinder Wand",
+      "explanation": "Warm to the touch. Alarmingly warm when pointed at something.",
+      "g": 220000,
+      "cx": { "accent": "#D87F0E", "scale": 0.5, "extension": true },
+      "grades": [0, 7, 10, 12],
+      "range": 35,
+      "attack": 21
+    },
+    "pollenbow": {
+      "type": "weapon",
+      "exclusive": true,
+      "wtype": "bow",
+      "tier": 1.25,
+      "skin": "pollenbow",
+      "luck": 2,
+      "damage_type": "physical",
+      "projectile": "arrow",
+      "upgrade": { "range": 7.833333333333334, "attack": 5.25 },
+      "name": "Pollen Bow",
+      "explanation": "Every arrow leaves a faint trail of pollen behind.",
+      "g": 110000,
+      "cx": { "accent": "#3B9A5C" },
+      "grades": [5, 8, 10, 12],
+      "range": 57.5,
+      "attack": 26.875
+    },
+    "rimeknuckles": {
+      "type": "weapon",
+      "exclusive": true,
+      "wtype": "fist",
+      "tier": 2.1,
+      "skin": "rimeknuckles",
+      "dex": 2,
+      "fzresistance": 4,
+      "damage_type": "physical",
+      "ability": "freeze",
+      "attr0": 0.2,
+      "upgrade": { "attr0": 0.1, "range": 1.5, "attack": 4.1 },
+      "name": "Rime Knuckles",
+      "explanation": "Cold enough to make every punch sting twice.",
+      "g": 170000,
+      "grades": [0, 6, 10, 12],
+      "range": 6.1,
+      "attack": 14.4,
+      "cx": { "scale": 0.5, "extension": true }
+    },
+    "valourdirk": {
+      "type": "weapon",
+      "exclusive": true,
+      "wtype": "dagger",
+      "tier": 2.75,
+      "class": ["rogue"],
+      "skin": "valourdirk",
+      "for": 16,
+      "evasion": 4,
+      "crit": 2.5,
+      "apiercing": 20,
+      "damage_type": "physical",
+      "upgrade": { "evasion": 0.75, "crit": 0.25, "range": 2, "attack": 4.75 },
+      "name": "Valour Dirk",
+      "explanation": "Notched once for every duel its owner remembers.",
+      "g": 620000,
+      "grades": [0, 3, 10, 12],
+      "range": 6.75,
+      "attack": 20.75,
+      "cx": { "scale": 0.5, "extension": true }
+    },
     "wblade": {
       "type": "weapon",
       "wtype": "wblade",
@@ -146514,6 +146701,17 @@
       "name": "New Accessory",
       "explanation": "Give this to NPC Haila to receive a unique accessory. Heads-up! It's random, you may or may-not like it. [Work in progress - Not functional yet.]",
       "s": 9999,
+      "quest": "cx"
+    },
+    "cosmo5": {
+      "type": "cosmetics",
+      "skin": "cosmo5",
+      "cash": 1299,
+      "g": 41568000,
+      "name": "New Misc.",
+      "explanation": "Give this to Haila for a curious new flourish. It may be an emote or a gravestone.",
+      "s": 9999,
+      "e": 1,
       "quest": "cx"
     },
     "stoneofxp": {
@@ -148583,6 +148781,553 @@
       "explanation": "A magical pet world inside a box.",
       "g": 120000,
       "grade": 0
+    },
+    "molehook": {
+      "type": "tool",
+      "exclusive": true,
+      "wtype": "pickaxe",
+      "tier": 1.5,
+      "skin": "molehook",
+      "attack": 19,
+      "str": 2,
+      "breaks": 0.65,
+      "damage_type": "physical",
+      "upgrade": { "attack": 3, "str": 0.5, "breaks": -0.04 },
+      "name": "Molehook",
+      "explanation": "A miner's answer to stubborn stone and tunnel-dwelling trouble.",
+      "grades": [0, 7, 10, 12],
+      "g": 140000
+    },
+    "lanternshield": {
+      "type": "shield",
+      "exclusive": true,
+      "tier": 2.25,
+      "skin": "lanternshield",
+      "armor": 70,
+      "resistance": 24,
+      "firesistance": 4,
+      "ability": "shelter",
+      "upgrade": { "armor": 10, "resistance": 6 },
+      "name": "Lantern Shield",
+      "explanation": "Its sheltered flame makes dark and heated passages a little less hostile.",
+      "grades": [0, 6, 10, 12],
+      "g": 160000
+    },
+    "turtleshard": {
+      "type": "shield",
+      "exclusive": true,
+      "tier": 1.75,
+      "skin": "turtleshard",
+      "armor": 60,
+      "resistance": 24,
+      "speed": -1,
+      "upgrade": { "armor": 9, "resistance": 6 },
+      "name": "Turtle Shard",
+      "explanation": "A piece of shell polished smooth by a very long journey.",
+      "grades": [3, 8, 10, 12],
+      "g": 62000
+    },
+    "ratkingbuckler": {
+      "type": "shield",
+      "exclusive": true,
+      "tier": 1,
+      "skin": "ratkingbuckler",
+      "armor": 32,
+      "resistance": 10,
+      "luck": 3,
+      "upgrade": { "armor": 6, "resistance": 3 },
+      "name": "Ratking Buckler",
+      "explanation": "Small, scrappy, and just lucky enough to survive another tunnel.",
+      "grades": [5, 8, 10, 12],
+      "g": 28000
+    },
+    "stormquiver": {
+      "type": "quiver",
+      "exclusive": true,
+      "tier": 2.25,
+      "skin": "stormquiver",
+      "dex": 4,
+      "armor": 12,
+      "resistance": 16,
+      "range": 24,
+      "upgrade": { "dex": 1.6, "armor": 3, "resistance": 3, "range": 4 },
+      "name": "Storm Quiver",
+      "explanation": "The feathers inside tremble whenever a storm draws near.",
+      "grades": [0, 4, 10, 12],
+      "g": 820000
+    },
+    "thistlequiver": {
+      "type": "quiver",
+      "exclusive": true,
+      "tier": 1.5,
+      "skin": "thistlequiver",
+      "dex": 3,
+      "armor": 14,
+      "range": 18,
+      "upgrade": { "dex": 1, "armor": 2.5, "range": 3 },
+      "name": "Thistle Quiver",
+      "explanation": "Careful where you reach. The thistles are still very much alive.",
+      "grades": [0, 6, 10, 12],
+      "g": 160000
+    },
+    "scribeorb": {
+      "type": "source",
+      "exclusive": true,
+      "tier": 1.75,
+      "skin": "scribeorb",
+      "int": 22,
+      "vit": 5,
+      "xp": 3,
+      "compound": { "int": 4, "vit": 2, "xp": 1 },
+      "name": "Scribe Orb",
+      "explanation": "It writes down every spell. Sometimes it adds notes of its own.",
+      "grades": [0, 3, 6, 7],
+      "g": 240000
+    },
+    "mossheart": {
+      "type": "source",
+      "exclusive": true,
+      "tier": 2,
+      "skin": "mossheart",
+      "int": 16,
+      "vit": 12,
+      "resistance": 36,
+      "compound": { "int": 3, "vit": 4, "resistance": 12 },
+      "name": "Mossheart",
+      "explanation": "It beats slowly, as if remembering the forest it came from.",
+      "grades": [0, 2, 6, 7],
+      "g": 760000
+    },
+    "emberseal": {
+      "type": "ring",
+      "exclusive": true,
+      "skin": "emberseal",
+      "str": 7,
+      "firesistance": 7,
+      "compound": { "str": 2.5 },
+      "name": "Ember Seal",
+      "explanation": "A tiny flame circles the band without ever consuming it.",
+      "grades": [1, 4, 6, 7],
+      "g": 220000
+    },
+    "glacierseal": {
+      "type": "ring",
+      "exclusive": true,
+      "skin": "glacierseal",
+      "int": 7,
+      "fzresistance": 7,
+      "compound": { "int": 2.5 },
+      "name": "Glacier Seal",
+      "explanation": "A sliver of ancient ice sleeps beneath the silver.",
+      "grades": [1, 4, 6, 7],
+      "g": 220000
+    },
+    "venomband": {
+      "type": "ring",
+      "exclusive": true,
+      "skin": "venomband",
+      "dex": 7,
+      "pnresistance": 7,
+      "compound": { "dex": 2.5 },
+      "name": "Venom Band",
+      "explanation": "The green stone sweats whenever danger is close.",
+      "grades": [1, 4, 6, 7],
+      "g": 220000
+    },
+    "saffronloop": {
+      "type": "earring",
+      "exclusive": true,
+      "class": ["merchant"],
+      "skin": "saffronloop",
+      "vit": 8,
+      "gold": 4,
+      "compound": { "vit": 2, "gold": 0.75 },
+      "name": "Saffron Loop",
+      "explanation": "A lucky loop for merchants who know that gold favors the prepared.",
+      "grades": [1, 5, 6, 7],
+      "g": 180000
+    },
+    "moonshardearring": {
+      "type": "earring",
+      "exclusive": true,
+      "class": ["mage", "priest"],
+      "skin": "moonshardearring",
+      "int": 8,
+      "mp": 100,
+      "compound": { "int": 2.25, "mp": 30 },
+      "name": "Moonshard Earring",
+      "explanation": "A piece of moonlight, caught just before dawn.",
+      "grades": [1, 5, 6, 7],
+      "g": 160000
+    },
+    "cloverstud": {
+      "type": "earring",
+      "exclusive": true,
+      "skin": "cloverstud",
+      "luck": 6,
+      "vit": 6,
+      "compound": { "luck": 2, "vit": 1.5 },
+      "name": "Clover Stud",
+      "explanation": "It has four leaves. You checked twice.",
+      "grades": [1, 5, 6, 7],
+      "g": 76000
+    },
+    "anchorbelt": {
+      "type": "belt",
+      "exclusive": true,
+      "skin": "anchorbelt",
+      "hp": 640,
+      "armor": 24,
+      "resistance": 12,
+      "speed": -2,
+      "compound": { "hp": 160, "armor": 8, "resistance": 4 },
+      "name": "Anchor Belt",
+      "explanation": "Heavy enough to keep both feet on the ground in any storm.",
+      "grades": [1, 5, 6, 7],
+      "g": 220000
+    },
+    "windbelt": {
+      "type": "belt",
+      "exclusive": true,
+      "skin": "windbelt",
+      "dex": 11,
+      "speed": 2,
+      "armor": 10,
+      "compound": { "dex": 2.5, "speed": 0.75, "armor": 4 },
+      "name": "Wind Belt",
+      "explanation": "The buckle hums whenever the wind changes direction.",
+      "grades": [1, 5, 6, 7],
+      "g": 260000
+    },
+    "emberhood": {
+      "type": "helmet",
+      "exclusive": true,
+      "tier": 2.125,
+      "scroll": true,
+      "class": ["mage", "priest"],
+      "skin": "emberhood",
+      "stat": 2,
+      "armor": 18,
+      "resistance": 22,
+      "firesistance": 6,
+      "upgrade": { "stat": 1, "armor": 4, "resistance": 4 },
+      "name": "Ember Hood",
+      "explanation": "The embers woven into its lining never seem to cool.",
+      "grades": [0, 7, 10, 12],
+      "g": 180000
+    },
+    "bogcrown": {
+      "type": "helmet",
+      "exclusive": true,
+      "tier": 2.125,
+      "scroll": true,
+      "class": ["rogue", "ranger"],
+      "skin": "bogcrown",
+      "stat": 2,
+      "armor": 18,
+      "resistance": 18,
+      "pnresistance": 6,
+      "upgrade": { "stat": 1, "armor": 4, "resistance": 4 },
+      "name": "Bog Crown",
+      "explanation": "Woven from reeds that only grow where the water bubbles green.",
+      "grades": [0, 7, 10, 12],
+      "g": 160000
+    },
+    "ratworkcoat": {
+      "type": "chest",
+      "exclusive": true,
+      "tier": 1.75,
+      "scroll": true,
+      "skin": "ratworkcoat",
+      "stat": 1,
+      "armor": 18,
+      "resistance": 10,
+      "luck": 2,
+      "upgrade": { "stat": 1, "armor": 3, "resistance": 2, "luck": 0.25 },
+      "name": "Ratwork Coat",
+      "explanation": "Stitched from whatever the rats were hoarding. Surprisingly comfortable.",
+      "grades": [3, 8, 10, 12],
+      "g": 42000
+    },
+    "reefvest": {
+      "type": "chest",
+      "exclusive": true,
+      "tier": 2.5,
+      "scroll": true,
+      "class": ["warrior", "paladin"],
+      "skin": "reefvest",
+      "stat": 2,
+      "armor": 32,
+      "resistance": 32,
+      "fzresistance": 6,
+      "upgrade": { "stat": 1, "armor": 5, "resistance": 5 },
+      "name": "Reef Vest",
+      "explanation": "Layer upon layer of reef glass, shaped smooth by the tide.",
+      "grades": [0, 7, 10, 12],
+      "g": 240000
+    },
+    "silkgrips": {
+      "type": "gloves",
+      "exclusive": true,
+      "tier": 1.75,
+      "scroll": true,
+      "class": ["mage", "priest"],
+      "skin": "silkgrips",
+      "stat": 1,
+      "mp": 50,
+      "armor": 12,
+      "resistance": 10,
+      "upgrade": { "stat": 1, "mp": 15, "armor": 3, "resistance": 3 },
+      "name": "Silkgrips",
+      "explanation": "Spider silk fits like a second skin. Best not to ask how it was gathered.",
+      "grades": [2, 7, 10, 12],
+      "g": 76000
+    },
+    "thundergrips": {
+      "type": "gloves",
+      "exclusive": true,
+      "tier": 2.5,
+      "scroll": true,
+      "class": ["ranger"],
+      "skin": "thundergrips",
+      "stat": 2,
+      "armor": 18,
+      "resistance": 12,
+      "frequency": 1,
+      "upgrade": { "stat": 1, "armor": 4, "resistance": 3, "frequency": 0.25 },
+      "name": "Thundergrips",
+      "explanation": "A distant rumble follows every clenched fist.",
+      "grades": [0, 4, 10, 12],
+      "g": 760000
+    },
+    "bogwalkers": {
+      "type": "shoes",
+      "exclusive": true,
+      "tier": 2.25,
+      "scroll": true,
+      "class": ["rogue", "ranger"],
+      "skin": "bogwalkers",
+      "stat": 2,
+      "armor": 10,
+      "resistance": 5,
+      "pnresistance": 6,
+      "speed": 7,
+      "upgrade": { "stat": 1, "armor": 3.5, "resistance": 2, "speed": 1 },
+      "name": "Bogwalkers",
+      "explanation": "The mud lets go a little easier when wearing these.",
+      "grades": [0, 7, 10, 12],
+      "g": 260000
+    },
+    "cinderboots": {
+      "type": "shoes",
+      "exclusive": true,
+      "tier": 2.25,
+      "scroll": true,
+      "class": ["mage", "priest"],
+      "skin": "cinderboots",
+      "stat": 2,
+      "armor": 10,
+      "resistance": 5,
+      "firesistance": 6,
+      "speed": 7,
+      "upgrade": { "stat": 1, "armor": 3.5, "resistance": 2, "speed": 1 },
+      "name": "Cinder Boots",
+      "explanation": "They leave warm footprints, even in snow.",
+      "grades": [0, 7, 10, 12],
+      "g": 260000
+    },
+    "rimeboots": {
+      "type": "shoes",
+      "exclusive": true,
+      "tier": 2.25,
+      "scroll": true,
+      "class": ["warrior", "paladin"],
+      "skin": "rimeboots",
+      "stat": 2,
+      "armor": 10,
+      "resistance": 5,
+      "fzresistance": 6,
+      "speed": 7,
+      "upgrade": { "stat": 1, "armor": 3.5, "resistance": 2, "speed": 1 },
+      "name": "Rime Boots",
+      "explanation": "A thin coat of frost follows every step.",
+      "grades": [0, 7, 10, 12],
+      "g": 260000
+    },
+    "reedpants": {
+      "type": "pants",
+      "exclusive": true,
+      "tier": 1.75,
+      "scroll": true,
+      "class": ["rogue", "ranger"],
+      "skin": "reedpants",
+      "stat": 1,
+      "armor": 16,
+      "resistance": 8,
+      "speed": 2,
+      "upgrade": { "stat": 1, "armor": 3, "resistance": 2.5 },
+      "name": "Reed Pants",
+      "explanation": "Light, dry, and strangely resistant to swamp water.",
+      "grades": [2, 8, 10, 12],
+      "g": 72000
+    },
+    "beastmantle": {
+      "type": "cape",
+      "exclusive": true,
+      "tier": 2.75,
+      "scroll": true,
+      "class": ["warrior", "paladin", "rogue", "ranger"],
+      "skin": "beastmantle",
+      "armor": 16,
+      "resistance": 10,
+      "stat": 6,
+      "speed": 1,
+      "upgrade": { "stat": 0.1, "armor": 2, "resistance": 2 },
+      "name": "Beast Mantle",
+      "explanation": "Something large once wore this first.",
+      "grades": [0, 5, 10, 12],
+      "g": 1400000
+    },
+    "starcloak": {
+      "type": "cape",
+      "exclusive": true,
+      "tier": 2.75,
+      "scroll": true,
+      "class": ["mage", "priest"],
+      "skin": "starcloak",
+      "resistance": 16,
+      "stat": 2,
+      "mp": 120,
+      "speed": 1,
+      "upgrade": { "resistance": 2, "stat": 1, "mp": 20, "speed": 0.1 },
+      "name": "Starcloak",
+      "explanation": "Tiny lights drift across its folds like a private night sky.",
+      "grades": [0, 5, 10, 12],
+      "g": 1800000
+    },
+    "ashleaf": {
+      "type": "material",
+      "skin": "ashleaf",
+      "name": "Ash Leaf",
+      "explanation": "A hardy leaf that refuses to burn completely.",
+      "s": 9999,
+      "g": 35
+    },
+    "reefglass": {
+      "type": "material",
+      "skin": "reefglass",
+      "name": "Reef Glass",
+      "explanation": "Sea-worn glass, smooth enough to hold without bleeding.",
+      "s": 9999,
+      "g": 180
+    },
+    "stormfeather": {
+      "type": "material",
+      "skin": "stormfeather",
+      "name": "Storm Feather",
+      "explanation": "It still carries the charge of the storm that shed it.",
+      "s": 9999,
+      "g": 1800
+    },
+    "voidthread": {
+      "type": "material",
+      "skin": "voidthread",
+      "name": "Void Thread",
+      "explanation": "A thread so dark it seems to stitch shadows together.",
+      "s": 9999,
+      "g": 24000
+    },
+    "embercore": {
+      "type": "material",
+      "skin": "embercore",
+      "name": "Ember Core",
+      "explanation": "A small fire with nowhere left to spread.",
+      "s": 9999,
+      "g": 88000
+    },
+    "frostcore": {
+      "type": "material",
+      "skin": "frostcore",
+      "name": "Frost Core",
+      "explanation": "Cold gathers around it, even beneath the summer sun.",
+      "s": 9999,
+      "g": 88000
+    },
+    "verdantcore": {
+      "type": "material",
+      "skin": "verdantcore",
+      "name": "Verdant Core",
+      "explanation": "It smells of rain, soil, and something newly alive.",
+      "s": 9999,
+      "g": 88000
+    },
+    "softstepgloves": {
+      "type": "gloves",
+      "exclusive": true,
+      "tier": 1.75,
+      "scroll": true,
+      "class": ["rogue"],
+      "skin": "softstepgloves",
+      "stat": 2,
+      "armor": 32,
+      "resistance": 22,
+      "evasion": 2,
+      "speed": 2,
+      "upgrade": {
+        "stat": 1,
+        "armor": 5,
+        "resistance": 3,
+        "evasion": 0.25,
+        "speed": 0.25
+      },
+      "name": "Softstep Gloves",
+      "explanation": "The fingers are reinforced. The palms make no sound at all.",
+      "grades": [2, 7, 10, 12],
+      "g": 420000
+    },
+    "knifebelt": {
+      "type": "belt",
+      "exclusive": true,
+      "class": ["rogue"],
+      "skin": "knifebelt",
+      "dex": 8,
+      "int": 2,
+      "armor": 12,
+      "mp_reduction": 3,
+      "ability": "fanofknives",
+      "name": "Knife Belt",
+      "explanation": "Five knives, five pockets, and no room for a sixth.",
+      "g": 900000
+    },
+    "gloampendant": {
+      "type": "amulet",
+      "exclusive": true,
+      "class": ["rogue"],
+      "skin": "gloampendant",
+      "dex": 7,
+      "int": 7,
+      "mp": 250,
+      "mp_reduction": 8,
+      "compound": { "dex": 2, "int": 2, "mp": 75, "mp_reduction": 1.5 },
+      "name": "Gloam Pendant",
+      "explanation": "It grows cold whenever its wearer is seen.",
+      "grades": [1, 4, 6, 7],
+      "g": 420000
+    },
+    "sapstone": {
+      "type": "orb",
+      "exclusive": true,
+      "class": ["rogue"],
+      "skin": "sapstone",
+      "dex": 16,
+      "vit": 12,
+      "armor": 24,
+      "resistance": 24,
+      "frequency": 4,
+      "name": "Sapstone",
+      "explanation": "Warm sap moves beneath its bark, slow as a heartbeat.",
+      "g": 1800000,
+      "a": true
     }
   },
   "sets": {
@@ -149285,7 +150030,321 @@
     "elixirint2": { "items": [[10, "elixirint1"]], "cost": 2400 },
     "elixirdex2": { "items": [[10, "elixirdex1"]], "cost": 2400 },
     "elixirvit2": { "items": [[10, "elixirvit1"]], "cost": 2400 },
-    "elixirstr2": { "items": [[10, "elixirstr1"]], "cost": 2400 }
+    "elixirstr2": { "items": [[10, "elixirstr1"]], "cost": 2400 },
+    "threadneedle": {
+      "items": [
+        [1, "blade", 5],
+        [20, "spidersilk"],
+        [20, "ashleaf"]
+      ],
+      "cost": 120000
+    },
+    "brinefang": {
+      "items": [
+        [1, "blade", 7],
+        [120, "reefglass"],
+        [1, "cshell"]
+      ],
+      "cost": 180000
+    },
+    "molehook": {
+      "items": [
+        [1, "pickaxe", 5],
+        [40, "gemfragment"],
+        [2, "bronzenugget"]
+      ],
+      "cost": 90000
+    },
+    "cinderwand": {
+      "items": [
+        [1, "wand", 7],
+        [1, "embercore"],
+        [6, "essenceoffire"],
+        [40, "ashleaf"]
+      ],
+      "cost": 240000
+    },
+    "pollenbow": {
+      "items": [
+        [1, "bow", 7],
+        [60, "beewings"],
+        [60, "ashleaf"],
+        [10, "essenceofnature"]
+      ],
+      "cost": 90000
+    },
+    "rimeknuckles": {
+      "items": [
+        [1, "claw", 7],
+        [1, "frostcore"],
+        [12, "bfur"],
+        [4, "essenceoffrost"]
+      ],
+      "cost": 180000
+    },
+    "lanternshield": {
+      "items": [
+        [1, "shield", 6],
+        [1, "embercore"],
+        [1, "bronzeingot"]
+      ],
+      "cost": 240000
+    },
+    "turtleshard": {
+      "items": [
+        [1, "wshield", 6],
+        [80, "reefglass"],
+        [1, "cshell"]
+      ],
+      "cost": 100000
+    },
+    "ratkingbuckler": {
+      "items": [
+        [1, "wshield", 4],
+        [30, "rattail"],
+        [20, "ashleaf"],
+        [1, "bronzenugget"]
+      ],
+      "cost": 40000
+    },
+    "stormquiver": {
+      "items": [
+        [1, "alloyquiver", 5],
+        [80, "stormfeather"],
+        [8, "essenceofether"]
+      ],
+      "cost": 500000
+    },
+    "thistlequiver": {
+      "items": [
+        [1, "quiver", 5],
+        [10, "pleather"],
+        [40, "ashleaf"],
+        [5, "essenceofnature"]
+      ],
+      "cost": 140000
+    },
+    "scribeorb": {
+      "items": [
+        [1, "wbook0", 3],
+        [12, "voidthread"],
+        [50, "bwing"],
+        [4, "essenceofether"]
+      ],
+      "cost": 280000
+    },
+    "mossheart": {
+      "items": [
+        [1, "wbook0", 4],
+        [2, "verdantcore"],
+        [120, "ashleaf"],
+        [80, "essenceofnature"]
+      ],
+      "cost": 800000
+    },
+    "emberseal": {
+      "items": [
+        [1, "strring", 2],
+        [1, "embercore"],
+        [6, "essenceoffire"]
+      ],
+      "cost": 300000
+    },
+    "glacierseal": {
+      "items": [
+        [1, "intring", 2],
+        [1, "frostcore"],
+        [6, "essenceoffrost"]
+      ],
+      "cost": 300000
+    },
+    "venomband": {
+      "items": [
+        [1, "dexring", 2],
+        [1, "verdantcore"],
+        [12, "poison"],
+        [4, "snakefang"]
+      ],
+      "cost": 240000
+    },
+    "saffronloop": {
+      "items": [
+        [1, "vitearring", 2],
+        [1, "goldnugget"],
+        [100, "gemfragment"]
+      ],
+      "cost": 350000
+    },
+    "moonshardearring": {
+      "items": [
+        [1, "intearring", 2],
+        [8, "voidthread"],
+        [40, "bwing"],
+        [4, "essenceofether"]
+      ],
+      "cost": 240000
+    },
+    "cloverstud": {
+      "items": [
+        [1, "vitearring", 2],
+        [1, "verdantcore"],
+        [40, "ashleaf"],
+        [40, "spores"],
+        [5, "gslime"]
+      ],
+      "cost": 280000
+    },
+    "anchorbelt": {
+      "items": [
+        [1, "hpbelt", 2],
+        [150, "reefglass"],
+        [1, "cshell"]
+      ],
+      "cost": 260000
+    },
+    "windbelt": {
+      "items": [
+        [1, "dexbelt", 2],
+        [40, "stormfeather"],
+        [4, "essenceofether"]
+      ],
+      "cost": 300000
+    },
+    "knifebelt": {
+      "items": [
+        [1, "dexbelt", 2],
+        [30, "spidersilk"],
+        [8, "voidthread"],
+        [20, "bwing"],
+        [12, "poison"]
+      ],
+      "cost": 350000
+    },
+    "gloampendant": {
+      "items": [
+        [1, "dexamulet", 2],
+        [12, "voidthread"],
+        [80, "bwing"],
+        [6, "essenceofether"]
+      ],
+      "cost": 420000
+    },
+    "worldrootcrook": {
+      "items": [
+        [1, "harbringer", 8],
+        [1, "sapstone"],
+        [1, "platinumingot"],
+        [3, "goldingot"],
+        [4, "ijx"],
+        [12, "ectoplasm"],
+        [1, "bcandle"]
+      ],
+      "cost": 250000000
+    },
+    "emberhood": {
+      "items": [
+        [1, "mmhat", 5],
+        [1, "embercore"],
+        [8, "essenceoffire"],
+        [20, "ashleaf"]
+      ],
+      "cost": 400000
+    },
+    "bogcrown": {
+      "items": [
+        [1, "helmet", 7],
+        [1, "verdantcore"],
+        [12, "poison"],
+        [40, "ashleaf"]
+      ],
+      "cost": 220000
+    },
+    "ratworkcoat": {
+      "items": [
+        [1, "coat", 5],
+        [30, "rattail"],
+        [40, "ashleaf"]
+      ],
+      "cost": 75000
+    },
+    "reefvest": {
+      "items": [
+        [1, "coat1", 7],
+        [200, "reefglass"],
+        [2, "cshell"]
+      ],
+      "cost": 400000
+    },
+    "silkgrips": {
+      "items": [
+        [1, "gloves", 5],
+        [30, "spidersilk"],
+        [8, "voidthread"],
+        [20, "bwing"]
+      ],
+      "cost": 120000
+    },
+    "thundergrips": {
+      "items": [
+        [1, "mrngloves", 6],
+        [80, "stormfeather"],
+        [12, "essenceofether"]
+      ],
+      "cost": 800000
+    },
+    "bogwalkers": {
+      "items": [
+        [1, "shoes1", 6],
+        [1, "verdantcore"],
+        [12, "poison"],
+        [8, "snakefang"]
+      ],
+      "cost": 260000
+    },
+    "cinderboots": {
+      "items": [
+        [1, "shoes1", 6],
+        [1, "embercore"],
+        [8, "essenceoffire"],
+        [20, "ashleaf"]
+      ],
+      "cost": 280000
+    },
+    "rimeboots": {
+      "items": [
+        [1, "shoes1", 6],
+        [1, "frostcore"],
+        [8, "essenceoffrost"],
+        [12, "bfur"]
+      ],
+      "cost": 280000
+    },
+    "reedpants": {
+      "items": [
+        [1, "pants", 6],
+        [20, "frogt"],
+        [4, "lotusf"],
+        [40, "ashleaf"]
+      ],
+      "cost": 100000
+    },
+    "beastmantle": {
+      "items": [
+        [1, "cape", 7],
+        [2, "verdantcore"],
+        [240, "leather"]
+      ],
+      "cost": 1200000
+    },
+    "starcloak": {
+      "items": [
+        [1, "cape", 7],
+        [40, "voidthread"],
+        [40, "essenceofether"],
+        [1, "platinumnugget"]
+      ],
+      "cost": 1800000
+    }
   },
   "titles": {
     "glitched": {
@@ -149373,6 +150432,7 @@
     "pvptoken": {
       "hammer": 120,
       "harbringer": 25,
+      "valourdirk": 25,
       "spear": 1,
       "t2bow": 1,
       "weaponbox": 1,
@@ -149572,6 +150632,16 @@
       "duration": 8000,
       "buff": true,
       "explanation": "Greatly increases armor but limits maximum speed to 10."
+    },
+    "sheltered": {
+      "skin": "lanternshield",
+      "name": "Sheltered",
+      "armor": 480,
+      "resistance": 320,
+      "set_speed": 10,
+      "duration": 6000,
+      "buff": true,
+      "explanation": "Greatly increases armor and resistance but limits maximum speed to 10."
     },
     "reflection": {
       "skin": "buff_reflection",
@@ -150353,6 +151423,16 @@
       "speed": 420,
       "hit_animation": "slash2",
       "hit_text": ["STAB!", "#41338B"]
+    },
+    "fanofknives": {
+      "animation": "fanknife",
+      "speed": 560,
+      "hit_animation": "fanknife_hit"
+    },
+    "worldroot": {
+      "animation": "worldroot_projectile",
+      "speed": 400,
+      "hit_animation": "worldroot_impact"
     },
     "smash": {
       "animation": "slash",
@@ -151852,6 +152932,61 @@
     "skill_mining": ["", 5, 61],
     "glolipop": ["", 2, 61],
     "ololipop": ["", 1, 61],
+    "threadneedle": ["items40", 0, 0],
+    "brinefang": ["items40", 1, 0],
+    "molehook": ["items40", 2, 0],
+    "cinderwand": ["items40", 3, 0],
+    "pollenbow": ["items40", 4, 0],
+    "rimeknuckles": ["items40", 5, 0],
+    "lanternshield": ["items40", 6, 0],
+    "turtleshard": ["items40", 7, 0],
+    "ratkingbuckler": ["items40", 8, 0],
+    "stormquiver": ["items40", 9, 0],
+    "thistlequiver": ["items40", 0, 1],
+    "scribeorb": ["items40", 1, 1],
+    "mossheart": ["items40", 2, 1],
+    "emberseal": ["items40", 3, 1],
+    "glacierseal": ["items40", 4, 1],
+    "venomband": ["items40", 5, 1],
+    "saffronloop": ["items40", 6, 1],
+    "moonshardearring": ["items40", 7, 1],
+    "cloverstud": ["items40", 8, 1],
+    "anchorbelt": ["items40", 9, 1],
+    "windbelt": ["items40", 0, 2],
+    "emberhood": ["items40", 1, 2],
+    "bogcrown": ["items40", 2, 2],
+    "ratworkcoat": ["items40", 3, 2],
+    "reefvest": ["items40", 4, 2],
+    "silkgrips": ["items40", 5, 2],
+    "thundergrips": ["items40", 6, 2],
+    "bogwalkers": ["items40", 7, 2],
+    "cinderboots": ["items40", 8, 2],
+    "rimeboots": ["items40", 9, 2],
+    "reedpants": ["items40", 0, 3],
+    "beastmantle": ["items40", 1, 3],
+    "starcloak": ["items40", 2, 3],
+    "ashleaf": ["items40", 3, 3],
+    "reefglass": ["items40", 4, 3],
+    "stormfeather": ["items40", 5, 3],
+    "voidthread": ["items40", 6, 3],
+    "embercore": ["items40", 7, 3],
+    "frostcore": ["items40", 8, 3],
+    "verdantcore": ["items40", 9, 3],
+    "softstepgloves": ["rawitems", 0, 0],
+    "valourdirk": ["rawitems", 1, 0],
+    "knifebelt": ["rawitems", 2, 0],
+    "gloampendant": ["rawitems", 3, 0],
+    "sapstone": ["rawitems", 4, 0],
+    "fanofknives": ["rawitems", 5, 0],
+    "worldrootcrook": ["rawitems", 6, 0],
+    "cinderwand_r": ["rawitems", 7, 0],
+    "cosmo5": ["rawitems", 8, 0],
+    "emote_fart": ["rawitems", 9, 0],
+    "emote_wiggle": ["rawitems", 10, 0],
+    "emote_headwiggle": ["rawitems", 11, 0],
+    "emote_joy": ["rawitems", 12, 0],
+    "emote_jump": ["rawitems", 13, 0],
+    "emote_superjump": ["rawitems", 14, 0],
     "friendtoken": ["", 15, 33],
     "patronsgrace": ["custom", 5, 0]
   },
@@ -151999,6 +153134,56 @@
       "hostile": true,
       "duration": 4000
     },
+    "fart": {
+      "type": "skill",
+      "skin": "emote_fart",
+      "name": "Fart",
+      "explanation": "A suspicious little cloud.",
+      "mp": 20,
+      "cooldown": 2000,
+      "emote": "fart"
+    },
+    "wiggle": {
+      "type": "skill",
+      "skin": "emote_wiggle",
+      "name": "Wiggle",
+      "explanation": "Shake it off.",
+      "cooldown": 2000,
+      "emote": "wiggle"
+    },
+    "headwiggle": {
+      "type": "skill",
+      "skin": "emote_headwiggle",
+      "name": "Head Wiggle",
+      "explanation": "No. Yes. Maybe.",
+      "cooldown": 2000,
+      "emote": "headwiggle"
+    },
+    "joy": {
+      "type": "skill",
+      "skin": "emote_joy",
+      "name": "Joy",
+      "explanation": "Too happy to stand still.",
+      "cooldown": 25000,
+      "emote": "joy"
+    },
+    "jump": {
+      "type": "skill",
+      "skin": "emote_jump",
+      "name": "Jump",
+      "explanation": "Up you go!",
+      "cooldown": 4000,
+      "emote": "jump"
+    },
+    "superjump": {
+      "type": "skill",
+      "skin": "emote_superjump",
+      "name": "Super Jump",
+      "explanation": "Way up you go!",
+      "mp": 10,
+      "cooldown": 10000,
+      "emote": "superjump"
+    },
     "snowball": {
       "type": "skill",
       "skin": "snowball",
@@ -152112,6 +153297,17 @@
       "hostile": true,
       "use_range": true,
       "range_multiplier": 2
+    },
+    "shelter": {
+      "type": "skill",
+      "skin": "lanternshield",
+      "slot": [["offhand", "lanternshield"]],
+      "name": "Shelter",
+      "explanation": "Raise the lantern and shelter behind its flame.",
+      "condition": "sheltered",
+      "mp": 240,
+      "cooldown": 60000,
+      "duration": 6000
     },
     "rspeed": {
       "type": "skill",
@@ -152623,6 +153819,26 @@
       "consume": "shadowstone",
       "hostile": true,
       "damage_type": "physical"
+    },
+    "fanofknives": {
+      "type": "skill",
+      "skin": "fanofknives",
+      "slot": [["belt", "knifebelt"]],
+      "class": ["rogue"],
+      "name": "Fan of Knives",
+      "explanation": "Send five knives searching for nearby trouble. Each deals 0.85X damage.",
+      "range": 160,
+      "level": 65,
+      "mp": 180,
+      "cooldown_multiplier": 1,
+      "multi": true,
+      "max_targets": 5,
+      "share": "attack",
+      "hostile": true,
+      "damage_multiplier": 0.85,
+      "damage_type": "physical",
+      "projectile": "fanofknives",
+      "procs": false
     },
     "entangle": {
       "type": "skill",
@@ -154218,6 +155434,16 @@
       "width": 140,
       "type": "png"
     },
+    "/images/tiles/items/items_40_remastered.png": {
+      "height": 80,
+      "width": 200,
+      "type": "png"
+    },
+    "/images/tiles/items/raw_items.png": {
+      "height": 800,
+      "width": 400,
+      "type": "png"
+    },
     "/images/tiles/map/castle.png": {
       "height": 512,
       "width": 544,
@@ -154345,17 +155571,22 @@
   },
   "docs": {
     "functions": [
+      "accept_friend_request",
       "accept_magiport",
       "accept_party_invite",
       "accept_party_request",
       "activate",
+      "add_bottom_button",
+      "add_top_button",
       "attack",
       "auto_craft",
+      "auto_reload",
       "bank_deposit",
       "bank_retrieve",
       "bank_store",
       "bank_swap",
       "bank_withdraw",
+      "bless_server",
       "buy",
       "buy_with_gold",
       "buy_with_shells",
@@ -154363,9 +155594,12 @@
       "can_heal",
       "can_move_to",
       "can_transport",
+      "can_use",
       "can_walk",
       "change_server",
       "change_target",
+      "change_target_privately",
+      "clear_buttons",
       "clear_drawings",
       "close_stand",
       "command_character",
@@ -154374,8 +155608,11 @@
       "craft",
       "cruise",
       "destroy",
+      "destroy_item",
       "disconnect",
+      "dismantle",
       "distance",
+      "doneify",
       "draw_circle",
       "draw_line",
       "enter",
@@ -154410,6 +155647,7 @@
       "handle_command",
       "handle_death",
       "heal",
+      "in_attack_range",
       "in_pvp",
       "interact",
       "is_array",
@@ -154424,6 +155662,8 @@
       "is_object",
       "is_on_cooldown",
       "is_paused",
+      "is_player",
+      "is_pvp",
       "is_string",
       "is_transporting",
       "item_grade",
@@ -154440,20 +155680,28 @@
       "log",
       "loot",
       "map_key",
+      "mode_resolve_all",
       "move",
+      "on_cm",
       "on_combined_damage",
       "on_destroy",
       "on_disappear",
       "on_draw",
+      "on_friend_request",
       "on_game_event",
+      "on_magiport",
+      "on_map_click",
       "on_party_invite",
       "on_party_request",
+      "open_bank_pack",
       "open_stand",
       "party_say",
       "pause",
       "performance_trick",
+      "pget",
       "pm",
       "preview_item",
+      "pset",
       "quantity",
       "reduce_cooldown",
       "require_code",
@@ -154465,12 +155713,16 @@
       "sell",
       "send_cm",
       "send_cx",
+      "send_friend_request",
       "send_gold",
       "send_item",
       "send_mail",
       "send_party_invite",
       "send_party_request",
       "set",
+      "set_button_color",
+      "set_button_onclick",
+      "set_button_value",
       "set_home",
       "set_keymap",
       "set_message",
@@ -154478,11 +155730,14 @@
       "shift",
       "show_json",
       "smart_move",
+      "split",
       "start_character",
       "stop",
       "stop_character",
       "swap",
+      "take_mail_item",
       "throw_item",
+      "town",
       "trade",
       "trade_buy",
       "trade_sell",
@@ -154493,20 +155748,201 @@
       "unmap_key",
       "upgrade",
       "upload_code",
+      "use",
       "use_hp_or_mp",
       "use_nearest_door",
       "use_skill",
+      "wait_for",
+      "wait_for_event",
       "wishlist",
       "xmove"
     ],
     "documented": [
-      "equip_batch",
+      "accept_friend_request",
+      "accept_magiport",
+      "accept_party_invite",
+      "accept_party_request",
+      "activate",
+      "add_bottom_button",
+      "add_top_button",
       "attack",
-      "heal",
+      "auto_craft",
+      "auto_reload",
+      "bank_deposit",
+      "bank_retrieve",
+      "bank_store",
+      "bank_swap",
+      "bank_withdraw",
+      "bless_server",
       "buy",
-      "upgrade",
+      "buy_with_gold",
+      "buy_with_shells",
+      "can_attack",
+      "can_heal",
+      "can_move_to",
+      "can_transport",
+      "can_use",
+      "can_walk",
+      "change_server",
+      "change_target",
+      "change_target_privately",
+      "clear_buttons",
+      "clear_drawings",
+      "close_stand",
+      "command_character",
       "compound",
-      "use_skill"
+      "consume",
+      "craft",
+      "cruise",
+      "destroy",
+      "destroy_item",
+      "disconnect",
+      "dismantle",
+      "distance",
+      "doneify",
+      "draw_circle",
+      "draw_line",
+      "enter",
+      "equip",
+      "equip_batch",
+      "equip_cx",
+      "exchange",
+      "exchange_buy",
+      "find_npc",
+      "game_log",
+      "get",
+      "get_active_characters",
+      "get_active_code_slot",
+      "get_characters",
+      "get_chests",
+      "get_edited_code_slot",
+      "get_entity",
+      "get_focus",
+      "get_map",
+      "get_monster",
+      "get_nearest_hostile",
+      "get_nearest_monster",
+      "get_nearest_npc",
+      "get_party",
+      "get_player",
+      "get_servers",
+      "get_socket",
+      "get_target",
+      "get_target_of",
+      "get_targeted_monster",
+      "giveaway",
+      "handle_command",
+      "handle_death",
+      "heal",
+      "in_attack_range",
+      "in_pvp",
+      "interact",
+      "is_array",
+      "is_character",
+      "is_disabled",
+      "is_function",
+      "is_in_range",
+      "is_monster",
+      "is_moving",
+      "is_npc",
+      "is_number",
+      "is_object",
+      "is_on_cooldown",
+      "is_paused",
+      "is_player",
+      "is_pvp",
+      "is_string",
+      "is_transporting",
+      "item_grade",
+      "item_properties",
+      "item_value",
+      "join",
+      "join_giveaway",
+      "kick_party_member",
+      "leave",
+      "leave_party",
+      "load_code",
+      "locate_item",
+      "lock_item",
+      "log",
+      "loot",
+      "map_key",
+      "mode_resolve_all",
+      "move",
+      "on_cm",
+      "on_combined_damage",
+      "on_destroy",
+      "on_disappear",
+      "on_draw",
+      "on_friend_request",
+      "on_game_event",
+      "on_magiport",
+      "on_map_click",
+      "on_party_invite",
+      "on_party_request",
+      "open_bank_pack",
+      "open_stand",
+      "party_say",
+      "pause",
+      "performance_trick",
+      "pget",
+      "pm",
+      "preview_item",
+      "pset",
+      "quantity",
+      "reduce_cooldown",
+      "require_code",
+      "reset_mappings",
+      "respawn",
+      "safe_log",
+      "say",
+      "seal_item",
+      "sell",
+      "send_cm",
+      "send_cx",
+      "send_friend_request",
+      "send_gold",
+      "send_item",
+      "send_mail",
+      "send_party_invite",
+      "send_party_request",
+      "set",
+      "set_button_color",
+      "set_button_onclick",
+      "set_button_value",
+      "set_home",
+      "set_keymap",
+      "set_message",
+      "set_skillbar",
+      "shift",
+      "show_json",
+      "smart_move",
+      "split",
+      "start_character",
+      "stop",
+      "stop_character",
+      "swap",
+      "take_mail_item",
+      "throw_item",
+      "town",
+      "trade",
+      "trade_buy",
+      "trade_sell",
+      "transport",
+      "unequip",
+      "unfriend",
+      "unlock_item",
+      "unmap_key",
+      "upgrade",
+      "upload_code",
+      "use",
+      "use_hp_or_mp",
+      "use_nearest_door",
+      "use_skill",
+      "wait_for",
+      "wait_for_event",
+      "wishlist",
+      "xmove"
     ],
     "javascript": [
       [
@@ -154656,6 +156092,12 @@
             "files,slots,save,local",
             "#7E8895"
           ],
+          [
+            "code-api",
+            "CODE API and Promises",
+            "api,functions,promises,async,await,errors",
+            "#5CA9D6"
+          ],
           ["7-using-skills", "Using Skills", "skills", "#E24148"],
           ["persistent-values", "Add Persistence!", "get,set", "#7A8EE4"],
           ["X.sub-architecture", "Game and Code Architecture", "", "#8785B2"],
@@ -154668,7 +156110,13 @@
             [
               ["X.sub-cli", "CLI: An Introduction", "cli", "#79C6C1"],
               ["X.sub-cm", "Code Messages", "cm,messages", "#B3C77A"],
-              ["X.sub-api", "API Call System", "api", "#69C6C1"]
+              ["X.sub-api", "API Call System", "api", "#69C6C1"],
+              [
+                "X.sub-msgpack",
+                "MessagePack Socket Transport",
+                "msgpack,socket,client,transport",
+                "#D49A63"
+              ]
             ]
           ]
         ]
@@ -154688,6 +156136,12 @@
       ]
     ],
     "references": [
+      ["code-globals", "CODE Globals", "G,server,game,smart,safeties,parent"],
+      [
+        "data-server-status",
+        "Server Status",
+        "server,status,events,bosses,schedule,parent.S"
+      ],
       ["data-character", "Character Objects", "characters,players"],
       ["data-monster", "Monster Objects", "monsters,entity"],
       ["events-character", "Character Events", "events"],
@@ -154797,6 +156251,7 @@
         [2e-7, "suckerpunch"],
         [0.005, "seashell"],
         [0.001, "crabclaw"],
+        [0.004, "reefglass"],
         [0.00005, "cclaw"]
       ],
       "bee": [
@@ -154872,7 +156327,8 @@
       ],
       "arcticbee": [
         [0.00005, "essenceoffrost"],
-        [0.001, "bfur"]
+        [0.001, "bfur"],
+        [0.0004, "frostcore"]
       ],
       "mole": [
         [0.012, "gemfragment"],
@@ -154885,6 +156341,7 @@
       "crabx": [
         [4e-7, "suckerpunch"],
         [0.02, "seashell"],
+        [0.04, "reefglass"],
         [0.002, "cclaw"],
         [0.0001, "cshell"]
       ],
@@ -154916,7 +156373,8 @@
       ],
       "tortoise": [
         [0.0002, "shield"],
-        [0.001, "seashell"]
+        [0.001, "seashell"],
+        [0.01, "reefglass"]
       ],
       "wolf": [[0.025, "leather"]],
       "wolfie": [[0.02, "leather"]],
@@ -154939,7 +156397,8 @@
         [0.03, "mcape"],
         [0.01, "forscroll"],
         [0.0000025, "cxjar", 1, "coolblueg"],
-        [0.0000125, "sanguine"]
+        [0.0000125, "sanguine"],
+        [0.1, "voidthread"]
       ],
       "fvampire": [
         [0.3, "open", "statamulet"],
@@ -154949,7 +156408,8 @@
         [0.01, "forscroll"],
         [0.000005, "cxjar", 1, "catbatg"],
         [0.025, "offeringp"],
-        [0.00002, "sanguine"]
+        [0.00002, "sanguine"],
+        [0.1, "voidthread"]
       ],
       "phoenix": [
         [0.7, "vitscroll"],
@@ -154960,6 +156420,8 @@
         [0.04, "firestaff"],
         [0.04, "firebow"],
         [0.04, "fireblade"],
+        [1, "stormfeather", 3],
+        [0.02, "embercore"],
         [0.000025, "fcape"],
         [0.0016666666666666668, "offeringp"],
         [1.5625e-8, "cxjar", 1, "hairdo606"]
@@ -154974,6 +156436,7 @@
       "bat": [
         [0.004, "wbook0"],
         [0.005, "bwing"],
+        [0.0005, "voidthread"],
         [1e-8, "cxjar", 1, "wings102"]
       ],
       "scorpion": [
@@ -155013,7 +156476,8 @@
       ],
       "icegolem": [
         [5, "frozenkey"],
-        [10, "essenceoffrost"]
+        [10, "essenceoffrost"],
+        [1, "frostcore", 5]
       ],
       "fireroamer": [
         [0.0006934812760055479, "orbofstr"],
@@ -155052,6 +156516,7 @@
         [0.1, "candy1"],
         [0.001, "bcandle"],
         [0.001, "hdagger"],
+        [1, "ashleaf", 10],
         [1, "glolipop"]
       ],
       "slenderman": [
@@ -155122,6 +156587,7 @@
         [20, "essenceoffire"],
         [10, "essenceoffire"],
         [10, "essenceoffire"],
+        [1, "embercore", 5],
         [0.2, "offering"],
         [0.5, "lmace"],
         [5e-7, "cxjar", 1, "hat400"],
@@ -155130,12 +156596,17 @@
       ],
       "ent": [
         [1, "essenceofnature"],
+        [1, "ashleaf", 20],
+        [1, "verdantcore", 2],
+        [0.0001, "sapstone"],
         [0.02, "woodensword"],
         [0.00001, "stick"],
         [0.000005, "nheart"]
       ],
       "plantoid": [
         [0.004, "essenceofnature"],
+        [0.02, "ashleaf"],
+        [0.0003333333333333333, "verdantcore"],
         [7e-7, "ringofluck"]
       ],
       "grinch": [
@@ -155147,7 +156618,10 @@
         [10, "iceskates"],
         [1, "sweaterhs"]
       ],
-      "bigbird": [[0.05, "feather0"]],
+      "bigbird": [
+        [0.05, "feather0"],
+        [0.01, "stormfeather"]
+      ],
       "harpy": [
         [0.01, "feather1"],
         [0.01, "feather1"],
@@ -155248,7 +156722,8 @@
         [0.002, "mpxgloves"],
         [0.000005, "warpvest"],
         [0.002, "starkillers"],
-        [0.01, "sbelt"]
+        [0.01, "sbelt"],
+        [1, "voidthread", 6]
       ],
       "sparkbot": [
         [0.000125, "sparkstaff"],
@@ -155328,6 +156803,9 @@
         [1, "poison"],
         [0.3333333333333333, "troll"]
       ],
+      "xmagen": [[1, "voidthread", 3]],
+      "xmagefi": [[1, "voidthread", 3]],
+      "xmagefz": [[1, "voidthread", 3]],
       "cutebee": [
         [1, "open", "lglitch"],
         [1, "funtoken"]
@@ -155685,6 +157163,7 @@
       [1, "cosmo2"],
       [1, "cosmo3"],
       [1, "cosmo4"],
+      [1, "cosmo5"],
       [1, "xptome"],
       [1, "licence"],
       [1, "xpbooster"],
@@ -155879,6 +157358,13 @@
       [1, "spidersilk"],
       [1, "flute"],
       [1, "puppyer"],
+      [1, "ashleaf"],
+      [1, "reefglass"],
+      [1, "stormfeather"],
+      [1, "voidthread"],
+      [1, "embercore"],
+      [1, "frostcore"],
+      [1, "verdantcore"],
       [5, "glitch", 2]
     ],
     "lglitch": [
@@ -156183,6 +157669,7 @@
       [0.1, "cosmo2"],
       [0.01, "cosmo3"],
       [0.01, "cosmo4"],
+      [0.01, "cosmo5"],
       [0.1, "xptome"],
       [0.01, "licence"],
       [0.01, "xpbooster"],
@@ -156376,7 +157863,14 @@
       [1, "electronics"],
       [1, "spidersilk"],
       [0.01, "flute"],
-      [1, "puppyer"]
+      [1, "puppyer"],
+      [1, "ashleaf"],
+      [1, "reefglass"],
+      [1, "stormfeather"],
+      [1, "voidthread"],
+      [0.1, "embercore"],
+      [0.1, "frostcore"],
+      [0.1, "verdantcore"]
     ],
     "gemfragment": [
       [0.5, "gem0"],
@@ -157216,7 +158710,21 @@
       [0.08333333333333333, "cx", "hat309"],
       [0.08333333333333333, "cx", "hat400"],
       [0.08333333333333333, "cx", "hat405"]
+    ],
+    "cosmo5": [
+      [1, "cx", "gravestonea"],
+      [1, "cx", "xgravestone0"],
+      [1, "cx", "xgravestone1"],
+      [0.1, "cx", "xgravestone2"],
+      [1, "cx", "xgravestone3"],
+      [1, "cx", "xgravestone4"],
+      [0.2, "cx", "fart"],
+      [1, "cx", "wiggle"],
+      [1, "cx", "headwiggle"],
+      [1, "cx", "joy"],
+      [1, "cx", "jump"],
+      [0.1, "cx", "superjump"]
     ]
   },
-  "timestamp": "2026-08-18T23:09:05.831Z"
+  "timestamp": "2026-08-24T21:33:13.988Z"
 }
