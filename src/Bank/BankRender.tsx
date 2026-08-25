@@ -22,7 +22,7 @@ import { BankPacksView } from "./BankPacksView";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { abbreviateNumber, msToTime } from "../Shared/utils";
-import { getItemName, getItemInstanceTitle, getTitleName } from "../Shared/iteminfo-util";
+import { getItemName, getTitleName } from "../Shared/iteminfo-util";
 
 type BankRenderProps = {
   ownerId: string;
@@ -147,7 +147,7 @@ function BankGridViewItemRow({ items }: { items: any[] }) {
         if (!gItem || !G) return <></>;
 
         return (
-          <div key={getUniqueItemKey(itemInfo)} title={getItemInstanceTitle(itemInfo, G)}>
+          <div key={getUniqueItemKey(itemInfo)}>
             <ItemInstance showQuantity itemInfo={itemInfo} />
           </div>
         );

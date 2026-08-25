@@ -4,7 +4,6 @@ import { useContext } from "react";
 import { BankDataProps } from "./getBankData";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { getItemInstanceTitle } from "../Shared/iteminfo-util";
 
 const SLOTS_PER_PACK = 42;
 const PACK_COLUMNS = 7;
@@ -33,7 +32,6 @@ function BankPackSlot({ itemInfo }: { itemInfo: ItemInfo | null }) {
 
   return (
     <Box
-      title={itemInfo && G ? getItemInstanceTitle(itemInfo, G) : undefined}
       sx={{
         width: SLOT_SIZE,
         height: SLOT_SIZE,

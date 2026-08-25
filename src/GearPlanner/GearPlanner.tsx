@@ -39,7 +39,6 @@ import { ItemInfo, ItemKey, SlotType } from "typed-adventureland";
 import React, { useContext, useState } from "react";
 import { GDataContext } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
-import { ItemTooltip } from "../ItemTooltip";
 // import { calculateItemStatsByLevel, modifyPlayerStatsByAttributes } from "../Utils";
 import { GearSelectDialog, RowItem } from "./GearSelectDialog";
 import { SavedLoadout, SelectedCharacterClass } from "./types";
@@ -315,21 +314,18 @@ export function GearPlanner() {
                 const itemName = itemInfo.name;
                 const gItem = G.items[itemName];
                 return (
-                  <ItemTooltip key={`tooltip${slot}`} itemName={itemName} level={itemInfo.level}>
-                    <TableRow hover key={`list${slot}`}>
-                      <TableCell width={25}>
-                        <DeleteIcon
-                          style={{ cursor: "pointer" }}
-                          onClick={() => onRemoveGear(slot as SlotType)}
-                        />
-                      </TableCell>
-                      <TableCell width={40}>
-                        <ItemInstance itemInfo={itemInfo} />
-                        {/* <ItemImage itemName={itemName} /> */}
-                      </TableCell>
-                      <TableCell>{gItem.name}</TableCell>
-                    </TableRow>
-                  </ItemTooltip>
+                  <TableRow hover key={`list${slot}`}>
+                    <TableCell width={25}>
+                      <DeleteIcon
+                        style={{ cursor: "pointer" }}
+                        onClick={() => onRemoveGear(slot as SlotType)}
+                      />
+                    </TableCell>
+                    <TableCell width={40}>
+                      <ItemInstance itemInfo={itemInfo} />
+                    </TableCell>
+                    <TableCell>{gItem.name}</TableCell>
+                  </TableRow>
                 );
               })}
             </TableBody>

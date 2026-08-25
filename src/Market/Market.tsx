@@ -1,44 +1,37 @@
 import {
+  Autocomplete,
   Box,
   Button,
   Card,
   CardContent,
   Collapse,
-  Divider,
   IconButton,
+  Paper,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  Typography,
-  Select,
-  MenuItem,
   TextField,
-  Autocomplete,
+  Typography,
 } from "@mui/material";
-import axios from "axios";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import {
-  ItemInfoPValues,
-  ItemKey,
-  MapKey,
-  TitleKey,
-  TradeItemInfo,
-  TradeSlotType,
-} from "typed-adventureland";
+import { ItemInfoPValues, ItemKey, TitleKey } from "typed-adventureland";
 
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
-
+import { MultiFilterAutocomplete } from "../Shared/MultiFilterAutocomplete";
+import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
 import { abbreviateNumber } from "../Shared/utils";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
+import { useMerchants } from "./useMerchants";
+import type { BuySellItemPrices, Merchant } from "./useMerchants";
 
 function Info() {
   return (
-    <Card sx={{ marginBottom: 2 }}>
+    <Card>
       <CardContent>
         <Typography component="div">
           This page shows market data from adventureland merchants using the merchant endpoint from{" "}
@@ -248,137 +241,12 @@ function TradeItemRow({
   );
 }
 
-type ItemPrices = {
-  amount: number;
-  minPrice: { merchant?: string; price: number };
-  maxPrice: { merchant?: string; price: number };
-  avgPrice: number;
-  merchants: {
-    [merchantName: string]: {
-      merchant: { id: string; lastSeen: string };
-      items: TradeItemInfo[];
-    };
-  };
-};
-
-type BuySellItemPrices = {
-  buying: ItemPrices;
-  selling: ItemPrices;
-};
-
-type ItemsByNameTitleLevel = Partial<
-  Record<ItemKey, Partial<Record<TitleKey | "", BuySellItemPrices[]>>>
->;
-
-type Merchant = {
-  id: string;
-  lastSeen: string;
-  map: MapKey;
-  serverIdentifier: string;
-  serverRegion: string;
-  slots: { [T in TradeSlotType]?: TradeItemInfo };
-  x: number;
-  y: number;
-};
-
-function groupItemsByNameAndLevel(merchants: Merchant[]) {
-  const result: ItemsByNameTitleLevel = {};
-
-  for (const merchant of merchants) {
-    let tradeSlot: TradeSlotType;
-    for (tradeSlot in merchant.slots) {
-      if (!Object.hasOwn(merchant.slots, tradeSlot)) {
-        continue;
-      }
-
-      const item = merchant.slots[tradeSlot] as TradeItemInfo;
-      if (!item) {
-        continue;
-      }
-
-      result[item.name] = result[item.name] ?? {};
-      const itemPricesByName = result[item.name] ?? {};
-
-      const titleKey = item.p ?? "";
-      let itemPricesByTitle = itemPricesByName[titleKey];
-      if (!itemPricesByTitle) {
-        itemPricesByName[titleKey] = [];
-        itemPricesByTitle = itemPricesByName[titleKey] ?? [];
-      }
-
-      const level = item.level ?? 0;
-      let itemPricesByLevel = itemPricesByTitle[level];
-
-      if (!itemPricesByLevel) {
-        itemPricesByTitle[level] = {
-          buying: {
-            amount: 0,
-            minPrice: { price: 0 },
-            maxPrice: { price: 0 },
-            avgPrice: 0,
-            merchants: {},
-          },
-          selling: {
-            amount: 0,
-            minPrice: { price: 0 },
-            maxPrice: { price: 0 },
-            avgPrice: 0,
-            merchants: {},
-          },
-        };
-        itemPricesByLevel = itemPricesByTitle[level];
-      }
-
-      const buyingOrSelling: "buying" | "selling" = item.b ? "buying" : "selling";
-
-      const itemsByBuyingOrSelling = itemPricesByLevel[buyingOrSelling];
-      let itemsByMerchant = itemsByBuyingOrSelling.merchants[merchant.id];
-      if (!itemsByMerchant) {
-        const { id, lastSeen } = merchant;
-
-        if (item.price) {
-          if (
-            itemsByBuyingOrSelling.minPrice.price === 0 ||
-            itemsByBuyingOrSelling.minPrice.price > item.price
-          ) {
-            itemsByBuyingOrSelling.minPrice.merchant = id;
-            itemsByBuyingOrSelling.minPrice.price = item.price;
-          }
-
-          if (
-            itemsByBuyingOrSelling.maxPrice.price === 0 ||
-            itemsByBuyingOrSelling.maxPrice.price < item.price
-          ) {
-            itemsByBuyingOrSelling.maxPrice.merchant = id;
-            itemsByBuyingOrSelling.maxPrice.price = item.price;
-          }
-        }
-
-        itemsByBuyingOrSelling.merchants[merchant.id] = {
-          merchant: { id, lastSeen },
-          items: [],
-        };
-
-        itemsByMerchant = itemsByBuyingOrSelling.merchants[merchant.id];
-      }
-
-      itemsByBuyingOrSelling.amount += item.q ?? 1;
-
-      itemsByMerchant.items.push(item);
-    }
-  }
-
-  return result;
-}
-
 export function Market() {
   const G = useContext(GDataContext);
-  const [lastRefresh, setLastRefresh] = useState<Date | undefined>(undefined);
+  const { items, merchants, lastRefresh, refresh } = useMerchants();
   const [filter, setFilter] = useState("");
-  const [items, setItems] = useState<ItemsByNameTitleLevel>({});
-  const [selectedBuyer, setSelectedBuyer] = useState<string | undefined>(undefined);
-  const [selectedSeller, setSelectedSeller] = useState<string | undefined>(undefined);
-  const [merchants, setMerchants] = useState<{ [id: string]: Merchant }>({});
+  const [selectedBuyers, setSelectedBuyers] = useState<string[]>([]);
+  const [selectedSellers, setSelectedSellers] = useState<string[]>([]);
 
   const uniqueBuyers = useMemo(() => {
     const buyers = new Set<string>();
@@ -427,49 +295,8 @@ export function Market() {
   }, [items]);
 
   const getMerchantData = () => {
-    console.log("fetching merchant data ");
-    axios
-      .get("https://aldata.earthiverse.ca/merchants")
-      .then((response) => {
-        setLastRefresh(new Date());
-        const groupedItems = groupItemsByNameAndLevel(response.data);
-        setItems(groupedItems);
-        setMerchants(
-          response.data.reduce((acc: { [id: string]: Merchant }, merchant: Merchant) => {
-            acc[merchant.id] = merchant;
-            return acc;
-          }, {}),
-        );
-        sessionStorage.setItem(
-          "merchants",
-          JSON.stringify({ timestamp: new Date(), merchants: response.data }),
-        );
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+    refresh();
   };
-
-  useEffect(() => {
-    const sessionStorageMerchants = sessionStorage.getItem("merchants");
-
-    if (sessionStorageMerchants) {
-      console.log("fetching data from session");
-      const parsed = JSON.parse(sessionStorageMerchants);
-      setLastRefresh(new Date(parsed.timestamp));
-      const groupedItems = groupItemsByNameAndLevel(parsed.merchants);
-      setItems(groupedItems);
-      setMerchants(
-        parsed.merchants.reduce((acc: { [id: string]: Merchant }, merchant: Merchant) => {
-          acc[merchant.id] = merchant;
-          return acc;
-        }, {}),
-      );
-      return;
-    }
-
-    getMerchantData();
-  }, []);
 
   const onRefreshData = () => {
     getMerchantData();
@@ -535,15 +362,16 @@ export function Market() {
   const filteredRows = useMemo(
     () =>
       rows.filter(({ itemName, prices }) => {
-        const buyerMatches = selectedBuyer
-          ? Object.keys(prices.buying.merchants).includes(selectedBuyer)
-          : true;
-        const sellerMatches = selectedSeller
-          ? Object.keys(prices.selling.merchants).includes(selectedSeller)
-          : true;
+        const buyerKeys = Object.keys(prices.buying.merchants);
+        const sellerKeys = Object.keys(prices.selling.merchants);
+        const buyerMatches =
+          selectedBuyers.length === 0 || selectedBuyers.some((buyer) => buyerKeys.includes(buyer));
+        const sellerMatches =
+          selectedSellers.length === 0 ||
+          selectedSellers.some((seller) => sellerKeys.includes(seller));
 
-        const hasSellers = Object.keys(prices.selling.merchants).length > 0;
-        const hasBuyers = Object.keys(prices.buying.merchants).length > 0;
+        const hasSellers = sellerKeys.length > 0;
+        const hasBuyers = buyerKeys.length > 0;
 
         const itemNameMatchesSearch = (name: string) =>
           !filter || name.toLowerCase().includes(filter.toLowerCase());
@@ -555,7 +383,7 @@ export function Market() {
           itemNameMatchesSearch(itemName)
         );
       }),
-    [rows, selectedBuyer, selectedSeller, filter],
+    [rows, selectedBuyers, selectedSellers, filter],
   );
 
   // TODO: two children with key = helmet10 ???
@@ -563,102 +391,91 @@ export function Market() {
   // TODO: also when searching, helmet10 shows up???
 
   return (
-    <>
-      <Info />
-      <Button onClick={onRefreshData}>Refresh Data</Button>
-      <Typography variant="subtitle2">
-        <>{lastRefresh?.toLocaleString()}</>
-      </Typography>
-      <Divider />
-      <Box display="flex" mb={2}>
-        <Box flexGrow={0} mr={2} sx={{ width: "300px" }}>
-          <Autocomplete
-            options={Object.keys(items)}
-            onInputChange={(event, newInputValue) => {
-              setFilter(newInputValue);
-            }}
-            renderInput={(params) => (
-              <TextField {...params} label="Search Items" variant="outlined" />
-            )}
-          />
+    <StickyListLayout
+      toolbar={
+        <Box>
+          <Info />
+          <Box sx={{ mt: 1, display: "flex", alignItems: "center", gap: 2 }}>
+            <Button onClick={onRefreshData}>Refresh Data</Button>
+            <Typography variant="subtitle2">{lastRefresh?.toLocaleString()}</Typography>
+          </Box>
         </Box>
-        <Box flexGrow={0} mr={2}>
-          <Select
-            value={selectedBuyer || ""}
-            onChange={(e) => setSelectedBuyer(e.target.value)}
-            displayEmpty
-          >
-            <MenuItem value="">
-              <em>All Buyers</em>
-            </MenuItem>
-            {uniqueBuyers.map((buyer) => (
-              <MenuItem key={buyer} value={buyer}>
-                {buyer}
-              </MenuItem>
+      }
+      filters={
+        <Paper sx={{ p: 2 }}>
+          <Box display="flex" flexWrap="wrap" gap={2}>
+            <Box sx={{ width: 300, maxWidth: "100%" }}>
+              <Autocomplete
+                options={Object.keys(items)}
+                onInputChange={(event, newInputValue) => {
+                  setFilter(newInputValue);
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Search Items" variant="outlined" size="small" />
+                )}
+              />
+            </Box>
+            <Box sx={{ minWidth: 220, flex: 1 }}>
+              <MultiFilterAutocomplete
+                label="Buyers"
+                options={uniqueBuyers}
+                value={selectedBuyers}
+                onChange={setSelectedBuyers}
+              />
+            </Box>
+            <Box sx={{ minWidth: 220, flex: 1 }}>
+              <MultiFilterAutocomplete
+                label="Sellers"
+                options={uniqueSellers}
+                value={selectedSellers}
+                onChange={setSelectedSellers}
+              />
+            </Box>
+          </Box>
+        </Paper>
+      }
+    >
+      <StickyTableShell>
+        <Table stickyHeader size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell align="center" colSpan={3} />
+              <TableCell align="center" colSpan={5}>
+                Buying
+              </TableCell>
+              <TableCell align="center" colSpan={5}>
+                Selling
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell />
+              <TableCell>Name</TableCell>
+              <TableCell># Buyers</TableCell>
+              <TableCell>Quantity</TableCell>
+              <TableCell>Min</TableCell>
+              <TableCell>Max</TableCell>
+              <TableCell>Avg</TableCell>
+              <TableCell># Sellers</TableCell>
+              <TableCell>Quantity</TableCell>
+              <TableCell>Min</TableCell>
+              <TableCell>Max</TableCell>
+              <TableCell>Avg</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredRows.map(({ itemName, title, level, prices }) => (
+              <TradeItemRow
+                key={`${itemName}${title}${level}`}
+                itemKey={itemName}
+                title={title}
+                level={level}
+                prices={prices}
+                merchants={merchants}
+              />
             ))}
-          </Select>
-        </Box>
-
-        <Box flexGrow={0}>
-          <Select
-            value={selectedSeller || ""}
-            onChange={(e) => setSelectedSeller(e.target.value)}
-            displayEmpty
-          >
-            <MenuItem value="">
-              <em>All Sellers</em>
-            </MenuItem>
-            {uniqueSellers.map((seller) => (
-              <MenuItem key={seller} value={seller}>
-                {seller}
-              </MenuItem>
-            ))}
-          </Select>
-        </Box>
-      </Box>
-
-      <Table stickyHeader size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell align="center" colSpan={3} />
-            <TableCell align="center" colSpan={5}>
-              Buying
-            </TableCell>
-            <TableCell align="center" colSpan={5}>
-              Selling
-            </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell />
-            {/* <TableCell>Item</TableCell> */}
-            <TableCell>Name</TableCell>
-
-            <TableCell># Buyers</TableCell>
-            <TableCell>Quantity</TableCell>
-            <TableCell>Min</TableCell>
-            <TableCell>Max</TableCell>
-            <TableCell>Avg</TableCell>
-
-            <TableCell># Sellers</TableCell>
-            <TableCell>Quantity</TableCell>
-            <TableCell>Min</TableCell>
-            <TableCell>Max</TableCell>
-            <TableCell>Avg</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {filteredRows.map(({ itemName, title, level, prices }) => (
-            <TradeItemRow
-              key={`${itemName}${title}${level}`}
-              itemKey={itemName}
-              title={title}
-              level={level}
-              prices={prices}
-              merchants={merchants}
-            />
-          ))}
-        </TableBody>
-      </Table>
-    </>
+          </TableBody>
+        </Table>
+      </StickyTableShell>
+    </StickyListLayout>
   );
 }
