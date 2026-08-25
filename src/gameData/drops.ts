@@ -4,6 +4,9 @@ import { DropSource, DropSourceType } from "./types";
 
 type DropTuple = [number, string, ...unknown[]];
 
+/** Named exchange / loot tables roll weight / sum(weights). Monster/map rolls are absolute. */
+export type DropChanceKind = "absolute" | "weighted";
+
 function toInt(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.round(value);
@@ -11,12 +14,40 @@ function toInt(value: unknown): number | null {
   return null;
 }
 
+function tableTotalWeight(entries: unknown[]): number {
+  let total = 0;
+  for (const entry of entries) {
+    if (Array.isArray(entry) && typeof entry[0] === "number" && Number.isFinite(entry[0])) {
+      total += entry[0];
+    }
+  }
+  return total;
+}
+
+/**
+ * Resolve a raw table weight to an absolute chance.
+ * Grounded in adventureland_mongodb main node/server_functions.js exchange roll
+ * and js/html.js render_drop: (mult * weight) / total.
+ */
+export function resolveDisplayChance(
+  raw: number | null | undefined,
+  kind: DropChanceKind,
+  tableTotal?: number,
+): number | null {
+  if (raw == null || !Number.isFinite(raw) || raw <= 0) return null;
+  if (kind === "absolute") return raw;
+  const total = tableTotal ?? 0;
+  if (total <= 0) return null;
+  return raw / total;
+}
+
 function parseDropTuple(
   sourceType: DropSourceType,
   sourceKey: string,
   tuple: DropTuple,
+  probability: number | null,
 ): DropSource[] {
-  const [probability, second, third, fourth] = tuple;
+  const [, second, third, fourth] = tuple;
   if (second === "open" && typeof third === "string") {
     return [
       {
@@ -43,11 +74,13 @@ function parseDropTuple(
   ];
 }
 
-/** Parse one drop table entry (bare key or probability tuple). */
+/** Parse one drop table entry (bare key or probability tuple). Absolute chance semantics. */
 export function parseDropEntry(
   sourceType: DropSourceType,
   sourceKey: string,
   entry: unknown,
+  chanceKind: DropChanceKind = "absolute",
+  tableTotal?: number,
 ): DropSource[] {
   if (typeof entry === "string") {
     return [
@@ -63,9 +96,41 @@ export function parseDropEntry(
     ];
   }
   if (Array.isArray(entry) && entry.length >= 2 && typeof entry[0] === "number") {
-    return parseDropTuple(sourceType, sourceKey, entry as DropTuple);
+    const raw = entry[0] as number;
+    const probability = resolveDisplayChance(raw, chanceKind, tableTotal);
+    return parseDropTuple(sourceType, sourceKey, entry as DropTuple, probability);
   }
   return [];
+}
+
+function expandOpenTable(
+  sourceType: DropSourceType,
+  sourceKey: string,
+  openChance: number,
+  nestedTable: string,
+  drops: Record<string, unknown>,
+): DropSource[] {
+  const nested = drops[nestedTable];
+  if (!Array.isArray(nested)) return [];
+  const total = tableTotalWeight(nested);
+  if (total <= 0) return [];
+  const rows: DropSource[] = [];
+  for (const entry of nested) {
+    const parsed = parseDropEntry("table", nestedTable, entry, "weighted", total);
+    for (const row of parsed) {
+      if (!row.itemKey || row.probability == null) continue;
+      rows.push({
+        sourceType,
+        sourceKey,
+        itemKey: row.itemKey,
+        probability: openChance * row.probability,
+        quantity: row.quantity,
+        title: row.title,
+        nestedTable: "",
+      });
+    }
+  }
+  return rows;
 }
 
 export function extractDropRates(drops: Record<string, unknown>): DropSource[] {
@@ -91,7 +156,14 @@ export function extractDropRates(drops: Record<string, unknown>): DropSource[] {
     for (const [mapKey, entries] of Object.entries(maps)) {
       if (!Array.isArray(entries)) continue;
       for (const entry of entries) {
-        rows.push(...parseDropEntry("map", mapKey, entry));
+        const parsed = parseDropEntry("map", mapKey, entry, "absolute");
+        for (const row of parsed) {
+          if (row.nestedTable && row.probability != null) {
+            rows.push(...expandOpenTable("map", mapKey, row.probability, row.nestedTable, drops));
+          } else {
+            rows.push(row);
+          }
+        }
       }
     }
   }
@@ -101,7 +173,16 @@ export function extractDropRates(drops: Record<string, unknown>): DropSource[] {
     for (const [monsterKey, entries] of Object.entries(monsters)) {
       if (!Array.isArray(entries)) continue;
       for (const entry of entries) {
-        rows.push(...parseDropEntry("monster", monsterKey, entry));
+        const parsed = parseDropEntry("monster", monsterKey, entry, "absolute");
+        for (const row of parsed) {
+          if (row.nestedTable && row.probability != null) {
+            rows.push(
+              ...expandOpenTable("monster", monsterKey, row.probability, row.nestedTable, drops),
+            );
+          } else {
+            rows.push(row);
+          }
+        }
       }
     }
   }
@@ -116,8 +197,9 @@ export function extractDropRates(drops: Record<string, unknown>): DropSource[] {
       continue;
     }
     if (!Array.isArray(value)) continue;
+    const total = tableTotalWeight(value);
     for (const entry of value) {
-      rows.push(...parseDropEntry("table", tableKey, entry));
+      rows.push(...parseDropEntry("table", tableKey, entry, "weighted", total));
     }
   }
 
@@ -150,7 +232,7 @@ export function parseMonsterDropTable(
   if (!raw || raw.length <= 1) return [];
   const result: DropSource[] = [];
   for (let i = 1; i < raw.length; i += 1) {
-    result.push(...parseDropEntry("monster", monsterKey, raw[i]));
+    result.push(...parseDropEntry("monster", monsterKey, raw[i], "absolute"));
   }
   return result;
 }

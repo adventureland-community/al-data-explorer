@@ -91,13 +91,39 @@ describe("drops", () => {
     expect(dragold?.oddsLabel).toBe("90 / 1");
   });
 
-  it("extracts drop rates with open tables", () => {
+  it("extracts drop rates with open tables expanded to absolute odds", () => {
     const rows = extractDropRates({
       monsters: {
-        goo: [[1e-7, "open", "shells", 50]],
+        goo: [[0.5, "open", "shells"]],
       },
+      shells: [
+        [1, "seashell"],
+        [1, "helmet"],
+      ],
     });
-    expect(rows[0]?.nestedTable).toBe("shells");
+    const seashell = rows.find((r) => r.itemKey === "seashell");
+    expect(seashell).toMatchObject({
+      sourceType: "monster",
+      sourceKey: "goo",
+      probability: 0.25,
+    });
+  });
+
+  it("normalizes weighted exchange/glitch table odds by table total", () => {
+    // Grounded in server_functions.js: Math.random() * total, then walk weights.
+    const rows = extractDropRates({
+      glitch: [
+        [0.1, "rare"],
+        [1, "common"],
+        [5, "glitch", 2],
+      ],
+    });
+    const total = 0.1 + 1 + 5;
+    const common = rows.find((r) => r.itemKey === "common" && r.sourceKey === "glitch");
+    const rare = rows.find((r) => r.itemKey === "rare" && r.sourceKey === "glitch");
+    expect(common?.probability).toBeCloseTo(1 / total, 10);
+    expect(rare?.probability).toBeCloseTo(0.1 / total, 10);
+    expect(formatDropProbability(common?.probability)).not.toBe("1 / 1");
   });
 });
 
