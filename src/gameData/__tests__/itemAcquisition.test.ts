@@ -107,8 +107,14 @@ describe("getItemAcquisition", () => {
         saffronloop: { name: "Saffron Loop", type: "earring" },
       } as unknown as CustomGData["items"],
       craft: {
-        saffronloop: { items: [[1, "vitearring"], [1, "feather"]], cost: 1000 },
-      },
+        saffronloop: {
+          items: [
+            [1, "vitearring"],
+            [1, "feather"],
+          ],
+          cost: 1000,
+        },
+      } as unknown as CustomGData["craft"],
     });
 
     const acq = getItemAcquisition("vitearring" as ItemKey, G);
