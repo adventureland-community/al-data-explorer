@@ -7,24 +7,35 @@ import { collectArtAssets } from "./src/WorldViewer/adventureLandAssetUrl";
 const PUBLIC_DIR = join(__dirname, "public");
 const AL_ORIGIN = "https://adventure.land";
 
-export async function updateData() {
+export type AdventureLandData = Record<string, unknown> & {
+  version: number;
+  timestamp?: string | Date;
+};
+
+/** Fetch and parse adventure.land/data.js (no art downloads). */
+export async function fetchAdventureLandData(): Promise<AdventureLandData> {
   console.log("Downloading data.js");
   const { data } = await axios.get<string>(`${AL_ORIGIN}/data.js`);
   const js = data.trim();
-  const json = JSON.parse(js.substring(6, js.length - 1));
+  const json = JSON.parse(js.substring(6, js.length - 1)) as AdventureLandData;
   json.timestamp = new Date();
   console.log(`data.js v${json.version} fetched`);
+  return json;
+}
 
+/** Write public/data.json only (prettier-formatted). */
+export async function writeDataJson(json: AdventureLandData): Promise<string> {
   console.log(`data.js formatting`);
-  const prettierOptions = {
-    parser: "json",
-  };
+  const prettierOptions = { parser: "json" as const };
   const formatted = prettier.format(JSON.stringify(json), prettierOptions);
-
+  const path = join(PUBLIC_DIR, "data.json");
   console.log(`data.js writing`);
-  writeFileSync(join(PUBLIC_DIR, "data.json"), formatted);
+  writeFileSync(path, formatted);
+  return path;
+}
 
-  const assets = collectArtAssets(json);
+export async function downloadArtAssets(json: AdventureLandData): Promise<void> {
+  const assets = collectArtAssets(json as Parameters<typeof collectArtAssets>[0]);
   console.log(`Downloading ${assets.length} map/sprite images`);
   const concurrency = 8;
   let next = 0;
@@ -49,4 +60,12 @@ export async function updateData() {
   await Promise.all(workers);
 }
 
-updateData().catch(console.error);
+export async function updateData() {
+  const json = await fetchAdventureLandData();
+  await writeDataJson(json);
+  await downloadArtAssets(json);
+}
+
+if (typeof require !== "undefined" && require.main === module) {
+  updateData().catch(console.error);
+}
