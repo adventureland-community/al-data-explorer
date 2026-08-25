@@ -97,7 +97,7 @@ export function getMaxLevel(gItem: { upgrade?: any; compound?: any }) {
   }
 }
 
-export function getLevelString(gItem: GItem, level?: number) {
+export function getLevelString(gItem: GItem, level?: number): string {
   if (gItem.upgrade) {
     const maxLevel = getMaxLevel(gItem);
     level = maxLevel ? Math.min(level ?? 0, maxLevel) : level;
@@ -110,7 +110,7 @@ export function getLevelString(gItem: GItem, level?: number) {
       case 10:
         return "X";
       default:
-        return level;
+        return String(level ?? 0);
     }
   }
 
@@ -127,9 +127,11 @@ export function getLevelString(gItem: GItem, level?: number) {
       case 5:
         return "V";
       default:
-        return level;
+        return String(level ?? 0);
     }
   }
+
+  return String(level ?? 0);
 }
 
 export function calculateItemStatsByLevel(def: GItem, itemLevel?: number, statType?: StatType) {

@@ -1,10 +1,11 @@
 import { createContext } from "react";
-import { GData, GItem, ItemKey, MapKey, MonsterKey } from "typed-adventureland";
+import { GData, MapKey, MonsterKey } from "typed-adventureland";
+
+import { GameDataIndexes } from "./gameData/types";
+
+export type { GItems } from "./gameData/types";
 
 export const GDataContext = createContext<CustomGData | undefined>(undefined);
-export type GItems = {
-  [T in ItemKey]: GItem;
-};
 
 export type MainStatType = "dex" | "int" | "vit" | "str" | "for";
 
@@ -14,6 +15,7 @@ export type CustomGData = GData & {
   drops: any;
   timestamp: string;
   base_gold: Record<MonsterKey, Partial<Record<MapKey, number>>>;
+  indexes: GameDataIndexes;
 };
 
 export const base_gold = {
