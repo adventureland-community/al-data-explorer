@@ -26,8 +26,10 @@
   },
   "scripts": {
     "check-types": "tsc --noEmit && echo Type checking ok",
-    "lint": "eslint --ext ts,tsx,js,jsx . && echo Linting ok",
-    "lint:fix": "eslint --fix --ext ts,tsx,js,jsx . && echo Linting ok",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,md}\" \"*.md\" \".prettierrc\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,css,md}\"",
+    "lint": "eslint --ext ts,tsx,js,jsx src && echo Linting ok",
+    "lint:fix": "npm run format && eslint --fix --ext ts,tsx,js,jsx src && echo Linting ok",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
