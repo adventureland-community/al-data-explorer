@@ -2,6 +2,7 @@ import { Box, SxProps } from "@mui/material";
 import { ItemInfo } from "typed-adventureland";
 import React, { useContext } from "react";
 import { GDataContext } from "../GDataContext";
+import { ItemTooltip } from "./EntityTooltip";
 import { ItemImage } from "../ItemImage";
 import { getLevelString } from "../Utils";
 import { abbreviateNumber } from "./utils";
@@ -10,10 +11,16 @@ export function ItemInstance({
   itemInfo,
   showQuantity,
   showTitleBorder,
+  size = 40,
+  tooltip = true,
 }: {
   itemInfo: ItemInfo;
   showQuantity?: boolean;
   showTitleBorder?: boolean;
+  /** Pixel size of the item sprite (default 40). */
+  size?: number;
+  /** Rich hover tooltip (al-market style). Default on. */
+  tooltip?: boolean;
 }) {
   if (showTitleBorder === undefined) showTitleBorder = !!itemInfo.p;
 
@@ -28,17 +35,19 @@ export function ItemInstance({
     position: "absolute",
     bottom: 0,
     left: 0,
-    border: 1,
+    border: 0.5,
     borderColor: (theme: any) => (theme.palette.mode === "dark" ? "grey.800" : "grey.300"),
-    // m: 1,
-    // borderRadius: "16px",
-    width: "18px",
-    height: "18px",
-    // bgcolor: "background.paper",
+    minWidth: 14,
+    height: 16,
+    px: "3px",
+    boxSizing: "border-box",
     bgcolor: "#000000ca",
-    //
-    textAlign: "center",
-    fontSize: "0.68rem",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "0.65rem",
+    lineHeight: 1,
+    fontVariantNumeric: "tabular-nums",
     color: () => {
       if (gItem.compound) {
         if (itemInfo.level === 4) {
@@ -48,34 +57,6 @@ export function ItemInstance({
         if (itemInfo.level === 5) {
           return "#B753C7";
         }
-        // Booster
-        // .clevelA{
-        //   color: #FFC949;
-        // }
-        // .clevelB{
-        //   color: #4A9AFF;
-        // }
-        // .clevelC{
-        //   color: #FC4546;
-        // }
-        // .clevelD{
-        //   color: #9353FF;
-        // }
-        // .clevelE{
-        //   color: #FD8915;
-        // }
-        // .clevelW{
-        //   color: #5BAD59;
-        // }
-        // .clevel6{
-        //   color: #FC2F72;
-        // }
-        // .clevel7{
-        //   color: #FD6A19;
-        // }
-        // .clevel7{
-        //   color: #D71D41;
-        // }
       } else if (gItem.upgrade) {
         if (itemInfo.level === 8) {
           return "#FFC949";
@@ -89,6 +70,7 @@ export function ItemInstance({
           return "#B753C7";
         }
       }
+      return "#fff";
     },
   };
 
@@ -100,24 +82,20 @@ export function ItemInstance({
     borderColor: (theme: any) => (theme.palette.mode === "dark" ? "grey.800" : "grey.300"),
     width: "fit-content",
     maxWidth: "100%",
-    height: "18px",
-    paddingLeft: "2px",
-    paddingRight: "2px",
+    height: 16,
+    paddingLeft: "3px",
+    paddingRight: "3px",
+    boxSizing: "border-box",
     bgcolor: "#00000071",
-    textAlign: "right",
-    fontSize: "0.675rem",
-    lineHeight: "18px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "0.65rem",
+    lineHeight: 1,
+    fontVariantNumeric: "tabular-nums",
     whiteSpace: "nowrap",
+    color: "#fff",
   };
-  // TODO: include tooltip?
-  //   const onChangeLevel = (event: React.ChangeEvent<HTMLInputElement>) => {
-  //     const level = Number(event.target.value);
-  //     if (!level) {
-  //       itemInfo.level = 0;
-  //     } else {
-  //       itemInfo.level = level;
-  //     }
-  //   };
 
   const levelString = getLevelString(gItem, itemInfo.level);
   const titleKey = itemInfo.p;
@@ -151,7 +129,7 @@ export function ItemInstance({
       break;
   }
 
-  return (
+  const sprite = (
     <div
       style={{
         position: "relative",
@@ -163,12 +141,9 @@ export function ItemInstance({
         padding: 1,
       }}
     >
-      <ItemImage itemName={itemName} />
+      <ItemImage itemName={itemName} size={size} />
       {(gItem.upgrade || gItem.compound) && itemInfo.level ? (
-        <Box sx={levelStyle}>
-          {levelString}
-          {/* <Input value={itemInfo.level} onChange={onChangeLevel}></Input> */}
-        </Box>
+        <Box sx={levelStyle}>{levelString}</Box>
       ) : (
         ""
       )}
@@ -178,5 +153,18 @@ export function ItemInstance({
         <></>
       )}
     </div>
+  );
+
+  if (!tooltip) return sprite;
+
+  return (
+    <ItemTooltip
+      itemName={itemName}
+      level={itemInfo.level}
+      title={typeof itemInfo.p === "string" ? itemInfo.p : undefined}
+      quantity={itemInfo.q}
+    >
+      {sprite}
+    </ItemTooltip>
   );
 }

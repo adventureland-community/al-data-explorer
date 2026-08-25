@@ -20,6 +20,20 @@ export function getTitleName(itemInfo: any, G: GData) {
   return titleName;
 }
 
+/** Display name with optional +level and title prefix (market tooltip parity). */
+export function getFullItemName(itemInfo: ItemInfo, G: GData) {
+  const gItem = G.items[itemInfo.name];
+  if (!gItem) return String(itemInfo.name);
+  const titleName = getTitleName(itemInfo, G);
+  const itemName = getItemName(itemInfo.name, gItem);
+  const level = itemInfo.level ?? 0;
+  const levelString = level > 0 ? getLevelString(gItem, level) : undefined;
+  const levelPrefix =
+    levelString !== undefined ? `+${levelString} ` : level > 0 ? `+${level} ` : "";
+
+  return `${levelPrefix}${titleName ? `${titleName} ` : ""}${itemName}`;
+}
+
 /** Native `title` tooltip text for an item instance (name, level, key, type, quantity). */
 export function getItemInstanceTitle(itemInfo: ItemInfo, G: GData) {
   const itemKey = itemInfo.name as ItemKey;

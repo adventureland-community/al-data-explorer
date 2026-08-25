@@ -2,7 +2,15 @@ import { ItemKey } from "typed-adventureland";
 import { useContext } from "react";
 import { GDataContext } from "./GDataContext";
 
-export function ItemImage({ itemName, opacity }: { itemName: ItemKey; opacity?: number }) {
+export function ItemImage({
+  itemName,
+  opacity,
+  size = 40,
+}: {
+  itemName: ItemKey;
+  opacity?: number;
+  size?: number;
+}) {
   const G = useContext(GDataContext);
 
   if (!G) {
@@ -19,7 +27,6 @@ export function ItemImage({ itemName, opacity }: { itemName: ItemKey; opacity?: 
   const pack = G.imagesets[skinPositions[0] || "pack_20"];
   const x = skinPositions[1];
   const y = skinPositions[2];
-  const size = /* gItem?.size ?? */ 40;
   const scale = size / pack.size;
   return (
     <div
