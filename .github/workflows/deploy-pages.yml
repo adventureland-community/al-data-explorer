@@ -47,6 +47,8 @@ jobs:
       - name: Build project
         env:
           DISABLE_ESLINT_PLUGIN: "true"
+          # Bust browser/CDN cache of /data.json (Pages max-age=600) per deploy.
+          REACT_APP_BUILD_ID: ${{ github.sha }}
         run: npm run build
 
       - name: Create CNAME file

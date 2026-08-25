@@ -59,4 +59,5 @@ jobs:
       - name: Build project
         env:
           DISABLE_ESLINT_PLUGIN: "true"
+          REACT_APP_BUILD_ID: ${{ github.sha }}
         run: npm run build

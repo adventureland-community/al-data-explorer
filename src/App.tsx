@@ -112,8 +112,18 @@ function App() {
     }
     let cancelled = false;
     // Absolute path — relative "data.json" breaks on /items/:key and /items/compare.
+    // Deploy sets REACT_APP_BUILD_ID so CDN/browser cache keys change each release
+    // (GitHub Pages serves data.json with max-age=600). Dev busts every load.
+    const cacheBust =
+      process.env.REACT_APP_BUILD_ID ??
+      (process.env.NODE_ENV === "development" ? String(Date.now()) : "0");
     axios
-      .get("/data.json")
+      .get(`/data.json?v=${encodeURIComponent(cacheBust)}`, {
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      })
       .then((response) => {
         if (cancelled) return;
         const loaded = { ...response.data, base_gold } as CustomGData;
