@@ -3,6 +3,11 @@ import { Link as RouterLink } from "react-router-dom";
 
 const sections = [
   {
+    title: "Items",
+    path: "/items",
+    description: "Browse items with drops, shops, craft recipes, and the balance matrix.",
+  },
+  {
     title: "Gear Planner",
     path: "/gear",
     description: "Plan gear loadouts, compare stats, and import characters or players.",

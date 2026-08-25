@@ -10,6 +10,9 @@ import { Monsters } from "./Monster/monsters";
 import { Bank } from "./Bank/bank";
 import { Welcome } from "./Welcome";
 import { WorldViewer } from "./WorldViewer/WorldViewer";
+import { ItemsBrowse } from "./Items/ItemsBrowse";
+import { ItemDetail } from "./Items/ItemDetail";
+import { ItemCompare } from "./Items/ItemCompare";
 
 // TODO: https://reactrouter.com/en/main/start/tutorial#handling-not-found-errors
 
@@ -40,6 +43,18 @@ const router = createBrowserRouter([
           {
             path: "bank",
             element: <Bank />,
+          },
+          {
+            path: "items",
+            element: <ItemsBrowse />,
+          },
+          {
+            path: "items/compare",
+            element: <ItemCompare />,
+          },
+          {
+            path: "items/:itemKey",
+            element: <ItemDetail />,
           },
         ],
       },

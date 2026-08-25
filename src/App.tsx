@@ -2,17 +2,21 @@ import React, { useContext, useEffect, useState } from "react";
 import axios from "axios";
 import {
   Box,
+  Button,
   createTheme,
   CssBaseline,
   Tab,
   Tabs,
   ThemeProvider,
+  Typography,
   useMediaQuery,
 } from "@mui/material";
 import { Outlet, Link as RouterLink, useLocation, matchPath } from "react-router-dom";
 
 import "./App.css";
 import { base_gold, CustomGData, GDataContext } from "./GDataContext";
+import { buildGameDataIndexes } from "./gameData/indexes";
+import { LoadingState } from "./Shared/LoadingState";
 
 function useRouteMatch(patterns: readonly string[]) {
   const { pathname } = useLocation();
@@ -29,11 +33,14 @@ function useRouteMatch(patterns: readonly string[]) {
 }
 
 function Menu({ compact = false }: { compact?: boolean }) {
-  const routeMatch = useRouteMatch(["/market", "/gear", "/monsters", "/bank", "/world"]);
-  const currentTab = routeMatch?.pattern?.path ?? false;
+  const { pathname } = useLocation();
+  const routeMatch = useRouteMatch(["/market", "/gear", "/monsters", "/bank", "/world", "/items"]);
+  const itemsSelected = pathname === "/items" || pathname.startsWith("/items/");
+  const currentTab = itemsSelected ? "/items" : routeMatch?.pattern?.path ?? false;
 
   return (
     <Tabs value={currentTab} centered sx={{ marginBottom: compact ? 0 : "15px", flexShrink: 0 }}>
+      <Tab label="Items" value="/items" to="/items" component={RouterLink} />
       <Tab label="Gear Planner" value="/gear" to="/gear" component={RouterLink} />
       <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
       <Tab label="🌎 Market" value="/market" to="/market" component={RouterLink} />
@@ -86,6 +93,8 @@ export function FullBleedLayout() {
 
 function App() {
   const [G, setG] = useState<CustomGData>();
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const theme = React.useMemo(
     () =>
@@ -97,26 +106,59 @@ function App() {
     [prefersDarkMode],
   );
 
-  console.log("AppRedraw");
-
-  // TODO: move to GDataContext
   useEffect(() => {
     if (G) {
       return;
     }
-    console.log("getting data.json");
+    let cancelled = false;
+    // Absolute path — relative "data.json" breaks on /items/:key and /items/compare.
     axios
-      .get("data.json")
+      .get("/data.json")
       .then((response) => {
-        setG({ ...response.data, base_gold });
+        if (cancelled) return;
+        const loaded = { ...response.data, base_gold } as CustomGData;
+        loaded.indexes = buildGameDataIndexes(loaded);
+        setG(loaded);
+        setLoadError(null);
       })
       .catch((error) => {
-        console.log(error);
+        if (cancelled) return;
+        console.error("Failed to load /data.json", error);
+        setLoadError("Could not load game data. Check that /data.json is available.");
       });
-  }, [G]);
+    return () => {
+      cancelled = true;
+    };
+  }, [G, loadAttempt]);
 
   if (!G) {
-    return <>WAITING!</>;
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        {loadError ? (
+          <Box sx={{ textAlign: "center", py: 8, px: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Failed to load
+            </Typography>
+            <Typography color="text.secondary" gutterBottom>
+              {loadError}
+            </Typography>
+            <Button
+              sx={{ mt: 2 }}
+              variant="outlined"
+              onClick={() => {
+                setLoadError(null);
+                setLoadAttempt((n) => n + 1);
+              }}
+            >
+              Retry
+            </Button>
+          </Box>
+        ) : (
+          <LoadingState />
+        )}
+      </ThemeProvider>
+    );
   }
 
   return (

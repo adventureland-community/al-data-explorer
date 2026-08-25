@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import App from "./App";
 
-test("shows waiting until game data loads", () => {
+test("shows loading state until game data loads", () => {
   render(<App />);
-  expect(screen.getByText("WAITING!")).toBeInTheDocument();
+  expect(screen.getByText(/Loading game data/i)).toBeInTheDocument();
 });

@@ -1,0 +1,148 @@
+import { useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
+
+import { ItemSortKey } from "../gameData/itemFilters";
+
+export type ItemsBrowseParams = {
+  search: string;
+  types: string[];
+  wtypes: string[];
+  tiers: number[];
+  classes: string[];
+  sort: ItemSortKey;
+};
+
+export function parseCsvParam(raw: string | null): string[] {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  const values: string[] = [];
+  for (const part of raw.split(",")) {
+    const value = part.trim();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    values.push(value);
+  }
+  return values;
+}
+
+export function writeCsvParam(values: string[]): string {
+  return values.join(",");
+}
+
+export function parseNumberCsvParam(raw: string | null): number[] {
+  const values: number[] = [];
+  const seen = new Set<number>();
+  for (const part of parseCsvParam(raw)) {
+    const n = Number(part);
+    if (!Number.isFinite(n) || seen.has(n)) continue;
+    seen.add(n);
+    values.push(n);
+  }
+  return values;
+}
+
+export function useItemsBrowseParams() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const params: ItemsBrowseParams = {
+    search: searchParams.get("search") ?? "",
+    types: parseCsvParam(searchParams.get("type")),
+    wtypes: parseCsvParam(searchParams.get("wtype")),
+    tiers: parseNumberCsvParam(searchParams.get("tier")),
+    classes: parseCsvParam(searchParams.get("class")),
+    sort: (searchParams.get("sort") as ItemSortKey | null) ?? "name",
+  };
+
+  const setParam = useCallback(
+    (key: string, value: string, options?: { replace?: boolean }) => {
+      const next = new URLSearchParams(searchParams);
+      if (value) next.set(key, value);
+      else next.delete(key);
+      setSearchParams(next, { replace: options?.replace ?? false });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const setListParam = useCallback(
+    (key: "type" | "wtype" | "tier" | "class", values: string[]) => {
+      const next = new URLSearchParams(searchParams);
+      const encoded = writeCsvParam(values);
+      if (encoded) next.set(key, encoded);
+      else next.delete(key);
+      setSearchParams(next);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const clearFilters = useCallback(() => {
+    setSearchParams({});
+  }, [setSearchParams]);
+
+  const hasActiveFilters = Boolean(
+    params.search ||
+      params.types.length > 0 ||
+      params.wtypes.length > 0 ||
+      params.tiers.length > 0 ||
+      params.classes.length > 0,
+  );
+
+  const browseQuery = searchParams.toString();
+
+  return { params, setParam, setListParam, clearFilters, hasActiveFilters, browseQuery };
+}
+
+/** Matrix selection + optional baseline (`show` / `baseline` / legacy `highlight`). */
+export function useMatrixUrlParams(validItem: (key: string) => boolean) {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const selectedKeys = (() => {
+    const fromShow = parseCsvParam(searchParams.get("show")).filter(validItem);
+    if (fromShow.length > 0) return fromShow;
+    const highlight = searchParams.get("highlight");
+    if (highlight && validItem(highlight)) return [highlight];
+    return [] as string[];
+  })();
+
+  const baselineRaw = searchParams.get("baseline");
+  const baselineKey =
+    baselineRaw && selectedKeys.includes(baselineRaw) && validItem(baselineRaw)
+      ? baselineRaw
+      : null;
+
+  const patch = useCallback(
+    (mutate: (next: URLSearchParams) => void) => {
+      const next = new URLSearchParams(searchParams);
+      mutate(next);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const setSelectedKeys = useCallback(
+    (keys: string[]) => {
+      patch((next) => {
+        const unique = parseCsvParam(writeCsvParam(keys));
+        if (unique.length > 0) next.set("show", writeCsvParam(unique));
+        else next.delete("show");
+        next.delete("highlight");
+        const baseline = next.get("baseline");
+        if (!baseline || !unique.includes(baseline) || unique.length < 2) {
+          next.delete("baseline");
+        }
+      });
+    },
+    [patch],
+  );
+
+  const setBaseline = useCallback(
+    (key: string | null) => {
+      patch((next) => {
+        if (key && selectedKeys.includes(key)) next.set("baseline", key);
+        else next.delete("baseline");
+      });
+    },
+    [patch, selectedKeys],
+  );
+
+  return { selectedKeys, baselineKey, setSelectedKeys, setBaseline };
+}
