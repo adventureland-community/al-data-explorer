@@ -1,10 +1,13 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import Brightness4Icon from "@mui/icons-material/Brightness4";
+import Brightness7Icon from "@mui/icons-material/Brightness7";
 import {
   Box,
   Button,
   createTheme,
   CssBaseline,
+  IconButton,
   Tab,
   Tabs,
   ThemeProvider,
@@ -17,6 +20,20 @@ import "./App.css";
 import { base_gold, CustomGData, GDataContext } from "./GDataContext";
 import { buildGameDataIndexes } from "./gameData/indexes";
 import { LoadingState } from "./Shared/LoadingState";
+
+const THEME_STORAGE_KEY = "al-data-explorer-color-mode";
+
+type ColorMode = "light" | "dark";
+
+function readStoredMode(): ColorMode | null {
+  try {
+    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    if (raw === "light" || raw === "dark") return raw;
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 function useRouteMatch(patterns: readonly string[]) {
   const { pathname } = useLocation();
@@ -32,21 +49,46 @@ function useRouteMatch(patterns: readonly string[]) {
   return null;
 }
 
+const ThemeModeContext = React.createContext<{
+  mode: ColorMode;
+  toggleMode: () => void;
+}>({ mode: "light", toggleMode: () => undefined });
+
 function Menu({ compact = false }: { compact?: boolean }) {
+  const { mode, toggleMode } = useContext(ThemeModeContext);
   const { pathname } = useLocation();
   const routeMatch = useRouteMatch(["/market", "/gear", "/monsters", "/bank", "/world", "/items"]);
   const itemsSelected = pathname === "/items" || pathname.startsWith("/items/");
   const currentTab = itemsSelected ? "/items" : routeMatch?.pattern?.path ?? false;
 
   return (
-    <Tabs value={currentTab} centered sx={{ marginBottom: compact ? 0 : "15px", flexShrink: 0 }}>
-      <Tab label="Items" value="/items" to="/items" component={RouterLink} />
-      <Tab label="Gear Planner" value="/gear" to="/gear" component={RouterLink} />
-      <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
-      <Tab label="🌎 Market" value="/market" to="/market" component={RouterLink} />
-      <Tab label="🌎 Bank" value="/bank" to="/bank" component={RouterLink} />
-      <Tab label="World" value="/world" to="/world" component={RouterLink} />
-    </Tabs>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 1,
+        marginBottom: compact ? 0 : "15px",
+        flexShrink: 0,
+      }}
+    >
+      <Tabs value={currentTab} centered sx={{ flex: 1 }}>
+        <Tab label="Items" value="/items" to="/items" component={RouterLink} />
+        <Tab label="Gear Planner" value="/gear" to="/gear" component={RouterLink} />
+        <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
+        <Tab label="🌎 Market" value="/market" to="/market" component={RouterLink} />
+        <Tab label="🌎 Bank" value="/bank" to="/bank" component={RouterLink} />
+        <Tab label="World" value="/world" to="/world" component={RouterLink} />
+      </Tabs>
+      <IconButton
+        aria-label={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        onClick={toggleMode}
+        size="small"
+        sx={{ mr: 1 }}
+      >
+        {mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
+      </IconButton>
+    </Box>
   );
 }
 
@@ -96,15 +138,38 @@ function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
-  const theme = React.useMemo(
+  const [mode, setMode] = useState<ColorMode>(() => readStoredMode() ?? "light");
+  const [modeReady, setModeReady] = useState(() => readStoredMode() != null);
+
+  useEffect(() => {
+    if (modeReady) return;
+    setMode(prefersDarkMode ? "dark" : "light");
+    setModeReady(true);
+  }, [modeReady, prefersDarkMode]);
+
+  const toggleMode = () => {
+    setMode((prev) => {
+      const next: ColorMode = prev === "dark" ? "light" : "dark";
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, next);
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  const theme = useMemo(
     () =>
       createTheme({
         palette: {
-          mode: prefersDarkMode ? "dark" : "light",
+          mode,
         },
       }),
-    [prefersDarkMode],
+    [mode],
   );
+
+  const themeModeValue = useMemo(() => ({ mode, toggleMode }), [mode]);
 
   useEffect(() => {
     if (G) {
@@ -143,51 +208,55 @@ function App() {
 
   if (!G) {
     return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        {loadError ? (
-          <Box sx={{ textAlign: "center", py: 8, px: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Failed to load
-            </Typography>
-            <Typography color="text.secondary" gutterBottom>
-              {loadError}
-            </Typography>
-            <Button
-              sx={{ mt: 2 }}
-              variant="outlined"
-              onClick={() => {
-                setLoadError(null);
-                setLoadAttempt((n) => n + 1);
-              }}
-            >
-              Retry
-            </Button>
-          </Box>
-        ) : (
-          <LoadingState />
-        )}
-      </ThemeProvider>
+      <ThemeModeContext.Provider value={themeModeValue}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          {loadError ? (
+            <Box sx={{ textAlign: "center", py: 8, px: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Failed to load
+              </Typography>
+              <Typography color="text.secondary" gutterBottom>
+                {loadError}
+              </Typography>
+              <Button
+                sx={{ mt: 2 }}
+                variant="outlined"
+                onClick={() => {
+                  setLoadError(null);
+                  setLoadAttempt((n) => n + 1);
+                }}
+              >
+                Retry
+              </Button>
+            </Box>
+          ) : (
+            <LoadingState />
+          )}
+        </ThemeProvider>
+      </ThemeModeContext.Provider>
     );
   }
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <GDataContext.Provider value={G}>
-        <Box
-          className="App"
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            height: "100vh",
-            overflow: "hidden",
-          }}
-        >
-          <Outlet />
-        </Box>
-      </GDataContext.Provider>
-    </ThemeProvider>
+    <ThemeModeContext.Provider value={themeModeValue}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <GDataContext.Provider value={G}>
+          <Box
+            className="App"
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              height: "100vh",
+              overflow: "hidden",
+            }}
+          >
+            <Outlet />
+          </Box>
+        </GDataContext.Provider>
+      </ThemeProvider>
+    </ThemeModeContext.Provider>
   );
 }
 
