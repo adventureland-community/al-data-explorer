@@ -43,13 +43,97 @@ const DO_NOT_ROUND = new Set([
   "breaks",
 ]);
 
-export type ItemPropertyArgs = {
+export type ItemTitleDefs = Record<string, Record<string, unknown>>;
+
+/** Narrow G.titles once at the data boundary. */
+export function itemTitleDefsFromG(G: { titles?: unknown }): ItemTitleDefs | undefined {
+  if (G.titles == null || typeof G.titles !== "object") return undefined;
+  return G.titles as ItemTitleDefs;
+}
+
+export type ItemStatsContext = {
   level?: number;
   statType?: StatType;
   /** Class name for item extras (e.g. tigerhelmet.rogue). */
   class?: string;
   map?: string;
+  /** Item title key (item.p) — G.titles bonuses applied like the server. */
+  titleKey?: string;
+  titles?: ItemTitleDefs;
 };
+
+export type ItemPropertyArgs = ItemStatsContext;
+
+const DOUBLEHAND_WTYPES = new Set(["axe", "basher", "great_staff"]);
+
+/** Non-stat keys on G.titles entries. */
+const TITLE_META_KEYS = new Set([
+  "type",
+  "title",
+  "source",
+  "achievement",
+  "improve",
+  "random_stat",
+  "manual",
+  "misc",
+  "consecutive_200p_range_last_hits",
+]);
+
+function addStat(stats: Record<string, number | undefined>, key: string, delta: number): void {
+  stats[key as StatType] = (stats[key as StatType] ?? 0) + delta;
+}
+
+/** Mirrors old_common_functions.js title block before upgrade/compound. */
+function applyPreCompoundTitle(
+  stats: Record<string, number | undefined>,
+  titleKey: string | undefined,
+  titles: ItemTitleDefs | undefined,
+  def: GItem,
+): void {
+  if (!titleKey || titleKey === "glitched" || titleKey === "legacy") return;
+
+  if (titleKey === "shiny") {
+    if (def.attack) {
+      addStat(stats, "attack", 4);
+      if (def.wtype && DOUBLEHAND_WTYPES.has(def.wtype)) addStat(stats, "attack", 3);
+    } else if (def.stat) {
+      addStat(stats, "stat", 2);
+    } else if (def.armor) {
+      addStat(stats, "armor", 12);
+      addStat(stats, "resistance", 10);
+    } else {
+      addStat(stats, "dex", 1);
+      addStat(stats, "int", 1);
+      addStat(stats, "str", 1);
+    }
+    return;
+  }
+
+  const titleDef = titles?.[titleKey];
+  if (!titleDef) return;
+  for (const [key, value] of Object.entries(titleDef)) {
+    if (TITLE_META_KEYS.has(key) || typeof value !== "number") continue;
+    addStat(stats, key, value);
+  }
+}
+
+/** Legacy title merges def.legacy after base + compound (server order). */
+function applyLegacyTitle(
+  stats: Record<string, number | undefined>,
+  titleKey: string | undefined,
+  def: GItem,
+): void {
+  if (titleKey !== "legacy") return;
+  const { legacy } = def as { legacy?: Record<string, number | null> };
+  if (!legacy) return;
+  for (const [name, value] of Object.entries(legacy)) {
+    if (value === null) {
+      delete stats[name as StatType];
+    } else if (typeof value === "number") {
+      addStat(stats, name, value);
+    }
+  }
+}
 
 export function getMaxLevel(gItem: { upgrade?: unknown; compound?: unknown }): number | undefined {
   if (gItem.upgrade) return 13;
@@ -160,6 +244,8 @@ export function calculateItemStatsByLevel(
     }
   });
 
+  applyPreCompoundTitle(stats, args?.titleKey, args?.titles, working);
+
   if (working.upgrade || working.compound) {
     const uDef = (working.upgrade ?? working.compound ?? {}) as { [T in StatType]?: number };
     for (let level = 1; level <= (itemLevel ?? 0); level += 1) {
@@ -196,6 +282,8 @@ export function calculateItemStatsByLevel(
     stats.stat = (stats.stat ?? 0) + 2;
   }
 
+  applyLegacyTitle(stats, args?.titleKey, working);
+
   for (const [p, value] of objectEntries(stats)) {
     if (!DO_NOT_ROUND.has(p)) {
       stats[p] = value != null ? Math.round(value) : 0;
@@ -209,4 +297,40 @@ export function calculateItemStatsByLevel(
   }
 
   return stats;
+}
+
+/**
+ * Resolve item stats with an explicit Item Stats Context.
+ * Prefer this over calling calculateItemStatsByLevel with a partial args bag.
+ */
+export function resolveItemStats(
+  def: GItem,
+  context: ItemStatsContext = {},
+): { [T in StatType]?: number } {
+  const { level, statType, ...rest } = context;
+  return calculateItemStatsByLevel(def, level, statType, rest);
+}
+
+/**
+ * Resolve stats for an equipped item instance.
+ * Hosts pass the instance + optional class; titles load from G behind this seam.
+ */
+export function resolveItemInstanceStats(args: {
+  def: GItem;
+  itemInfo: { level?: number; p?: string; stat_type?: StatType };
+  /** Prefer G so callers need not call itemTitleDefsFromG. */
+  G?: { titles?: unknown };
+  titles?: ItemTitleDefs;
+  classKey?: string;
+  map?: string;
+}): { [T in StatType]?: number } {
+  const titles = args.titles ?? (args.G ? itemTitleDefsFromG(args.G) : undefined);
+  return resolveItemStats(args.def, {
+    level: args.itemInfo.level,
+    statType: args.itemInfo.stat_type,
+    titleKey: typeof args.itemInfo.p === "string" ? args.itemInfo.p : undefined,
+    titles,
+    class: args.classKey,
+    map: args.map,
+  });
 }

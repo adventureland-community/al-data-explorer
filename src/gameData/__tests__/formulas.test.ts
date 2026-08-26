@@ -1,5 +1,5 @@
 import { calculateClassStatByLevel } from "../classLevelStats";
-import { adoptExtras, calculateItemStatsByLevel } from "../itemProperties";
+import { adoptExtras, calculateItemStatsByLevel, resolveItemStats } from "../itemProperties";
 import {
   isDoublehandWeapon,
   loadoutHasDoublehandConflict,
@@ -37,6 +37,7 @@ describe("itemProperties adoptExtras / class", () => {
     const rogue = calculateItemStatsByLevel(def, 0, undefined, { class: "rogue" });
     expect(base.crit).toBe(0.5);
     expect(rogue.crit).toBe(2.5);
+    expect(resolveItemStats(def, { level: 0, class: "rogue" }).crit).toBe(2.5);
     const rogueUp = calculateItemStatsByLevel(def, 1, undefined, { class: "rogue" });
     expect(rogueUp.crit).toBeCloseTo(2.75);
   });
