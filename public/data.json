@@ -1,5 +1,5 @@
 {
-  "version": 5092,
+  "version": 5202,
   "achievements": {
     "reach40": { "name": "Become Level 40", "item": "gem1" },
     "reach50": { "name": "Become Level 50", "shells": 50 },
@@ -3423,7 +3423,7 @@
       "speed": 24,
       "charge": 84,
       "hp": 5600000,
-      "xp": 1440000,
+      "xp": 14400000,
       "difficulty": 0,
       "attack": 2240,
       "damage_type": "magical",
@@ -141831,7 +141831,7 @@
       "size": 20,
       "rows": 40,
       "columns": 20,
-      "file": "/images/tiles/items/raw_items.png?v=2",
+      "file": "/images/tiles/items/raw_items.png?v=3",
       "load": true
     }
   },
@@ -152987,6 +152987,11 @@
     "emote_joy": ["rawitems", 12, 0],
     "emote_jump": ["rawitems", 13, 0],
     "emote_superjump": ["rawitems", 14, 0],
+    "emote_highfive": ["rawitems", 15, 0],
+    "emote_boop": ["rawitems", 16, 0],
+    "emote_spotlight": ["rawitems", 17, 0],
+    "emote_pocketstorm": ["rawitems", 18, 0],
+    "emote_mirrordance": ["rawitems", 19, 0],
     "friendtoken": ["", 15, 33],
     "patronsgrace": ["custom", 5, 0]
   },
@@ -153183,6 +153188,58 @@
       "mp": 10,
       "cooldown": 10000,
       "emote": "superjump"
+    },
+    "highfive": {
+      "type": "skill",
+      "skin": "emote_highfive",
+      "name": "High Five",
+      "explanation": "Meet in the middle.",
+      "mp": 30,
+      "cooldown": 20000,
+      "range": 80,
+      "target": "player",
+      "no_self": true,
+      "emote": "highfive"
+    },
+    "boop": {
+      "type": "skill",
+      "skin": "emote_boop",
+      "name": "Boop",
+      "explanation": "A tiny hello, right on the nose.",
+      "mp": 20,
+      "cooldown": 15000,
+      "range": 120,
+      "target": "player",
+      "emote": "boop"
+    },
+    "spotlight": {
+      "type": "skill",
+      "skin": "emote_spotlight",
+      "name": "Spotlight",
+      "explanation": "The stage knows its star.",
+      "mp": 150,
+      "cooldown": 90000,
+      "range": 240,
+      "target": "player",
+      "emote": "spotlight"
+    },
+    "pocketstorm": {
+      "type": "skill",
+      "skin": "emote_pocketstorm",
+      "name": "Pocket Storm",
+      "explanation": "Bring your own weather.",
+      "mp": 100,
+      "cooldown": 60000,
+      "emote": "pocketstorm"
+    },
+    "mirrordance": {
+      "type": "skill",
+      "skin": "emote_mirrordance",
+      "name": "Mirror Disco",
+      "explanation": "One dancer. Every light.",
+      "mp": 250,
+      "cooldown": 120000,
+      "emote": "mirrordance"
     },
     "snowball": {
       "type": "skill",
@@ -158723,8 +158780,13 @@
       [1, "cx", "headwiggle"],
       [1, "cx", "joy"],
       [1, "cx", "jump"],
-      [0.1, "cx", "superjump"]
+      [0.1, "cx", "superjump"],
+      [1, "cx", "highfive"],
+      [1, "cx", "boop"],
+      [0.35, "cx", "spotlight"],
+      [0.5, "cx", "pocketstorm"],
+      [0.1, "cx", "mirrordance"]
     ]
   },
-  "timestamp": "2026-08-24T21:33:13.988Z"
+  "timestamp": "2026-08-26T17:10:23.797Z"
 }
