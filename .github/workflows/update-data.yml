@@ -48,8 +48,8 @@ jobs:
         id: version
         if: steps.check.outputs.has_changes == 'true'
         run: |
-          NEW=$(node -e "console.log(require('./public/data.json').version)")
-          OLD=$(node -e "console.log(require('./public/data.json.before').version)")
+          NEW=$(node -e "console.log(JSON.parse(require('fs').readFileSync('./public/data.json','utf8')).version)")
+          OLD=$(node -e "console.log(JSON.parse(require('fs').readFileSync('./public/data.json.before','utf8')).version)")
           echo "new_version=$NEW" >> "$GITHUB_OUTPUT"
           echo "old_version=$OLD" >> "$GITHUB_OUTPUT"
 
