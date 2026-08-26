@@ -18,6 +18,12 @@ const sections = [
     description: "Browse monsters, drops, achievements, and search or sort the list.",
   },
   {
+    title: "Drop Simulator",
+    path: "/drops",
+    description:
+      "Simulate exchange loot tables and monster kills, with coop and 1hp what-if controls.",
+  },
+  {
     title: "Market",
     path: "/market",
     description: "See what merchants are buying and selling across Adventure Land.",

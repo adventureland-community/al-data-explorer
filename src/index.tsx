@@ -13,6 +13,7 @@ import { WorldViewer } from "./WorldViewer/WorldViewer";
 import { ItemsBrowse } from "./Items/ItemsBrowse";
 import { ItemDetail } from "./Items/ItemDetail";
 import { ItemCompare } from "./Items/ItemCompare";
+import { DropSimulator } from "./DropSimulator/DropSimulator";
 
 // TODO: https://reactrouter.com/en/main/start/tutorial#handling-not-found-errors
 
@@ -55,6 +56,10 @@ const router = createBrowserRouter([
           {
             path: "items/:itemKey",
             element: <ItemDetail />,
+          },
+          {
+            path: "drops",
+            element: <DropSimulator />,
           },
         ],
       },

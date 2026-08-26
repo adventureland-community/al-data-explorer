@@ -57,7 +57,15 @@ const ThemeModeContext = React.createContext<{
 function Menu({ compact = false }: { compact?: boolean }) {
   const { mode, toggleMode } = useContext(ThemeModeContext);
   const { pathname } = useLocation();
-  const routeMatch = useRouteMatch(["/market", "/gear", "/monsters", "/bank", "/world", "/items"]);
+  const routeMatch = useRouteMatch([
+    "/market",
+    "/gear",
+    "/monsters",
+    "/bank",
+    "/world",
+    "/items",
+    "/drops",
+  ]);
   const itemsSelected = pathname === "/items" || pathname.startsWith("/items/");
   const currentTab = itemsSelected ? "/items" : routeMatch?.pattern?.path ?? false;
 
@@ -76,6 +84,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
         <Tab label="Items" value="/items" to="/items" component={RouterLink} />
         <Tab label="Gear Planner" value="/gear" to="/gear" component={RouterLink} />
         <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
+        <Tab label="Drops" value="/drops" to="/drops" component={RouterLink} />
         <Tab label="🌎 Market" value="/market" to="/market" component={RouterLink} />
         <Tab label="🌎 Bank" value="/bank" to="/bank" component={RouterLink} />
         <Tab label="World" value="/world" to="/world" component={RouterLink} />
@@ -164,6 +173,44 @@ function App() {
       createTheme({
         palette: {
           mode,
+        },
+        components: {
+          MuiCssBaseline: {
+            styleOverrides: (t) => {
+              const track =
+                t.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
+              const thumb =
+                t.palette.mode === "dark" ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.22)";
+              const thumbHover =
+                t.palette.mode === "dark" ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.35)";
+              return {
+                "*": {
+                  scrollbarWidth: "thin",
+                  scrollbarColor: `${thumb} ${track}`,
+                },
+                "*::-webkit-scrollbar": {
+                  width: 8,
+                  height: 8,
+                },
+                "*::-webkit-scrollbar-track": {
+                  backgroundColor: track,
+                  borderRadius: 8,
+                },
+                "*::-webkit-scrollbar-thumb": {
+                  backgroundColor: thumb,
+                  borderRadius: 8,
+                  border: "2px solid transparent",
+                  backgroundClip: "content-box",
+                },
+                "*::-webkit-scrollbar-thumb:hover": {
+                  backgroundColor: thumbHover,
+                },
+                "*::-webkit-scrollbar-corner": {
+                  backgroundColor: "transparent",
+                },
+              };
+            },
+          },
         },
       }),
     [mode],
