@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
   actions: write
 
 jobs:
@@ -63,28 +64,38 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      # Org policy blocks Actions from opening PRs; commit to main directly.
-      - name: Commit data update to main
+      - name: Create Pull Request
+        id: cpr
         if: steps.check.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.1.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "🗃️ Update data.json to v${{ steps.version.outputs.new_version }}"
+          title: "🗃️ Update game data to v${{ steps.version.outputs.new_version }}"
+          body: ${{ steps.diff.outputs.body }}
+          branch: update-al-data-${{ steps.version.outputs.new_version }}
+          delete-branch: true
+          labels: |
+            automated
+            data-update
+
+      - name: Auto-merge data update
+        if: steps.check.outputs.has_changes == 'true' && steps.cpr.outputs.pull-request-number != ''
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
           NEW_VERSION: ${{ steps.version.outputs.new_version }}
-          DIFF_BODY: ${{ steps.diff.outputs.body }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data.json
-          {
-            echo "🗃️ Update data.json to v${NEW_VERSION}"
-            echo
-            echo "$DIFF_BODY"
-          } > /tmp/commit-msg.txt
-          git commit -F /tmp/commit-msg.txt
-          git push origin HEAD:main
+          echo "Auto-merging data PR #${PR_NUMBER}"
+          gh pr merge "$PR_NUMBER" \
+            --squash \
+            --delete-branch \
+            --subject "🗃️ Update data.json to v${NEW_VERSION}"
 
       - name: Trigger Pages deploy
-        if: steps.check.outputs.has_changes == 'true'
+        if: steps.check.outputs.has_changes == 'true' && steps.cpr.outputs.pull-request-number != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # GITHUB_TOKEN pushes do not fire on:push; dispatch deploy explicitly.
+          # GITHUB_TOKEN merges do not fire on:push; dispatch deploy explicitly.
           gh workflow run deploy-pages.yml --ref main
