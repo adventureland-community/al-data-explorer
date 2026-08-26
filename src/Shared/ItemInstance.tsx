@@ -30,6 +30,27 @@ export function ItemInstance({
   }
   const itemName = itemInfo.name;
   const gItem = G.items[itemName];
+  if (!gItem) {
+    return (
+      <Box
+        sx={{
+          width: size,
+          height: size,
+          flexShrink: 0,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "0.65rem",
+          color: "text.secondary",
+          border: 1,
+          borderColor: "divider",
+        }}
+        title={itemName}
+      >
+        ?
+      </Box>
+    );
+  }
 
   const levelStyle: SxProps = {
     position: "absolute",
@@ -134,7 +155,7 @@ export function ItemInstance({
       style={{
         position: "relative",
         display: "inline-block",
-        verticalAlign: "inherit",
+        verticalAlign: "middle",
         borderWidth: 2,
         borderStyle: "solid",
         borderColor: showTitleBorder && titleBorderColor ? titleBorderColor : "transparent",
@@ -162,6 +183,7 @@ export function ItemInstance({
       itemName={itemName}
       level={itemInfo.level}
       title={typeof itemInfo.p === "string" ? itemInfo.p : undefined}
+      statType={typeof itemInfo.stat_type === "string" ? itemInfo.stat_type : undefined}
       quantity={itemInfo.q}
     >
       {sprite}

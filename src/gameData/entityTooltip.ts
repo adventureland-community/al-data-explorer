@@ -5,7 +5,15 @@ import { buildItemTooltipLines, type ItemTooltipLine } from "./itemTooltipLines"
 export type EntityTooltipLine = ItemTooltipLine;
 
 export type EntityRef =
-  | { kind: "item"; key: string; level?: number; title?: string; quantity?: number }
+  | {
+      kind: "item";
+      key: string;
+      level?: number;
+      title?: string;
+      /** Property/stat scroll type (ItemInfo.stat_type). */
+      statType?: string;
+      quantity?: number;
+    }
   | { kind: "monster"; key: string }
   | { kind: "npc"; key: string };
 
@@ -88,12 +96,14 @@ export function buildEntityTooltipModel(entity: EntityRef, G: GData): EntityTool
         name: entity.key as ItemInfo["name"],
         level: entity.level ?? 0,
         ...(entity.title ? { p: entity.title as ItemInfo["p"] } : {}),
+        ...(entity.statType ? { stat_type: entity.statType as ItemInfo["stat_type"] } : {}),
         ...(entity.quantity != null && entity.quantity > 1 ? { q: entity.quantity } : {}),
       };
       const level = entity.level ?? 0;
       const badges: string[] = [];
       if (level > 0) badges.push(`+${level}`);
       if (entity.title) badges.push(entity.title);
+      if (entity.statType) badges.push(entity.statType);
       if (entity.quantity != null && entity.quantity > 1) badges.push(`×${entity.quantity}`);
       return {
         kind: "item",

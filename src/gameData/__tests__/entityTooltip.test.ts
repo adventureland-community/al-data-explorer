@@ -43,6 +43,39 @@ describe("buildEntityTooltipModel", () => {
     expect(model?.lines.some((l) => l.kind === "stat" && l.label === "Damage")).toBe(true);
   });
 
+  it("applies title and stat scroll on item tooltips and JSON", () => {
+    const G2 = {
+      items: {
+        partyhat: {
+          name: "Party Hat",
+          type: "helmet",
+          stat: 1,
+          armor: 5,
+          resistance: 6,
+          g: 12000,
+        },
+      },
+      titles: {
+        lucky: { type: "all_items", luck: 2, title: "Lucky" },
+      },
+      skills: {},
+      conditions: {},
+      sets: {},
+    } as never;
+    const model = buildEntityTooltipModel(
+      { kind: "item", key: "partyhat", level: 0, title: "lucky", statType: "vit" },
+      G2,
+    );
+    expect(model).not.toBeNull();
+    const json = model!.json as { itemInfo: { p?: string; stat_type?: string } };
+    expect(json.itemInfo.p).toBe("lucky");
+    expect(json.itemInfo.stat_type).toBe("vit");
+    expect(model!.badges).toStrictEqual(expect.arrayContaining(["lucky", "vit"]));
+    expect(model!.lines.some((l) => l.kind === "stat" && l.label === "Luck")).toBe(true);
+    expect(model!.lines.some((l) => l.kind === "stat" && l.label === "Vitality")).toBe(true);
+    expect(model!.lines.some((l) => l.kind === "stat" && l.label === "Stat")).toBe(false);
+  });
+
   it("builds monster tooltips", () => {
     const model = buildEntityTooltipModel({ kind: "monster", key: "goo" }, G);
     expect(model?.displayName).toBe("Goo");

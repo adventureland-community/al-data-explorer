@@ -1,7 +1,8 @@
 import type { GData, GItem, ItemInfo, StatType } from "typed-adventureland";
 
-import { calculateItemStatsByLevel } from "../Utils";
+import { resolveItemInstanceStats } from "./itemProperties";
 import { getItemGrade, gradeLabel } from "./playerItemDisplay";
+import { formatItemStatValue } from "./prettyNumbers";
 
 export type ItemTooltipLine =
   | { kind: "text"; text: string; color?: string }
@@ -15,8 +16,7 @@ const GRADE_COLORS: Record<number, string> = {
 };
 
 function formatPercent(value: number) {
-  const rounded = Math.trunc(value * 100) / 100;
-  return `${rounded}%`;
+  return formatItemStatValue("evasion", value);
 }
 
 const STAT_LINES: Array<{
@@ -30,25 +30,30 @@ const STAT_LINES: Array<{
     key: "gold",
     label: "Gold",
     valueColor: "#fbbf24",
-    format: (v) => `${v > 0 ? "+" : ""}${v}%`,
+    format: (v) => formatItemStatValue("gold", v),
   },
   {
     key: "luck",
     label: "Luck",
     valueColor: "#34d399",
-    format: (v) => `${v > 0 ? "+" : ""}${v}%`,
+    format: (v) => formatItemStatValue("luck", v),
   },
   {
     key: "xp",
     label: "XP",
     valueColor: "#3b82f6",
-    format: (v) => `${v > 0 ? "+" : ""}${v}%`,
+    format: (v) => formatItemStatValue("xp", v),
   },
   { key: "lifesteal", label: "Lifesteal", valueColor: "#f472b6", format: formatPercent },
   { key: "manasteal", label: "Manasteal", valueColor: "#38bdf8", format: formatPercent },
   { key: "evasion", label: "Evasion", valueColor: "#7dd3fc", format: formatPercent },
   { key: "avoidance", label: "Avoidance", valueColor: "#7dd3fc", format: formatPercent },
-  { key: "miss", label: "Miss", valueColor: "#f87171", format: (v) => `${v}%` },
+  {
+    key: "miss",
+    label: "Miss",
+    valueColor: "#f87171",
+    format: (v) => formatItemStatValue("miss", v),
+  },
   { key: "reflection", label: "Reflection", valueColor: "#a78bfa", format: formatPercent },
   { key: "dreturn", label: "D.Return", valueColor: "#f43f5e", format: formatPercent },
   { key: "crit", label: "Crit", valueColor: "#db2777", format: formatPercent },
@@ -56,7 +61,7 @@ const STAT_LINES: Array<{
     key: "critdamage",
     label: "Crit Damage",
     valueColor: "#be123c",
-    format: (v) => `+${formatPercent(v)}`,
+    format: (v) => formatItemStatValue("critdamage", v),
   },
   {
     key: "attack",
@@ -188,7 +193,7 @@ const STAT_LINES: Array<{
   },
 ];
 
-/** Keys copied onto stats by calculateItemStatsByLevel but not shown as tooltip lines. */
+/** Keys copied onto resolved item stats but not shown as tooltip lines. */
 const HIDDEN_STAT_KEYS = new Set([
   "level",
   "attr0",
@@ -315,7 +320,7 @@ const ITEM_ABILITIES: Record<string, AbilityDef> = {
 
 function pushAbilityLines(
   gItem: GItem,
-  stats: ReturnType<typeof calculateItemStatsByLevel>,
+  stats: { [T in StatType]?: number },
   G: GData,
   lines: ItemTooltipLine[],
 ) {
@@ -455,6 +460,15 @@ function pushSetLine(gItem: GItem, G: GData, lines: ItemTooltipLine[]) {
   });
 }
 
+function pushGlitchedTitleLine(itemInfo: ItemInfo, lines: ItemTooltipLine[]) {
+  if (itemInfo.p !== "glitched") return;
+  lines.push({
+    kind: "text",
+    text: "Glitched: +1 random Strength, Intelligence, or Dexterity",
+    color: "text.secondary",
+  });
+}
+
 function pushExplanationLine(gItem: GItem, lines: ItemTooltipLine[]) {
   if (gItem.explanation) {
     lines.push({ kind: "text", text: gItem.explanation, color: "text.secondary" });
@@ -511,13 +525,15 @@ export function buildItemTooltipLines(
   G: GData,
 ): ItemTooltipLine[] {
   const lines: ItemTooltipLine[] = [];
-  const stats = calculateItemStatsByLevel(gItem, itemInfo.level, itemInfo.stat_type);
+  const stats = resolveItemInstanceStats({ def: gItem, itemInfo, G });
 
   pushGivesLines(gItem, lines);
 
   for (const def of STAT_LINES) {
     const raw = (stats as Record<string, number | undefined>)[def.key as StatType];
     if (raw == null || raw === 0 || HIDDEN_STAT_KEYS.has(def.key)) continue;
+    // Scroll applied: points are shown as the chosen attribute, not raw "Stat".
+    if (def.key === "stat" && itemInfo.stat_type) continue;
     lines.push({
       kind: "stat",
       label: def.label,
@@ -544,6 +560,7 @@ export function buildItemTooltipLines(
   pushAbilityLines(gItem, stats, G, lines);
   pushSetLine(gItem, G, lines);
   pushMetaLines(gItem, lines);
+  pushGlitchedTitleLine(itemInfo, lines);
   pushExplanationLine(gItem, lines);
 
   return lines;

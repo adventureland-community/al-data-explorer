@@ -93,6 +93,7 @@ export function EntityTooltip({ entity, children }: EntityTooltipProps) {
           name: entity.key as never,
           level: entity.level ?? 0,
           ...(entity.title ? { p: entity.title as never } : {}),
+          ...(entity.statType ? { stat_type: entity.statType as never } : {}),
         },
         G,
       );
@@ -275,12 +276,15 @@ export function ItemTooltip({
   itemName,
   level = 0,
   title = "",
+  statType,
   quantity,
   children,
 }: {
   itemName: string;
   level?: number;
   title?: string;
+  /** Property/stat scroll type (ItemInfo.stat_type). */
+  statType?: string;
   quantity?: number;
   children: ReactNode;
 }) {
@@ -290,9 +294,10 @@ export function ItemTooltip({
       key: itemName,
       level,
       title: title || undefined,
+      statType: statType || undefined,
       quantity,
     }),
-    [itemName, level, quantity, title],
+    [itemName, level, quantity, title, statType],
   );
 
   return <EntityTooltip entity={entity}>{children}</EntityTooltip>;

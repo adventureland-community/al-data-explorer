@@ -62,4 +62,30 @@ describe("buildItemTooltipLines", () => {
     expect(lines.some((l) => l.kind === "stat" && l.label === "NPC value")).toBe(true);
     expect(lines.some((l) => l.kind === "text" && /Spider silk/.test(l.text))).toBe(true);
   });
+
+  it("includes luck from festive title on item instance", () => {
+    const lines = buildItemTooltipLines(
+      {
+        name: "Fiery Cape",
+        type: "cape",
+        armor: 10,
+        resistance: 8,
+        stat: 6,
+        upgrade: { armor: 2, resistance: 2, stat: 0.1 },
+        g: 16000000,
+      } as never,
+      { name: "fcape" as never, level: 0, p: "festive" as never },
+      {
+        skills: {},
+        conditions: {},
+        sets: {},
+        items: {},
+        titles: { festive: { type: "cape", title: "Festive", luck: 1 } },
+      } as never,
+    );
+
+    expect(lines.some((l) => l.kind === "stat" && l.label === "Luck" && l.value === "+1%")).toBe(
+      true,
+    );
+  });
 });
