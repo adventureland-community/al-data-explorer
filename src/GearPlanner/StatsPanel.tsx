@@ -21,6 +21,7 @@ import { ATTRIBUTES } from "../constants";
 import { GDataContext, CustomGData, MainStatType } from "../GDataContext";
 import { getItemEffects } from "../gameData/itemEffects";
 import { computeLoadoutStats } from "../gameData/loadoutStats";
+import { formatCharacterStatValue } from "../gameData/prettyNumbers";
 import { SelectedCharacterClass } from "./types";
 import { theo_dps } from "./calculations";
 
@@ -138,15 +139,12 @@ export function StatsPanel({
   ] as StatType[];
   const otherStatTypes: StatType[] = ["speed", "range", "mp_cost", "mp_reduction"];
 
-  let stats: { [T in StatType]?: number } = {};
-  if (selectedCharacterClass) {
-    stats = computeLoadoutStats({
-      characterClass: selectedCharacterClass,
-      level,
-      gear,
-      G,
-    });
-  }
+  const stats: { [T in StatType]?: number } = computeLoadoutStats({
+    characterClass: selectedCharacterClass,
+    level,
+    gear,
+    G,
+  });
 
   Object.entries(stats)
     .filter(
@@ -228,8 +226,7 @@ export function StatsPanel({
               <TableRow key={`stat_${stat}`}>
                 <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
                 <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
-                  {Math.round((stats[stat] ?? 0) * (stat === "frequency" ? 100 : 1)) /
-                    (stat === "frequency" ? 100 : 1)}
+                  {formatCharacterStatValue(stat, stats[stat] ?? 0)}
                 </TableCell>
               </TableRow>
             ))}
@@ -244,7 +241,7 @@ export function StatsPanel({
               <TableRow key={`stat_${stat}`}>
                 <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
                 <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
-                  {Math.round(stats[stat] ?? 0)}
+                  {formatCharacterStatValue(stat, stats[stat] ?? 0)}
                 </TableCell>
               </TableRow>
             ))}
@@ -261,7 +258,7 @@ export function StatsPanel({
                 <TableRow key={`stat_${stat}`}>
                   <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
                   <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
-                    {Math.round(stats[stat] ?? 0)}
+                    {formatCharacterStatValue(stat, stats[stat] ?? 0)}
                   </TableCell>
                 </TableRow>
               ))}

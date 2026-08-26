@@ -17,10 +17,12 @@ export function SaveLinkButton({
   gear,
   characterClass,
   level,
+  storageKey = "loadouts",
 }: {
   gear: { [slot in SlotType]?: ItemInfo };
   characterClass: SelectedCharacterClass | undefined;
   level: number;
+  storageKey?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -28,7 +30,7 @@ export function SaveLinkButton({
 
   const onSaveLoadout = () => {
     let loadouts: SavedLoadouts = {};
-    const loadoutString = localStorage.getItem("loadouts") ?? "";
+    const loadoutString = localStorage.getItem(storageKey) ?? "";
     if (loadoutString) {
       loadouts = JSON.parse(loadoutString);
       // TODO: what if a loadout with that name already exists? warn before override?
@@ -41,7 +43,7 @@ export function SaveLinkButton({
         level,
       };
 
-      localStorage.setItem("loadouts", JSON.stringify(loadouts));
+      localStorage.setItem(storageKey, JSON.stringify(loadouts));
     }
   };
 

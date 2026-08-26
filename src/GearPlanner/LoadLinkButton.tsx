@@ -3,11 +3,17 @@ import { useState } from "react";
 import { SavedLoadoutTable } from "./SavedLoadoutsTable";
 import { SavedLoadout, SavedLoadouts } from "./types";
 
-export function LoadLinkButton({ load }: { load: (name: string, data: SavedLoadout) => void }) {
+export function LoadLinkButton({
+  load,
+  storageKey = "loadouts",
+}: {
+  load: (name: string, data: SavedLoadout) => void;
+  storageKey?: string;
+}) {
   const [open, setOpen] = useState(false);
 
   let loadouts: SavedLoadouts = {};
-  const loadoutString = localStorage.getItem("loadouts") ?? "";
+  const loadoutString = localStorage.getItem(storageKey) ?? "";
   if (loadoutString) {
     loadouts = JSON.parse(loadoutString);
     // TODO: what if a loadout with that name already exists? warn before override?
