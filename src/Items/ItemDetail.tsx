@@ -19,6 +19,8 @@ import { useContext, useMemo } from "react";
 import { GCraft, ItemKey } from "typed-adventureland";
 
 import { GDismantle } from "../gameData/dismantle";
+import { craftRowKey, formatCraftCost, parseCraftRow } from "../gameData/craftRecipe";
+import type { CraftRecipeRow } from "../gameData/craftRecipe";
 import type { ItemEffectView } from "../gameData/itemEffects";
 import {
   getItemBadges,
@@ -38,6 +40,7 @@ import { effectLookupsFromG } from "../gameData/itemEffects";
 import { CustomGData, GDataContext } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
 import { ItemInstance } from "../Shared/ItemInstance";
+import { RecipeItemTile } from "../Shared/RecipeItemTile";
 import { LoadingState } from "../Shared/LoadingState";
 import { SpriteSkin } from "../Shared/SpriteSkin";
 import { getMaxLevel } from "../Utils";
@@ -191,46 +194,36 @@ function ItemEffectBlock({ effects }: { effects: ItemEffectView[] }) {
   );
 }
 
-function IngredientTiles({
-  items,
-  rows,
-}: {
-  items: CustomGData["items"];
-  rows: Array<[number, string] | [number, string, number]>;
-}) {
+function IngredientTiles({ items, rows }: { items: CustomGData["items"]; rows: CraftRecipeRow[] }) {
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mt: 1 }}>
-      {rows.map(([qty, key, lvl]) => {
-        const ingredient = key as ItemKey;
-        const name = items[ingredient]?.name ?? ingredient;
+      {rows.map((row) => {
+        const parsed = parseCraftRow(row);
+        const name = items[parsed.itemKey]?.name ?? parsed.itemKey;
         return (
-          <Box
-            key={`${ingredient}-${String(lvl ?? 0)}-${qty}`}
-            component={RouterLink}
-            to={`/items/${ingredient}${typeof lvl === "number" ? `?level=${lvl}` : ""}`}
-            sx={{ textDecoration: "none", color: "inherit", textAlign: "center", minWidth: 72 }}
-          >
-            <ItemInstance
-              itemInfo={{
-                name: ingredient,
-                level: typeof lvl === "number" ? lvl : undefined,
-                q: qty > 1 ? qty : undefined,
-              }}
-              showQuantity
-            />
-            <Typography
-              variant="caption"
-              display="block"
-              noWrap
-              sx={{ maxWidth: 100 }}
-              title={name}
-            >
-              {name}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" display="block">
-              ×{qty}
-            </Typography>
-          </Box>
+          <RecipeItemTile
+            key={craftRowKey(parsed)}
+            itemKey={parsed.itemKey}
+            level={parsed.level}
+            quantity={parsed.quantity}
+            showQuantity={parsed.quantity > 1}
+            footer={
+              <>
+                <Typography
+                  variant="caption"
+                  display="block"
+                  noWrap
+                  sx={{ maxWidth: 100 }}
+                  title={name}
+                >
+                  {name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  ×{parsed.quantity}
+                </Typography>
+              </>
+            }
+          />
         );
       })}
     </Box>
@@ -251,9 +244,9 @@ function CraftRecipeCard({
       <Typography variant="h6" gutterBottom>
         Craft recipe
       </Typography>
-      {craft.cost != null && (
+      {craft.cost != null && craft.cost > 0 && (
         <Typography variant="body2" gutterBottom>
-          Gold cost: {craft.cost.toLocaleString()}g
+          Craft cost: {formatCraftCost(craft.cost)}
         </Typography>
       )}
       {craft.quest && (
@@ -261,7 +254,7 @@ function CraftRecipeCard({
           Quest NPC: {craft.quest}
         </Typography>
       )}
-      <IngredientTiles items={items} rows={(craft.items ?? []) as never} />
+      <IngredientTiles items={items} rows={craft.items ?? []} />
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
         Output: {items[itemKey]?.name ?? itemKey}
       </Typography>
@@ -291,7 +284,7 @@ function DismantleRecipeCard({
       <Typography variant="body2" color="text.secondary" gutterBottom>
         Breaks {items[itemKey]?.name ?? itemKey} into:
       </Typography>
-      <IngredientTiles items={items} rows={dismantle.items ?? []} />
+      <IngredientTiles items={items} rows={(dismantle.items ?? []) as CraftRecipeRow[]} />
     </Paper>
   );
 }

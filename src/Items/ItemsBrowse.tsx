@@ -32,7 +32,7 @@ import {
 } from "../gameData/itemFilters";
 import { getItemAbilityKey, getItemBadges, getItemClasses } from "../gameData/itemMeta";
 import { abilityBlurb } from "../gameData/itemEffects";
-import { CustomGData, GDataContext } from "../GDataContext";
+import { GDataContext } from "../GDataContext";
 import {
   BrowseCraftCell,
   BrowseDropsCell,
@@ -89,12 +89,11 @@ type ItemBrowseRowProps = {
   shops: AcquisitionShopView[];
   craft: GCraft | undefined;
   usedIn: ItemKey[];
-  G: CustomGData;
   to: string;
 };
 
 const ItemBrowseRow = memo(
-  ({ itemKey, gItem, drops, shops, craft, usedIn, G, to }: ItemBrowseRowProps) => {
+  ({ itemKey, gItem, drops, shops, craft, usedIn, to }: ItemBrowseRowProps) => {
     const ability = getItemAbilityKey(gItem);
     const abilityLine = ability
       ? abilityBlurb(
@@ -181,7 +180,7 @@ const ItemBrowseRow = memo(
           <BrowseCraftCell craft={craft} />
         </TableCell>
         <TableCell>
-          <BrowseUsedForCell outputs={usedIn} G={G} />
+          <BrowseUsedForCell outputs={usedIn} />
         </TableCell>
       </TableRow>
     );
@@ -396,7 +395,6 @@ export function ItemsBrowse() {
                   shops={row.shops}
                   craft={row.craft}
                   usedIn={row.usedIn}
-                  G={G}
                   to={row.to}
                 />
               ))}

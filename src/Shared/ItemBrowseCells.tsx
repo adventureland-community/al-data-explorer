@@ -4,9 +4,9 @@ import { Link as RouterLink } from "react-router-dom";
 import { GCraft, ItemKey } from "typed-adventureland";
 
 import { AcquisitionDropView, AcquisitionShopView } from "../gameData/itemAcquisition";
-import { CustomGData } from "../GDataContext";
+import { craftRowKey, formatCraftCost, parseCraftRow } from "../gameData/craftRecipe";
 import { AcquisitionDropIcon } from "./AcquisitionDropIcon";
-import { ItemInstance } from "./ItemInstance";
+import { RECIPE_ITEM_SIZE, RecipeItemTile } from "./RecipeItemTile";
 import { NpcImage } from "./SpriteSkin";
 
 /**
@@ -17,7 +17,7 @@ const BROWSE_TILE = 72;
 const BROWSE_TILE_WIDTH = 72;
 const BROWSE_MONSTER_SCALE = 1.75;
 const BROWSE_NPC_SCALE = 1.5;
-const BROWSE_ITEM_SIZE = 48;
+const BROWSE_ITEM_SIZE = RECIPE_ITEM_SIZE;
 
 const tileSlotSx = {
   width: BROWSE_TILE,
@@ -155,42 +155,6 @@ export function BrowseShopsCell({ shops }: { shops: AcquisitionShopView[] }) {
   );
 }
 
-/** Match drop-tile item icons so craft / used-for read at the same scale. */
-const RECIPE_ICON_SIZE = BROWSE_ITEM_SIZE;
-
-function RecipeItemIcon({
-  itemKey,
-  level,
-  quantity,
-  title,
-}: {
-  itemKey: ItemKey;
-  level?: number;
-  quantity?: number;
-  title: string;
-}) {
-  return (
-    <Tooltip title={title}>
-      <Box
-        component={RouterLink}
-        to={`/items/${itemKey}${level != null ? `?level=${level}` : ""}`}
-        onClick={(e) => e.stopPropagation()}
-        sx={{ textDecoration: "none", color: "inherit", lineHeight: 0 }}
-      >
-        <ItemInstance
-          itemInfo={{
-            name: itemKey,
-            level,
-            q: quantity != null && quantity > 1 ? quantity : undefined,
-          }}
-          showQuantity={quantity != null && quantity > 1}
-          size={RECIPE_ICON_SIZE}
-        />
-      </Box>
-    </Tooltip>
-  );
-}
-
 /** Craft recipe — full list at drop-item scale. */
 export function BrowseCraftCell({ craft }: { craft: GCraft | undefined }) {
   if (!craft?.items?.length) {
@@ -203,18 +167,27 @@ export function BrowseCraftCell({ craft }: { craft: GCraft | undefined }) {
 
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, alignItems: "center" }}>
-      {craft.items.map(([qty, key, lvl]) => {
-        const itemKey = key as ItemKey;
-        const level = typeof lvl === "number" ? lvl : undefined;
+      {craft.items.map((row) => {
+        const parsed = parseCraftRow(row);
         return (
-          <RecipeItemIcon
-            key={`${itemKey}-${level ?? 0}-${qty}`}
-            itemKey={itemKey}
-            level={level}
-            quantity={qty}
-            title={`${itemKey}${level != null ? ` +${level}` : ""} ×${qty}${
-              craft.cost != null ? ` · recipe ${craft.cost.toLocaleString()}g` : ""
-            }`}
+          <RecipeItemTile
+            key={craftRowKey(parsed)}
+            itemKey={parsed.itemKey}
+            level={parsed.level}
+            quantity={parsed.quantity}
+            tooltipExtraLines={
+              craft.cost != null && craft.cost > 0
+                ? [
+                    {
+                      kind: "stat",
+                      label: "Craft cost",
+                      value: formatCraftCost(craft.cost),
+                      labelColor: "text.secondary",
+                      valueColor: "#fde047",
+                    },
+                  ]
+                : undefined
+            }
           />
         );
       })}
@@ -223,7 +196,7 @@ export function BrowseCraftCell({ craft }: { craft: GCraft | undefined }) {
 }
 
 /** Used-for outputs — full list at drop-item scale. */
-export function BrowseUsedForCell({ outputs, G }: { outputs: ItemKey[]; G: CustomGData }) {
+export function BrowseUsedForCell({ outputs }: { outputs: ItemKey[] }) {
   if (outputs.length === 0) {
     return (
       <Typography variant="caption" color="text.secondary">
@@ -235,7 +208,7 @@ export function BrowseUsedForCell({ outputs, G }: { outputs: ItemKey[]; G: Custo
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, alignItems: "center" }}>
       {outputs.map((outKey) => (
-        <RecipeItemIcon key={outKey} itemKey={outKey} title={G.items[outKey]?.name ?? outKey} />
+        <RecipeItemTile key={outKey} itemKey={outKey} />
       ))}
     </Box>
   );
