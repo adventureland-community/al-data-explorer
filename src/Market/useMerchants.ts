@@ -123,21 +123,23 @@ export function useMerchants() {
   const [items, setItems] = useState<ItemsByNameTitleLevel>({});
   const [merchants, setMerchants] = useState<Record<string, Merchant>>({});
 
-  const refresh = useCallback(() => {
-    axios
-      .get<Merchant[]>("https://aldata.earthiverse.ca/merchants")
-      .then((response) => {
-        applyMerchants(response.data, setItems, setMerchants, setLastRefresh);
-        const cache: MerchantsCache = {
-          timestamp: new Date().toISOString(),
-          merchants: response.data,
-        };
-        sessionStorage.setItem("merchants", JSON.stringify(cache));
-      })
-      .catch((error) => {
-        console.log(error);
-      });
-  }, []);
+  const refresh = useCallback(
+    () =>
+      axios
+        .get<Merchant[]>("https://aldata.earthiverse.ca/merchants")
+        .then((response) => {
+          applyMerchants(response.data, setItems, setMerchants, setLastRefresh);
+          const cache: MerchantsCache = {
+            timestamp: new Date().toISOString(),
+            merchants: response.data,
+          };
+          sessionStorage.setItem("merchants", JSON.stringify(cache));
+        })
+        .catch((error) => {
+          console.log(error);
+        }),
+    [],
+  );
 
   useEffect(() => {
     const cached = sessionStorage.getItem("merchants");
