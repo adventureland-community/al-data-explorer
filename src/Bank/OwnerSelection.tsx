@@ -46,7 +46,12 @@ export function OwnerSelection(props: OwnerSelectionProps) {
         }
       }}
       renderInput={(params) => (
-        <TextField {...params} label="Bank selector by owner's characters" />
+        <TextField
+          {...params}
+          label="Select bank"
+          size="small"
+          placeholder="Search by character name…"
+        />
       )}
       isOptionEqualToValue={(option, value) => option.value === value.value}
     />
