@@ -1,8 +1,10 @@
-import { Box, SxProps } from "@mui/material";
+import { Box, Link, SxProps } from "@mui/material";
 import { ItemInfo } from "typed-adventureland";
 import React, { useContext } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
 import { ItemTooltip } from "./EntityTooltip";
+import type { EntityTooltipLine } from "../gameData/entityTooltip";
 import { ItemImage } from "../ItemImage";
 import { getLevelString } from "../Utils";
 import { abbreviateNumber } from "./utils";
@@ -13,6 +15,10 @@ export function ItemInstance({
   showTitleBorder,
   size = 40,
   tooltip = true,
+  linkToDetail = false,
+  quantityColor,
+  forceShowQuantity,
+  tooltipExtraLines,
 }: {
   itemInfo: ItemInfo;
   showQuantity?: boolean;
@@ -21,6 +27,14 @@ export function ItemInstance({
   size?: number;
   /** Rich hover tooltip (al-market style). Default on. */
   tooltip?: boolean;
+  /** Navigate to item detail page on click. */
+  linkToDetail?: boolean;
+  /** Override quantity badge text color. */
+  quantityColor?: string;
+  /** Show quantity badge even when q is 1. */
+  forceShowQuantity?: boolean;
+  /** Extra stat lines appended to the hover tooltip. */
+  tooltipExtraLines?: EntityTooltipLine[];
 }) {
   if (showTitleBorder === undefined) showTitleBorder = !!itemInfo.p;
 
@@ -150,6 +164,9 @@ export function ItemInstance({
       break;
   }
 
+  const showQtyBadge =
+    itemInfo.q != null && showQuantity && (forceShowQuantity ? itemInfo.q >= 1 : itemInfo.q > 1);
+
   const sprite = (
     <div
       style={{
@@ -168,25 +185,55 @@ export function ItemInstance({
       ) : (
         ""
       )}
-      {itemInfo.q && itemInfo.q > 1 && showQuantity ? (
-        <Box sx={quantityStyle}>{abbreviateNumber(itemInfo.q)}</Box>
+      {showQtyBadge ? (
+        <Box sx={{ ...quantityStyle, ...(quantityColor ? { color: quantityColor } : {}) }}>
+          {abbreviateNumber(itemInfo.q!)}
+        </Box>
       ) : (
         <></>
       )}
     </div>
   );
 
-  if (!tooltip) return sprite;
+  if (!tooltip) {
+    if (linkToDetail) {
+      return (
+        <Link
+          component={RouterLink}
+          to={`/items/${encodeURIComponent(itemName)}`}
+          sx={{ display: "inline-block", color: "inherit", textDecoration: "none" }}
+        >
+          {sprite}
+        </Link>
+      );
+    }
+    return sprite;
+  }
 
-  return (
+  const tooltipContent = (
     <ItemTooltip
       itemName={itemName}
       level={itemInfo.level}
       title={typeof itemInfo.p === "string" ? itemInfo.p : undefined}
       statType={typeof itemInfo.stat_type === "string" ? itemInfo.stat_type : undefined}
       quantity={itemInfo.q}
+      extraLines={tooltipExtraLines}
     >
       {sprite}
     </ItemTooltip>
   );
+
+  if (linkToDetail) {
+    return (
+      <Link
+        component={RouterLink}
+        to={`/items/${encodeURIComponent(itemName)}`}
+        sx={{ display: "inline-block", color: "inherit", textDecoration: "none" }}
+      >
+        {tooltipContent}
+      </Link>
+    );
+  }
+
+  return tooltipContent;
 }

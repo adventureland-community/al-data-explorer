@@ -69,13 +69,15 @@ function TooltipLines({ lines }: { lines: EntityTooltipLine[] }) {
 type EntityTooltipProps = {
   entity: EntityRef;
   children: ReactNode;
+  /** Appended after the standard pretty lines (e.g. bank stock). */
+  extraLines?: EntityTooltipLine[];
 };
 
 /**
  * Shared hover card for items, monsters, and NPCs.
  * Opens below the trigger so the pointer can reach Pretty/JSON without crossing a dead gap.
  */
-export function EntityTooltip({ entity, children }: EntityTooltipProps) {
+export function EntityTooltip({ entity, children, extraLines }: EntityTooltipProps) {
   const G = useContext(GDataContext);
   const [view, setView] = useState<"pretty" | "json">("pretty");
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -83,7 +85,11 @@ export function EntityTooltip({ entity, children }: EntityTooltipProps) {
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const open = Boolean(anchorEl);
 
-  const model = useMemo(() => (G ? buildEntityTooltipModel(entity, G) : null), [G, entity]);
+  const model = useMemo(() => {
+    const base = G ? buildEntityTooltipModel(entity, G) : null;
+    if (!base || !extraLines?.length) return base;
+    return { ...base, lines: [...base.lines, ...extraLines] };
+  }, [G, entity, extraLines]);
 
   const displayName = useMemo(() => {
     if (!G || !model) return entity.key;
@@ -278,6 +284,7 @@ export function ItemTooltip({
   title = "",
   statType,
   quantity,
+  extraLines,
   children,
 }: {
   itemName: string;
@@ -286,6 +293,7 @@ export function ItemTooltip({
   /** Property/stat scroll type (ItemInfo.stat_type). */
   statType?: string;
   quantity?: number;
+  extraLines?: EntityTooltipLine[];
   children: ReactNode;
 }) {
   const entity = useMemo<EntityRef>(
@@ -300,5 +308,9 @@ export function ItemTooltip({
     [itemName, level, quantity, title, statType],
   );
 
-  return <EntityTooltip entity={entity}>{children}</EntityTooltip>;
+  return (
+    <EntityTooltip entity={entity} extraLines={extraLines}>
+      {children}
+    </EntityTooltip>
+  );
 }
