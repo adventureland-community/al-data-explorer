@@ -11,6 +11,7 @@ function emptyMap(partial: Partial<GMap> & Pick<GMap, "name">): GMap {
     doors: [],
     npcs: [],
     spawns: [[0, 0]],
+    data: { min_x: 0, max_x: 0, min_y: 0, max_y: 0, tiles: [], placements: [] },
     ...partial,
   };
 }
@@ -81,38 +82,27 @@ describe("layoutWorld", () => {
   it("stacks dungeon levels downward on underground-to-underground doors", () => {
     const dungeonSource: MapSource = {
       maps: {
-        main: {
-          key: "main",
+        main: emptyMap({
           name: "Town",
           outside: true,
           doors: [[160, 1370, 24, 32, "cave", 0, 4]],
-          npcs: [],
           spawns: [
             [0, 0],
             [160, 1381],
           ],
-        },
-        cave: {
-          key: "cave",
+        }),
+        cave: emptyMap({
           name: "Cave",
           doors: [[0, 0, 16, 16, "level1", 0, 0]],
-          npcs: [],
-          spawns: [[0, 0]],
-        },
-        level1: {
-          key: "level1",
+        }),
+        level1: emptyMap({
           name: "Level 1",
           doors: [[0, 0, 16, 16, "level2", 0, 0]],
-          npcs: [],
-          spawns: [[0, 0]],
-        },
-        level2: {
-          key: "level2",
+        }),
+        level2: emptyMap({
           name: "Level 2",
           doors: [[0, 0, 16, 16, "level1", 0, 0]],
-          npcs: [],
-          spawns: [[0, 0]],
-        },
+        }),
       },
       geometry: {
         main: { min_x: 0, max_x: 800, min_y: 0, max_y: 800, tiles: [], placements: [] },
@@ -428,58 +418,42 @@ describe("layoutWorld", () => {
   it("separates same-depth dungeon branches on one underground slab", () => {
     const branchSource: MapSource = {
       maps: {
-        main: {
-          key: "main",
+        main: emptyMap({
           name: "Town",
           outside: true,
           doors: [[160, 1370, 24, 32, "cave", 0, 4]],
-          npcs: [],
           spawns: [
             [0, 0],
             [160, 1381],
           ],
-        },
-        cave: {
-          key: "cave",
+        }),
+        cave: emptyMap({
           name: "Cave",
           doors: [[0, 0, 16, 16, "level1", 0, 0]],
-          npcs: [],
-          spawns: [[0, 0]],
-        },
-        level1: {
-          key: "level1",
+        }),
+        level1: emptyMap({
           name: "Level 1",
           doors: [[0, 0, 16, 16, "level2", 0, 0]],
-          npcs: [],
-          spawns: [[0, 0]],
-        },
-        level2: {
-          key: "level2",
+        }),
+        level2: emptyMap({
           name: "Level 2",
           doors: [
             [0, 0, 16, 16, "level2n", 0, 0],
             [50, 0, 16, 16, "level2w", 0, 0],
           ],
-          npcs: [],
           spawns: [
             [0, 0],
             [50, 0],
           ],
-        },
-        level2n: {
-          key: "level2n",
+        }),
+        level2n: emptyMap({
           name: "Level 2N",
           doors: [[0, 0, 16, 16, "level2", 0, 0]],
-          npcs: [],
-          spawns: [[0, 0]],
-        },
-        level2w: {
-          key: "level2w",
+        }),
+        level2w: emptyMap({
           name: "Level 2W",
           doors: [[0, 0, 16, 16, "level2", 0, 1]],
-          npcs: [],
-          spawns: [[0, 0]],
-        },
+        }),
       },
       geometry: {
         main: { min_x: 0, max_x: 800, min_y: 0, max_y: 800, tiles: [], placements: [] },

@@ -55,6 +55,6 @@
     "eslint": "^8.28.0",
     "prettier": "^2.8.0",
     "ts-node": "^10.9.1",
-    "typed-adventureland": "^0.0.10"
+    "typed-adventureland": "^0.0.57"
   }
 }

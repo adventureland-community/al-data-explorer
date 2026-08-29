@@ -8,6 +8,7 @@ function emptyMap(partial: Partial<GMap> & Pick<GMap, "name">): GMap {
     doors: [],
     npcs: [],
     spawns: [[0, 0]],
+    data: { min_x: 0, max_x: 0, min_y: 0, max_y: 0, tiles: [], placements: [] },
     ...partial,
   };
 }
