@@ -1,6 +1,7 @@
 import { GData, ItemInfoPValues, ItemKey, ItemType } from "typed-adventureland";
 import { itemMatchesSearch } from "../gameData/itemFilters";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
+import { isOfficialBankPack, SLOTS_PER_BANK_PACK } from "./bankPacks";
 import { BankDataProps } from "./getBankData";
 
 const types: { [key in ItemType | "exchange" | "other"]?: string } = {
@@ -64,8 +65,11 @@ export type BankRefreshSummary = {
 export type AggregatedBankData = {
   items: AggregatedBankItem[];
   itemsByCategory: Record<string, AggregatedBankItem[]>;
+  /** Occupied slots in official bank packs only (`items0`, `items1`, …). */
   usedSlots: number;
   totalSlots: number;
+  /** Occupied slots in every item pack, including custom tabs. */
+  usedPackSlots: number;
 };
 
 export function getUniqueItemKey(item: { p?: string; level: number; name: ItemKey | string }) {
@@ -74,6 +78,7 @@ export function getUniqueItemKey(item: { p?: string; level: number; name: ItemKe
 
 export function aggregateBankData(bankData: BankDataProps, G?: GData): AggregatedBankData {
   let usedSlots = 0;
+  let usedPackSlots = 0;
   let totalSlots = 0;
   const items: AggregatedBankItem[] = [];
   const itemsByKey: Record<string, AggregatedBankItem> = {};
@@ -84,12 +89,18 @@ export function aggregateBankData(bankData: BankDataProps, G?: GData): Aggregate
     const bankItems = bankData[bankKey];
     if (!Array.isArray(bankItems)) continue;
 
-    totalSlots += 42;
+    const countsAsBankSlot = isOfficialBankPack(bankKey);
+    if (countsAsBankSlot) {
+      totalSlots += SLOTS_PER_BANK_PACK;
+    }
 
     for (const item of bankItems) {
       if (!item) continue;
 
-      usedSlots++;
+      usedPackSlots++;
+      if (countsAsBankSlot) {
+        usedSlots++;
+      }
 
       const key = getUniqueItemKey(item);
       let data = itemsByKey[key];
@@ -125,7 +136,7 @@ export function aggregateBankData(bankData: BankDataProps, G?: GData): Aggregate
     }
   }
 
-  return { items, itemsByCategory, usedSlots, totalSlots };
+  return { items, itemsByCategory, usedSlots, totalSlots, usedPackSlots };
 }
 
 export function formatBankItemLabel(item: AggregatedBankItem, G?: GData): string {

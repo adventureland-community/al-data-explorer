@@ -1,4 +1,5 @@
 import {
+  aggregateBankData,
   compareBankItems,
   formatBankItemChange,
   getUniqueItemKey,
@@ -14,6 +15,25 @@ const shield: AggregatedBankItem = {
   stack: 1,
   category: "Shields",
 };
+
+describe("aggregateBankData", () => {
+  it("includes custom tab items but excludes them from bank slot counts", () => {
+    const aggregated = aggregateBankData({
+      items0: [{ name: "hpot0", q: 5 }, null],
+      earthMer: [
+        { name: "blade", level: 7, q: 1 },
+        { name: "hpot0", q: 3 },
+      ],
+    });
+
+    expect(aggregated.items).toHaveLength(2);
+    expect(aggregated.usedSlots).toBe(1);
+    expect(aggregated.usedPackSlots).toBe(3);
+    expect(aggregated.totalSlots).toBe(42);
+    expect(aggregated.items.find((item) => item.name === "blade")?.q).toBe(1);
+    expect(aggregated.items.find((item) => item.name === "hpot0")?.q).toBe(8);
+  });
+});
 
 describe("compareBankItems", () => {
   it("detects added, removed, and changed items", () => {

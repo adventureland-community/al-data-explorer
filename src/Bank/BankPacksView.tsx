@@ -1,13 +1,13 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Chip, Stack, Typography } from "@mui/material";
 import { GData, ItemInfo, ItemKey } from "typed-adventureland";
 import { useContext, useMemo } from "react";
 import { bankItemMatchesSearch } from "./bankItems";
 import { computePackUtilization, PackUtilization } from "./bankAnalysis";
+import { getBankItemPackKeys, SLOTS_PER_BANK_PACK } from "./bankPacks";
 import { BankDataProps } from "./getBankData";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 
-const SLOTS_PER_PACK = 42;
 const PACK_COLUMNS = 7;
 const SLOT_SIZE = 48;
 
@@ -16,24 +16,8 @@ export type PackFocus = {
   slotIndex: number;
 };
 
-function comparePackKeys(a: string, b: string) {
-  const itemsA = /^items(\d+)$/.exec(a);
-  const itemsB = /^items(\d+)$/.exec(b);
-  if (itemsA && itemsB) {
-    return Number(itemsA[1]) - Number(itemsB[1]);
-  }
-  if (itemsA) return -1;
-  if (itemsB) return 1;
-  return a.localeCompare(b);
-}
-
-function getPackKeys(bankData: BankDataProps) {
-  return Object.keys(bankData)
-    .filter((key) => Array.isArray(bankData[key]))
-    .sort(comparePackKeys);
-}
-
-function packFillColor(fillRatio: number) {
+function packFillColor(fillRatio: number, isCustom: boolean) {
+  if (isCustom) return "info.main";
   if (fillRatio >= 1) return "error.main";
   if (fillRatio >= 0.85) return "warning.main";
   return "text.secondary";
@@ -115,7 +99,10 @@ function BankPack({
   focus?: PackFocus | null;
 }) {
   const G = useContext(GDataContext);
-  const paddedSlots = Array.from({ length: SLOTS_PER_PACK }, (_, index) => slots[index] ?? null);
+  const isCustom = utilization?.isCustom ?? false;
+  const paddedSlots = isCustom
+    ? slots
+    : Array.from({ length: SLOTS_PER_BANK_PACK }, (_, index) => slots[index] ?? null);
   const hasVisibleSlot = paddedSlots.some((itemInfo) => packItemMatchesSearch(itemInfo, G, search));
 
   if (search.trim() && !hasVisibleSlot) {
@@ -123,17 +110,27 @@ function BankPack({
   }
 
   const usedSlots = utilization?.usedSlots ?? paddedSlots.filter(Boolean).length;
-  const totalSlots = utilization?.totalSlots ?? SLOTS_PER_PACK;
-  const fillRatio = utilization?.fillRatio ?? usedSlots / totalSlots;
+  const totalSlots = utilization?.totalSlots ?? SLOTS_PER_BANK_PACK;
+  const fillRatio = utilization?.fillRatio ?? (totalSlots > 0 ? usedSlots / totalSlots : 0);
 
   return (
     <Box sx={{ display: "inline-block", verticalAlign: "top", margin: 1 }}>
-      <Typography
-        variant="subtitle2"
-        sx={{ marginBottom: 0.5, fontFamily: "monospace", color: packFillColor(fillRatio) }}
-      >
-        {packKey} ({usedSlots}/{totalSlots})
-      </Typography>
+      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ marginBottom: 0.5 }}>
+        <Typography
+          variant="subtitle2"
+          sx={{ fontFamily: "monospace", color: packFillColor(fillRatio, isCustom) }}
+        >
+          {packKey} ({isCustom ? `${usedSlots} items` : `${usedSlots}/${totalSlots}`})
+        </Typography>
+        {isCustom ? (
+          <Chip
+            label="custom"
+            size="small"
+            variant="outlined"
+            sx={{ height: 18, fontSize: "0.65rem" }}
+          />
+        ) : null}
+      </Stack>
       <Box
         sx={{
           display: "grid",
@@ -167,7 +164,7 @@ export function BankPacksView({
   search?: string;
   focus?: PackFocus | null;
 }) {
-  const packKeys = useMemo(() => getPackKeys(bankData), [bankData]);
+  const packKeys = useMemo(() => getBankItemPackKeys(bankData), [bankData]);
   const utilizationByPack = useMemo(() => {
     const map = new Map<string, PackUtilization>();
     for (const pack of computePackUtilization(bankData)) {

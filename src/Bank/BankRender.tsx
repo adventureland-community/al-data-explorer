@@ -248,8 +248,8 @@ export function BankRender(props: BankRenderProps) {
             compareBankItems(previousAggregate.items, nextAggregate.items, {
               prevGold: typeof previousData.gold === "number" ? previousData.gold : undefined,
               nextGold: typeof newBankData.gold === "number" ? newBankData.gold : undefined,
-              prevUsedSlots: previousAggregate.usedSlots,
-              nextUsedSlots: nextAggregate.usedSlots,
+              prevUsedSlots: previousAggregate.usedPackSlots,
+              nextUsedSlots: nextAggregate.usedPackSlots,
             }),
           );
         }
@@ -270,8 +270,8 @@ export function BankRender(props: BankRenderProps) {
       return compareBankItems(previousAggregate.items, nextAggregate.items, {
         prevGold: typeof previousData.gold === "number" ? previousData.gold : undefined,
         nextGold: typeof newBankData.gold === "number" ? newBankData.gold : undefined,
-        prevUsedSlots: previousAggregate.usedSlots,
-        nextUsedSlots: nextAggregate.usedSlots,
+        prevUsedSlots: previousAggregate.usedPackSlots,
+        nextUsedSlots: nextAggregate.usedPackSlots,
       });
     },
     [G],

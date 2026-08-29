@@ -2,6 +2,7 @@ import type { GCraft, GData, GItem, ItemInfo, ItemInfoPValues, ItemKey } from "t
 import { parseCraftRow } from "../gameData/craftRecipe";
 import { calculateItemNpcSellValue } from "../gameData/itemSellValue";
 
+import { compareBankPackKeys, isCustomBankPack, SLOTS_PER_BANK_PACK } from "./bankPacks";
 import { CustomGData } from "../GDataContext";
 import { getMaxLevel } from "../gameData/itemProperties";
 import { ItemsByNameTitleLevel } from "../Market/merchantTypes";
@@ -364,6 +365,8 @@ export type PackUtilization = {
   usedSlots: number;
   totalSlots: number;
   fillRatio: number;
+  /** User-added tab (e.g. character inventory) — not part of bank slot capacity. */
+  isCustom: boolean;
 };
 
 export type BankItemLocation = {
@@ -641,27 +644,25 @@ export function estimateBankValue(
 
 export function computePackUtilization(
   bankData: BankDataProps,
-  slotsPerPack = 42,
+  slotsPerPack = SLOTS_PER_BANK_PACK,
 ): PackUtilization[] {
   const packs: PackUtilization[] = [];
 
   for (const [packKey, packItems] of Object.entries(bankData)) {
     if (!Array.isArray(packItems)) continue;
     const usedSlots = packItems.filter(Boolean).length;
+    const isCustom = isCustomBankPack(packKey);
+    const totalSlots = isCustom ? packItems.length : slotsPerPack;
     packs.push({
       packKey,
       usedSlots,
-      totalSlots: slotsPerPack,
-      fillRatio: usedSlots / slotsPerPack,
+      totalSlots,
+      fillRatio: isCustom || totalSlots <= 0 ? 0 : usedSlots / totalSlots,
+      isCustom,
     });
   }
 
-  packs.sort((a, b) => {
-    const aNum = /^items(\d+)$/.exec(a.packKey);
-    const bNum = /^items(\d+)$/.exec(b.packKey);
-    if (aNum && bNum) return Number(aNum[1]) - Number(bNum[1]);
-    return a.packKey.localeCompare(b.packKey);
-  });
+  packs.sort((a, b) => compareBankPackKeys(a.packKey, b.packKey));
 
   return packs;
 }
