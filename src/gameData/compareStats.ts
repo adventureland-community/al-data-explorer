@@ -43,7 +43,7 @@ export const COMPARE_STAT_KEYS = [
 
 export type CompareStatKey = typeof COMPARE_STAT_KEYS[number];
 
-/** Promote on-hit / ability-like stats when present (attr0, splash). Cap still applies in matrix. */
+/** Promote on-hit / ability-like stats when present (attr0, splash). */
 export const MATRIX_STAT_PRIORITY: readonly CompareStatKey[] = [
   "attr0",
   "explosion",

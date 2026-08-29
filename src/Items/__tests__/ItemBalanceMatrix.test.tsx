@@ -40,4 +40,29 @@ describe("pickRowStatKeys", () => {
     expect(keys).toContain("resistance");
     expect(keys).toContain("stat");
   });
+
+  it("includes all relevant stats without a cap (e.g. worldroot crook range + rpiercing)", () => {
+    const levelStats: LevelStats[] = [
+      {
+        attack: 55,
+        dex: 6,
+        int: 7,
+        vit: 8,
+        range: 68,
+        rpiercing: 50,
+        mp_reduction: 4,
+      },
+    ];
+
+    const keys = pickRowStatKeys(levelStats);
+    expect(keys).toEqual([
+      "attack",
+      "dex",
+      "int",
+      "vit",
+      "range",
+      "rpiercing",
+      "mp_reduction",
+    ]);
+  });
 });

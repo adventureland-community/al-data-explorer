@@ -74,8 +74,6 @@ function formatDelta(delta: number): string {
   return String(delta);
 }
 
-const MATRIX_STAT_LIMIT = 5;
-
 function keysPresentOrDiffering(stats: LevelStats, baseline?: LevelStats): CompareStatKey[] {
   if (!baseline) {
     return COMPARE_STAT_KEYS.filter((key) => stats[key] != null && stats[key] !== 0);
@@ -88,7 +86,7 @@ function keysPresentOrDiffering(stats: LevelStats, baseline?: LevelStats): Compa
 
 /**
  * Order relevant stats by MATRIX_STAT_PRIORITY so on-hit stats (attr0, explosion, blast)
- * surface before generic armor columns. Cap still applies.
+ * surface before generic armor columns.
  */
 export function pickRowStatKeys(
   levelStats: LevelStats[],
@@ -106,7 +104,7 @@ export function pickRowStatKeys(
   for (const key of COMPARE_STAT_KEYS) {
     if (relevant.has(key) && !ordered.includes(key)) ordered.push(key);
   }
-  return ordered.slice(0, MATRIX_STAT_LIMIT);
+  return ordered;
 }
 
 /** Stats-only cell — no icons — so rows scan horizontally. */
