@@ -1,23 +1,4 @@
 // https://classic.wowhead.com/gear-planner/druid/night-elf
-// TODO: Character selector
-// TODO: level slider G.levels has 200 entries in it https://mui.com/material-ui/react-slider/
-// TODO: gear selector
-// TODO: Stats
-// TODO: Attack table against specific mobs
-// TODO: Defense table against specific mobs
-// TODO: TrackTrix
-// TODO: source - where does it drop?
-// TODO: quality filter?
-// TODO: tooltip on hover with item details https://mui.com/material-ui/react-tooltip/
-// TODO: set items
-// TODO: filter for properties? e.g. mluck
-// TODO: there should be a tab where you can choose enchants, lvls and such?
-// TODO: sharable links store state in url https://stackoverflow.com/a/41924535/28145
-// https://medium.com/swlh/using-react-hooks-to-sync-your-component-state-with-the-url-query-string-81ccdfcb174f
-// https://garrett-bodley.medium.com/encoding-data-inside-of-a-url-query-string-f286b7e20465
-// https://www.npmjs.com/package/lz-string
-// https://www.anycodings.com/questions/how-to-compress-url-parameters
-// TODO: validation method to validate equipped gear against selected class.
 
 import {
   Card,
@@ -32,7 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { ItemInfo, SlotType } from "typed-adventureland";
+import { ItemInfo, MonsterKey, SlotType } from "typed-adventureland";
 import React, { useContext, useState } from "react";
 import { GDataContext } from "../GDataContext";
 import { LoadoutPickerShell } from "./LoadoutPickerShell";
@@ -41,9 +22,12 @@ import { ItemInstance } from "../Shared/ItemInstance";
 import { SaveLinkButton } from "./SaveLinkButton";
 import { LoadLinkButton } from "./LoadLinkButton";
 import { ImportLinkButton } from "./ImportLinkButton";
+import { ShareLinkButton } from "./ShareLinkButton";
 import { StatsPanel } from "./StatsPanel";
 import { getFullItemName } from "../Shared/iteminfo-util";
 import { cloneLoadoutGear } from "../gameData/loadoutStats";
+import { useGearPlannerUrlState } from "./useGearPlannerUrlState";
+import { CopyPageLinkButton } from "../Shared/CopyPageLinkButton";
 
 function Info() {
   return (
@@ -78,14 +62,27 @@ export function GearPlanner() {
   const [gear, setGear] = useState<{ [slot in SlotType]?: ItemInfo }>({});
   const [selectedClass, setSelectedClass] = useState<SelectedCharacterClass>();
   const [level, setLevel] = useState(1);
+  const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
+
+  const classes = Object.entries(G?.classes ?? []).map(
+    ([className, item]) => ({ className, ...item } as SelectedCharacterClass),
+  );
+
+  useGearPlannerUrlState({
+    classes,
+    gear,
+    selectedClass,
+    level,
+    targetMonster,
+    setGear,
+    setSelectedClass,
+    setLevel,
+    setTargetMonster,
+  });
 
   if (!G) {
     return <>WAITING!</>;
   }
-
-  const classes = Object.entries(G.classes ?? []).map(
-    ([className, item]) => ({ className, ...item } as SelectedCharacterClass),
-  );
 
   const onLevelSliderChange = (_event: Event, value: number | number[]) => {
     if (typeof value === "number") {
@@ -124,6 +121,13 @@ export function GearPlanner() {
           <SaveLinkButton gear={gear} characterClass={selectedClass} level={level} />
           <LoadLinkButton load={onLoadSavedLoadout} />
           <ImportLinkButton load={onLoadSavedLoadout} />
+          <ShareLinkButton
+            gear={gear}
+            characterClass={selectedClass}
+            level={level}
+            target={targetMonster}
+          />
+          <CopyPageLinkButton label="Copy link" />
         </Grid>
         <Grid item xs={12} md={5} lg={4}>
           <LoadoutPickerShell
@@ -139,7 +143,13 @@ export function GearPlanner() {
           />
         </Grid>
         <Grid item xs={12} md={7} lg={8}>
-          <StatsPanel selectedCharacterClass={selectedClass} level={level} gear={gear} />
+          <StatsPanel
+            selectedCharacterClass={selectedClass}
+            level={level}
+            gear={gear}
+            targetMonster={targetMonster}
+            onTargetMonsterChange={setTargetMonster}
+          />
         </Grid>
         <Grid item xs={12}>
           <Table size="small" aria-label="a dense table">

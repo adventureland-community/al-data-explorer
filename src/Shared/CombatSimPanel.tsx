@@ -27,6 +27,7 @@ import { CustomGData } from "../GDataContext";
 import {
   DpsBreakdown,
   estimateAutoAttackDps,
+  estimateStatWeights,
   estimateTotalDps,
   monsterToCombatEntity,
   resolveCombatStatsFromLoadout,
@@ -256,6 +257,18 @@ export function CombatSimPanel({
     return estimateAutoAttackDps(monsterToCombatEntity(monster), combatStats);
   }, [combatStats, monster]);
 
+  const statWeights = useMemo(() => {
+    if (!characterClass || compact) return [];
+    return estimateStatWeights({
+      characterClass,
+      level,
+      gear,
+      G,
+      target: targetEntity,
+      classKey: characterClass.className,
+    }).slice(0, 8);
+  }, [characterClass, compact, gear, G, level, targetEntity]);
+
   const breakdown = simMode === "event" ? eventBreakdown : formulationBreakdown;
 
   const runEventSim = () => {
@@ -366,6 +379,26 @@ export function CombatSimPanel({
             )}
             {tab === "incoming" && incomingPanel}
           </>
+        )}
+
+        {!compact && statWeights.length > 0 && (
+          <Accordion disableGutters elevation={0} sx={{ bgcolor: "transparent" }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 36, px: 0 }}>
+              <Typography variant="caption" color="text.secondary">
+                Stat weights (DPS per +10)
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ px: 0, pt: 0 }}>
+              {statWeights.map((row) => (
+                <StatRow
+                  key={row.stat}
+                  label={row.label}
+                  value={`+${row.dpsPer10.toFixed(1)}`}
+                  hint={`+${row.dpsPerPoint.toFixed(2)} per point`}
+                />
+              ))}
+            </AccordionDetails>
+          </Accordion>
         )}
 
         {!compact && (

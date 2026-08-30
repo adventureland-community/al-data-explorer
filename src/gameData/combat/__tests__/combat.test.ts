@@ -111,6 +111,63 @@ describe("estimateAutoAttackDps", () => {
   });
 });
 
+describe("damageMultiplier sanity", () => {
+  it("matches server formula at sample defense values", () => {
+    const { damageMultiplier } = require("../damageMultiplier");
+    expect(damageMultiplier(0)).toBeCloseTo(1, 5);
+    expect(damageMultiplier(100)).toBeCloseTo(0.9, 5);
+    expect(damageMultiplier(500)).toBeCloseTo(0.533, 2);
+    expect(damageMultiplier(-50)).toBeCloseTo(1.05, 5);
+    expect(damageMultiplier(2000)).toBeCloseTo(0.05, 5);
+  });
+});
+
+describe("estimateTotalDps event mode", () => {
+  const data = loadG();
+  const G = data as never;
+  const mage = { className: "mage", ...(data.classes.mage as object) } as never;
+  const ent = monsterToCombatEntity(data.monsters.ent as never);
+
+  it("includes ability DPS on top of event auto timeline", () => {
+    const gear = { mainhand: matrixItemAtLevel("firestaff", 0) };
+    const stats = resolveCombatStatsFromLoadout({
+      characterClass: mage,
+      level: 80,
+      gear,
+      G,
+    });
+    const bd = estimateTotalDps(stats, ent, G, gear, {
+      classKey: "mage",
+      mode: "event",
+      durationMs: 5000,
+    });
+    expect(bd.abilityDps).toBeGreaterThan(0);
+    expect(bd.totalDps).toBeGreaterThan(bd.autoAttackDps);
+  });
+});
+
+describe("estimateStatWeights", () => {
+  const data = loadG();
+  const G = data as never;
+  const priest = { className: "priest", ...(data.classes.priest as object) } as never;
+  const ent = monsterToCombatEntity(data.monsters.ent as never);
+
+  it("ranks int above zero for priest with worldroot crook", () => {
+    const { estimateStatWeights } = require("../estimateStatWeights");
+    const gear = { mainhand: matrixItemAtLevel("worldrootcrook", 0) };
+    const weights = estimateStatWeights({
+      characterClass: priest,
+      level: 80,
+      gear,
+      G,
+      target: ent,
+      classKey: "priest",
+    });
+    const intWeight = weights.find((w: { stat: string }) => w.stat === "int");
+    expect(intWeight?.dpsPer10).toBeGreaterThan(0);
+  });
+});
+
 describe("estimateTotalDps abilities", () => {
   const data = loadG();
   const G = data as never;

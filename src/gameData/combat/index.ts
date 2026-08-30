@@ -28,4 +28,6 @@ export {
   getItemSimEquipNotes,
   type ItemSimEquipNote,
   type MatrixItemSimResult,
+  type MatrixSimScope,
 } from "./itemSimContext";
+export { estimateStatWeights, type StatWeightLine } from "./estimateStatWeights";

@@ -357,12 +357,15 @@ export function ItemBalanceMatrix({
     params: combatParams,
     setView,
     setCombatContext,
+    searchParams,
   } = useMatrixCombatParams(validClass, validTarget);
   const viewMode = combatParams.view;
   const combatContext: CombatContextValue = {
     classKey: combatParams.simClass,
     level: combatParams.simLevel,
     targetMonster: combatParams.simTarget,
+    simScope: combatParams.simScope,
+    simGear: combatParams.simGear,
   };
 
   const selectedItemKeys = selectedKeys as ItemKey[];
@@ -444,9 +447,19 @@ export function ItemBalanceMatrix({
         playerLevel: combatContext.level,
         targetMonsterKey: combatContext.targetMonster,
         G,
+        simScope: combatContext.simScope,
+        baseGear: combatContext.simGear,
       });
     },
-    [G, characterClass, combatContext.level, combatContext.targetMonster, targetEntity],
+    [
+      G,
+      characterClass,
+      combatContext.level,
+      combatContext.targetMonster,
+      combatContext.simScope,
+      combatContext.simGear,
+      targetEntity,
+    ],
   );
 
   const baselineBreakdownByLevel = useMemo(() => {
@@ -547,11 +560,14 @@ export function ItemBalanceMatrix({
         <CombatContextBar
           classes={classes}
           value={combatContext}
+          shareSearch={searchParams.toString()}
           onChange={(next) =>
             setCombatContext({
               simClass: next.classKey,
               simLevel: next.level,
               simTarget: next.targetMonster,
+              simScope: next.simScope,
+              simGear: next.simGear,
             })
           }
           compact

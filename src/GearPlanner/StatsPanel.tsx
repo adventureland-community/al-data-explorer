@@ -8,7 +8,7 @@ import {
   TableHead,
   TableRow,
 } from "@mui/material";
-import { ItemInfo, SlotType, StatType } from "typed-adventureland";
+import { ItemInfo, SlotType, StatType, MonsterKey } from "typed-adventureland";
 import { useContext } from "react";
 
 import { ATTRIBUTES } from "../constants";
@@ -105,10 +105,14 @@ export function StatsPanel({
   selectedCharacterClass,
   level,
   gear,
+  targetMonster,
+  onTargetMonsterChange,
 }: {
   selectedCharacterClass?: SelectedCharacterClass;
   level: number;
   gear: { [slot in SlotType]?: ItemInfo };
+  targetMonster?: MonsterKey;
+  onTargetMonsterChange?: (key: MonsterKey) => void;
 }) {
   const G = useContext(GDataContext);
 
@@ -179,7 +183,14 @@ export function StatsPanel({
   return (
     <Grid container spacing={2}>
       <Grid item xs={12} lg={3}>
-        <CombatSimPanel G={G} characterClass={selectedCharacterClass} level={level} gear={gear} />
+        <CombatSimPanel
+          G={G}
+          characterClass={selectedCharacterClass}
+          level={level}
+          gear={gear}
+          targetMonster={targetMonster}
+          onTargetMonsterChange={onTargetMonsterChange}
+        />
       </Grid>
       <Grid item xs={12} lg={9}>
         <Grid container spacing={2}>

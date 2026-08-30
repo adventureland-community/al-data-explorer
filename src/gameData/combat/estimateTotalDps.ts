@@ -90,7 +90,22 @@ export function estimateTotalDps(
   options?: TotalDpsOptions,
 ): DpsBreakdown {
   if (options?.mode === "event") {
-    return simulateAutoAttackTimeline(source, target, options);
+    const timeline = simulateAutoAttackTimeline(source, target, options);
+    const abilities = collectGearAbilities(gear, G, options?.classKey);
+    const { abilityDps, lines } = estimateAbilityDps(source, target, abilities);
+    const unsimulatedEffects = collectUnsimulatedOnHitEffects(
+      gear,
+      G,
+      options?.classKey,
+      source.damage_type,
+    );
+    return {
+      ...timeline,
+      abilityDps,
+      abilityLines: lines,
+      unsimulatedEffects: unsimulatedEffects.length > 0 ? unsimulatedEffects : undefined,
+      totalDps: timeline.autoAttackDps + abilityDps,
+    };
   }
 
   const { damage: hitDamage, mitigationMult } = estimateHitDamage(source, target, options);

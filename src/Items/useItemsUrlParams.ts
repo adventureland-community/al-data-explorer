@@ -1,8 +1,10 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { MonsterKey } from "typed-adventureland";
+import { MonsterKey, SlotType, ItemInfo } from "typed-adventureland";
 
 import { ItemSortKey } from "../gameData/itemFilters";
+import { decodeLoadoutParam, encodeLoadoutParam } from "../gameData/loadoutUrl";
+import type { MatrixSimScope } from "../gameData/combat/itemSimContext";
 
 export type ItemsBrowseParams = {
   search: string;
@@ -155,12 +157,15 @@ export type MatrixCombatParams = {
   simClass: string | null;
   simLevel: number;
   simTarget: MonsterKey;
+  simScope: MatrixSimScope;
+  simGear: { [slot in SlotType]?: ItemInfo };
 };
 
 const MATRIX_VIEW_DEFAULT: MatrixViewMode = "stats";
 const MATRIX_CLASS_DEFAULT = "priest";
 const MATRIX_LEVEL_DEFAULT = 80;
 const MATRIX_TARGET_DEFAULT: MonsterKey = "ent";
+const MATRIX_SCOPE_DEFAULT: MatrixSimScope = "mainhand";
 
 function parseMatrixView(raw: string | null): MatrixViewMode {
   return raw === "dps" ? "dps" : MATRIX_VIEW_DEFAULT;
@@ -188,6 +193,8 @@ export function useMatrixCombatParams(
       simLevel: parseMatrixLevel(searchParams.get("simLevel")),
       simTarget:
         targetRaw && validTarget(targetRaw) ? (targetRaw as MonsterKey) : MATRIX_TARGET_DEFAULT,
+      simScope: searchParams.get("simScope") === "loadout" ? "loadout" : MATRIX_SCOPE_DEFAULT,
+      simGear: decodeLoadoutParam(searchParams.get("simGear"))?.gear ?? {},
     };
   }, [searchParams, validClass, validTarget]);
 
@@ -211,7 +218,12 @@ export function useMatrixCombatParams(
   );
 
   const setCombatContext = useCallback(
-    (next: Pick<MatrixCombatParams, "simClass" | "simLevel" | "simTarget">) => {
+    (
+      next: Pick<
+        MatrixCombatParams,
+        "simClass" | "simLevel" | "simTarget" | "simScope" | "simGear"
+      >,
+    ) => {
       patch((draft) => {
         if (next.simClass && validClass(next.simClass)) {
           if (next.simClass === MATRIX_CLASS_DEFAULT) draft.delete("simClass");
@@ -221,10 +233,18 @@ export function useMatrixCombatParams(
         else draft.set("simLevel", String(next.simLevel));
         if (next.simTarget === MATRIX_TARGET_DEFAULT) draft.delete("simTarget");
         else draft.set("simTarget", next.simTarget);
+        if (next.simScope === MATRIX_SCOPE_DEFAULT) draft.delete("simScope");
+        else draft.set("simScope", next.simScope ?? MATRIX_SCOPE_DEFAULT);
+        const gearKeys = next.simGear ? Object.keys(next.simGear).length : 0;
+        if (gearKeys > 0 && next.simScope === "loadout") {
+          draft.set("simGear", encodeLoadoutParam({ gear: next.simGear, level: next.simLevel }));
+        } else {
+          draft.delete("simGear");
+        }
       });
     },
     [patch, validClass],
   );
 
-  return { params, setView, setCombatContext };
+  return { params, setView, setCombatContext, searchParams };
 }

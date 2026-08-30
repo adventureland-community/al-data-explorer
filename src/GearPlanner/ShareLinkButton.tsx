@@ -8,10 +8,12 @@ export function ShareLinkButton({
   gear,
   characterClass,
   level,
+  target,
 }: {
   gear: { [slot in SlotType]?: ItemInfo };
   characterClass: SelectedCharacterClass | undefined;
   level: number;
+  target?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -24,6 +26,7 @@ export function ShareLinkButton({
       gear,
       className: characterClass?.className,
       level,
+      target,
     };
 
     // encode gear using LZW compression in to a compressed, URI safe string.

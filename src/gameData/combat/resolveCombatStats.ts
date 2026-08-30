@@ -83,8 +83,10 @@ export function resolveCombatStatsFromLoadout(args: {
   level: number;
   gear: { [slot in SlotType]?: ItemInfo };
   G: CustomGData;
+  /** Hypothetical stat bumps for stat-weight estimation. */
+  statOverrides?: Partial<PlayerStatBucket>;
 }): ResolvedCombatStats {
-  const { characterClass, level, gear, G } = args;
+  const { characterClass, level, gear, G, statOverrides } = args;
   const { className } = characterClass;
   const classDef = G.classes[className as ClassKey] as unknown as LoadoutClassDef &
     Record<string, number | string | undefined> & { damage_type?: DamageType };
@@ -177,6 +179,14 @@ export function resolveCombatStatsFromLoadout(args: {
     G.items[off.name]?.wtype !== "stars"
   ) {
     itemAttack /= 3;
+  }
+
+  if (statOverrides) {
+    for (const [key, value] of Object.entries(statOverrides)) {
+      if (typeof value === "number") {
+        stats[key as StatType] = value;
+      }
+    }
   }
 
   modifyPlayerStatsByAttributes(level, stats as { [T in StatType]?: number });

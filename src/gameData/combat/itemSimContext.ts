@@ -2,15 +2,23 @@ import { GItem, ItemInfo, ItemKey, SlotType } from "typed-adventureland";
 
 import { CustomGData } from "../../GDataContext";
 import { getItemClassList } from "../itemMeta";
-import { isDoublehandWeapon, LoadoutClassDef, withDoublehandEquipInvariant } from "../loadoutStats";
+import {
+  cloneLoadoutGear,
+  isDoublehandWeapon,
+  LoadoutClassDef,
+  withDoublehandEquipInvariant,
+} from "../loadoutStats";
 import { estimateTotalDps } from "./estimateTotalDps";
 import {
   matrixItemAtLevel,
   monsterToCombatEntity,
   ResolvedCombatStats,
+  resolveCombatStatsFromLoadout,
   resolveCombatStatsWithSwap,
 } from "./resolveCombatStats";
 import type { DpsBreakdown } from "./types";
+
+export type MatrixSimScope = "mainhand" | "loadout";
 
 export type ItemSimEquipNote = {
   kind: "info" | "warning" | "error";
@@ -29,9 +37,17 @@ export function getItemSimEquipNotes(args: {
   characterClass: LoadoutClassDef;
   className: string;
   slot?: SlotType;
-  matrixMode?: boolean;
+  simScope?: MatrixSimScope;
+  baseGear?: { [slot in SlotType]?: ItemInfo };
 }): ItemSimEquipNote[] {
-  const { gItem, characterClass, className, slot = "mainhand", matrixMode } = args;
+  const {
+    gItem,
+    characterClass,
+    className,
+    slot = "mainhand",
+    simScope = "mainhand",
+    baseGear,
+  } = args;
   const notes: ItemSimEquipNote[] = [];
 
   const allowed = getItemClassList(gItem);
@@ -65,10 +81,19 @@ export function getItemSimEquipNotes(args: {
     });
   }
 
-  if (matrixMode) {
+  if (simScope === "mainhand") {
     notes.push({
       kind: "warning",
-      text: "Matrix sim swaps mainhand only — no offhand, rings, or dual-wield loadout.",
+      text: "Mainhand-only sim — rings, offhand, and dual-wield not included.",
+    });
+  } else {
+    const pieceCount = Object.keys(baseGear ?? {}).length;
+    notes.push({
+      kind: "info",
+      text:
+        pieceCount > 0
+          ? `Full loadout sim — swapping mainhand within ${pieceCount} equipped pieces.`
+          : "Full loadout mode — import a loadout link to include offhand, rings, and sets.",
     });
   }
 
@@ -91,8 +116,18 @@ export function computeMatrixItemSim(args: {
   playerLevel: number;
   targetMonsterKey: string;
   G: CustomGData;
+  simScope?: MatrixSimScope;
+  baseGear?: { [slot in SlotType]?: ItemInfo };
 }): MatrixItemSimResult | null {
-  const { itemKey, upgradeLevel, characterClass, playerLevel, G } = args;
+  const {
+    itemKey,
+    upgradeLevel,
+    characterClass,
+    playerLevel,
+    G,
+    simScope = "mainhand",
+    baseGear,
+  } = args;
   const gItem = G.items[itemKey];
   if (!gItem) return null;
 
@@ -100,16 +135,31 @@ export function computeMatrixItemSim(args: {
   const itemInfo = matrixItemAtLevel(itemKey, upgradeLevel);
   const equippable = canClassEquipItem(gItem, className);
 
-  const gear = withDoublehandEquipInvariant(characterClass, {}, "mainhand", itemInfo, G.items);
-
-  const combatStats = resolveCombatStatsWithSwap({
+  const loadoutBase = simScope === "loadout" ? cloneLoadoutGear(baseGear ?? {}) : {};
+  const gear = withDoublehandEquipInvariant(
     characterClass,
-    level: playerLevel,
-    gear: {},
-    G,
-    slot: "mainhand",
+    loadoutBase,
+    "mainhand",
     itemInfo,
-  });
+    G.items,
+  );
+
+  const combatStats =
+    simScope === "loadout"
+      ? resolveCombatStatsFromLoadout({
+          characterClass,
+          level: playerLevel,
+          gear,
+          G,
+        })
+      : resolveCombatStatsWithSwap({
+          characterClass,
+          level: playerLevel,
+          gear: {},
+          G,
+          slot: "mainhand",
+          itemInfo,
+        });
 
   const targetEntity = monsterToCombatEntity(G.monsters[args.targetMonsterKey as never]);
   const breakdown = estimateTotalDps(combatStats, targetEntity, G, gear, {
@@ -120,7 +170,8 @@ export function computeMatrixItemSim(args: {
     gItem,
     characterClass,
     className,
-    matrixMode: true,
+    simScope,
+    baseGear: loadoutBase,
   });
 
   return { breakdown, combatStats, gear, equipNotes, equippable };
