@@ -55,7 +55,7 @@ describe("pickRowStatKeys", () => {
     ];
 
     const keys = pickRowStatKeys(levelStats);
-    expect(keys).toEqual([
+    expect(keys).toStrictEqual([
       "attack",
       "dex",
       "int",

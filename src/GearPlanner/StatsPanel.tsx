@@ -1,70 +1,14 @@
-import {
-  Grid,
-  Divider,
-  Table,
-  TableRow,
-  TableCell,
-  TableBody,
-  FormControl,
-  InputLabel,
-  Select,
-  SelectChangeEvent,
-  MenuItem,
-  Typography,
-  LinearProgress,
-  Alert,
-  Box,
-} from "@mui/material";
-import { ItemInfo, MonsterKey, SlotType, StatType } from "typed-adventureland";
-import { useContext, useState } from "react";
+import { Grid, Divider, Table, TableRow, TableCell, TableBody } from "@mui/material";
+import { ItemInfo, SlotType, StatType } from "typed-adventureland";
+import { useContext } from "react";
+
 import { ATTRIBUTES } from "../constants";
-import { GDataContext, CustomGData, MainStatType } from "../GDataContext";
+import { GDataContext, MainStatType, CustomGData } from "../GDataContext";
+import { resolveCombatStatsFromLoadout } from "../gameData/combat";
 import { getItemEffects } from "../gameData/itemEffects";
-import { computeLoadoutStats } from "../gameData/loadoutStats";
 import { formatCharacterStatValue } from "../gameData/prettyNumbers";
+import { CombatSimPanel, IncomingDamagePanel } from "../Shared/CombatSimPanel";
 import { SelectedCharacterClass } from "./types";
-import { theo_dps } from "./calculations";
-
-function DamageVisualization({ source, target }: { source: any; target: any }) {
-  const damage = theo_dps(source, target);
-  const maxHealth = target.hp;
-
-  const percent = Math.min((damage / maxHealth) * 100, 100);
-  const excess = Math.max(damage - maxHealth, 0);
-  const healthLeft = maxHealth - damage;
-  const hitsToDefeat = Math.ceil(maxHealth / damage);
-
-  return (
-    <div>
-      <div>
-        <Typography>
-          Will do {damage.toFixed(2)} damage to you with {healthLeft.toFixed(2)} health left. You
-          will be defeated in {hitsToDefeat} hits
-        </Typography>
-      </div>
-      <Box sx={{ display: "flex", alignItems: "center" }}>
-        <Box sx={{ width: "100%", mr: 1 }}>
-          <LinearProgress
-            variant="determinate"
-            color={percent >= 100 ? "error" : "primary"}
-            value={percent}
-            sx={{ height: "10px" }}
-          />
-        </Box>
-        <Box sx={{ minWidth: 35 }}>
-          <Typography variant="body2" color="text.secondary">{`${percent.toFixed(2)}%`}</Typography>
-        </Box>
-      </Box>
-
-      {excess > 0 && (
-        <Alert variant="outlined" severity="error">
-          WARNING: Monster can deal {excess.toFixed(2)} excess damage! You will be one-shot with{" "}
-          {maxHealth.toFixed(2)} health
-        </Alert>
-      )}
-    </div>
-  );
-}
 
 function AbilityLines({ gear, G }: { gear: { [slot in SlotType]?: ItemInfo }; G: CustomGData }) {
   const lines: string[] = [];
@@ -108,7 +52,6 @@ export function StatsPanel({
   level: number;
   gear: { [slot in SlotType]?: ItemInfo };
 }) {
-  const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
   const G = useContext(GDataContext);
 
   if (!G) {
@@ -139,12 +82,14 @@ export function StatsPanel({
   ] as StatType[];
   const otherStatTypes: StatType[] = ["speed", "range", "mp_cost", "mp_reduction"];
 
-  const stats: { [T in StatType]?: number } = computeLoadoutStats({
-    characterClass: selectedCharacterClass,
-    level,
-    gear,
-    G,
-  });
+  const stats: { [T in StatType]?: number } = selectedCharacterClass
+    ? resolveCombatStatsFromLoadout({
+        characterClass: selectedCharacterClass,
+        level,
+        gear,
+        G,
+      })
+    : {};
 
   Object.entries(stats)
     .filter(
@@ -162,127 +107,113 @@ export function StatsPanel({
         stat !== "e" &&
         stat !== "attr0" &&
         stat !== "attr1" &&
+        stat !== "damage_type" &&
+        stat !== "heal" &&
         typeof value === "number",
     )
     .forEach(([stat]) => otherStatTypes.push(stat as unknown as StatType));
-
-  const fakePlayer = {
-    ...stats,
-    damage_type: selectedCharacterClass
-      ? G.classes[selectedCharacterClass.className].damage_type
-      : "physical",
-  };
 
   const getStatsDescription = (key: StatType | MainStatType) => {
     const attr = ATTRIBUTES[key];
     return `${attr?.description ?? ""}`;
   };
 
-  const handleChange = (event: SelectChangeEvent) => {
-    setTargetMonster(event.target.value as MonsterKey);
-  };
-
   return (
-    <Grid container>
-      <Grid item xs={3}>
-        <Divider textAlign="left">GENERAL</Divider>
-        <Table size="small" aria-label="a dense table">
-          <TableBody>
-            <TableRow>
-              <TableCell title={getStatsDescription("hp")}>hp</TableCell>
-              <TableCell align="right" title={stats.hp?.toString() ?? ""}>
-                {Math.round(stats.hp ?? 0)}
-              </TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell title={getStatsDescription("mp")}>mp</TableCell>
-              <TableCell align="right" title={stats.mp?.toString() ?? ""}>
-                {Math.round(stats.mp ?? 0)}
-              </TableCell>
-            </TableRow>
-            {mainStatTypes.map((stat) => (
-              <TableRow key={`stat_${stat}`}>
-                <TableCell
-                  title={getStatsDescription(stat)}
-                  sx={{
-                    fontWeight: selectedCharacterClass?.main_stat === stat ? "bold" : "normal",
-                  }}
-                >
-                  {stat}
-                </TableCell>
-                <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
-                  {Math.round(stats[stat] ?? 0)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+    <Grid container spacing={2}>
+      <Grid item xs={12} md={3}>
+        <CombatSimPanel G={G} characterClass={selectedCharacterClass} level={level} gear={gear} />
+        <IncomingDamagePanel
+          G={G}
+          characterClass={selectedCharacterClass}
+          level={level}
+          gear={gear}
+        />
       </Grid>
-      <Grid item xs={3}>
-        <Divider textAlign="left">OFFENSE</Divider>
-        <Table size="small">
-          <TableBody>
-            {offenseStatTypes.map((stat) => (
-              <TableRow key={`stat_${stat}`}>
-                <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
-                  {formatCharacterStatValue(stat, stats[stat] ?? 0)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Grid>
-      <Grid item xs={3}>
-        <Divider textAlign="left">DEFENSE</Divider>
-        <Table size="small">
-          <TableBody>
-            {defenseStatTypes.map((stat) => (
-              <TableRow key={`stat_${stat}`}>
-                <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
-                  {formatCharacterStatValue(stat, stats[stat] ?? 0)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Grid>
-      <Grid item xs={3}>
-        <Divider textAlign="left">OTHER</Divider>
-        <Table size="small">
-          <TableBody>
-            {otherStatTypes
-              .filter((stat) => stats[stat])
-              .map((stat) => (
-                <TableRow key={`stat_${stat}`}>
-                  <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                  <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
-                    {formatCharacterStatValue(stat, stats[stat] ?? 0)}
+      <Grid item xs={12} md={9}>
+        <Grid container>
+          <Grid item xs={12} sm={3}>
+            <Divider textAlign="left">GENERAL</Divider>
+            <Table size="small" aria-label="a dense table">
+              <TableBody>
+                <TableRow>
+                  <TableCell title={getStatsDescription("hp")}>hp</TableCell>
+                  <TableCell align="right" title={stats.hp?.toString() ?? ""}>
+                    {Math.round(stats.hp ?? 0)}
                   </TableCell>
                 </TableRow>
-              ))}
-          </TableBody>
-        </Table>
-        <AbilityLines gear={gear} G={G} />
-      </Grid>
-      <Grid item xs={12}>
-        <FormControl fullWidth sx={{ mt: 2 }}>
-          <InputLabel id="monster-select-label">Target monster</InputLabel>
-          <Select
-            labelId="monster-select-label"
-            value={targetMonster}
-            label="Target monster"
-            onChange={handleChange}
-          >
-            {Object.keys(G.monsters).map((key) => (
-              <MenuItem key={key} value={key}>
-                {G.monsters[key as MonsterKey].name ?? key}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <DamageVisualization source={G.monsters[targetMonster]} target={fakePlayer} />
+                <TableRow>
+                  <TableCell title={getStatsDescription("mp")}>mp</TableCell>
+                  <TableCell align="right" title={stats.mp?.toString() ?? ""}>
+                    {Math.round(stats.mp ?? 0)}
+                  </TableCell>
+                </TableRow>
+                {mainStatTypes.map((stat) => (
+                  <TableRow key={`stat_${stat}`}>
+                    <TableCell
+                      title={getStatsDescription(stat)}
+                      sx={{
+                        fontWeight: selectedCharacterClass?.main_stat === stat ? "bold" : "normal",
+                      }}
+                    >
+                      {stat}
+                    </TableCell>
+                    <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
+                      {Math.round(stats[stat] ?? 0)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Grid>
+          <Grid item xs={12} sm={3}>
+            <Divider textAlign="left">OFFENSE</Divider>
+            <Table size="small">
+              <TableBody>
+                {offenseStatTypes.map((stat) => (
+                  <TableRow key={`stat_${stat}`}>
+                    <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
+                    <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
+                      {formatCharacterStatValue(stat, stats[stat] ?? 0)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Grid>
+          <Grid item xs={12} sm={3}>
+            <Divider textAlign="left">DEFENSE</Divider>
+            <Table size="small">
+              <TableBody>
+                {defenseStatTypes.map((stat) => (
+                  <TableRow key={`stat_${stat}`}>
+                    <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
+                    <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
+                      {formatCharacterStatValue(stat, stats[stat] ?? 0)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Grid>
+          <Grid item xs={12} sm={3}>
+            <Divider textAlign="left">OTHER</Divider>
+            <Table size="small">
+              <TableBody>
+                {otherStatTypes
+                  .filter((stat) => stats[stat])
+                  .map((stat) => (
+                    <TableRow key={`stat_${stat}`}>
+                      <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
+                      <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
+                        {formatCharacterStatValue(stat, stats[stat] ?? 0)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+            <AbilityLines gear={gear} G={G} />
+          </Grid>
+        </Grid>
       </Grid>
     </Grid>
   );

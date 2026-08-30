@@ -18,9 +18,9 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
-import { ItemKey } from "typed-adventureland";
+import { ItemKey, MonsterKey, ClassKey } from "typed-adventureland";
 
 import {
   COMPARE_STAT_KEYS,
@@ -33,13 +33,21 @@ import {
   isValidLevel,
   statDelta,
 } from "../../gameData/compareStats";
+import {
+  estimateTotalDps,
+  matrixItemAtLevel,
+  monsterToCombatEntity,
+  resolveCombatStatsWithSwap,
+} from "../../gameData/combat";
 import { getItemEffects } from "../../gameData/itemEffects";
 import { sortItemKeysByTier } from "../../gameData/itemFilters";
 import { STAT_DISPLAY_LABELS } from "../../gameData/statLabels";
-import { GItems } from "../../GDataContext";
+import { GDataContext, GItems } from "../../GDataContext";
+import { SelectedCharacterClass } from "../../GearPlanner/types";
 import { ItemInstance } from "../../Shared/ItemInstance";
 import { ItemSelectDialog } from "../../Shared/ItemSelectDialog";
 import { useMatrixUrlParams } from "../useItemsUrlParams";
+import { CombatContextBar, CombatContextValue, useCombatContextClasses } from "./CombatContextBar";
 
 const ITEM_COL_WIDTH = 248;
 /** Floor so equal level columns still scroll on narrow viewports. */
@@ -205,6 +213,55 @@ function LevelStatCell({
   );
 }
 
+function LevelDpsCell({
+  dps,
+  baselineDps,
+  valid,
+  isBaseline,
+}: {
+  dps: number | null;
+  baselineDps: number | null;
+  valid: boolean;
+  isBaseline: boolean;
+}) {
+  if (!valid || dps == null) {
+    return (
+      <Typography variant="caption" color="text.disabled">
+        ·
+      </Typography>
+    );
+  }
+
+  const delta = !isBaseline && baselineDps != null && baselineDps > 0 ? dps - baselineDps : null;
+  let deltaColor = "transparent";
+  if (delta != null && delta !== 0) {
+    deltaColor = delta > 0 ? "success.light" : "error.light";
+  }
+
+  return (
+    <Box
+      sx={{
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        fontSize: 11,
+        lineHeight: 1.35,
+        fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      <Typography variant="caption" component="div" fontWeight={600}>
+        {dps.toFixed(1)}
+      </Typography>
+      <Typography variant="caption" component="div" color="text.secondary">
+        DPS
+      </Typography>
+      {delta != null && delta !== 0 && (
+        <Typography variant="caption" component="div" sx={{ color: deltaColor, fontWeight: 600 }}>
+          {delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
 export function ItemBalanceMatrix({
   items,
   itemHref,
@@ -215,7 +272,15 @@ export function ItemBalanceMatrix({
   itemHref?: (itemKey: ItemKey) => string;
   effectLookups?: Parameters<typeof getItemEffects>[2];
 }) {
+  const G = useContext(GDataContext);
+  const classes = useCombatContextClasses();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"stats" | "dps">("stats");
+  const [combatContext, setCombatContext] = useState<CombatContextValue>({
+    classKey: "priest",
+    level: 80,
+    targetMonster: "ent" as MonsterKey,
+  });
   const validItem = useCallback((key: string) => Boolean(items[key as ItemKey]), [items]);
   const { selectedKeys, baselineKey, setSelectedKeys, setBaseline } = useMatrixUrlParams(validItem);
 
@@ -273,6 +338,54 @@ export function ItemBalanceMatrix({
     if (!baselineItemKey || !items[baselineItemKey]) return null;
     return buildAllLevelStats(items[baselineItemKey]);
   }, [baselineItemKey, items]);
+
+  const characterClass = useMemo((): SelectedCharacterClass | undefined => {
+    const key = combatContext.classKey as ClassKey | null;
+    if (!key || !G?.classes[key]) return undefined;
+    return {
+      className: key,
+      ...(G.classes[key] as object),
+    } as SelectedCharacterClass;
+  }, [G, combatContext.classKey]);
+
+  const targetEntity = useMemo(() => {
+    if (!G) return null;
+    return monsterToCombatEntity(G.monsters[combatContext.targetMonster]);
+  }, [G, combatContext.targetMonster]);
+
+  const computeRowDps = useCallback(
+    (itemKey: ItemKey, level: number, gItem: typeof items[ItemKey]) => {
+      if (!G || !characterClass || !targetEntity || !isValidLevel(gItem, level)) return null;
+      const stats = resolveCombatStatsWithSwap({
+        characterClass,
+        level: combatContext.level,
+        gear: {},
+        G,
+        slot: "mainhand",
+        itemInfo: matrixItemAtLevel(itemKey, level),
+      });
+      return estimateTotalDps(
+        stats,
+        targetEntity,
+        G,
+        { mainhand: matrixItemAtLevel(itemKey, level) },
+        {
+          classKey: characterClass.className,
+        },
+      ).totalDps;
+    },
+    [G, characterClass, combatContext.level, targetEntity],
+  );
+
+  const baselineDpsByLevel = useMemo(() => {
+    if (!baselineItemKey || !items[baselineItemKey]) return null;
+    const gItem = items[baselineItemKey];
+    return Array.from({ length: MATRIX_MAX_LEVEL + 1 }, (_, level) =>
+      computeRowDps(baselineItemKey, level, gItem),
+    );
+  }, [baselineItemKey, computeRowDps, items]);
+
+  if (!G) return null;
 
   return (
     <Box>
@@ -346,9 +459,25 @@ export function ItemBalanceMatrix({
                 Clear
               </Button>
             )}
+            <Chip
+              size="small"
+              label={viewMode === "dps" ? "DPS view" : "Stats view"}
+              color={viewMode === "dps" ? "primary" : "default"}
+              onClick={() => setViewMode((m) => (m === "stats" ? "dps" : "stats"))}
+              variant={viewMode === "dps" ? "filled" : "outlined"}
+            />
           </Stack>
         </Stack>
       </Paper>
+
+      {viewMode === "dps" && (
+        <CombatContextBar
+          classes={classes}
+          value={combatContext}
+          onChange={setCombatContext}
+          compact
+        />
+      )}
 
       <ItemSelectDialog
         open={pickerOpen}
@@ -518,14 +647,23 @@ export function ItemBalanceMatrix({
                           bgcolor: level % 2 === 0 ? "action.hover" : undefined,
                         }}
                       >
-                        <LevelStatCell
-                          stats={levelStats[level]}
-                          baselineStats={baselineStats?.[level]}
-                          valid={isValidLevel(gItem, level)}
-                          isBaseline={isBaseline}
-                          ability={(gItem as { ability?: string }).ability}
-                          statKeys={rowStatKeys}
-                        />
+                        {viewMode === "dps" ? (
+                          <LevelDpsCell
+                            dps={computeRowDps(itemKey, level, gItem)}
+                            baselineDps={baselineDpsByLevel?.[level] ?? null}
+                            valid={isValidLevel(gItem, level)}
+                            isBaseline={isBaseline}
+                          />
+                        ) : (
+                          <LevelStatCell
+                            stats={levelStats[level]}
+                            baselineStats={baselineStats?.[level]}
+                            valid={isValidLevel(gItem, level)}
+                            isBaseline={isBaseline}
+                            ability={(gItem as { ability?: string }).ability}
+                            statKeys={rowStatKeys}
+                          />
+                        )}
                       </TableCell>
                     ))}
                   </TableRow>
