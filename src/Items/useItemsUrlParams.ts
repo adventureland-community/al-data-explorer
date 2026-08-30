@@ -1,5 +1,6 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import { MonsterKey } from "typed-adventureland";
 
 import { ItemSortKey } from "../gameData/itemFilters";
 
@@ -145,4 +146,85 @@ export function useMatrixUrlParams(validItem: (key: string) => boolean) {
   );
 
   return { selectedKeys, baselineKey, setSelectedKeys, setBaseline };
+}
+
+export type MatrixViewMode = "stats" | "dps";
+
+export type MatrixCombatParams = {
+  view: MatrixViewMode;
+  simClass: string | null;
+  simLevel: number;
+  simTarget: MonsterKey;
+};
+
+const MATRIX_VIEW_DEFAULT: MatrixViewMode = "stats";
+const MATRIX_CLASS_DEFAULT = "priest";
+const MATRIX_LEVEL_DEFAULT = 80;
+const MATRIX_TARGET_DEFAULT: MonsterKey = "ent";
+
+function parseMatrixView(raw: string | null): MatrixViewMode {
+  return raw === "dps" ? "dps" : MATRIX_VIEW_DEFAULT;
+}
+
+function parseMatrixLevel(raw: string | null): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return MATRIX_LEVEL_DEFAULT;
+  return Math.min(200, Math.max(1, Math.round(n)));
+}
+
+/** Matrix DPS view + combat context (`view`, `simClass`, `simLevel`, `simTarget`). */
+export function useMatrixCombatParams(
+  validClass: (key: string) => boolean,
+  validTarget: (key: string) => boolean,
+) {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const params: MatrixCombatParams = useMemo(() => {
+    const classRaw = searchParams.get("simClass");
+    const targetRaw = searchParams.get("simTarget");
+    return {
+      view: parseMatrixView(searchParams.get("view")),
+      simClass: classRaw && validClass(classRaw) ? classRaw : MATRIX_CLASS_DEFAULT,
+      simLevel: parseMatrixLevel(searchParams.get("simLevel")),
+      simTarget:
+        targetRaw && validTarget(targetRaw) ? (targetRaw as MonsterKey) : MATRIX_TARGET_DEFAULT,
+    };
+  }, [searchParams, validClass, validTarget]);
+
+  const patch = useCallback(
+    (mutate: (next: URLSearchParams) => void) => {
+      const next = new URLSearchParams(searchParams);
+      mutate(next);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const setView = useCallback(
+    (view: MatrixViewMode) => {
+      patch((next) => {
+        if (view === MATRIX_VIEW_DEFAULT) next.delete("view");
+        else next.set("view", view);
+      });
+    },
+    [patch],
+  );
+
+  const setCombatContext = useCallback(
+    (next: Pick<MatrixCombatParams, "simClass" | "simLevel" | "simTarget">) => {
+      patch((draft) => {
+        if (next.simClass && validClass(next.simClass)) {
+          if (next.simClass === MATRIX_CLASS_DEFAULT) draft.delete("simClass");
+          else draft.set("simClass", next.simClass);
+        }
+        if (next.simLevel === MATRIX_LEVEL_DEFAULT) draft.delete("simLevel");
+        else draft.set("simLevel", String(next.simLevel));
+        if (next.simTarget === MATRIX_TARGET_DEFAULT) draft.delete("simTarget");
+        else draft.set("simTarget", next.simTarget);
+      });
+    },
+    [patch, validClass],
+  );
+
+  return { params, setView, setCombatContext };
 }

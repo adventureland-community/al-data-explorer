@@ -1,4 +1,13 @@
-import { Grid, Divider, Table, TableRow, TableCell, TableBody } from "@mui/material";
+import {
+  Box,
+  Divider,
+  Grid,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+} from "@mui/material";
 import { ItemInfo, SlotType, StatType } from "typed-adventureland";
 import { useContext } from "react";
 
@@ -7,8 +16,50 @@ import { GDataContext, MainStatType, CustomGData } from "../GDataContext";
 import { resolveCombatStatsFromLoadout } from "../gameData/combat";
 import { getItemEffects } from "../gameData/itemEffects";
 import { formatCharacterStatValue } from "../gameData/prettyNumbers";
-import { CombatSimPanel, IncomingDamagePanel } from "../Shared/CombatSimPanel";
+import { CombatSimPanel } from "../Shared/CombatSimPanel";
 import { SelectedCharacterClass } from "./types";
+
+const STAT_TABLE_SX = {
+  tableLayout: "fixed" as const,
+  "& .MuiTableCell-root": {
+    px: 1,
+    py: 0.35,
+    fontSize: 12,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap" as const,
+  },
+};
+
+function StatTable({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: { key: string; value: string; bold?: boolean; title?: string }[];
+}) {
+  return (
+    <Box>
+      <Divider textAlign="left" sx={{ mb: 0.5, fontSize: 11 }}>
+        {title}
+      </Divider>
+      <Table size="small" sx={STAT_TABLE_SX}>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.key}>
+              <TableCell title={row.title ?? row.key} sx={{ fontWeight: row.bold ? 700 : 400 }}>
+                {row.key}
+              </TableCell>
+              <TableCell align="right" title={row.value}>
+                {row.value}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Box>
+  );
+}
 
 function AbilityLines({ gear, G }: { gear: { [slot in SlotType]?: ItemInfo }; G: CustomGData }) {
   const lines: string[] = [];
@@ -28,18 +79,25 @@ function AbilityLines({ gear, G }: { gear: { [slot in SlotType]?: ItemInfo }; G:
   }
   if (lines.length === 0) return null;
   return (
-    <>
-      <Divider textAlign="left">ABILITIES / AURAS</Divider>
-      <Table size="small">
+    <Box sx={{ mt: 1 }}>
+      <Divider textAlign="left" sx={{ mb: 0.5, fontSize: 11 }}>
+        ABILITIES / AURAS
+      </Divider>
+      <Table size="small" sx={STAT_TABLE_SX}>
+        <TableHead>
+          <TableRow>
+            <TableCell>Effect</TableCell>
+          </TableRow>
+        </TableHead>
         <TableBody>
           {lines.map((line) => (
             <TableRow key={line}>
-              <TableCell>{line}</TableCell>
+              <TableCell title={line}>{line}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-    </>
+    </Box>
   );
 }
 
@@ -120,97 +178,65 @@ export function StatsPanel({
 
   return (
     <Grid container spacing={2}>
-      <Grid item xs={12} md={3}>
+      <Grid item xs={12} lg={3}>
         <CombatSimPanel G={G} characterClass={selectedCharacterClass} level={level} gear={gear} />
-        <IncomingDamagePanel
-          G={G}
-          characterClass={selectedCharacterClass}
-          level={level}
-          gear={gear}
-        />
       </Grid>
-      <Grid item xs={12} md={9}>
-        <Grid container>
-          <Grid item xs={12} sm={3}>
-            <Divider textAlign="left">GENERAL</Divider>
-            <Table size="small" aria-label="a dense table">
-              <TableBody>
-                <TableRow>
-                  <TableCell title={getStatsDescription("hp")}>hp</TableCell>
-                  <TableCell align="right" title={stats.hp?.toString() ?? ""}>
-                    {Math.round(stats.hp ?? 0)}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell title={getStatsDescription("mp")}>mp</TableCell>
-                  <TableCell align="right" title={stats.mp?.toString() ?? ""}>
-                    {Math.round(stats.mp ?? 0)}
-                  </TableCell>
-                </TableRow>
-                {mainStatTypes.map((stat) => (
-                  <TableRow key={`stat_${stat}`}>
-                    <TableCell
-                      title={getStatsDescription(stat)}
-                      sx={{
-                        fontWeight: selectedCharacterClass?.main_stat === stat ? "bold" : "normal",
-                      }}
-                    >
-                      {stat}
-                    </TableCell>
-                    <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
-                      {Math.round(stats[stat] ?? 0)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+      <Grid item xs={12} lg={9}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} xl={3}>
+            <StatTable
+              title="GENERAL"
+              rows={[
+                {
+                  key: "hp",
+                  value: String(Math.round(stats.hp ?? 0)),
+                  title: getStatsDescription("hp"),
+                },
+                {
+                  key: "mp",
+                  value: String(Math.round(stats.mp ?? 0)),
+                  title: getStatsDescription("mp"),
+                },
+                ...mainStatTypes.map((stat) => ({
+                  key: stat,
+                  value: String(Math.round(stats[stat] ?? 0)),
+                  bold: selectedCharacterClass?.main_stat === stat,
+                  title: getStatsDescription(stat),
+                })),
+              ]}
+            />
           </Grid>
-          <Grid item xs={12} sm={3}>
-            <Divider textAlign="left">OFFENSE</Divider>
-            <Table size="small">
-              <TableBody>
-                {offenseStatTypes.map((stat) => (
-                  <TableRow key={`stat_${stat}`}>
-                    <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                    <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
-                      {formatCharacterStatValue(stat, stats[stat] ?? 0)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <Grid item xs={12} sm={6} xl={3}>
+            <StatTable
+              title="OFFENSE"
+              rows={offenseStatTypes.map((stat) => ({
+                key: stat,
+                value: formatCharacterStatValue(stat, stats[stat] ?? 0),
+                title: getStatsDescription(stat),
+              }))}
+            />
           </Grid>
-          <Grid item xs={12} sm={3}>
-            <Divider textAlign="left">DEFENSE</Divider>
-            <Table size="small">
-              <TableBody>
-                {defenseStatTypes.map((stat) => (
-                  <TableRow key={`stat_${stat}`}>
-                    <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                    <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
-                      {formatCharacterStatValue(stat, stats[stat] ?? 0)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <Grid item xs={12} sm={6} xl={3}>
+            <StatTable
+              title="DEFENSE"
+              rows={defenseStatTypes.map((stat) => ({
+                key: stat,
+                value: formatCharacterStatValue(stat, stats[stat] ?? 0),
+                title: getStatsDescription(stat),
+              }))}
+            />
           </Grid>
-          <Grid item xs={12} sm={3}>
-            <Divider textAlign="left">OTHER</Divider>
-            <Table size="small">
-              <TableBody>
-                {otherStatTypes
-                  .filter((stat) => stats[stat])
-                  .map((stat) => (
-                    <TableRow key={`stat_${stat}`}>
-                      <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                      <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
-                        {formatCharacterStatValue(stat, stats[stat] ?? 0)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
+          <Grid item xs={12} sm={6} xl={3}>
+            <StatTable
+              title="OTHER"
+              rows={otherStatTypes
+                .filter((stat) => stats[stat])
+                .map((stat) => ({
+                  key: stat,
+                  value: formatCharacterStatValue(stat, stats[stat] ?? 0),
+                  title: getStatsDescription(stat),
+                }))}
+            />
             <AbilityLines gear={gear} G={G} />
           </Grid>
         </Grid>

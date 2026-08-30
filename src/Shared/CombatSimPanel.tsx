@@ -1,17 +1,23 @@
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ShieldIcon from "@mui/icons-material/Shield";
 import SpeedIcon from "@mui/icons-material/Speed";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Button,
+  Chip,
   Divider,
   FormControl,
   InputLabel,
   MenuItem,
   Paper,
   Select,
-  SelectChangeEvent,
   Stack,
+  Tab,
+  Tabs,
   Typography,
 } from "@mui/material";
 import { ItemInfo, MonsterKey, SlotType } from "typed-adventureland";
@@ -25,14 +31,19 @@ import {
   monsterToCombatEntity,
   resolveCombatStatsFromLoadout,
 } from "../gameData/combat";
+import { formatCharacterStatValue } from "../gameData/prettyNumbers";
 import { LoadoutClassDef } from "../gameData/loadoutStats";
 import { SelectedCharacterClass } from "../GearPlanner/types";
+import { MonsterTargetPicker } from "./MonsterTargetPicker";
 
 export type CombatSimPanelProps = {
   G: CustomGData;
   characterClass?: SelectedCharacterClass | LoadoutClassDef;
   level: number;
   gear: { [slot in SlotType]?: ItemInfo };
+  /** Controlled target (shared between outgoing / incoming). */
+  targetMonster?: MonsterKey;
+  onTargetMonsterChange?: (key: MonsterKey) => void;
 };
 
 export type CombatSimPanelCompactProps = CombatSimPanelProps & {
@@ -44,53 +55,133 @@ function StatRow({ label, value, hint }: { label: string; value: string; hint?: 
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: "1fr auto",
+        gridTemplateColumns: "minmax(0, 1fr) auto",
         gap: 1,
         py: 0.35,
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
         fontSize: 12,
       }}
     >
-      <Typography variant="caption" color="text.secondary" title={hint}>
+      <Typography variant="caption" color="text.secondary" title={hint} noWrap>
         {label}
       </Typography>
-      <Typography variant="caption" fontWeight={600}>
+      <Typography variant="caption" fontWeight={600} sx={{ whiteSpace: "nowrap" }}>
         {value}
       </Typography>
     </Box>
   );
 }
 
-function DpsResults({ breakdown, targetName }: { breakdown: DpsBreakdown; targetName: string }) {
+function HeroDps({ value, label }: { value: number; label: string }) {
+  return (
+    <Box
+      sx={{
+        textAlign: "center",
+        py: 1.5,
+        px: 1,
+        borderRadius: 1,
+        bgcolor: "action.hover",
+        border: 1,
+        borderColor: "divider",
+      }}
+    >
+      <Typography
+        variant="h4"
+        component="div"
+        sx={{
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          fontWeight: 700,
+          lineHeight: 1.1,
+          color: "primary.light",
+        }}
+      >
+        {value.toFixed(1)}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: 1 }}>
+        {label}
+      </Typography>
+    </Box>
+  );
+}
+
+function CombatStatChips({ stats }: { stats: ReturnType<typeof resolveCombatStatsFromLoadout> }) {
+  const chips = [
+    { label: "attack", value: stats.attack },
+    { label: "frequency", value: stats.frequency },
+    { label: "range", value: stats.range },
+    stats.damage_type === "physical"
+      ? { label: "apiercing", value: stats.apiercing }
+      : { label: "rpiercing", value: stats.rpiercing },
+    { label: "crit", value: stats.crit },
+  ].filter((c) => c.value != null && c.value !== 0);
+
+  if (chips.length === 0) return null;
+
+  return (
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+      {chips.map((chip) => (
+        <Chip
+          key={chip.label}
+          size="small"
+          variant="outlined"
+          label={`${chip.label} ${formatCharacterStatValue(chip.label as never, chip.value ?? 0)}`}
+          sx={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}
+        />
+      ))}
+    </Box>
+  );
+}
+
+function DpsResults({
+  breakdown,
+  targetName,
+  compact,
+}: {
+  breakdown: DpsBreakdown;
+  targetName: string;
+  compact?: boolean;
+}) {
   return (
     <Box sx={{ mt: 1 }}>
-      <Typography variant="overline" color="primary.light" sx={{ letterSpacing: 1 }}>
-        vs {targetName}
-      </Typography>
-      <StatRow label="Auto DPS" value={breakdown.autoAttackDps.toFixed(1)} />
-      {breakdown.abilityDps > 0 && (
-        <StatRow label="Ability DPS" value={breakdown.abilityDps.toFixed(1)} />
-      )}
-      <StatRow label="Total DPS" value={breakdown.totalDps.toFixed(1)} hint="Auto + abilities" />
-      <StatRow
-        label="Hit damage"
-        value={breakdown.hitDamage.toFixed(1)}
-        hint="Expected per auto-attack after mitigation"
-      />
-      <StatRow
-        label="Mitigation"
-        value={`${(breakdown.mitigationMult * 100).toFixed(1)}%`}
-        hint="Damage multiplier after armor/resistance and piercing"
-      />
-      {breakdown.hitsToKill != null && (
-        <StatRow label="Hits to kill" value={String(breakdown.hitsToKill)} />
-      )}
-      {breakdown.simDurationMs != null && (
-        <StatRow
-          label="Sim mode"
-          value={`Event (${breakdown.simDurationMs}ms)`}
-          hint="Monte Carlo auto-attack timeline"
-        />
+      <HeroDps value={breakdown.totalDps} label={`TOTAL DPS vs ${targetName}`} />
+
+      {!compact && (
+        <Box sx={{ mt: 1.25 }}>
+          <StatRow label="Auto attack" value={breakdown.autoAttackDps.toFixed(1)} />
+          {breakdown.abilityDps > 0 && (
+            <StatRow label="Abilities" value={breakdown.abilityDps.toFixed(1)} />
+          )}
+          {breakdown.abilityLines?.map((line) => (
+            <StatRow
+              key={line.key}
+              label={`  ${line.label}`}
+              value={line.dps.toFixed(1)}
+              hint="Estimated ability contribution"
+            />
+          ))}
+          <Divider sx={{ my: 0.75 }} />
+          <StatRow
+            label="Hit damage"
+            value={breakdown.hitDamage.toFixed(1)}
+            hint="Expected per auto-attack after mitigation"
+          />
+          <StatRow
+            label="Mitigation"
+            value={`${(breakdown.mitigationMult * 100).toFixed(1)}%`}
+            hint="Damage multiplier after armor/resistance and piercing"
+          />
+          {breakdown.hitsToKill != null && (
+            <StatRow label="Hits to kill" value={String(breakdown.hitsToKill)} />
+          )}
+          {breakdown.simDurationMs != null && (
+            <StatRow
+              label="Sim"
+              value={`${breakdown.simIterations ?? 0} hits / ${(
+                breakdown.simDurationMs / 1000
+              ).toFixed(0)}s`}
+            />
+          )}
+        </Box>
       )}
     </Box>
   );
@@ -129,13 +220,24 @@ export function CombatSimPanel({
   level,
   gear,
   compact = false,
+  targetMonster: targetMonsterProp,
+  onTargetMonsterChange,
 }: CombatSimPanelCompactProps) {
-  const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
+  const [internalTarget, setInternalTarget] = useState<MonsterKey>("ent");
+  const targetMonster = targetMonsterProp ?? internalTarget;
+  const setTargetMonster = onTargetMonsterChange ?? setInternalTarget;
+
   const [simMode, setSimMode] = useState<"formulation" | "event">("formulation");
   const [eventBreakdown, setEventBreakdown] = useState<DpsBreakdown | null>(null);
+  const [tab, setTab] = useState<"outgoing" | "incoming">("outgoing");
 
   const monster = G.monsters[targetMonster];
   const targetEntity = useMemo(() => monsterToCombatEntity(monster), [monster]);
+
+  const combatStats = useMemo(() => {
+    if (!characterClass) return null;
+    return resolveCombatStatsFromLoadout({ characterClass, level, gear, G });
+  }, [characterClass, gear, G, level]);
 
   const formulationBreakdown = useMemo(() => {
     if (!characterClass || simMode !== "formulation") return null;
@@ -149,26 +251,25 @@ export function CombatSimPanel({
     });
   }, [characterClass, gear, G, level, simMode, targetEntity]);
 
+  const incoming = useMemo(() => {
+    if (!combatStats) return null;
+    return estimateAutoAttackDps(monsterToCombatEntity(monster), combatStats);
+  }, [combatStats, monster]);
+
   const breakdown = simMode === "event" ? eventBreakdown : formulationBreakdown;
 
-  const handleTargetChange = (event: SelectChangeEvent) => {
-    setTargetMonster(event.target.value as MonsterKey);
-  };
-
-  const runSim = () => {
+  const runEventSim = () => {
     if (!characterClass) return;
-    if (simMode === "event") {
-      setEventBreakdown(
-        computeBreakdown({
-          characterClass,
-          level,
-          gear,
-          G,
-          targetEntity,
-          simMode: "event",
-        }),
-      );
-    }
+    setEventBreakdown(
+      computeBreakdown({
+        characterClass,
+        level,
+        gear,
+        G,
+        targetEntity,
+        simMode: "event",
+      }),
+    );
   };
 
   if (!characterClass) {
@@ -181,6 +282,19 @@ export function CombatSimPanel({
     );
   }
 
+  const incomingPanel = incoming && combatStats && (
+    <Box>
+      <StatRow label="Monster DPS" value={incoming.totalDps.toFixed(1)} />
+      <StatRow label="Your HP" value={Math.round(combatStats.hp ?? 0).toString()} />
+      {incoming.hitDamage > 0 && (combatStats.hp ?? 0) > 0 && (
+        <StatRow
+          label="Hits until defeat"
+          value={String(Math.ceil((combatStats.hp ?? 0) / incoming.hitDamage))}
+        />
+      )}
+    </Box>
+  );
+
   return (
     <Paper
       variant="outlined"
@@ -188,29 +302,19 @@ export function CombatSimPanel({
         p: compact ? 1.5 : 2,
         bgcolor: "background.default",
         borderColor: "divider",
+        position: compact ? undefined : { md: "sticky" },
+        top: compact ? undefined : 80,
       }}
     >
       <Stack spacing={1.25}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <SpeedIcon fontSize="small" color="primary" />
-          <Typography variant="subtitle2">Combat estimate</Typography>
+          <Typography variant="subtitle2">Combat sim</Typography>
         </Box>
 
-        <FormControl fullWidth size="small">
-          <InputLabel id="combat-target-label">Target</InputLabel>
-          <Select
-            labelId="combat-target-label"
-            value={targetMonster}
-            label="Target"
-            onChange={handleTargetChange}
-          >
-            {Object.keys(G.monsters).map((key) => (
-              <MenuItem key={key} value={key}>
-                {G.monsters[key as MonsterKey].name ?? key}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <MonsterTargetPicker G={G} value={targetMonster} onChange={setTargetMonster} />
+
+        {combatStats && !compact && <CombatStatChips stats={combatStats} />}
 
         {!compact && (
           <FormControl fullWidth size="small">
@@ -219,81 +323,84 @@ export function CombatSimPanel({
               labelId="combat-mode-label"
               value={simMode}
               label="Mode"
-              onChange={(e) => setSimMode(e.target.value as "formulation" | "event")}
+              onChange={(e) => {
+                setSimMode(e.target.value as "formulation" | "event");
+                setEventBreakdown(null);
+              }}
             >
-              <MenuItem value="formulation">Quick (formulation)</MenuItem>
+              <MenuItem value="formulation">Quick estimate</MenuItem>
               <MenuItem value="event">Event sim (30s)</MenuItem>
             </Select>
           </FormControl>
         )}
 
-        <Button variant="contained" size="small" startIcon={<AutoFixHighIcon />} onClick={runSim}>
-          {simMode === "event" ? "Run sim" : "Refresh"}
-        </Button>
-
-        {breakdown && (
-          <DpsResults breakdown={breakdown} targetName={monster.name ?? targetMonster} />
+        {simMode === "event" && (
+          <Button
+            variant="contained"
+            size="small"
+            fullWidth
+            startIcon={<AutoFixHighIcon />}
+            onClick={runEventSim}
+          >
+            Simulate
+          </Button>
         )}
 
-        <Divider flexItem />
+        {compact ? (
+          breakdown && (
+            <DpsResults breakdown={breakdown} targetName={monster.name ?? targetMonster} compact />
+          )
+        ) : (
+          <>
+            <Tabs
+              value={tab}
+              onChange={(_, v) => setTab(v)}
+              variant="fullWidth"
+              sx={{ minHeight: 36, "& .MuiTab-root": { minHeight: 36, py: 0.5 } }}
+            >
+              <Tab value="outgoing" label="Outgoing" />
+              <Tab value="incoming" label="Incoming" />
+            </Tabs>
+            {tab === "outgoing" && breakdown && (
+              <DpsResults breakdown={breakdown} targetName={monster.name ?? targetMonster} />
+            )}
+            {tab === "incoming" && incomingPanel}
+          </>
+        )}
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-          <ShieldIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-          <Typography variant="caption" color="text.secondary">
-            Formulation uses expected crit. Event sim rolls variance ±10% per hit.
-          </Typography>
-        </Box>
+        {!compact && (
+          <>
+            <Divider flexItem />
+            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75 }}>
+              <ShieldIcon sx={{ fontSize: 16, color: "text.secondary", mt: 0.2 }} />
+              <Typography variant="caption" color="text.secondary">
+                Quick mode uses expected crit. Event sim rolls ±10% variance and crit procs over 30
+                seconds.
+              </Typography>
+            </Box>
+          </>
+        )}
       </Stack>
     </Paper>
   );
 }
 
-export function IncomingDamagePanel({ G, characterClass, level, gear }: CombatSimPanelProps) {
-  const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
-  const monster = G.monsters[targetMonster];
-  const monsterEntity = useMemo(() => monsterToCombatEntity(monster), [monster]);
-
-  const playerStats = useMemo(() => {
-    if (!characterClass) return null;
-    return resolveCombatStatsFromLoadout({ characterClass, level, gear, G });
-  }, [characterClass, gear, G, level]);
-
-  const incoming = useMemo(() => {
-    if (!playerStats) return null;
-    return estimateAutoAttackDps(monsterEntity, playerStats);
-  }, [monsterEntity, playerStats]);
-
-  if (!characterClass || !incoming || !playerStats) {
-    return null;
-  }
-
-  const hp = playerStats.hp ?? 0;
-
+/** @deprecated Use CombatSimPanel tabs (Incoming) instead. */
+export function IncomingDamagePanel(props: CombatSimPanelProps) {
+  const [target, setTarget] = useState<MonsterKey>("ent");
   return (
-    <Paper variant="outlined" sx={{ p: 2, mt: 2, bgcolor: "background.default" }}>
-      <Typography variant="subtitle2" gutterBottom>
-        Incoming — {monster.name}
-      </Typography>
-      <StatRow label="Monster DPS" value={incoming.totalDps.toFixed(1)} />
-      <StatRow label="Your HP" value={Math.round(hp).toString()} />
-      {incoming.hitsToKill != null && hp > 0 && (
-        <StatRow label="Hits until defeat" value={String(Math.ceil(hp / incoming.hitDamage))} />
-      )}
-      <FormControl fullWidth size="small" sx={{ mt: 1 }}>
-        <InputLabel id="incoming-target-label">Threat</InputLabel>
-        <Select
-          labelId="incoming-target-label"
-          value={targetMonster}
-          label="Threat"
-          onChange={(e) => setTargetMonster(e.target.value as MonsterKey)}
-        >
-          {Object.keys(G.monsters).map((key) => (
-            <MenuItem key={key} value={key}>
-              {G.monsters[key as MonsterKey].name ?? key}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    </Paper>
+    <Accordion disableGutters elevation={0} sx={{ mt: 2, bgcolor: "background.default" }}>
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Typography variant="subtitle2">Legacy incoming panel</Typography>
+      </AccordionSummary>
+      <AccordionDetails>
+        <CombatSimPanel
+          {...props}
+          compact
+          targetMonster={target}
+          onTargetMonsterChange={setTarget}
+        />
+      </AccordionDetails>
+    </Accordion>
   );
 }

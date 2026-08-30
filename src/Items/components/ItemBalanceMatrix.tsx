@@ -38,6 +38,7 @@ import {
   matrixItemAtLevel,
   monsterToCombatEntity,
   resolveCombatStatsWithSwap,
+  DpsBreakdown,
 } from "../../gameData/combat";
 import { getItemEffects } from "../../gameData/itemEffects";
 import { sortItemKeysByTier } from "../../gameData/itemFilters";
@@ -46,7 +47,7 @@ import { GDataContext, GItems } from "../../GDataContext";
 import { SelectedCharacterClass } from "../../GearPlanner/types";
 import { ItemInstance } from "../../Shared/ItemInstance";
 import { ItemSelectDialog } from "../../Shared/ItemSelectDialog";
-import { useMatrixUrlParams } from "../useItemsUrlParams";
+import { useMatrixUrlParams, useMatrixCombatParams } from "../useItemsUrlParams";
 import { CombatContextBar, CombatContextValue, useCombatContextClasses } from "./CombatContextBar";
 
 const ITEM_COL_WIDTH = 248;
@@ -214,17 +215,17 @@ function LevelStatCell({
 }
 
 function LevelDpsCell({
-  dps,
-  baselineDps,
+  breakdown,
+  baselineBreakdown,
   valid,
   isBaseline,
 }: {
-  dps: number | null;
-  baselineDps: number | null;
+  breakdown: DpsBreakdown | null;
+  baselineBreakdown: DpsBreakdown | null;
   valid: boolean;
   isBaseline: boolean;
 }) {
-  if (!valid || dps == null) {
+  if (!valid || breakdown == null) {
     return (
       <Typography variant="caption" color="text.disabled">
         ·
@@ -232,33 +233,68 @@ function LevelDpsCell({
     );
   }
 
+  const dps = breakdown.totalDps;
+  const baselineDps = baselineBreakdown?.totalDps ?? null;
   const delta = !isBaseline && baselineDps != null && baselineDps > 0 ? dps - baselineDps : null;
   let deltaColor = "transparent";
   if (delta != null && delta !== 0) {
     deltaColor = delta > 0 ? "success.light" : "error.light";
   }
 
-  return (
-    <Box
-      sx={{
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-        fontSize: 11,
-        lineHeight: 1.35,
-        fontVariantNumeric: "tabular-nums",
-      }}
-    >
-      <Typography variant="caption" component="div" fontWeight={600}>
-        {dps.toFixed(1)}
+  const tooltip = (
+    <Box sx={{ fontSize: 11, lineHeight: 1.45, maxWidth: 240 }}>
+      <Typography variant="caption" component="div" fontWeight={700}>
+        {dps.toFixed(1)} total DPS
       </Typography>
-      <Typography variant="caption" component="div" color="text.secondary">
-        DPS
+      <Typography variant="caption" component="div">
+        Auto: {breakdown.autoAttackDps.toFixed(1)}
       </Typography>
-      {delta != null && delta !== 0 && (
-        <Typography variant="caption" component="div" sx={{ color: deltaColor, fontWeight: 600 }}>
-          {delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
+      {breakdown.abilityDps > 0 && (
+        <Typography variant="caption" component="div">
+          Abilities: {breakdown.abilityDps.toFixed(1)}
+        </Typography>
+      )}
+      {breakdown.abilityLines?.map((line) => (
+        <Typography key={line.key} variant="caption" component="div" sx={{ pl: 1 }}>
+          {line.label}: {line.dps.toFixed(1)}
+        </Typography>
+      ))}
+      <Typography variant="caption" component="div" sx={{ mt: 0.5 }}>
+        Hit: {breakdown.hitDamage.toFixed(1)} · Mitigation:{" "}
+        {(breakdown.mitigationMult * 100).toFixed(1)}%
+      </Typography>
+      {breakdown.hitsToKill != null && (
+        <Typography variant="caption" component="div">
+          Hits to kill: {breakdown.hitsToKill}
         </Typography>
       )}
     </Box>
+  );
+
+  return (
+    <Tooltip title={tooltip} placement="top" enterDelay={300}>
+      <Box
+        sx={{
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          fontSize: 11,
+          lineHeight: 1.35,
+          fontVariantNumeric: "tabular-nums",
+          cursor: "help",
+        }}
+      >
+        <Typography variant="caption" component="div" fontWeight={600}>
+          {dps.toFixed(1)}
+        </Typography>
+        <Typography variant="caption" component="div" color="text.secondary">
+          DPS
+        </Typography>
+        {delta != null && delta !== 0 && (
+          <Typography variant="caption" component="div" sx={{ color: deltaColor, fontWeight: 600 }}>
+            {delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
+          </Typography>
+        )}
+      </Box>
+    </Tooltip>
   );
 }
 
@@ -275,14 +311,21 @@ export function ItemBalanceMatrix({
   const G = useContext(GDataContext);
   const classes = useCombatContextClasses();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"stats" | "dps">("stats");
-  const [combatContext, setCombatContext] = useState<CombatContextValue>({
-    classKey: "priest",
-    level: 80,
-    targetMonster: "ent" as MonsterKey,
-  });
   const validItem = useCallback((key: string) => Boolean(items[key as ItemKey]), [items]);
+  const validClass = useCallback((key: string) => Boolean(G?.classes[key as ClassKey]), [G]);
+  const validTarget = useCallback((key: string) => Boolean(G?.monsters[key as MonsterKey]), [G]);
   const { selectedKeys, baselineKey, setSelectedKeys, setBaseline } = useMatrixUrlParams(validItem);
+  const {
+    params: combatParams,
+    setView,
+    setCombatContext,
+  } = useMatrixCombatParams(validClass, validTarget);
+  const viewMode = combatParams.view;
+  const combatContext: CombatContextValue = {
+    classKey: combatParams.simClass,
+    level: combatParams.simLevel,
+    targetMonster: combatParams.simTarget,
+  };
 
   const selectedItemKeys = selectedKeys as ItemKey[];
   const baselineItemKey = baselineKey as ItemKey | null;
@@ -353,8 +396,8 @@ export function ItemBalanceMatrix({
     return monsterToCombatEntity(G.monsters[combatContext.targetMonster]);
   }, [G, combatContext.targetMonster]);
 
-  const computeRowDps = useCallback(
-    (itemKey: ItemKey, level: number, gItem: typeof items[ItemKey]) => {
+  const computeRowBreakdown = useCallback(
+    (itemKey: ItemKey, level: number, gItem: typeof items[ItemKey]): DpsBreakdown | null => {
       if (!G || !characterClass || !targetEntity || !isValidLevel(gItem, level)) return null;
       const stats = resolveCombatStatsWithSwap({
         characterClass,
@@ -372,18 +415,18 @@ export function ItemBalanceMatrix({
         {
           classKey: characterClass.className,
         },
-      ).totalDps;
+      );
     },
     [G, characterClass, combatContext.level, targetEntity],
   );
 
-  const baselineDpsByLevel = useMemo(() => {
+  const baselineBreakdownByLevel = useMemo(() => {
     if (!baselineItemKey || !items[baselineItemKey]) return null;
     const gItem = items[baselineItemKey];
     return Array.from({ length: MATRIX_MAX_LEVEL + 1 }, (_, level) =>
-      computeRowDps(baselineItemKey, level, gItem),
+      computeRowBreakdown(baselineItemKey, level, gItem),
     );
-  }, [baselineItemKey, computeRowDps, items]);
+  }, [baselineItemKey, computeRowBreakdown, items]);
 
   if (!G) return null;
 
@@ -463,7 +506,7 @@ export function ItemBalanceMatrix({
               size="small"
               label={viewMode === "dps" ? "DPS view" : "Stats view"}
               color={viewMode === "dps" ? "primary" : "default"}
-              onClick={() => setViewMode((m) => (m === "stats" ? "dps" : "stats"))}
+              onClick={() => setView(viewMode === "stats" ? "dps" : "stats")}
               variant={viewMode === "dps" ? "filled" : "outlined"}
             />
           </Stack>
@@ -474,7 +517,13 @@ export function ItemBalanceMatrix({
         <CombatContextBar
           classes={classes}
           value={combatContext}
-          onChange={setCombatContext}
+          onChange={(next) =>
+            setCombatContext({
+              simClass: next.classKey,
+              simLevel: next.level,
+              simTarget: next.targetMonster,
+            })
+          }
           compact
         />
       )}
@@ -649,8 +698,8 @@ export function ItemBalanceMatrix({
                       >
                         {viewMode === "dps" ? (
                           <LevelDpsCell
-                            dps={computeRowDps(itemKey, level, gItem)}
-                            baselineDps={baselineDpsByLevel?.[level] ?? null}
+                            breakdown={computeRowBreakdown(itemKey, level, gItem)}
+                            baselineBreakdown={baselineBreakdownByLevel?.[level] ?? null}
                             valid={isValidLevel(gItem, level)}
                             isBaseline={isBaseline}
                           />

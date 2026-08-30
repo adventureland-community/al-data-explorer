@@ -125,7 +125,7 @@ export function GearPlanner() {
           <LoadLinkButton load={onLoadSavedLoadout} />
           <ImportLinkButton load={onLoadSavedLoadout} />
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={12} md={5} lg={4}>
           <LoadoutPickerShell
             gear={gear}
             onGearChange={setGear}
@@ -138,7 +138,7 @@ export function GearPlanner() {
             hint="Click a slot to pick or edit · set Title / Stat scroll in the picker · ✕ to remove"
           />
         </Grid>
-        <Grid item xs={8}>
+        <Grid item xs={12} md={7} lg={8}>
           <StatsPanel selectedCharacterClass={selectedClass} level={level} gear={gear} />
         </Grid>
         <Grid item xs={12}>

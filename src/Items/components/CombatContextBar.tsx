@@ -10,17 +10,19 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { MonsterKey, ItemInfo, SlotType } from "typed-adventureland";
+import { ItemInfo, SlotType } from "typed-adventureland";
 import { useContext, useMemo } from "react";
 
 import { GDataContext } from "../../GDataContext";
 import { CombatSimPanel } from "../../Shared/CombatSimPanel";
+import { MonsterTargetPicker } from "../../Shared/MonsterTargetPicker";
 import { SelectedCharacterClass } from "../../GearPlanner/types";
+import { MatrixCombatParams } from "../useItemsUrlParams";
 
 export type CombatContextValue = {
   classKey: string | null;
   level: number;
-  targetMonster: MonsterKey;
+  targetMonster: MatrixCombatParams["simTarget"];
 };
 
 export function CombatContextBar({
@@ -38,10 +40,6 @@ export function CombatContextBar({
 
   const handleClass = (event: SelectChangeEvent) => {
     onChange({ ...value, classKey: event.target.value || null });
-  };
-
-  const handleTarget = (event: SelectChangeEvent) => {
-    onChange({ ...value, targetMonster: event.target.value as MonsterKey });
   };
 
   if (!G) return null;
@@ -73,21 +71,12 @@ export function CombatContextBar({
           </FormControl>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <FormControl fullWidth size="small">
-            <InputLabel id="matrix-target-label">Target</InputLabel>
-            <Select
-              labelId="matrix-target-label"
-              value={value.targetMonster}
-              label="Target"
-              onChange={handleTarget}
-            >
-              {Object.keys(G.monsters).map((key) => (
-                <MenuItem key={key} value={key}>
-                  {G.monsters[key as MonsterKey].name ?? key}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <MonsterTargetPicker
+            G={G}
+            value={value.targetMonster}
+            onChange={(key) => onChange({ ...value, targetMonster: key })}
+            label="Target"
+          />
         </Grid>
         <Grid item xs={12} sm={4}>
           <Typography variant="caption" color="text.secondary" gutterBottom display="block">
@@ -121,17 +110,26 @@ export function MatrixCombatSidebar({
   characterClass,
   level,
   gear,
+  targetMonster,
 }: {
   characterClass?: SelectedCharacterClass;
   level: number;
   gear: { [slot in SlotType]?: ItemInfo };
+  targetMonster: MatrixCombatParams["simTarget"];
 }) {
   const G = useContext(GDataContext);
   if (!G) return null;
 
   return (
     <Stack spacing={1}>
-      <CombatSimPanel G={G} characterClass={characterClass} level={level} gear={gear} compact />
+      <CombatSimPanel
+        G={G}
+        characterClass={characterClass}
+        level={level}
+        gear={gear}
+        compact
+        targetMonster={targetMonster}
+      />
     </Stack>
   );
 }
