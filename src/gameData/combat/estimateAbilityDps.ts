@@ -1,6 +1,7 @@
 import { GItem, ItemInfo, SlotType } from "typed-adventureland";
 
 import { CustomGData } from "../../GDataContext";
+import { getItemClassList } from "../itemMeta";
 import { resolveItemInstanceStats } from "../itemProperties";
 import type { CombatEntity } from "./types";
 
@@ -54,13 +55,13 @@ export function estimateAbilityDps(
   source: CombatEntity,
   _target: Pick<CombatEntity, "armor" | "resistance">,
   abilities: Record<string, GearAbility>,
-): { abilityDps: number; lines: { key: string; label: string; dps: number }[] } {
+): { abilityDps: number; lines: { key: string; label: string; dps: number; detail?: string }[] } {
   const freq = source.frequency ?? 0;
   if (freq <= 0 || source.attack <= 0) {
     return { abilityDps: 0, lines: [] };
   }
 
-  const lines: { key: string; label: string; dps: number }[] = [];
+  const lines: { key: string; label: string; dps: number; detail?: string }[] = [];
   let abilityDps = 0;
 
   for (const ability of Object.values(abilities)) {
@@ -101,10 +102,56 @@ export function estimateAbilityDps(
         key: ability.key,
         label: ability.key,
         dps,
+        detail: `${ability.attr0}% proc · ~${bonusPerProc.toFixed(0)} dmg/proc`,
       });
       abilityDps += dps;
     }
   }
 
   return { abilityDps, lines };
+}
+
+/** Splash stats on gear — shown in breakdown but not single-target DPS. */
+export function collectUnsimulatedOnHitEffects(
+  gear: { [slot in SlotType]?: ItemInfo },
+  G: CustomGData,
+  classKey?: string,
+  damageType?: string,
+): { key: string; label: string; reason: string }[] {
+  const effects: { key: string; label: string; reason: string }[] = [];
+
+  for (const itemInfo of Object.values(gear)) {
+    if (!itemInfo) continue;
+    const gItem = G.items[itemInfo.name] as GItem | undefined;
+    if (!gItem) continue;
+
+    const prop = resolveItemInstanceStats({
+      def: gItem,
+      itemInfo,
+      G,
+      classKey,
+    });
+
+    const allowed = getItemClassList(gItem);
+    if (allowed.length > 0 && classKey && !allowed.includes(classKey)) continue;
+
+    const statProp = prop as Partial<Record<string, number>>;
+
+    if (statProp.explosion && damageType === "physical") {
+      effects.push({
+        key: `explosion-${itemInfo.name}`,
+        label: `Explosion ${statProp.explosion}%`,
+        reason: "Splash damage to nearby targets — not counted vs a single mob.",
+      });
+    }
+    if (statProp.blast && damageType === "magical") {
+      effects.push({
+        key: `blast-${itemInfo.name}`,
+        label: `Blast ${statProp.blast}%`,
+        reason: "Splash damage to nearby targets — not counted vs a single mob.",
+      });
+    }
+  }
+
+  return effects;
 }

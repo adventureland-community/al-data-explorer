@@ -4,6 +4,7 @@ import { ItemKey } from "typed-adventureland";
 
 import {
   estimateAutoAttackDps,
+  estimateTotalDps,
   matrixItemAtLevel,
   monsterToCombatEntity,
   resolveCombatStatsFromLoadout,
@@ -90,5 +91,63 @@ describe("estimateAutoAttackDps", () => {
       itemInfo: matrixItemAtLevel("worldrootcrook" as ItemKey, 0),
     });
     expect(base.attack).toBeGreaterThan(0);
+  });
+
+  it("skips class-restricted item stats for wrong class", () => {
+    const warrior = { className: "warrior", ...(data.classes.warrior as object) } as never;
+    const withSlime = resolveCombatStatsFromLoadout({
+      characterClass: warrior,
+      level: 80,
+      gear: { mainhand: matrixItemAtLevel("slimestaff", 0) },
+      G,
+    });
+    const naked = resolveCombatStatsFromLoadout({
+      characterClass: warrior,
+      level: 80,
+      gear: {},
+      G,
+    });
+    expect(withSlime.attack).toBe(naked.attack);
+  });
+});
+
+describe("estimateTotalDps abilities", () => {
+  const data = loadG();
+  const G = data as never;
+  const mage = { className: "mage", ...(data.classes.mage as object) } as never;
+  const ent = monsterToCombatEntity(data.monsters.ent as never);
+
+  it("firestaff burn adds ability DPS over a staff without burn", () => {
+    const fireGear = { mainhand: matrixItemAtLevel("firestaff", 0) };
+    const staffGear = { mainhand: matrixItemAtLevel("staff", 0) };
+    const fireStats = resolveCombatStatsFromLoadout({
+      characterClass: mage,
+      level: 80,
+      gear: fireGear,
+      G,
+    });
+    const staffStats = resolveCombatStatsFromLoadout({
+      characterClass: mage,
+      level: 80,
+      gear: staffGear,
+      G,
+    });
+    const fireDps = estimateTotalDps(fireStats, ent, G, fireGear, { classKey: "mage" });
+    const staffDps = estimateTotalDps(staffStats, ent, G, staffGear, { classKey: "mage" });
+    expect(fireDps.abilityDps).toBeGreaterThan(0);
+    expect(fireDps.abilityLines?.some((l) => l.key === "burn")).toBe(true);
+    expect(fireDps.totalDps).toBeGreaterThan(staffDps.totalDps);
+  });
+
+  it("sparkstaff blast is listed as unsimulated splash", () => {
+    const gear = { mainhand: matrixItemAtLevel("sparkstaff", 0) };
+    const stats = resolveCombatStatsFromLoadout({
+      characterClass: mage,
+      level: 80,
+      gear,
+      G,
+    });
+    const bd = estimateTotalDps(stats, ent, G, gear, { classKey: "mage" });
+    expect(bd.unsimulatedEffects?.some((e) => e.key.startsWith("blast"))).toBe(true);
   });
 });

@@ -26,7 +26,9 @@ export type DpsBreakdown = {
   /** Ability / DoT contribution (phase 2+). */
   abilityDps: number;
   /** Per-ability lines for UI tooltips. */
-  abilityLines?: { key: string; label: string; dps: number }[];
+  abilityLines?: { key: string; label: string; dps: number; detail?: string }[];
+  /** Effects present on gear but not counted in single-target DPS. */
+  unsimulatedEffects?: { key: string; label: string; reason: string }[];
   totalDps: number;
   hitsToKill: number | null;
   /** Set when breakdown comes from event simulation. */

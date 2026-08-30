@@ -2,7 +2,11 @@ import { ItemInfo, SlotType } from "typed-adventureland";
 
 import { CustomGData } from "../../GDataContext";
 import { estimateHitDamage } from "./estimateHitDamage";
-import { collectGearAbilities, estimateAbilityDps } from "./estimateAbilityDps";
+import {
+  collectGearAbilities,
+  estimateAbilityDps,
+  collectUnsimulatedOnHitEffects,
+} from "./estimateAbilityDps";
 import type { CombatEntity, CombatSimOptions, DpsBreakdown } from "./types";
 
 export type TotalDpsMode = "formulation" | "event";
@@ -95,6 +99,12 @@ export function estimateTotalDps(
 
   const abilities = collectGearAbilities(gear, G, options?.classKey);
   const { abilityDps, lines } = estimateAbilityDps(source, target, abilities);
+  const unsimulatedEffects = collectUnsimulatedOnHitEffects(
+    gear,
+    G,
+    options?.classKey,
+    source.damage_type,
+  );
   const totalDps = autoAttackDps + abilityDps;
 
   let hitsToKill: number | null = null;
@@ -108,6 +118,7 @@ export function estimateTotalDps(
     autoAttackDps,
     abilityDps,
     abilityLines: lines,
+    unsimulatedEffects: unsimulatedEffects.length > 0 ? unsimulatedEffects : undefined,
     totalDps,
     hitsToKill,
   };

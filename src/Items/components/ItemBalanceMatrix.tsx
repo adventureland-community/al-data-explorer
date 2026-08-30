@@ -34,19 +34,20 @@ import {
   statDelta,
 } from "../../gameData/compareStats";
 import {
-  estimateTotalDps,
-  matrixItemAtLevel,
-  monsterToCombatEntity,
-  resolveCombatStatsWithSwap,
+  computeMatrixItemSim,
+  canClassEquipItem,
   DpsBreakdown,
+  MatrixItemSimResult,
 } from "../../gameData/combat";
 import { getItemEffects } from "../../gameData/itemEffects";
+import { getItemClassList } from "../../gameData/itemMeta";
 import { sortItemKeysByTier } from "../../gameData/itemFilters";
 import { STAT_DISPLAY_LABELS } from "../../gameData/statLabels";
 import { GDataContext, GItems } from "../../GDataContext";
 import { SelectedCharacterClass } from "../../GearPlanner/types";
 import { ItemInstance } from "../../Shared/ItemInstance";
 import { ItemSelectDialog } from "../../Shared/ItemSelectDialog";
+import { ItemSimBreakdownDialog } from "../../Shared/ItemSimBreakdownDialog";
 import { useMatrixUrlParams, useMatrixCombatParams } from "../useItemsUrlParams";
 import { CombatContextBar, CombatContextValue, useCombatContextClasses } from "./CombatContextBar";
 
@@ -219,11 +220,15 @@ function LevelDpsCell({
   baselineBreakdown,
   valid,
   isBaseline,
+  equippable,
+  onOpen,
 }: {
   breakdown: DpsBreakdown | null;
   baselineBreakdown: DpsBreakdown | null;
   valid: boolean;
   isBaseline: boolean;
+  equippable: boolean;
+  onOpen?: () => void;
 }) {
   if (!valid || breakdown == null) {
     return (
@@ -241,11 +246,22 @@ function LevelDpsCell({
     deltaColor = delta > 0 ? "success.light" : "error.light";
   }
 
+  const abilityHint =
+    breakdown.abilityLines?.[0]?.label ??
+    (breakdown.unsimulatedEffects?.[0]?.label
+      ? breakdown.unsimulatedEffects[0].label.split(" ")[0].toLowerCase()
+      : null);
+
   const tooltip = (
-    <Box sx={{ fontSize: 11, lineHeight: 1.45, maxWidth: 240 }}>
+    <Box sx={{ fontSize: 11, lineHeight: 1.45, maxWidth: 260 }}>
       <Typography variant="caption" component="div" fontWeight={700}>
         {dps.toFixed(1)} total DPS
       </Typography>
+      {!equippable && (
+        <Typography variant="caption" component="div" color="warning.light">
+          Class cannot equip — stats not applied
+        </Typography>
+      )}
       <Typography variant="caption" component="div">
         Auto: {breakdown.autoAttackDps.toFixed(1)}
       </Typography>
@@ -257,29 +273,41 @@ function LevelDpsCell({
       {breakdown.abilityLines?.map((line) => (
         <Typography key={line.key} variant="caption" component="div" sx={{ pl: 1 }}>
           {line.label}: {line.dps.toFixed(1)}
+          {line.detail ? ` (${line.detail})` : ""}
+        </Typography>
+      ))}
+      {breakdown.unsimulatedEffects?.map((fx) => (
+        <Typography
+          key={fx.key}
+          variant="caption"
+          component="div"
+          sx={{ pl: 1, fontStyle: "italic" }}
+        >
+          {fx.label}: not in single-target DPS
         </Typography>
       ))}
       <Typography variant="caption" component="div" sx={{ mt: 0.5 }}>
         Hit: {breakdown.hitDamage.toFixed(1)} · Mitigation:{" "}
         {(breakdown.mitigationMult * 100).toFixed(1)}%
       </Typography>
-      {breakdown.hitsToKill != null && (
-        <Typography variant="caption" component="div">
-          Hits to kill: {breakdown.hitsToKill}
-        </Typography>
-      )}
+      <Typography variant="caption" component="div" sx={{ mt: 0.5, color: "primary.light" }}>
+        Click for full breakdown
+      </Typography>
     </Box>
   );
 
   return (
     <Tooltip title={tooltip} placement="top" enterDelay={300}>
       <Box
+        onClick={onOpen}
         sx={{
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
           fontSize: 11,
           lineHeight: 1.35,
           fontVariantNumeric: "tabular-nums",
-          cursor: "help",
+          cursor: onOpen ? "pointer" : "help",
+          opacity: equippable ? 1 : 0.45,
+          "&:hover": onOpen ? { bgcolor: "action.hover", borderRadius: 0.5 } : undefined,
         }}
       >
         <Typography variant="caption" component="div" fontWeight={600}>
@@ -288,6 +316,11 @@ function LevelDpsCell({
         <Typography variant="caption" component="div" color="text.secondary">
           DPS
         </Typography>
+        {abilityHint && (
+          <Typography variant="caption" component="div" color="warning.light" noWrap>
+            +{abilityHint}
+          </Typography>
+        )}
         {delta != null && delta !== 0 && (
           <Typography variant="caption" component="div" sx={{ color: deltaColor, fontWeight: 600 }}>
             {delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
@@ -311,6 +344,11 @@ export function ItemBalanceMatrix({
   const G = useContext(GDataContext);
   const classes = useCombatContextClasses();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [simDialog, setSimDialog] = useState<{
+    itemKey: ItemKey;
+    upgradeLevel: number;
+    sim: MatrixItemSimResult;
+  } | null>(null);
   const validItem = useCallback((key: string) => Boolean(items[key as ItemKey]), [items]);
   const validClass = useCallback((key: string) => Boolean(G?.classes[key as ClassKey]), [G]);
   const validTarget = useCallback((key: string) => Boolean(G?.monsters[key as MonsterKey]), [G]);
@@ -393,40 +431,32 @@ export function ItemBalanceMatrix({
 
   const targetEntity = useMemo(() => {
     if (!G) return null;
-    return monsterToCombatEntity(G.monsters[combatContext.targetMonster]);
+    return G.monsters[combatContext.targetMonster];
   }, [G, combatContext.targetMonster]);
 
-  const computeRowBreakdown = useCallback(
-    (itemKey: ItemKey, level: number, gItem: typeof items[ItemKey]): DpsBreakdown | null => {
+  const computeRowSim = useCallback(
+    (itemKey: ItemKey, level: number, gItem: typeof items[ItemKey]): MatrixItemSimResult | null => {
       if (!G || !characterClass || !targetEntity || !isValidLevel(gItem, level)) return null;
-      const stats = resolveCombatStatsWithSwap({
+      return computeMatrixItemSim({
+        itemKey,
+        upgradeLevel: level,
         characterClass,
-        level: combatContext.level,
-        gear: {},
+        playerLevel: combatContext.level,
+        targetMonsterKey: combatContext.targetMonster,
         G,
-        slot: "mainhand",
-        itemInfo: matrixItemAtLevel(itemKey, level),
       });
-      return estimateTotalDps(
-        stats,
-        targetEntity,
-        G,
-        { mainhand: matrixItemAtLevel(itemKey, level) },
-        {
-          classKey: characterClass.className,
-        },
-      );
     },
-    [G, characterClass, combatContext.level, targetEntity],
+    [G, characterClass, combatContext.level, combatContext.targetMonster, targetEntity],
   );
 
   const baselineBreakdownByLevel = useMemo(() => {
     if (!baselineItemKey || !items[baselineItemKey]) return null;
     const gItem = items[baselineItemKey];
-    return Array.from({ length: MATRIX_MAX_LEVEL + 1 }, (_, level) =>
-      computeRowBreakdown(baselineItemKey, level, gItem),
+    return Array.from(
+      { length: MATRIX_MAX_LEVEL + 1 },
+      (_, level) => computeRowSim(baselineItemKey, level, gItem)?.breakdown ?? null,
     );
-  }, [baselineItemKey, computeRowBreakdown, items]);
+  }, [baselineItemKey, computeRowSim, items]);
 
   if (!G) return null;
 
@@ -588,6 +618,9 @@ export function ItemBalanceMatrix({
                 const isBaseline = baselineItemKey === itemKey;
                 const rowStatKeys = pickRowStatKeys(levelStats, isBaseline ? null : baselineStats);
                 const href = itemHref?.(itemKey);
+                const classList = getItemClassList(gItem);
+                const equippable =
+                  !combatContext.classKey || canClassEquipItem(gItem, combatContext.classKey);
                 return (
                   <TableRow
                     key={itemKey}
@@ -657,6 +690,18 @@ export function ItemBalanceMatrix({
                                 {line}
                               </Typography>
                             ))}
+                            {viewMode === "dps" && classList.length > 0 && (
+                              <Typography
+                                variant="caption"
+                                color={equippable ? "text.secondary" : "error.light"}
+                                noWrap
+                                display="block"
+                              >
+                                {equippable
+                                  ? classList.join(", ")
+                                  : `Needs ${classList.join(", ")}`}
+                              </Typography>
+                            )}
                           </Box>
                         </Box>
                         <Stack direction="row" spacing={0} sx={{ flexShrink: 0 }}>
@@ -697,12 +742,28 @@ export function ItemBalanceMatrix({
                         }}
                       >
                         {viewMode === "dps" ? (
-                          <LevelDpsCell
-                            breakdown={computeRowBreakdown(itemKey, level, gItem)}
-                            baselineBreakdown={baselineBreakdownByLevel?.[level] ?? null}
-                            valid={isValidLevel(gItem, level)}
-                            isBaseline={isBaseline}
-                          />
+                          (() => {
+                            const sim = computeRowSim(itemKey, level, gItem);
+                            return (
+                              <LevelDpsCell
+                                breakdown={sim?.breakdown ?? null}
+                                baselineBreakdown={baselineBreakdownByLevel?.[level] ?? null}
+                                valid={isValidLevel(gItem, level)}
+                                isBaseline={isBaseline}
+                                equippable={sim?.equippable ?? equippable}
+                                onOpen={
+                                  sim && characterClass
+                                    ? () =>
+                                        setSimDialog({
+                                          itemKey,
+                                          upgradeLevel: level,
+                                          sim,
+                                        })
+                                    : undefined
+                                }
+                              />
+                            );
+                          })()
                         ) : (
                           <LevelStatCell
                             stats={levelStats[level]}
@@ -721,6 +782,22 @@ export function ItemBalanceMatrix({
             </TableBody>
           </Table>
         </TableContainer>
+      )}
+
+      {simDialog && characterClass && G && (
+        <ItemSimBreakdownDialog
+          open
+          onClose={() => setSimDialog(null)}
+          itemKey={simDialog.itemKey}
+          upgradeLevel={simDialog.upgradeLevel}
+          itemName={items[simDialog.itemKey]?.name ?? simDialog.itemKey}
+          characterClassName={characterClass.className}
+          playerLevel={combatContext.level}
+          targetName={G.monsters[combatContext.targetMonster]?.name ?? combatContext.targetMonster}
+          breakdown={simDialog.sim.breakdown}
+          combatStats={simDialog.sim.combatStats}
+          equipNotes={simDialog.sim.equipNotes}
+        />
       )}
     </Box>
   );

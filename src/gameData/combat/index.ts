@@ -3,7 +3,11 @@ export { applyItemStats, type PlayerStatBucket } from "./applyItemStats";
 export { damageMultiplier, mitigationMultiplier } from "./damageMultiplier";
 export { estimateHitDamage } from "./estimateHitDamage";
 export { estimateAutoAttackDps, theoDps } from "./estimateAutoAttackDps";
-export { collectGearAbilities, estimateAbilityDps } from "./estimateAbilityDps";
+export {
+  collectGearAbilities,
+  collectUnsimulatedOnHitEffects,
+  estimateAbilityDps,
+} from "./estimateAbilityDps";
 export {
   estimateTotalDps,
   simulateAutoAttackTimeline,
@@ -16,4 +20,12 @@ export {
   monsterToCombatEntity,
   resolveCombatStatsFromLoadout,
   resolveCombatStatsWithSwap,
+  type ResolvedCombatStats,
 } from "./resolveCombatStats";
+export {
+  canClassEquipItem,
+  computeMatrixItemSim,
+  getItemSimEquipNotes,
+  type ItemSimEquipNote,
+  type MatrixItemSimResult,
+} from "./itemSimContext";

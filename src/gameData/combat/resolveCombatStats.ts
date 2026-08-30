@@ -2,6 +2,7 @@ import { GItem, ItemInfo, SlotType, StatType, ClassKey } from "typed-adventurela
 
 import { CustomGData } from "../../GDataContext";
 import { calculateClassStatByLevel } from "../classLevelStats";
+import { getItemClassList } from "../itemMeta";
 import { resolveItemInstanceStats } from "../itemProperties";
 import {
   addItemSetStats,
@@ -131,8 +132,8 @@ export function resolveCombatStatsFromLoadout(args: {
       classKey: className,
     }) as Partial<Record<string, number>> & { class?: string[] };
 
-    const classRestricted = prop.class;
-    if (classRestricted && !classRestricted.includes(className)) {
+    const classRestricted = getItemClassList(gItem);
+    if (classRestricted.length > 0 && !classRestricted.includes(className)) {
       continue;
     }
 
