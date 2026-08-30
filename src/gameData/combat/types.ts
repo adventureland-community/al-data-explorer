@@ -1,0 +1,42 @@
+export type DamageType = "physical" | "magical" | "pure";
+
+/** Minimal entity shape for hit / DPS math (player or monster). */
+export type CombatEntity = {
+  attack: number;
+  frequency: number;
+  damage_type: DamageType;
+  armor?: number;
+  resistance?: number;
+  apiercing?: number;
+  rpiercing?: number;
+  crit?: number;
+  critdamage?: number;
+  hp?: number;
+  evasion?: number;
+  for?: number;
+};
+
+export type DpsBreakdown = {
+  /** Expected damage per auto-attack before frequency. */
+  hitDamage: number;
+  /** Mitigation multiplier applied to hit damage (0–1.32). */
+  mitigationMult: number;
+  /** Auto-attack DPS (hit × frequency). */
+  autoAttackDps: number;
+  /** Ability / DoT contribution (phase 2+). */
+  abilityDps: number;
+  /** Per-ability lines for UI tooltips. */
+  abilityLines?: { key: string; label: string; dps: number }[];
+  totalDps: number;
+  hitsToKill: number | null;
+  /** Set when breakdown comes from event simulation. */
+  simDurationMs?: number;
+  simIterations?: number;
+};
+
+export type CombatSimOptions = {
+  /** Include expected crit uplift in hit damage (default true). */
+  expectedCrit?: boolean;
+  /** Simulation duration for event sim (ms). Phase 3. */
+  durationMs?: number;
+};
