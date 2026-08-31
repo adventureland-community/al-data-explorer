@@ -1,10 +1,16 @@
-import { evasionHitFactor, targetFortitudeMult } from "./hitModifiers";
+import {
+  avoidanceHitFactor,
+  evasionHitFactor,
+  incDmgAmpMult,
+  missHitFactor,
+  targetFortitudeMult,
+} from "./hitModifiers";
 import { mitigationMultiplier } from "./damageMultiplier";
 import type { CombatEntity, CombatSimOptions } from "./types";
 
 export type HitDamageTarget = Pick<
   CombatEntity,
-  "armor" | "resistance" | "evasion" | "for" | "firesistance"
+  "armor" | "resistance" | "evasion" | "for" | "firesistance" | "avoidance" | "incdmgamp"
 >;
 
 /** Expected damage for one auto-attack (formulation; optional expected crit uplift). */
@@ -19,8 +25,12 @@ export function estimateHitDamage(
       ? 1
       : evasionHitFactor(source, target, options?.attackerIsPlayer !== false);
   const forMult = targetFortitudeMult(target, options?.attackerIsPlayer !== false);
+  const missFactor = options?.expectedEvasion === false ? 1 : missHitFactor(source);
+  const avoidFactor = options?.expectedEvasion === false ? 1 : avoidanceHitFactor(target);
+  const ampMult = incDmgAmpMult(target);
 
-  let damage = mitigationMult * source.attack * evasionFactor * forMult;
+  let damage =
+    mitigationMult * source.attack * evasionFactor * forMult * missFactor * avoidFactor * ampMult;
 
   const useCrit = options?.expectedCrit !== false;
   if (useCrit && source.crit) {

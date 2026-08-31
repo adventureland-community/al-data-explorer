@@ -24,6 +24,7 @@ import {
   collectUnsimulatedOnHitEffects,
   estimateAbilityDps,
 } from "./estimateAbilityDps";
+import { estimateSkillRotationDps } from "./skillRotationDps";
 import type { CombatEntity, CombatSimOptions, DpsBreakdown } from "./types";
 
 export type TotalDpsMode = "formulation" | "event";
@@ -93,6 +94,8 @@ export function simulateCombatTimeline(
   });
   const hitMult = baseHit / Math.max(1, source.attack);
   const evasionChance = source.damage_type === "physical" ? Math.min(50, target.evasion ?? 0) : 0;
+  const missChance = source.miss ?? 0;
+  const avoidChance = target.avoidance ?? 0;
 
   const abilities = collectGearAbilities(gear, G, options?.classKey);
   const burnAbility = abilities.burn;
@@ -153,8 +156,11 @@ export function simulateCombatTimeline(
     if (t >= nextAttackAt) {
       const freq = currentFreq();
       const evaded = evasionChance > 0 && rng() * 100 < evasionChance;
+      const missed =
+        (missChance > 0 && rng() * 100 < missChance) ||
+        (avoidChance > 0 && rng() * 100 < avoidChance);
 
-      if (!evaded) {
+      if (!evaded && !missed) {
         const variance = 0.9 + rng() * 0.2;
         let hit = baseHit * variance;
 
@@ -339,6 +345,24 @@ export function estimateTotalDps(
   const { abilityDps, lines, debuffLines } = estimateAbilityDps(source, target, abilities, {
     simDurationMs,
   });
+
+  let skillDps = 0;
+  let skillLines: DpsBreakdown["abilityLines"] = [];
+  let skillUnsimulated: DpsBreakdown["unsimulatedEffects"];
+  if (options?.useSkillRotation && options.classKey) {
+    const rotation = estimateSkillRotationDps(source, target, G, {
+      classKey: options.classKey,
+      playerLevel: options.playerLevel ?? 80,
+      mainhandWtype: options.mainhandWtype,
+      simOptions: options,
+    });
+    skillDps = rotation.skillDps;
+    skillLines = rotation.lines;
+    if (rotation.unsimulated.length > 0) {
+      skillUnsimulated = rotation.unsimulated;
+    }
+  }
+
   const stunLine = stunDebuffLine(source);
   const allDebuffs = [...(stunLine ? [stunLine] : []), ...debuffLines];
 
@@ -374,25 +398,27 @@ export function estimateTotalDps(
     });
   }
 
-  const totalDps = autoAttackDps + abilityDps + splashDps;
+  const totalDps = autoAttackDps + abilityDps + skillDps + splashDps;
 
   let hitsToKill: number | null = null;
   if (target.hp != null && target.hp > 0 && hitDamage > 0) {
     hitsToKill = Math.ceil(target.hp / hitDamage);
   }
 
+  const mergedUnsimulated = [...(unsimulatedEffects ?? []), ...(skillUnsimulated ?? [])];
+
   return {
     hitDamage,
     mitigationMult,
     autoAttackDps,
-    abilityDps,
-    abilityLines: [...lines, ...abilityLinesExtra],
+    abilityDps: abilityDps + skillDps,
+    abilityLines: [...lines, ...abilityLinesExtra, ...skillLines],
     debuffLines: allDebuffs.length > 0 ? allDebuffs : undefined,
     sustainLines: sustainLines.length > 0 ? sustainLines : undefined,
     riskLines,
     splashDps: splashDps > 0 ? splashDps : undefined,
     splashLines,
-    unsimulatedEffects,
+    unsimulatedEffects: mergedUnsimulated.length > 0 ? mergedUnsimulated : undefined,
     totalDps,
     hitsToKill,
   };

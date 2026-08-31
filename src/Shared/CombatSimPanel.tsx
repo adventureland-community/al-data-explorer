@@ -32,6 +32,7 @@ import {
   estimateIncomingDps,
   estimateStatWeights,
   estimateTotalDps,
+  mainhandWtypeFromGear,
   monsterToCombatEntity,
   resolveCombatStatsFromLoadout,
 } from "../gameData/combat";
@@ -52,6 +53,8 @@ export type CombatSimPanelProps = {
   onSplashTargetCountChange?: (count: number) => void;
   assumeChargeBuffs?: boolean;
   onAssumeChargeBuffsChange?: (value: boolean) => void;
+  useSkillRotation?: boolean;
+  onUseSkillRotationChange?: (value: boolean) => void;
 };
 
 export type CombatSimPanelCompactProps = CombatSimPanelProps & {
@@ -234,6 +237,7 @@ function computeBreakdown(args: {
   simMode: "formulation" | "event";
   splashTargetCount: number;
   assumeChargeBuffs: boolean;
+  useSkillRotation: boolean;
 }): DpsBreakdown {
   const {
     characterClass,
@@ -244,6 +248,7 @@ function computeBreakdown(args: {
     simMode,
     splashTargetCount,
     assumeChargeBuffs,
+    useSkillRotation,
   } = args;
   const stats = resolveCombatStatsFromLoadout({
     characterClass,
@@ -251,6 +256,11 @@ function computeBreakdown(args: {
     gear,
     G,
   });
+  const skillOpts = {
+    useSkillRotation,
+    playerLevel: level,
+    mainhandWtype: mainhandWtypeFromGear(gear, G),
+  };
   const opts =
     simMode === "event"
       ? {
@@ -259,12 +269,14 @@ function computeBreakdown(args: {
           classKey: characterClass.className,
           splashTargetCount,
           assumeChargeBuffs,
+          ...skillOpts,
         }
       : {
           mode: "formulation" as const,
           classKey: characterClass.className,
           splashTargetCount,
           assumeChargeBuffs,
+          ...skillOpts,
         };
   return estimateTotalDps(stats, targetEntity, G, gear, opts);
 }
@@ -281,6 +293,8 @@ export function CombatSimPanel({
   onSplashTargetCountChange,
   assumeChargeBuffs: chargeBuffProp,
   onAssumeChargeBuffsChange,
+  useSkillRotation: skillRotationProp,
+  onUseSkillRotationChange,
 }: CombatSimPanelCompactProps) {
   const [internalTarget, setInternalTarget] = useState<MonsterKey>("ent");
   const targetMonster = targetMonsterProp ?? internalTarget;
@@ -291,6 +305,9 @@ export function CombatSimPanel({
   const [internalChargeBuff, setInternalChargeBuff] = useState(false);
   const assumeChargeBuffs = chargeBuffProp ?? internalChargeBuff;
   const setAssumeChargeBuffs = onAssumeChargeBuffsChange ?? setInternalChargeBuff;
+  const [internalSkillRotation, setInternalSkillRotation] = useState(true);
+  const useSkillRotation = skillRotationProp ?? internalSkillRotation;
+  const setUseSkillRotation = onUseSkillRotationChange ?? setInternalSkillRotation;
 
   const [simMode, setSimMode] = useState<"formulation" | "event">("formulation");
   const [eventBreakdown, setEventBreakdown] = useState<DpsBreakdown | null>(null);
@@ -315,8 +332,19 @@ export function CombatSimPanel({
       simMode: "formulation",
       splashTargetCount,
       assumeChargeBuffs,
+      useSkillRotation,
     });
-  }, [characterClass, gear, G, level, simMode, splashTargetCount, assumeChargeBuffs, targetEntity]);
+  }, [
+    characterClass,
+    gear,
+    G,
+    level,
+    simMode,
+    splashTargetCount,
+    assumeChargeBuffs,
+    useSkillRotation,
+    targetEntity,
+  ]);
 
   const incoming = useMemo(() => {
     if (!combatStats) return null;
@@ -349,6 +377,7 @@ export function CombatSimPanel({
         simMode: "event",
         splashTargetCount,
         assumeChargeBuffs,
+        useSkillRotation,
       }),
     );
   };
@@ -429,6 +458,20 @@ export function CombatSimPanel({
               step={1}
               onChange={(_, v) => setSplashTargetCount(v as number)}
               valueLabelDisplay="auto"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={useSkillRotation}
+                  onChange={(_, v) => setUseSkillRotation(v)}
+                />
+              }
+              label={
+                <Typography variant="caption" color="text.secondary">
+                  Include class skill rotation (quickstab, smash, supershot…)
+                </Typography>
+              }
             />
             <FormControlLabel
               control={

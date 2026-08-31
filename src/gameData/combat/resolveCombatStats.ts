@@ -233,6 +233,15 @@ export function resolveCombatStatsWithSwap(args: {
   });
 }
 
+export function mainhandWtypeFromGear(
+  gear: { mainhand?: ItemInfo },
+  G: CustomGData,
+): string | undefined {
+  const name = gear.mainhand?.name;
+  if (!name) return undefined;
+  return G.items[name]?.wtype;
+}
+
 /** Build a combat entity from raw game data (monsters). */
 export function monsterToCombatEntity(monster: {
   attack?: number;
@@ -249,6 +258,8 @@ export function monsterToCombatEntity(monster: {
   rpiercing?: number;
   crit?: number;
   critdamage?: number;
+  avoidance?: number;
+  miss?: number;
 }): CombatEntity {
   return {
     attack: monster.attack ?? 0,
@@ -265,6 +276,7 @@ export function monsterToCombatEntity(monster: {
     rpiercing: monster.rpiercing,
     crit: monster.crit,
     critdamage: monster.critdamage,
+    avoidance: monster.avoidance,
   };
 }
 

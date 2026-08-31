@@ -1,0 +1,135 @@
+import { CustomGData } from "../../GDataContext";
+import { estimateHitDamage, type HitDamageTarget } from "./estimateHitDamage";
+import type { CombatEntity, CombatSimOptions } from "./types";
+
+type SkillEntry = CustomGData["skills"][string];
+
+function skillWtypeMatches(
+  skillWtype: string | string[] | undefined,
+  weaponWtype: string | undefined,
+): boolean {
+  if (!skillWtype) return true;
+  if (!weaponWtype) return false;
+  if (Array.isArray(skillWtype)) return skillWtype.includes(weaponWtype);
+  return skillWtype === weaponWtype;
+}
+
+function pickQuickFillerSkill(
+  skills: [string, SkillEntry][],
+  mainhandWtype: string | undefined,
+): [string, SkillEntry] | null {
+  const fillers = skills.filter(
+    ([, s]) => s.share === "quickpunch" && s.damage_multiplier && s.cooldown,
+  );
+  if (fillers.length === 0) return null;
+  const match = fillers.find(([, s]) => skillWtypeMatches(s.wtype, mainhandWtype));
+  return match ?? null;
+}
+
+function skillLineFromDef(
+  key: string,
+  skill: SkillEntry,
+  source: CombatEntity,
+  target: HitDamageTarget,
+  simOptions?: CombatSimOptions,
+): { key: string; label: string; dps: number; detail?: string } | null {
+  const mult = skill.damage_multiplier;
+  const cooldownMs = skill.cooldown;
+  if (!mult || !cooldownMs || cooldownMs <= 0) return null;
+
+  const skillSource: CombatEntity = skill.damage_type
+    ? { ...source, damage_type: skill.damage_type as CombatEntity["damage_type"] }
+    : source;
+
+  const { damage: hitDamage } = estimateHitDamage(skillSource, target, simOptions);
+  const perHit = hitDamage * mult;
+  const usesPerSec = 1000 / cooldownMs;
+  const dps = perHit * usesPerSec;
+  if (dps <= 0) return null;
+
+  const procNote = skill.procs ? " · procs gear" : "";
+  return {
+    key: `skill:${key}`,
+    label: skill.name ?? key,
+    dps,
+    detail: `${mult}× · ${(cooldownMs / 1000).toFixed(2)}s cd · ~${usesPerSec.toFixed(
+      2,
+    )}/s${procNote}`,
+  };
+}
+
+/** Expected DPS from class skills (quickstab, smash, supershot, mentalburst, etc.). */
+export function estimateSkillRotationDps(
+  source: CombatEntity,
+  target: HitDamageTarget,
+  G: CustomGData,
+  options: {
+    classKey: string;
+    playerLevel: number;
+    mainhandWtype?: string;
+    simOptions?: CombatSimOptions;
+  },
+): {
+  skillDps: number;
+  lines: { key: string; label: string; dps: number; detail?: string }[];
+  unsimulated: { key: string; label: string; reason: string }[];
+} {
+  const { classKey, playerLevel, mainhandWtype, simOptions } = options;
+  const lines: { key: string; label: string; dps: number; detail?: string }[] = [];
+  const unsimulated: { key: string; label: string; reason: string }[] = [];
+
+  const classSkills = Object.entries(G.skills).filter(
+    ([, skill]) =>
+      skill.type === "skill" &&
+      skill.class?.includes(classKey) &&
+      skill.hostile &&
+      (skill.level == null || skill.level <= playerLevel),
+  ) as [string, SkillEntry][];
+
+  const handledShareGroups = new Set<string>();
+
+  const quickFiller = pickQuickFillerSkill(classSkills, mainhandWtype);
+  if (quickFiller) {
+    handledShareGroups.add("quickpunch");
+    const [key, skill] = quickFiller;
+    const line = skillLineFromDef(key, skill, source, target, simOptions);
+    if (line) lines.push(line);
+  }
+
+  for (const [key, skill] of classSkills) {
+    if (!skill.damage_multiplier) continue;
+    if (skill.share === "quickpunch") continue;
+    if (skill.share && handledShareGroups.has(skill.share)) continue;
+
+    if (skill.multi || skill.max_targets) {
+      unsimulated.push({
+        key: `skill:${key}`,
+        label: skill.name ?? key,
+        reason: "Multi-target skill — single-target DPS not modeled",
+      });
+      continue;
+    }
+
+    if (skill.share === "attack" || skill.apiercing) {
+      unsimulated.push({
+        key: `skill:${key}`,
+        label: skill.name ?? key,
+        reason: skill.apiercing
+          ? "Armor-piercing attack skill — use attack-share rotation (not modeled)"
+          : "Attack-share skill — may replace autos (not modeled)",
+      });
+      continue;
+    }
+
+    if (!skillWtypeMatches(skill.wtype, mainhandWtype)) continue;
+
+    const cooldownMs = skill.cooldown;
+    if (!cooldownMs || cooldownMs <= 0) continue;
+
+    const line = skillLineFromDef(key, skill, source, target, simOptions);
+    if (line) lines.push(line);
+  }
+
+  const skillDps = lines.reduce((sum, row) => sum + row.dps, 0);
+  return { skillDps, lines, unsimulated };
+}

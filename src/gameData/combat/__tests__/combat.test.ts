@@ -262,3 +262,47 @@ describe("estimateTotalDps abilities", () => {
     expect(bd.abilityLines?.some((l) => l.key === "poison")).toBeFalsy();
   });
 });
+
+describe("skill rotation DPS", () => {
+  const data = loadG();
+  const G = data as never;
+  const ent = monsterToCombatEntity(data.monsters.ent as never);
+
+  it("rogue dagger quickstab adds skill DPS", () => {
+    const rogue = { className: "rogue", ...(data.classes.rogue as object) } as never;
+    const gear = { mainhand: matrixItemAtLevel("dagger", 0) };
+    const stats = resolveCombatStatsFromLoadout({
+      characterClass: rogue,
+      level: 80,
+      gear,
+      G,
+    });
+    const withSkills = estimateTotalDps(stats, ent, G, gear, {
+      classKey: "rogue",
+      useSkillRotation: true,
+      playerLevel: 80,
+      mainhandWtype: "dagger",
+    });
+    const without = estimateTotalDps(stats, ent, G, gear, { classKey: "rogue" });
+    expect(withSkills.abilityLines?.some((l) => l.key === "skill:quickstab")).toBe(true);
+    expect(withSkills.totalDps).toBeGreaterThan(without.totalDps);
+  });
+
+  it("ranger supershot adds long-cooldown skill line", () => {
+    const ranger = { className: "ranger", ...(data.classes.ranger as object) } as never;
+    const gear = { mainhand: matrixItemAtLevel("bow", 0) };
+    const stats = resolveCombatStatsFromLoadout({
+      characterClass: ranger,
+      level: 80,
+      gear,
+      G,
+    });
+    const bd = estimateTotalDps(stats, ent, G, gear, {
+      classKey: "ranger",
+      useSkillRotation: true,
+      playerLevel: 80,
+      mainhandWtype: "bow",
+    });
+    expect(bd.abilityLines?.some((l) => l.key === "skill:supershot")).toBe(true);
+  });
+});

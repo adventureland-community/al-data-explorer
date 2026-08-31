@@ -167,6 +167,9 @@ export function computeMatrixItemSim(args: {
   const breakdown = estimateTotalDps(combatStats, targetEntity, G, gear, {
     classKey: className,
     splashTargetCount,
+    useSkillRotation: true,
+    playerLevel,
+    mainhandWtype: gItem.wtype,
   });
 
   const equipNotes = getItemSimEquipNotes({

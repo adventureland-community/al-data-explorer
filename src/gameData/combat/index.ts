@@ -27,13 +27,17 @@ export {
 } from "./conditionModel";
 export {
   buildSustainLines,
+  avoidanceHitFactor,
   evasionHitFactor,
+  incDmgAmpMult,
+  missHitFactor,
   onHitSustain,
   outgoingReflectionRisk,
   incomingReflectionFactor,
   rogueStackDpsBoost,
   targetFortitudeMult,
 } from "./hitModifiers";
+export { estimateSkillRotationDps } from "./skillRotationDps";
 export {
   estimateTotalDps,
   simulateAutoAttackTimeline,
@@ -43,6 +47,7 @@ export {
 } from "./estimateTotalDps";
 export {
   defaultMatrixGear,
+  mainhandWtypeFromGear,
   matrixItemAtLevel,
   monsterToCombatEntity,
   resolveCombatStatsFromLoadout,

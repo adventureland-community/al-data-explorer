@@ -3,7 +3,7 @@ import type { CombatEntity } from "./types";
 
 export type HitTarget = Pick<
   CombatEntity,
-  "armor" | "resistance" | "evasion" | "for" | "firesistance"
+  "armor" | "resistance" | "evasion" | "for" | "firesistance" | "avoidance" | "incdmgamp"
 >;
 
 /** Server caps player evasion at 50; monsters use raw value. */
@@ -124,6 +124,24 @@ export function incomingReflectionFactor(
 ): number {
   if (attacker.damage_type !== "magical" || !defender.reflection) return 1;
   return 1 - Math.min(100, defender.reflection) / 100;
+}
+
+/** Attacker miss chance (reduces hit rate). */
+export function missHitFactor(source: Pick<CombatEntity, "miss">): number {
+  if (!source.miss || source.miss <= 0) return 1;
+  return 1 - Math.min(100, source.miss) / 100;
+}
+
+/** Target avoidance (separate from evasion; applies to all damage types). */
+export function avoidanceHitFactor(target: HitTarget): number {
+  if (!target.avoidance || target.avoidance <= 0) return 1;
+  return 1 - Math.min(100, target.avoidance) / 100;
+}
+
+/** Target damage taken amplifier (cursed +20% → incdmgamp 20). */
+export function incDmgAmpMult(target: HitTarget): number {
+  if (!target.incdmgamp || target.incdmgamp <= 0) return 1;
+  return (100 + target.incdmgamp) / 100;
 }
 
 export function rogueStackDpsBoost(args: {

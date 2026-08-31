@@ -19,6 +19,9 @@ export type CombatEntity = {
   manasteal?: number;
   stun?: number;
   reflection?: number;
+  miss?: number;
+  avoidance?: number;
+  incdmgamp?: number;
 };
 
 export type DpsBreakdown = {
@@ -61,6 +64,12 @@ export type CombatSimOptions = {
   expectedEvasion?: boolean;
   /** Model power/xpower glove buff as always active (charge ability). */
   assumeChargeBuffs?: boolean;
+  /** Include class skill rotation DPS (quickstab, supershot, etc.). */
+  useSkillRotation?: boolean;
+  /** Player level for skill unlock checks. */
+  playerLevel?: number;
+  /** Mainhand weapon type for skill wtype gating. */
+  mainhandWtype?: string;
   /** RNG for event sim (testing). */
   rng?: () => number;
 };
