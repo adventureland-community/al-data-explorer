@@ -37,6 +37,7 @@ export {
   rogueStackDpsBoost,
   targetFortitudeMult,
 } from "./hitModifiers";
+export { comboDamageMultiplier } from "./comboMultiplier";
 export { resolveBestAutoSwing } from "./attackShareDps";
 export { estimateMonsterAbilityIncoming, type MonsterAbilityDef } from "./monsterAbilityIncoming";
 export { estimateSkillRotationDps } from "./skillRotationDps";

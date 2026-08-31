@@ -26,6 +26,7 @@ import {
 } from "./estimateAbilityDps";
 import { estimateSkillRotationDps } from "./skillRotationDps";
 import { resolveBestAutoSwing } from "./attackShareDps";
+import { comboDamageMultiplier } from "./comboMultiplier";
 import { withAssumedTargetDebuffs } from "./targetDebuffs";
 import type { CombatEntity, CombatSimOptions, DpsBreakdown } from "./types";
 
@@ -98,6 +99,8 @@ export function simulateCombatTimeline(
   const evasionChance = source.damage_type === "physical" ? Math.min(50, target.evasion ?? 0) : 0;
   const missChance = source.miss ?? 0;
   const avoidChance = target.avoidance ?? 0;
+  const comboMult = comboDamageMultiplier(options?.comboStacks ?? 1, source.attack);
+  const scaledBaseHit = baseHit * comboMult;
 
   const abilities = collectGearAbilities(gear, G, options?.classKey);
   const burnAbility = abilities.burn;
@@ -115,7 +118,7 @@ export function simulateCombatTimeline(
       simDurationMs: durationMs,
     });
     return {
-      hitDamage: baseHit,
+      hitDamage: scaledBaseHit,
       mitigationMult,
       autoAttackDps: 0,
       abilityDps: 0,
@@ -164,7 +167,7 @@ export function simulateCombatTimeline(
 
       if (!evaded && !missed) {
         const variance = 0.9 + rng() * 0.2;
-        let hit = baseHit * variance;
+        let hit = scaledBaseHit * variance;
 
         if (source.crit && rng() < source.crit / 100) {
           const critMult = 2 + (source.critdamage ?? 0) / 100;
@@ -268,8 +271,8 @@ export function simulateCombatTimeline(
       : undefined;
 
   let hitsToKill: number | null = null;
-  if (target.hp != null && target.hp > 0 && baseHit > 0) {
-    hitsToKill = Math.ceil(target.hp / baseHit);
+  if (target.hp != null && target.hp > 0 && scaledBaseHit > 0) {
+    hitsToKill = Math.ceil(target.hp / scaledBaseHit);
   }
 
   const unsimulated =
@@ -278,7 +281,7 @@ export function simulateCombatTimeline(
       : undefined;
 
   return {
-    hitDamage: baseHit,
+    hitDamage: scaledBaseHit,
     mitigationMult,
     autoAttackDps,
     abilityDps,
@@ -354,6 +357,17 @@ export function estimateTotalDps(
     }
   }
 
+  const comboMult = comboDamageMultiplier(options?.comboStacks ?? 1, source.attack);
+  if (comboMult > 1) {
+    hitDamage *= comboMult;
+    abilityLinesExtra.push({
+      key: "combo",
+      label: "Mobbing combo",
+      dps: 0,
+      detail: `${options?.comboStacks ?? 1} stacks · ${comboMult.toFixed(2)}× attack`,
+    });
+  }
+
   let autoAttackDps = hitDamage * freq;
 
   const rogueBoost = rogueStackDpsBoost({
@@ -385,6 +399,7 @@ export function estimateTotalDps(
       classKey: options.classKey,
       playerLevel: options.playerLevel ?? 80,
       mainhandWtype: options.mainhandWtype,
+      playerMp: options.playerMp,
       simOptions: options,
     });
     skillDps = rotation.skillDps;

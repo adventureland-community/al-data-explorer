@@ -26,13 +26,51 @@ function pickQuickFillerSkill(
   return match ?? null;
 }
 
+function skillLineFromRatio(
+  key: string,
+  skill: SkillEntry,
+  target: HitDamageTarget,
+  playerMp: number,
+  simOptions?: CombatSimOptions,
+): { key: string; label: string; dps: number; detail?: string } | null {
+  const { ratio } = skill;
+  const cooldownMs = skill.cooldown;
+  if (!ratio || !cooldownMs || cooldownMs <= 0 || playerMp <= 0) return null;
+
+  const mpCost = skill.mp ?? 0;
+  if (mpCost > playerMp) return null;
+
+  const channelMp = key === "cburst" ? playerMp : playerMp;
+  const rawDamage = channelMp * ratio;
+  const attacker: CombatEntity = {
+    attack: rawDamage,
+    frequency: 0,
+    damage_type: (skill.damage_type ?? "pure") as CombatEntity["damage_type"],
+  };
+  const { damage: mitigated } = estimateHitDamage(attacker, target, simOptions);
+  const usesPerSec = 1000 / cooldownMs;
+  const dps = mitigated * usesPerSec;
+  if (dps <= 0) return null;
+
+  return {
+    key: `skill:${key}`,
+    label: skill.name ?? key,
+    dps,
+    detail: `${channelMp.toFixed(0)} MP × ${ratio} · ${(cooldownMs / 1000).toFixed(1)}s cd`,
+  };
+}
+
 function skillLineFromDef(
   key: string,
   skill: SkillEntry,
   source: CombatEntity,
   target: HitDamageTarget,
+  playerMp?: number,
   simOptions?: CombatSimOptions,
 ): { key: string; label: string; dps: number; detail?: string } | null {
+  const mpCost = skill.mp ?? 0;
+  if (mpCost > 0 && playerMp != null && mpCost > playerMp) return null;
+
   const mult = skill.damage_multiplier;
   const cooldownMs = skill.cooldown;
   if (!mult || !cooldownMs || cooldownMs <= 0) return null;
@@ -67,6 +105,7 @@ export function estimateSkillRotationDps(
     classKey: string;
     playerLevel: number;
     mainhandWtype?: string;
+    playerMp?: number;
     simOptions?: CombatSimOptions;
   },
 ): {
@@ -74,7 +113,7 @@ export function estimateSkillRotationDps(
   lines: { key: string; label: string; dps: number; detail?: string }[];
   unsimulated: { key: string; label: string; reason: string }[];
 } {
-  const { classKey, playerLevel, mainhandWtype, simOptions } = options;
+  const { classKey, playerLevel, mainhandWtype, playerMp, simOptions } = options;
   const lines: { key: string; label: string; dps: number; detail?: string }[] = [];
   const unsimulated: { key: string; label: string; reason: string }[] = [];
 
@@ -92,11 +131,17 @@ export function estimateSkillRotationDps(
   if (quickFiller) {
     handledShareGroups.add("quickpunch");
     const [key, skill] = quickFiller;
-    const line = skillLineFromDef(key, skill, source, target, simOptions);
+    const line = skillLineFromDef(key, skill, source, target, playerMp, simOptions);
     if (line) lines.push(line);
   }
 
   for (const [key, skill] of classSkills) {
+    if (skill.ratio && skill.cooldown) {
+      const ratioLine = skillLineFromRatio(key, skill, target, playerMp ?? 0, simOptions);
+      if (ratioLine) lines.push(ratioLine);
+      continue;
+    }
+
     if (!skill.damage_multiplier) continue;
     if (skill.share === "quickpunch") continue;
     if (skill.share && handledShareGroups.has(skill.share)) continue;
@@ -128,7 +173,7 @@ export function estimateSkillRotationDps(
     const cooldownMs = skill.cooldown;
     if (!cooldownMs || cooldownMs <= 0) continue;
 
-    const line = skillLineFromDef(key, skill, source, target, simOptions);
+    const line = skillLineFromDef(key, skill, source, target, playerMp, simOptions);
     if (line) lines.push(line);
   }
 

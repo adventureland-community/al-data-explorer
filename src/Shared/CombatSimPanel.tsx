@@ -57,6 +57,8 @@ export type CombatSimPanelProps = {
   onUseSkillRotationChange?: (value: boolean) => void;
   assumeMarked?: boolean;
   onAssumeMarkedChange?: (value: boolean) => void;
+  comboStacks?: number;
+  onComboStacksChange?: (count: number) => void;
 };
 
 export type CombatSimPanelCompactProps = CombatSimPanelProps & {
@@ -240,6 +242,7 @@ function computeBreakdown(args: {
   splashTargetCount: number;
   assumeChargeBuffs: boolean;
   useSkillRotation: boolean;
+  comboStacks: number;
   assumeMarked: boolean;
 }): DpsBreakdown {
   const {
@@ -253,6 +256,7 @@ function computeBreakdown(args: {
     assumeChargeBuffs,
     useSkillRotation,
     assumeMarked,
+    comboStacks,
   } = args;
   const stats = resolveCombatStatsFromLoadout({
     characterClass,
@@ -263,10 +267,11 @@ function computeBreakdown(args: {
   const skillOpts = {
     useSkillRotation,
     assumeMarked,
+    comboStacks,
     playerLevel: level,
     mainhandWtype: mainhandWtypeFromGear(gear, G),
   };
-  const opts =
+  const simOpts =
     simMode === "event"
       ? {
           mode: "event" as const,
@@ -274,6 +279,7 @@ function computeBreakdown(args: {
           classKey: characterClass.className,
           splashTargetCount,
           assumeChargeBuffs,
+          playerMp: stats.mp,
           ...skillOpts,
         }
       : {
@@ -281,9 +287,10 @@ function computeBreakdown(args: {
           classKey: characterClass.className,
           splashTargetCount,
           assumeChargeBuffs,
+          playerMp: stats.mp,
           ...skillOpts,
         };
-  return estimateTotalDps(stats, targetEntity, G, gear, opts);
+  return estimateTotalDps(stats, targetEntity, G, gear, simOpts);
 }
 
 export function CombatSimPanel({
@@ -302,6 +309,8 @@ export function CombatSimPanel({
   onUseSkillRotationChange,
   assumeMarked: markedProp,
   onAssumeMarkedChange,
+  comboStacks: comboProp,
+  onComboStacksChange,
 }: CombatSimPanelCompactProps) {
   const [internalTarget, setInternalTarget] = useState<MonsterKey>("ent");
   const targetMonster = targetMonsterProp ?? internalTarget;
@@ -318,6 +327,9 @@ export function CombatSimPanel({
   const [internalMarked, setInternalMarked] = useState(false);
   const assumeMarked = markedProp ?? internalMarked;
   const setAssumeMarked = onAssumeMarkedChange ?? setInternalMarked;
+  const [internalCombo, setInternalCombo] = useState(1);
+  const comboStacks = comboProp ?? internalCombo;
+  const setComboStacks = onComboStacksChange ?? setInternalCombo;
 
   const [simMode, setSimMode] = useState<"formulation" | "event">("formulation");
   const [eventBreakdown, setEventBreakdown] = useState<DpsBreakdown | null>(null);
@@ -344,6 +356,7 @@ export function CombatSimPanel({
       assumeChargeBuffs,
       useSkillRotation,
       assumeMarked,
+      comboStacks,
     });
   }, [
     characterClass,
@@ -355,6 +368,7 @@ export function CombatSimPanel({
     assumeChargeBuffs,
     useSkillRotation,
     assumeMarked,
+    comboStacks,
     targetEntity,
   ]);
 
@@ -399,6 +413,7 @@ export function CombatSimPanel({
         assumeChargeBuffs,
         useSkillRotation,
         assumeMarked,
+        comboStacks,
       }),
     );
   };
@@ -478,6 +493,18 @@ export function CombatSimPanel({
               max={5}
               step={1}
               onChange={(_, v) => setSplashTargetCount(v as number)}
+              valueLabelDisplay="auto"
+            />
+            <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+              Mobbing combo stacks: {comboStacks}
+            </Typography>
+            <Slider
+              size="small"
+              value={comboStacks}
+              min={1}
+              max={12}
+              step={1}
+              onChange={(_, v) => setComboStacks(v as number)}
               valueLabelDisplay="auto"
             />
             <FormControlLabel

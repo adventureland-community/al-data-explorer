@@ -68,6 +68,10 @@ export type CombatSimOptions = {
   useSkillRotation?: boolean;
   /** Assume hunter's mark on target (+10% damage taken). */
   assumeMarked?: boolean;
+  /** Mobbing combo stack (2+ applies server combo_m to attack damage). */
+  comboStacks?: number;
+  /** Player MP pool for burst / MP-gated skills. */
+  playerMp?: number;
   /** Player level for skill unlock checks. */
   playerLevel?: number;
   /** Mainhand weapon type for skill wtype gating. */
