@@ -12,10 +12,17 @@ export {
 export {
   abilityBonusOnProc,
   abilityProcRate,
+  applyBurnProc,
   collectSplashHitStats,
   rollAbilityProcsOnHit,
+  tickBurnDoTs,
   totalSplashPerHit,
 } from "./abilityProc";
+export {
+  burnTickDamage,
+  burnTotalDamageFromProc,
+  effectiveFrequencyWithSugarrush,
+} from "./conditionModel";
 export {
   estimateTotalDps,
   simulateAutoAttackTimeline,

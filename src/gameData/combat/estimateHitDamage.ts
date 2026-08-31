@@ -12,9 +12,9 @@ export function estimateHitDamage(
 
   const useCrit = options?.expectedCrit !== false;
   if (useCrit && source.crit) {
-    let critMult = 2;
-    if (source.critdamage) critMult += source.critdamage / 100;
-    damage += damage * (source.crit / 100) * critMult;
+    const critMult = 2 + (source.critdamage ?? 0) / 100;
+    // Server: crit multiplies pre-mitigation attack, then mitigation applies.
+    damage *= 1 + (source.crit / 100) * (critMult - 1);
   }
 
   return { damage, mitigationMult };

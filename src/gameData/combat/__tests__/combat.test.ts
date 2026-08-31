@@ -248,4 +248,17 @@ describe("estimateTotalDps abilities", () => {
     expect(bd.abilityDps).toBeGreaterThan(0);
     expect(bd.abilityLines?.some((l) => l.key === "burn")).toBe(true);
   });
+
+  it("poison gear lists debuff not DPS", () => {
+    const gear = { mainhand: matrixItemAtLevel("oozingterror", 0) };
+    const stats = resolveCombatStatsFromLoadout({
+      characterClass: mage,
+      level: 80,
+      gear,
+      G,
+    });
+    const bd = estimateTotalDps(stats, ent, G, gear, { classKey: "mage" });
+    expect(bd.debuffLines?.some((l) => l.key === "poison")).toBe(true);
+    expect(bd.abilityLines?.some((l) => l.key === "poison")).toBeFalsy();
+  });
 });

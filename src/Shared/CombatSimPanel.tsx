@@ -171,8 +171,11 @@ function DpsResults({
               key={line.key}
               label={`  ${line.label}`}
               value={line.dps.toFixed(1)}
-              hint="Estimated ability contribution"
+              hint={line.detail ?? "Estimated ability contribution"}
             />
+          ))}
+          {breakdown.debuffLines?.map((line) => (
+            <StatRow key={line.key} label={`  ${line.label}`} value="—" hint={line.detail} />
           ))}
           <Divider sx={{ my: 0.75 }} />
           <StatRow

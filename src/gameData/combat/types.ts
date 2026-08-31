@@ -32,6 +32,8 @@ export type DpsBreakdown = {
   abilityLines?: { key: string; label: string; dps: number; detail?: string }[];
   /** Effects present on gear but not counted in single-target DPS. */
   unsimulatedEffects?: { key: string; label: string; reason: string }[];
+  /** On-hit debuffs (poison, freeze) — utility, not DPS. */
+  debuffLines?: { key: string; label: string; detail: string }[];
   totalDps: number;
   hitsToKill: number | null;
   /** Set when breakdown comes from event simulation. */

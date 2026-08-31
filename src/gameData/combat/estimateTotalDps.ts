@@ -1,7 +1,14 @@
 import { ItemInfo, SlotType } from "typed-adventureland";
 
 import { CustomGData } from "../../GDataContext";
-import { rollAbilityProcsOnHit, collectSplashHitStats, totalSplashPerHit } from "./abilityProc";
+import {
+  applyBurnProc,
+  rollAbilityProcsOnHit,
+  collectSplashHitStats,
+  totalSplashPerHit,
+  type ActiveBurn,
+} from "./abilityProc";
+import { SUGARRUSH_DURATION_MS, tickBurnDoTs } from "./conditionModel";
 import {
   collectGearAbilities,
   collectSplashIntensities,
@@ -60,7 +67,7 @@ function buildSplashBreakdown(
   return { splashDps, splashLines, unsimulatedEffects: undefined };
 }
 
-/** Event-driven combat timeline: auto attacks, crit/variance, ability proc rolls, splash. */
+/** Event-driven combat timeline with burn DoT ticks and sugarrush frequency buffs. */
 export function simulateCombatTimeline(
   source: CombatEntity,
   target: Pick<CombatEntity, "armor" | "resistance" | "hp">,
@@ -69,7 +76,7 @@ export function simulateCombatTimeline(
   options?: TotalDpsOptions,
 ): DpsBreakdown {
   const durationMs = options?.durationMs ?? 30_000;
-  const freq = source.frequency ?? 0;
+  const baseFreq = source.frequency ?? 0;
   const rng = options?.rng ?? Math.random;
   const { damage: baseHit, mitigationMult } = estimateHitDamage(source, target, {
     ...options,
@@ -77,6 +84,7 @@ export function simulateCombatTimeline(
   });
 
   const abilities = collectGearAbilities(gear, G, options?.classKey);
+  const burnAbility = abilities.burn;
   const splashTargetCount = options?.splashTargetCount ?? 0;
   const splashStats = collectSplashHitStats(
     source,
@@ -85,8 +93,11 @@ export function simulateCombatTimeline(
   );
   const splashPerTargetPerHit = totalSplashPerHit(splashStats);
 
-  if (freq <= 0 || baseHit <= 0 || durationMs <= 0) {
-    const splash = buildSplashBreakdown(source, target, gear, G, options, freq);
+  if (baseFreq <= 0 || baseHit <= 0 || durationMs <= 0) {
+    const splash = buildSplashBreakdown(source, target, gear, G, options, baseFreq);
+    const { debuffLines } = estimateAbilityDps(source, target, abilities, {
+      simDurationMs: durationMs,
+    });
     return {
       hitDamage: baseHit,
       mitigationMult,
@@ -94,6 +105,7 @@ export function simulateCombatTimeline(
       abilityDps: 0,
       splashDps: splash.splashDps,
       splashLines: splash.splashLines,
+      debuffLines: debuffLines.length > 0 ? debuffLines : undefined,
       totalDps: 0,
       hitsToKill: null,
       unsimulatedEffects: splash.unsimulatedEffects,
@@ -102,38 +114,67 @@ export function simulateCombatTimeline(
     };
   }
 
-  const attackIntervalMs = 1000 / freq;
   let autoDamage = 0;
   let abilityDamage = 0;
   let splashDamage = 0;
   let hits = 0;
   let t = 0;
+  let nextAttackAt = 0;
+  let burns: ActiveBurn[] = [];
+  let sugarrushUntil = 0;
   const abilityTotals: Record<string, number> = {};
+  const debuffProcCounts: Record<string, number> = {};
+
+  const currentFreq = () => (t < sugarrushUntil ? baseFreq + SUGARRUSH_FREQUENCY_BONUS : baseFreq);
 
   while (t < durationMs) {
-    const variance = 0.9 + rng() * 0.2;
-    let hit = baseHit * variance;
-
-    if (source.crit && rng() < source.crit / 100) {
-      let critMult = 2;
-      if (source.critdamage) critMult += source.critdamage / 100;
-      hit *= critMult;
+    const stepMs = Math.min(50, durationMs - t, nextAttackAt > t ? nextAttackAt - t : 50);
+    const burnTick = tickBurnDoTs(burns, stepMs);
+    burns = burnTick.burns;
+    abilityDamage += burnTick.damage;
+    if (burnTick.damage > 0) {
+      abilityTotals.burn = (abilityTotals.burn ?? 0) + burnTick.damage;
     }
 
-    autoDamage += hit;
-    hits += 1;
+    if (t >= nextAttackAt) {
+      const variance = 0.9 + rng() * 0.2;
+      let hit = baseHit * variance;
 
-    const procs = rollAbilityProcsOnHit(hit, abilities, rng);
-    abilityDamage += procs.total;
-    for (const [key, amount] of Object.entries(procs.byKey)) {
-      abilityTotals[key] = (abilityTotals[key] ?? 0) + amount;
+      if (source.crit && rng() < source.crit / 100) {
+        const critMult = 2 + (source.critdamage ?? 0) / 100;
+        hit *= critMult;
+      }
+
+      autoDamage += hit;
+      hits += 1;
+
+      if (burnAbility && burnAbility.attr0 > 0 && rng() < burnAbility.attr0 / 100) {
+        burns = applyBurnProc(burns, hit, burnAbility.unlimited);
+      }
+
+      const otherAbilities = { ...abilities };
+      delete otherAbilities.burn;
+      const procs = rollAbilityProcsOnHit(hit, otherAbilities, rng);
+      abilityDamage += procs.total;
+      for (const [key, amount] of Object.entries(procs.byKey)) {
+        abilityTotals[key] = (abilityTotals[key] ?? 0) + amount;
+      }
+      if (procs.sugarrushProcs > 0) {
+        sugarrushUntil = Math.max(sugarrushUntil, t + SUGARRUSH_DURATION_MS);
+      }
+      for (const [key, count] of Object.entries(procs.debuffProcs)) {
+        debuffProcCounts[key] = (debuffProcCounts[key] ?? 0) + count;
+      }
+
+      if (splashTargetCount > 0 && splashPerTargetPerHit > 0) {
+        splashDamage += splashPerTargetPerHit * splashTargetCount;
+      }
+
+      const freq = currentFreq();
+      nextAttackAt = t + 1000 / freq;
     }
 
-    if (splashTargetCount > 0 && splashPerTargetPerHit > 0) {
-      splashDamage += splashPerTargetPerHit * splashTargetCount;
-    }
-
-    t += attackIntervalMs;
+    t += stepMs;
   }
 
   const seconds = durationMs / 1000;
@@ -145,7 +186,18 @@ export function simulateCombatTimeline(
     key,
     label: key,
     dps: total / seconds,
-    detail: "Event sim proc rolls",
+    detail: key === "burn" ? "Event sim DoT ticks" : "Event sim proc rolls",
+  }));
+
+  const { debuffLines: staticDebuffs } = estimateAbilityDps(source, target, abilities, {
+    simDurationMs: durationMs,
+  });
+  const debuffLines = staticDebuffs.map((line) => ({
+    ...line,
+    detail:
+      debuffProcCounts[line.key] != null
+        ? `${line.detail} · ${debuffProcCounts[line.key]} procs rolled`
+        : line.detail,
   }));
 
   const splashLines =
@@ -176,6 +228,7 @@ export function simulateCombatTimeline(
     abilityLines: abilityLines.length > 0 ? abilityLines : undefined,
     splashDps: splashDps > 0 ? splashDps : undefined,
     splashLines,
+    debuffLines: debuffLines.length > 0 ? debuffLines : undefined,
     totalDps: autoAttackDps + abilityDps + splashDps,
     hitsToKill,
     unsimulatedEffects: unsimulated?.length ? unsimulated : undefined,
@@ -205,12 +258,15 @@ export function estimateTotalDps(
     return simulateCombatTimeline(source, target, gear, G, options);
   }
 
+  const simDurationMs = options?.durationMs ?? 30_000;
   const { damage: hitDamage, mitigationMult } = estimateHitDamage(source, target, options);
   const freq = source.frequency ?? 0;
   const autoAttackDps = hitDamage * freq;
 
   const abilities = collectGearAbilities(gear, G, options?.classKey);
-  const { abilityDps, lines } = estimateAbilityDps(source, target, abilities);
+  const { abilityDps, lines, debuffLines } = estimateAbilityDps(source, target, abilities, {
+    simDurationMs,
+  });
   const { splashDps, splashLines, unsimulatedEffects } = buildSplashBreakdown(
     source,
     target,
@@ -232,6 +288,7 @@ export function estimateTotalDps(
     autoAttackDps,
     abilityDps,
     abilityLines: lines,
+    debuffLines: debuffLines.length > 0 ? debuffLines : undefined,
     splashDps: splashDps > 0 ? splashDps : undefined,
     splashLines,
     unsimulatedEffects,
