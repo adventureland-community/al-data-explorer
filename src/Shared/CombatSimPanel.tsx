@@ -55,6 +55,8 @@ export type CombatSimPanelProps = {
   onAssumeChargeBuffsChange?: (value: boolean) => void;
   useSkillRotation?: boolean;
   onUseSkillRotationChange?: (value: boolean) => void;
+  assumeMarked?: boolean;
+  onAssumeMarkedChange?: (value: boolean) => void;
 };
 
 export type CombatSimPanelCompactProps = CombatSimPanelProps & {
@@ -238,6 +240,7 @@ function computeBreakdown(args: {
   splashTargetCount: number;
   assumeChargeBuffs: boolean;
   useSkillRotation: boolean;
+  assumeMarked: boolean;
 }): DpsBreakdown {
   const {
     characterClass,
@@ -249,6 +252,7 @@ function computeBreakdown(args: {
     splashTargetCount,
     assumeChargeBuffs,
     useSkillRotation,
+    assumeMarked,
   } = args;
   const stats = resolveCombatStatsFromLoadout({
     characterClass,
@@ -258,6 +262,7 @@ function computeBreakdown(args: {
   });
   const skillOpts = {
     useSkillRotation,
+    assumeMarked,
     playerLevel: level,
     mainhandWtype: mainhandWtypeFromGear(gear, G),
   };
@@ -295,6 +300,8 @@ export function CombatSimPanel({
   onAssumeChargeBuffsChange,
   useSkillRotation: skillRotationProp,
   onUseSkillRotationChange,
+  assumeMarked: markedProp,
+  onAssumeMarkedChange,
 }: CombatSimPanelCompactProps) {
   const [internalTarget, setInternalTarget] = useState<MonsterKey>("ent");
   const targetMonster = targetMonsterProp ?? internalTarget;
@@ -308,6 +315,9 @@ export function CombatSimPanel({
   const [internalSkillRotation, setInternalSkillRotation] = useState(true);
   const useSkillRotation = skillRotationProp ?? internalSkillRotation;
   const setUseSkillRotation = onUseSkillRotationChange ?? setInternalSkillRotation;
+  const [internalMarked, setInternalMarked] = useState(false);
+  const assumeMarked = markedProp ?? internalMarked;
+  const setAssumeMarked = onAssumeMarkedChange ?? setInternalMarked;
 
   const [simMode, setSimMode] = useState<"formulation" | "event">("formulation");
   const [eventBreakdown, setEventBreakdown] = useState<DpsBreakdown | null>(null);
@@ -333,6 +343,7 @@ export function CombatSimPanel({
       splashTargetCount,
       assumeChargeBuffs,
       useSkillRotation,
+      assumeMarked,
     });
   }, [
     characterClass,
@@ -343,13 +354,22 @@ export function CombatSimPanel({
     splashTargetCount,
     assumeChargeBuffs,
     useSkillRotation,
+    assumeMarked,
     targetEntity,
   ]);
 
   const incoming = useMemo(() => {
     if (!combatStats) return null;
-    return estimateIncomingDps(monsterToCombatEntity(monster), combatStats);
-  }, [combatStats, monster]);
+    return estimateIncomingDps(monsterToCombatEntity(monster), combatStats, {
+      G,
+      abilities: monster.abilities as
+        | Record<
+            string,
+            { cooldown?: number; heal?: number; damage?: number; amount?: number; pure?: boolean }
+          >
+        | undefined,
+    });
+  }, [combatStats, monster, G]);
 
   const statWeights = useMemo(() => {
     if (!characterClass || compact) return [];
@@ -378,6 +398,7 @@ export function CombatSimPanel({
         splashTargetCount,
         assumeChargeBuffs,
         useSkillRotation,
+        assumeMarked,
       }),
     );
   };
@@ -470,6 +491,20 @@ export function CombatSimPanel({
               label={
                 <Typography variant="caption" color="text.secondary">
                   Include class skill rotation (quickstab, smash, supershot…)
+                </Typography>
+              }
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={assumeMarked}
+                  onChange={(_, v) => setAssumeMarked(v)}
+                />
+              }
+              label={
+                <Typography variant="caption" color="text.secondary">
+                  Assume hunter&apos;s mark on target (+10% damage)
                 </Typography>
               }
             />

@@ -26,6 +26,7 @@ import {
 } from "./estimateAbilityDps";
 import { estimateSkillRotationDps } from "./skillRotationDps";
 import { resolveBestAutoSwing } from "./attackShareDps";
+import { withAssumedTargetDebuffs } from "./targetDebuffs";
 import type { CombatEntity, CombatSimOptions, DpsBreakdown } from "./types";
 
 export type TotalDpsMode = "formulation" | "event";
@@ -311,8 +312,10 @@ export function estimateTotalDps(
   gear: { [slot in SlotType]?: ItemInfo },
   options?: TotalDpsOptions,
 ): DpsBreakdown {
+  const effectiveTarget = withAssumedTargetDebuffs(target, options);
+
   if (options?.mode === "event") {
-    return simulateCombatTimeline(source, target, gear, G, options);
+    return simulateCombatTimeline(source, effectiveTarget, gear, G, options);
   }
 
   const simDurationMs = options?.durationMs ?? 30_000;
@@ -324,7 +327,7 @@ export function estimateTotalDps(
 
   const { damage: plainHitDamage, mitigationMult: plainMitigation } = estimateHitDamage(
     source,
-    target,
+    effectiveTarget,
     options,
   );
   let hitDamage = plainHitDamage;
@@ -332,7 +335,7 @@ export function estimateTotalDps(
   const abilityLinesExtra: { key: string; label: string; dps: number; detail?: string }[] = [];
 
   if (options?.useSkillRotation && options.classKey) {
-    const swing = resolveBestAutoSwing(source, target, G, {
+    const swing = resolveBestAutoSwing(source, effectiveTarget, G, {
       classKey: options.classKey,
       playerLevel: options.playerLevel ?? 80,
       mainhandWtype: options.mainhandWtype,
@@ -370,7 +373,7 @@ export function estimateTotalDps(
     });
   }
 
-  const { abilityDps, lines, debuffLines } = estimateAbilityDps(source, target, abilities, {
+  const { abilityDps, lines, debuffLines } = estimateAbilityDps(source, effectiveTarget, abilities, {
     simDurationMs,
   });
 
@@ -378,7 +381,7 @@ export function estimateTotalDps(
   let skillLines: DpsBreakdown["abilityLines"] = [];
   let skillUnsimulated: DpsBreakdown["unsimulatedEffects"];
   if (options?.useSkillRotation && options.classKey) {
-    const rotation = estimateSkillRotationDps(source, target, G, {
+    const rotation = estimateSkillRotationDps(source, effectiveTarget, G, {
       classKey: options.classKey,
       playerLevel: options.playerLevel ?? 80,
       mainhandWtype: options.mainhandWtype,
@@ -392,18 +395,21 @@ export function estimateTotalDps(
   }
 
   const stunLine = stunDebuffLine(source);
-  const allDebuffs = [...(stunLine ? [stunLine] : []), ...debuffLines];
+  const markedLine = options?.assumeMarked
+    ? { key: "marked", label: "Marked", detail: "+10% damage taken (hunter's mark assumed)" }
+    : null;
+  const allDebuffs = [...(stunLine ? [stunLine] : []), ...(markedLine ? [markedLine] : []), ...debuffLines];
 
   const { splashDps, splashLines, unsimulatedEffects } = buildSplashBreakdown(
     source,
-    target,
+    effectiveTarget,
     gear,
     G,
     options,
     freq,
   );
-  const sustainLines = buildSustainLines(source, hitDamage, freq, target.hp);
-  const reflectionRisk = outgoingReflectionRisk(source, target, hitDamage, freq);
+  const sustainLines = buildSustainLines(source, hitDamage, freq, effectiveTarget.hp);
+  const reflectionRisk = outgoingReflectionRisk(source, effectiveTarget, hitDamage, freq);
   const riskLines = reflectionRisk
     ? [
         {
@@ -429,8 +435,8 @@ export function estimateTotalDps(
   const totalDps = autoAttackDps + abilityDps + skillDps + splashDps;
 
   let hitsToKill: number | null = null;
-  if (target.hp != null && target.hp > 0 && hitDamage > 0) {
-    hitsToKill = Math.ceil(target.hp / hitDamage);
+  if (effectiveTarget.hp != null && effectiveTarget.hp > 0 && hitDamage > 0) {
+    hitsToKill = Math.ceil(effectiveTarget.hp / hitDamage);
   }
 
   const mergedUnsimulated = [...(unsimulatedEffects ?? []), ...(skillUnsimulated ?? [])];

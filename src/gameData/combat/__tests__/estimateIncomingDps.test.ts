@@ -1,5 +1,21 @@
+import { readFileSync } from "fs";
+import { join } from "path";
+
 import { estimateIncomingDps } from "../estimateIncomingDps";
-import { incomingReflectionFactor, outgoingReflectionRisk } from "../hitModifiers";
+import {
+  estimateTotalDps,
+  incomingReflectionFactor,
+  monsterToCombatEntity,
+  outgoingReflectionRisk,
+} from "../index";
+import { resolveCombatStatsFromLoadout, matrixItemAtLevel } from "../resolveCombatStats";
+
+function loadG() {
+  return JSON.parse(readFileSync(join(process.cwd(), "public/data.json"), "utf8")) as {
+    classes: Record<string, unknown>;
+    monsters: Record<string, unknown>;
+  };
+}
 
 describe("estimateIncomingDps", () => {
   const player = {
@@ -36,6 +52,55 @@ describe("estimateIncomingDps", () => {
     const noReflect = estimateIncomingDps(monster, { ...player, reflection: 0 });
     expect(withReflect.totalDps).toBeLessThan(noReflect.totalDps);
     expect(withReflect.reflectionFactor).toBe(0.5);
+  });
+
+  it("zapper zap ability adds incoming DPS beyond autos", () => {
+    const data = loadG();
+    const G = data as never;
+    const zapper = data.monsters.zapper0 as { abilities?: Record<string, unknown> };
+    const monster = monsterToCombatEntity(zapper as never);
+    const incoming = estimateIncomingDps(monster, player, { G, abilities: zapper.abilities });
+    expect(incoming.abilityDps).toBeGreaterThan(0);
+    expect(incoming.abilityLines?.some((l) => l.key === "mability:zap")).toBe(true);
+    expect(incoming.totalDps).toBeGreaterThan(incoming.autoAttackDps);
+  });
+
+  it("dragold multi_burn adds fireball ability DPS", () => {
+    const data = loadG();
+    const G = data as never;
+    const dragold = data.monsters.dragold as {
+      attack: number;
+      frequency: number;
+      abilities?: Record<string, unknown>;
+    };
+    const monster = monsterToCombatEntity(dragold as never);
+    const incoming = estimateIncomingDps(monster, player, { G, abilities: dragold.abilities });
+    expect(incoming.abilityLines?.some((l) => l.key === "mability:multi_burn")).toBe(true);
+    expect(incoming.abilityDps).toBeGreaterThan(0);
+  });
+});
+
+describe("assumeMarked outgoing DPS", () => {
+  const data = loadG();
+  const G = data as never;
+  const ranger = { className: "ranger", ...(data.classes.ranger as object) } as never;
+  const ent = monsterToCombatEntity(data.monsters.ent as never);
+  const gear = { mainhand: matrixItemAtLevel("bow", 0) };
+  const stats = resolveCombatStatsFromLoadout({
+    characterClass: ranger,
+    level: 80,
+    gear,
+    G,
+  });
+
+  it("increases total DPS by 10% when marked is assumed", () => {
+    const plain = estimateTotalDps(stats, ent, G, gear, { classKey: "ranger" });
+    const marked = estimateTotalDps(stats, ent, G, gear, {
+      classKey: "ranger",
+      assumeMarked: true,
+    });
+    expect(marked.totalDps / plain.totalDps).toBeCloseTo(1.1, 1);
+    expect(marked.debuffLines?.some((l) => l.key === "marked")).toBe(true);
   });
 });
 

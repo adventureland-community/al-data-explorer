@@ -66,6 +66,8 @@ export type CombatSimOptions = {
   assumeChargeBuffs?: boolean;
   /** Include class skill rotation DPS (quickstab, supershot, etc.). */
   useSkillRotation?: boolean;
+  /** Assume hunter's mark on target (+10% damage taken). */
+  assumeMarked?: boolean;
   /** Player level for skill unlock checks. */
   playerLevel?: number;
   /** Mainhand weapon type for skill wtype gating. */

@@ -38,7 +38,9 @@ export {
   targetFortitudeMult,
 } from "./hitModifiers";
 export { resolveBestAutoSwing } from "./attackShareDps";
+export { estimateMonsterAbilityIncoming, type MonsterAbilityDef } from "./monsterAbilityIncoming";
 export { estimateSkillRotationDps } from "./skillRotationDps";
+export { withAssumedTargetDebuffs } from "./targetDebuffs";
 export {
   estimateTotalDps,
   simulateAutoAttackTimeline,
