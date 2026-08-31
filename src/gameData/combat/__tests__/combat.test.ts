@@ -140,6 +140,7 @@ describe("estimateTotalDps event mode", () => {
       classKey: "mage",
       mode: "event",
       durationMs: 5000,
+      rng: () => 0.01,
     });
     expect(bd.abilityDps).toBeGreaterThan(0);
     expect(bd.totalDps).toBeGreaterThan(bd.autoAttackDps);
@@ -196,7 +197,7 @@ describe("estimateTotalDps abilities", () => {
     expect(fireDps.totalDps).toBeGreaterThan(staffDps.totalDps);
   });
 
-  it("sparkstaff blast is listed as unsimulated splash", () => {
+  it("sparkstaff blast is unsimulated without nearby splash targets", () => {
     const gear = { mainhand: matrixItemAtLevel("sparkstaff", 0) };
     const stats = resolveCombatStatsFromLoadout({
       characterClass: mage,
@@ -204,7 +205,47 @@ describe("estimateTotalDps abilities", () => {
       gear,
       G,
     });
-    const bd = estimateTotalDps(stats, ent, G, gear, { classKey: "mage" });
+    const bd = estimateTotalDps(stats, ent, G, gear, { classKey: "mage", splashTargetCount: 0 });
     expect(bd.unsimulatedEffects?.some((e) => e.key.startsWith("blast"))).toBe(true);
+    expect(bd.splashDps ?? 0).toBe(0);
+  });
+
+  it("sparkstaff blast adds splash DPS with nearby targets", () => {
+    const gear = { mainhand: matrixItemAtLevel("sparkstaff", 0) };
+    const stats = resolveCombatStatsFromLoadout({
+      characterClass: mage,
+      level: 80,
+      gear,
+      G,
+    });
+    const bd = estimateTotalDps(stats, ent, G, gear, { classKey: "mage", splashTargetCount: 3 });
+    expect(bd.splashDps).toBeGreaterThan(0);
+    expect(bd.splashLines?.some((l) => l.key.startsWith("blast"))).toBe(true);
+    expect(bd.unsimulatedEffects ?? []).toHaveLength(0);
+    expect(bd.totalDps).toBeGreaterThan(bd.autoAttackDps);
+  });
+
+  it("event sim rolls ability procs with deterministic rng", () => {
+    const fireGear = { mainhand: matrixItemAtLevel("firestaff", 0) };
+    const stats = resolveCombatStatsFromLoadout({
+      characterClass: mage,
+      level: 80,
+      gear: fireGear,
+      G,
+    });
+    let roll = 0;
+    const rng = () => {
+      roll += 1;
+      return roll % 2 === 0 ? 0.01 : 0.99;
+    };
+    const bd = estimateTotalDps(stats, ent, G, fireGear, {
+      mode: "event",
+      durationMs: 30_000,
+      classKey: "mage",
+      rng,
+    });
+    expect(bd.simIterations).toBeGreaterThan(0);
+    expect(bd.abilityDps).toBeGreaterThan(0);
+    expect(bd.abilityLines?.some((l) => l.key === "burn")).toBe(true);
   });
 });

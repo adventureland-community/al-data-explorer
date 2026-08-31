@@ -25,6 +25,9 @@ export type DpsBreakdown = {
   autoAttackDps: number;
   /** Ability / DoT contribution (phase 2+). */
   abilityDps: number;
+  /** AoE splash to nearby targets per hit × nearby count. */
+  splashDps?: number;
+  splashLines?: { key: string; label: string; dps: number; detail?: string }[];
   /** Per-ability lines for UI tooltips. */
   abilityLines?: { key: string; label: string; dps: number; detail?: string }[];
   /** Effects present on gear but not counted in single-target DPS. */
@@ -41,4 +44,8 @@ export type CombatSimOptions = {
   expectedCrit?: boolean;
   /** Simulation duration for event sim (ms). Phase 3. */
   durationMs?: number;
+  /** Extra nearby targets hit by explosion/blast splash (0 = primary only). */
+  splashTargetCount?: number;
+  /** RNG for event sim (testing). */
+  rng?: () => number;
 };

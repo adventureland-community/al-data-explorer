@@ -5,12 +5,21 @@ export { estimateHitDamage } from "./estimateHitDamage";
 export { estimateAutoAttackDps, theoDps } from "./estimateAutoAttackDps";
 export {
   collectGearAbilities,
+  collectSplashIntensities,
   collectUnsimulatedOnHitEffects,
   estimateAbilityDps,
 } from "./estimateAbilityDps";
 export {
+  abilityBonusOnProc,
+  abilityProcRate,
+  collectSplashHitStats,
+  rollAbilityProcsOnHit,
+  totalSplashPerHit,
+} from "./abilityProc";
+export {
   estimateTotalDps,
   simulateAutoAttackTimeline,
+  simulateCombatTimeline,
   type TotalDpsMode,
   type TotalDpsOptions,
 } from "./estimateTotalDps";

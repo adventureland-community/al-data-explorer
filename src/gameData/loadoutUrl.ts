@@ -9,6 +9,7 @@ export type LoadoutUrlState = {
   classKey?: ClassKey;
   level: number;
   target?: string;
+  splashTargetCount?: number;
 };
 
 const GEAR_PARAM = "gear";
@@ -22,6 +23,7 @@ export function encodeLoadoutParam(state: LoadoutUrlState): string {
     className: state.classKey,
     level: state.level,
     target: state.target,
+    splashTargetCount: state.splashTargetCount,
   });
   return LZString.compressToEncodedURIComponent(payload);
 }
@@ -37,6 +39,7 @@ export function decodeLoadoutParam(raw: string | null): LoadoutUrlState | null {
       classKey?: ClassKey;
       level?: number;
       target?: string;
+      splashTargetCount?: number;
     };
     if (!parsed || typeof parsed !== "object") return null;
     return {
@@ -47,6 +50,10 @@ export function decodeLoadoutParam(raw: string | null): LoadoutUrlState | null {
           ? Math.min(200, Math.max(1, Math.round(parsed.level)))
           : 1,
       target: typeof parsed.target === "string" ? parsed.target : undefined,
+      splashTargetCount:
+        typeof parsed.splashTargetCount === "number"
+          ? Math.min(5, Math.max(0, Math.round(parsed.splashTargetCount)))
+          : undefined,
     };
   } catch {
     return null;
@@ -65,18 +72,28 @@ export function parseGearPlannerSearchParams(
   searchParams: URLSearchParams,
 ): LoadoutUrlState | null {
   const fromGear = decodeLoadoutParam(searchParams.get(GEAR_PARAM));
-  if (fromGear) return fromGear;
+  const splashRaw = searchParams.get("simSplash");
+  const splashFromParam =
+    splashRaw != null ? Math.min(5, Math.max(0, Math.round(Number(splashRaw) || 0))) : undefined;
+
+  if (fromGear) {
+    return {
+      ...fromGear,
+      splashTargetCount: fromGear.splashTargetCount ?? splashFromParam,
+    };
+  }
 
   const classKey = searchParams.get(CLASS_PARAM);
   const levelRaw = searchParams.get(LEVEL_PARAM);
   const target = searchParams.get(TARGET_PARAM);
-  if (!classKey && !levelRaw && !target) return null;
+  if (!classKey && !levelRaw && !target && splashFromParam == null) return null;
 
   return {
     gear: {},
     classKey: (classKey as ClassKey | null) ?? undefined,
     level: levelRaw ? Math.min(200, Math.max(1, Number(levelRaw) || 1)) : 1,
     target: target ?? undefined,
+    splashTargetCount: splashFromParam,
   };
 }
 
@@ -101,6 +118,12 @@ export function writeGearPlannerSearchParams(
 
   if (state.target && state.target !== "ent") next.set(TARGET_PARAM, state.target);
   else next.delete(TARGET_PARAM);
+
+  if (state.splashTargetCount && state.splashTargetCount > 0) {
+    next.set("simSplash", String(state.splashTargetCount));
+  } else {
+    next.delete("simSplash");
+  }
 
   return next;
 }

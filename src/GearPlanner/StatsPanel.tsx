@@ -107,12 +107,16 @@ export function StatsPanel({
   gear,
   targetMonster,
   onTargetMonsterChange,
+  splashTargetCount,
+  onSplashTargetCountChange,
 }: {
   selectedCharacterClass?: SelectedCharacterClass;
   level: number;
   gear: { [slot in SlotType]?: ItemInfo };
   targetMonster?: MonsterKey;
   onTargetMonsterChange?: (key: MonsterKey) => void;
+  splashTargetCount?: number;
+  onSplashTargetCountChange?: (count: number) => void;
 }) {
   const G = useContext(GDataContext);
 
@@ -190,6 +194,8 @@ export function StatsPanel({
           gear={gear}
           targetMonster={targetMonster}
           onTargetMonsterChange={onTargetMonsterChange}
+          splashTargetCount={splashTargetCount}
+          onSplashTargetCountChange={onSplashTargetCountChange}
         />
       </Grid>
       <Grid item xs={12} lg={9}>

@@ -159,6 +159,7 @@ export type MatrixCombatParams = {
   simTarget: MonsterKey;
   simScope: MatrixSimScope;
   simGear: { [slot in SlotType]?: ItemInfo };
+  simSplash: number;
 };
 
 const MATRIX_VIEW_DEFAULT: MatrixViewMode = "stats";
@@ -166,6 +167,13 @@ const MATRIX_CLASS_DEFAULT = "priest";
 const MATRIX_LEVEL_DEFAULT = 80;
 const MATRIX_TARGET_DEFAULT: MonsterKey = "ent";
 const MATRIX_SCOPE_DEFAULT: MatrixSimScope = "mainhand";
+const MATRIX_SPLASH_DEFAULT = 0;
+
+function parseMatrixSplash(raw: string | null): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return MATRIX_SPLASH_DEFAULT;
+  return Math.min(5, Math.max(0, Math.round(n)));
+}
 
 function parseMatrixView(raw: string | null): MatrixViewMode {
   return raw === "dps" ? "dps" : MATRIX_VIEW_DEFAULT;
@@ -195,6 +203,7 @@ export function useMatrixCombatParams(
         targetRaw && validTarget(targetRaw) ? (targetRaw as MonsterKey) : MATRIX_TARGET_DEFAULT,
       simScope: searchParams.get("simScope") === "loadout" ? "loadout" : MATRIX_SCOPE_DEFAULT,
       simGear: decodeLoadoutParam(searchParams.get("simGear"))?.gear ?? {},
+      simSplash: parseMatrixSplash(searchParams.get("simSplash")),
     };
   }, [searchParams, validClass, validTarget]);
 
@@ -221,7 +230,7 @@ export function useMatrixCombatParams(
     (
       next: Pick<
         MatrixCombatParams,
-        "simClass" | "simLevel" | "simTarget" | "simScope" | "simGear"
+        "simClass" | "simLevel" | "simTarget" | "simScope" | "simGear" | "simSplash"
       >,
     ) => {
       patch((draft) => {
@@ -241,6 +250,8 @@ export function useMatrixCombatParams(
         } else {
           draft.delete("simGear");
         }
+        if (next.simSplash === MATRIX_SPLASH_DEFAULT) draft.delete("simSplash");
+        else draft.set("simSplash", String(next.simSplash ?? MATRIX_SPLASH_DEFAULT));
       });
     },
     [patch, validClass],

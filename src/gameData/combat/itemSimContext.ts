@@ -118,6 +118,7 @@ export function computeMatrixItemSim(args: {
   G: CustomGData;
   simScope?: MatrixSimScope;
   baseGear?: { [slot in SlotType]?: ItemInfo };
+  splashTargetCount?: number;
 }): MatrixItemSimResult | null {
   const {
     itemKey,
@@ -127,6 +128,7 @@ export function computeMatrixItemSim(args: {
     G,
     simScope = "mainhand",
     baseGear,
+    splashTargetCount = 0,
   } = args;
   const gItem = G.items[itemKey];
   if (!gItem) return null;
@@ -164,6 +166,7 @@ export function computeMatrixItemSim(args: {
   const targetEntity = monsterToCombatEntity(G.monsters[args.targetMonsterKey as never]);
   const breakdown = estimateTotalDps(combatStats, targetEntity, G, gear, {
     classKey: className,
+    splashTargetCount,
   });
 
   const equipNotes = getItemSimEquipNotes({

@@ -63,6 +63,7 @@ export function GearPlanner() {
   const [selectedClass, setSelectedClass] = useState<SelectedCharacterClass>();
   const [level, setLevel] = useState(1);
   const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
+  const [splashTargetCount, setSplashTargetCount] = useState(0);
 
   const classes = Object.entries(G?.classes ?? []).map(
     ([className, item]) => ({ className, ...item } as SelectedCharacterClass),
@@ -74,10 +75,12 @@ export function GearPlanner() {
     selectedClass,
     level,
     targetMonster,
+    splashTargetCount,
     setGear,
     setSelectedClass,
     setLevel,
     setTargetMonster,
+    setSplashTargetCount,
   });
 
   if (!G) {
@@ -149,6 +152,8 @@ export function GearPlanner() {
             gear={gear}
             targetMonster={targetMonster}
             onTargetMonsterChange={setTargetMonster}
+            splashTargetCount={splashTargetCount}
+            onSplashTargetCountChange={setSplashTargetCount}
           />
         </Grid>
         <Grid item xs={12}>

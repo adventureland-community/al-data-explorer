@@ -366,6 +366,7 @@ export function ItemBalanceMatrix({
     targetMonster: combatParams.simTarget,
     simScope: combatParams.simScope,
     simGear: combatParams.simGear,
+    splashTargetCount: combatParams.simSplash,
   };
 
   const selectedItemKeys = selectedKeys as ItemKey[];
@@ -449,6 +450,7 @@ export function ItemBalanceMatrix({
         G,
         simScope: combatContext.simScope,
         baseGear: combatContext.simGear,
+        splashTargetCount: combatContext.splashTargetCount,
       });
     },
     [
@@ -458,6 +460,7 @@ export function ItemBalanceMatrix({
       combatContext.targetMonster,
       combatContext.simScope,
       combatContext.simGear,
+      combatContext.splashTargetCount,
       targetEntity,
     ],
   );
@@ -568,6 +571,7 @@ export function ItemBalanceMatrix({
               simTarget: next.targetMonster,
               simScope: next.simScope,
               simGear: next.simGear,
+              simSplash: next.splashTargetCount,
             })
           }
           compact

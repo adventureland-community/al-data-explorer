@@ -34,6 +34,7 @@ export type CombatContextValue = {
   targetMonster: MatrixCombatParams["simTarget"];
   simScope: MatrixSimScope;
   simGear: { [slot in SlotType]?: ItemInfo };
+  splashTargetCount: number;
 };
 
 export function CombatContextBar({
@@ -142,6 +143,28 @@ export function CombatContextBar({
             onChange={(_, v) => onChange({ ...value, level: v as number })}
             valueLabelDisplay="auto"
           />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+            Nearby splash targets: {value.splashTargetCount}
+          </Typography>
+          <Slider
+            size="small"
+            value={value.splashTargetCount}
+            min={0}
+            max={5}
+            step={1}
+            marks={[
+              { value: 0, label: "0" },
+              { value: 3, label: "3" },
+              { value: 5, label: "5" },
+            ]}
+            onChange={(_, v) => onChange({ ...value, splashTargetCount: v as number })}
+            valueLabelDisplay="auto"
+          />
+          <Typography variant="caption" color="text.secondary" display="block">
+            Explosion/blast hits extra nearby mobs per auto-attack.
+          </Typography>
         </Grid>
         <Grid item xs={12}>
           <FormControlLabel

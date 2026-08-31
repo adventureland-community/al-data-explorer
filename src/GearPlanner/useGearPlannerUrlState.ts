@@ -15,10 +15,12 @@ export function useGearPlannerUrlState(args: {
   selectedClass?: SelectedCharacterClass;
   level: number;
   targetMonster: MonsterKey;
+  splashTargetCount: number;
   setGear: (gear: { [slot in SlotType]?: ItemInfo }) => void;
   setSelectedClass: (c: SelectedCharacterClass | undefined) => void;
   setLevel: (level: number) => void;
   setTargetMonster: (key: MonsterKey) => void;
+  setSplashTargetCount: (count: number) => void;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const hydrated = useRef(false);
@@ -38,6 +40,7 @@ export function useGearPlannerUrlState(args: {
       }
       if (parsed.level) args.setLevel(parsed.level);
       if (parsed.target) args.setTargetMonster(parsed.target as MonsterKey);
+      if (parsed.splashTargetCount != null) args.setSplashTargetCount(parsed.splashTargetCount);
     }
     hydrated.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate once from URL on mount
@@ -55,6 +58,7 @@ export function useGearPlannerUrlState(args: {
       classKey: args.selectedClass?.className as ClassKey | undefined,
       level: args.level,
       target: args.targetMonster,
+      splashTargetCount: args.splashTargetCount,
     };
     const next = writeGearPlannerSearchParams(searchParams, state);
     if (next.toString() !== searchParams.toString()) {
@@ -65,6 +69,7 @@ export function useGearPlannerUrlState(args: {
     args.selectedClass,
     args.level,
     args.targetMonster,
+    args.splashTargetCount,
     searchParams,
     setSearchParams,
   ]);

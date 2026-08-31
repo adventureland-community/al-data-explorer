@@ -3,6 +3,8 @@ import { GItem, ItemInfo, SlotType } from "typed-adventureland";
 import { CustomGData } from "../../GDataContext";
 import { getItemClassList } from "../itemMeta";
 import { resolveItemInstanceStats } from "../itemProperties";
+import { abilityBonusOnProc, abilityProcRate } from "./abilityProc";
+import { mitigationMultiplier } from "./damageMultiplier";
 import type { CombatEntity } from "./types";
 
 export type GearAbility = {
@@ -67,34 +69,9 @@ export function estimateAbilityDps(
   for (const ability of Object.values(abilities)) {
     if (!PROC_ABILITIES.has(ability.key) || ability.attr0 <= 0) continue;
 
-    const procRate = Math.min(1, ability.attr0 / 100);
-    let bonusPerProc = 0;
-
-    switch (ability.key) {
-      case "burn": {
-        // Burn DoT ticks ceil(intensity/5); intensity ≈ hit damage. ~6 ticks over ~3s simplified.
-        const tickDamage = Math.ceil(source.attack / 5);
-        bonusPerProc = tickDamage * 6 * (ability.unlimited ? 1.15 : 1);
-        break;
-      }
-      case "poison": {
-        bonusPerProc = Math.ceil(source.attack / 8) * 4;
-        break;
-      }
-      case "freeze": {
-        // Server adds 10 * attr0² on freeze proc hits.
-        bonusPerProc = 10 * ability.attr0 * ability.attr0;
-        break;
-      }
-      case "bash":
-        bonusPerProc = source.attack * 0.15;
-        break;
-      case "sugarrush":
-        bonusPerProc = source.attack * 0.25;
-        break;
-      default:
-        bonusPerProc = 0;
-    }
+    const procRate = abilityProcRate(ability);
+    const hitDamage = source.attack * (mitigationMultiplier(source, _target) || 1);
+    const bonusPerProc = abilityBonusOnProc(ability, hitDamage > 0 ? hitDamage : source.attack);
 
     const dps = freq * procRate * bonusPerProc;
     if (dps > 0) {
@@ -111,14 +88,14 @@ export function estimateAbilityDps(
   return { abilityDps, lines };
 }
 
-/** Splash stats on gear — shown in breakdown but not single-target DPS. */
-export function collectUnsimulatedOnHitEffects(
+/** Splash stats on gear — intensities for multi-target sim. */
+export function collectSplashIntensities(
   gear: { [slot in SlotType]?: ItemInfo },
   G: CustomGData,
   classKey?: string,
   damageType?: string,
-): { key: string; label: string; reason: string }[] {
-  const effects: { key: string; label: string; reason: string }[] = [];
+): { key: string; label: string; intensity: number }[] {
+  const rows: { key: string; label: string; intensity: number }[] = [];
 
   for (const itemInfo of Object.values(gear)) {
     if (!itemInfo) continue;
@@ -138,20 +115,37 @@ export function collectUnsimulatedOnHitEffects(
     const statProp = prop as Partial<Record<string, number>>;
 
     if (statProp.explosion && damageType === "physical") {
-      effects.push({
+      rows.push({
         key: `explosion-${itemInfo.name}`,
         label: `Explosion ${statProp.explosion}%`,
-        reason: "Splash damage to nearby targets — not counted vs a single mob.",
+        intensity: statProp.explosion,
       });
     }
     if (statProp.blast && damageType === "magical") {
-      effects.push({
+      rows.push({
         key: `blast-${itemInfo.name}`,
         label: `Blast ${statProp.blast}%`,
-        reason: "Splash damage to nearby targets — not counted vs a single mob.",
+        intensity: statProp.blast,
       });
     }
   }
 
-  return effects;
+  return rows;
+}
+
+/** @deprecated Use collectSplashIntensities + splashTargetCount in estimateTotalDps. */
+export function collectUnsimulatedOnHitEffects(
+  gear: { [slot in SlotType]?: ItemInfo },
+  G: CustomGData,
+  classKey?: string,
+  damageType?: string,
+  splashTargetCount = 0,
+): { key: string; label: string; reason: string }[] {
+  if (splashTargetCount > 0) return [];
+  const rows = collectSplashIntensities(gear, G, classKey, damageType);
+  return rows.map((row) => ({
+    key: row.key,
+    label: row.label,
+    reason: "Splash damage to nearby targets — set nearby count > 0 to include.",
+  }));
 }

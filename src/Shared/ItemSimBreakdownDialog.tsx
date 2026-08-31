@@ -158,6 +158,19 @@ export function ItemSimBreakdownDialog({
         {breakdown.abilityDps > 0 && !breakdown.abilityLines?.length && (
           <StatLine label="Abilities (total)" value={breakdown.abilityDps.toFixed(1)} />
         )}
+        {(breakdown.splashDps ?? 0) > 0 && (
+          <StatLine label="Splash (nearby)" value={(breakdown.splashDps ?? 0).toFixed(1)} />
+        )}
+        {breakdown.splashLines?.map((line) => (
+          <Box key={line.key} sx={{ pl: 1 }}>
+            <StatLine label={line.label} value={line.dps.toFixed(1)} />
+            {line.detail && (
+              <Typography variant="caption" color="text.secondary" sx={{ pl: 1, display: "block" }}>
+                {line.detail}
+              </Typography>
+            )}
+          </Box>
+        ))}
         <Divider sx={{ my: 1 }} />
         <StatLine label="Hit damage" value={breakdown.hitDamage.toFixed(1)} />
         <StatLine label="Mitigation" value={`${(breakdown.mitigationMult * 100).toFixed(1)}%`} />
@@ -206,8 +219,8 @@ export function ItemSimBreakdownDialog({
         <Box sx={{ mt: 2, display: "flex", gap: 0.75, alignItems: "flex-start" }}>
           <WarningAmberIcon sx={{ fontSize: 16, color: "text.secondary", mt: 0.2 }} />
           <Typography variant="caption" color="text.secondary">
-            Quick estimate uses expected crit. Event sim (Gear Planner) rolls variance but does not
-            yet model ability procs. Explosion/blast are AoE splash only.
+            Quick estimate uses expected crit and proc rates. Event sim rolls variance, crits, and
+            ability procs. Set nearby splash targets for explosion/blast AoE.
           </Typography>
         </Box>
       </DialogContent>

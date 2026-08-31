@@ -19,6 +19,7 @@ import {
   Tab,
   Tabs,
   Typography,
+  Slider,
 } from "@mui/material";
 import { ItemInfo, MonsterKey, SlotType } from "typed-adventureland";
 import { useMemo, useState } from "react";
@@ -45,6 +46,8 @@ export type CombatSimPanelProps = {
   /** Controlled target (shared between outgoing / incoming). */
   targetMonster?: MonsterKey;
   onTargetMonsterChange?: (key: MonsterKey) => void;
+  splashTargetCount?: number;
+  onSplashTargetCountChange?: (count: number) => void;
 };
 
 export type CombatSimPanelCompactProps = CombatSimPanelProps & {
@@ -152,6 +155,17 @@ function DpsResults({
           {breakdown.abilityDps > 0 && (
             <StatRow label="Abilities" value={breakdown.abilityDps.toFixed(1)} />
           )}
+          {(breakdown.splashDps ?? 0) > 0 && (
+            <StatRow label="Splash (nearby)" value={(breakdown.splashDps ?? 0).toFixed(1)} />
+          )}
+          {breakdown.splashLines?.map((line) => (
+            <StatRow
+              key={line.key}
+              label={`  ${line.label}`}
+              value={line.dps.toFixed(1)}
+              hint={line.detail}
+            />
+          ))}
           {breakdown.abilityLines?.map((line) => (
             <StatRow
               key={line.key}
@@ -195,24 +209,29 @@ function computeBreakdown(args: {
   G: CustomGData;
   targetEntity: ReturnType<typeof monsterToCombatEntity>;
   simMode: "formulation" | "event";
+  splashTargetCount: number;
 }): DpsBreakdown {
-  const { characterClass, level, gear, G, targetEntity, simMode } = args;
+  const { characterClass, level, gear, G, targetEntity, simMode, splashTargetCount } = args;
   const stats = resolveCombatStatsFromLoadout({
     characterClass,
     level,
     gear,
     G,
   });
-  if (simMode === "event") {
-    return estimateTotalDps(stats, targetEntity, G, gear, {
-      mode: "event",
-      durationMs: 30_000,
-    });
-  }
-  return estimateTotalDps(stats, targetEntity, G, gear, {
-    mode: "formulation",
-    classKey: characterClass.className,
-  });
+  const opts =
+    simMode === "event"
+      ? {
+          mode: "event" as const,
+          durationMs: 30_000,
+          classKey: characterClass.className,
+          splashTargetCount,
+        }
+      : {
+          mode: "formulation" as const,
+          classKey: characterClass.className,
+          splashTargetCount,
+        };
+  return estimateTotalDps(stats, targetEntity, G, gear, opts);
 }
 
 export function CombatSimPanel({
@@ -223,10 +242,15 @@ export function CombatSimPanel({
   compact = false,
   targetMonster: targetMonsterProp,
   onTargetMonsterChange,
+  splashTargetCount: splashProp,
+  onSplashTargetCountChange,
 }: CombatSimPanelCompactProps) {
   const [internalTarget, setInternalTarget] = useState<MonsterKey>("ent");
   const targetMonster = targetMonsterProp ?? internalTarget;
   const setTargetMonster = onTargetMonsterChange ?? setInternalTarget;
+  const [internalSplash, setInternalSplash] = useState(0);
+  const splashTargetCount = splashProp ?? internalSplash;
+  const setSplashTargetCount = onSplashTargetCountChange ?? setInternalSplash;
 
   const [simMode, setSimMode] = useState<"formulation" | "event">("formulation");
   const [eventBreakdown, setEventBreakdown] = useState<DpsBreakdown | null>(null);
@@ -249,8 +273,9 @@ export function CombatSimPanel({
       G,
       targetEntity,
       simMode: "formulation",
+      splashTargetCount,
     });
-  }, [characterClass, gear, G, level, simMode, targetEntity]);
+  }, [characterClass, gear, G, level, simMode, splashTargetCount, targetEntity]);
 
   const incoming = useMemo(() => {
     if (!combatStats) return null;
@@ -281,6 +306,7 @@ export function CombatSimPanel({
         G,
         targetEntity,
         simMode: "event",
+        splashTargetCount,
       }),
     );
   };
@@ -328,6 +354,23 @@ export function CombatSimPanel({
         <MonsterTargetPicker G={G} value={targetMonster} onChange={setTargetMonster} />
 
         {combatStats && !compact && <CombatStatChips stats={combatStats} />}
+
+        {!compact && (
+          <>
+            <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+              Nearby splash targets: {splashTargetCount}
+            </Typography>
+            <Slider
+              size="small"
+              value={splashTargetCount}
+              min={0}
+              max={5}
+              step={1}
+              onChange={(_, v) => setSplashTargetCount(v as number)}
+              valueLabelDisplay="auto"
+            />
+          </>
+        )}
 
         {!compact && (
           <FormControl fullWidth size="small">
@@ -407,8 +450,8 @@ export function CombatSimPanel({
             <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75 }}>
               <ShieldIcon sx={{ fontSize: 16, color: "text.secondary", mt: 0.2 }} />
               <Typography variant="caption" color="text.secondary">
-                Quick mode uses expected crit. Event sim rolls ±10% variance and crit procs over 30
-                seconds.
+                Quick mode uses expected crit. Event sim rolls variance, crits, and ability procs
+                over 30 seconds.
               </Typography>
             </Box>
           </>
