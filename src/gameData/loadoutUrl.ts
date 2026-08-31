@@ -3,14 +3,18 @@ import { ClassKey, ItemInfo, SlotType } from "typed-adventureland";
 
 import { SavedLoadout } from "../GearPlanner/types";
 import { cloneLoadoutGear } from "./loadoutStats";
+import {
+  type CombatSimUrlOptions,
+  parseCombatSimParams,
+  writeCombatSimParams,
+} from "./combatSimUrl";
 
 export type LoadoutUrlState = {
   gear: { [slot in SlotType]?: ItemInfo };
   classKey?: ClassKey;
   level: number;
   target?: string;
-  splashTargetCount?: number;
-};
+} & CombatSimUrlOptions;
 
 const GEAR_PARAM = "gear";
 const CLASS_PARAM = "class";
@@ -24,6 +28,10 @@ export function encodeLoadoutParam(state: LoadoutUrlState): string {
     level: state.level,
     target: state.target,
     splashTargetCount: state.splashTargetCount,
+    assumeChargeBuffs: state.assumeChargeBuffs,
+    useSkillRotation: state.useSkillRotation,
+    assumeMarked: state.assumeMarked,
+    comboStacks: state.comboStacks,
   });
   return LZString.compressToEncodedURIComponent(payload);
 }
@@ -40,6 +48,10 @@ export function decodeLoadoutParam(raw: string | null): LoadoutUrlState | null {
       level?: number;
       target?: string;
       splashTargetCount?: number;
+      assumeChargeBuffs?: boolean;
+      useSkillRotation?: boolean;
+      assumeMarked?: boolean;
+      comboStacks?: number;
     };
     if (!parsed || typeof parsed !== "object") return null;
     return {
@@ -53,6 +65,13 @@ export function decodeLoadoutParam(raw: string | null): LoadoutUrlState | null {
       splashTargetCount:
         typeof parsed.splashTargetCount === "number"
           ? Math.min(5, Math.max(0, Math.round(parsed.splashTargetCount)))
+          : undefined,
+      assumeChargeBuffs: parsed.assumeChargeBuffs,
+      useSkillRotation: parsed.useSkillRotation,
+      assumeMarked: parsed.assumeMarked,
+      comboStacks:
+        typeof parsed.comboStacks === "number"
+          ? Math.min(12, Math.max(1, Math.round(parsed.comboStacks)))
           : undefined,
     };
   } catch {
@@ -72,28 +91,36 @@ export function parseGearPlannerSearchParams(
   searchParams: URLSearchParams,
 ): LoadoutUrlState | null {
   const fromGear = decodeLoadoutParam(searchParams.get(GEAR_PARAM));
-  const splashRaw = searchParams.get("simSplash");
-  const splashFromParam =
-    splashRaw != null ? Math.min(5, Math.max(0, Math.round(Number(splashRaw) || 0))) : undefined;
+  const simFromUrl = parseCombatSimParams(searchParams);
 
   if (fromGear) {
     return {
       ...fromGear,
-      splashTargetCount: fromGear.splashTargetCount ?? splashFromParam,
+      splashTargetCount: fromGear.splashTargetCount ?? simFromUrl.splashTargetCount,
+      assumeChargeBuffs: fromGear.assumeChargeBuffs ?? simFromUrl.assumeChargeBuffs,
+      useSkillRotation: fromGear.useSkillRotation ?? simFromUrl.useSkillRotation,
+      assumeMarked: fromGear.assumeMarked ?? simFromUrl.assumeMarked,
+      comboStacks: fromGear.comboStacks ?? simFromUrl.comboStacks,
     };
   }
 
   const classKey = searchParams.get(CLASS_PARAM);
   const levelRaw = searchParams.get(LEVEL_PARAM);
   const target = searchParams.get(TARGET_PARAM);
-  if (!classKey && !levelRaw && !target && splashFromParam == null) return null;
+  const hasSim =
+    simFromUrl.splashTargetCount != null ||
+    simFromUrl.assumeChargeBuffs != null ||
+    simFromUrl.useSkillRotation != null ||
+    simFromUrl.assumeMarked != null ||
+    simFromUrl.comboStacks != null;
+  if (!classKey && !levelRaw && !target && !hasSim) return null;
 
   return {
     gear: {},
     classKey: (classKey as ClassKey | null) ?? undefined,
     level: levelRaw ? Math.min(200, Math.max(1, Number(levelRaw) || 1)) : 1,
     target: target ?? undefined,
-    splashTargetCount: splashFromParam,
+    ...simFromUrl,
   };
 }
 
@@ -119,11 +146,7 @@ export function writeGearPlannerSearchParams(
   if (state.target && state.target !== "ent") next.set(TARGET_PARAM, state.target);
   else next.delete(TARGET_PARAM);
 
-  if (state.splashTargetCount && state.splashTargetCount > 0) {
-    next.set("simSplash", String(state.splashTargetCount));
-  } else {
-    next.delete("simSplash");
-  }
+  writeCombatSimParams(next, state);
 
   return next;
 }

@@ -119,6 +119,10 @@ export function computeMatrixItemSim(args: {
   simScope?: MatrixSimScope;
   baseGear?: { [slot in SlotType]?: ItemInfo };
   splashTargetCount?: number;
+  assumeChargeBuffs?: boolean;
+  useSkillRotation?: boolean;
+  assumeMarked?: boolean;
+  comboStacks?: number;
 }): MatrixItemSimResult | null {
   const {
     itemKey,
@@ -129,6 +133,10 @@ export function computeMatrixItemSim(args: {
     simScope = "mainhand",
     baseGear,
     splashTargetCount = 0,
+    assumeChargeBuffs = false,
+    useSkillRotation = true,
+    assumeMarked = false,
+    comboStacks = 1,
   } = args;
   const gItem = G.items[itemKey];
   if (!gItem) return null;
@@ -167,9 +175,13 @@ export function computeMatrixItemSim(args: {
   const breakdown = estimateTotalDps(combatStats, targetEntity, G, gear, {
     classKey: className,
     splashTargetCount,
-    useSkillRotation: true,
+    useSkillRotation,
+    assumeChargeBuffs,
+    assumeMarked,
+    comboStacks,
     playerLevel,
     mainhandWtype: gItem.wtype,
+    playerMp: combatStats.mp,
   });
 
   const equipNotes = getItemSimEquipNotes({

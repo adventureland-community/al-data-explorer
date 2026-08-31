@@ -35,6 +35,10 @@ export type CombatContextValue = {
   simScope: MatrixSimScope;
   simGear: { [slot in SlotType]?: ItemInfo };
   splashTargetCount: number;
+  assumeChargeBuffs: boolean;
+  useSkillRotation: boolean;
+  assumeMarked: boolean;
+  comboStacks: number;
 };
 
 export function CombatContextBar({

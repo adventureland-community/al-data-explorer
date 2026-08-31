@@ -64,6 +64,10 @@ export function GearPlanner() {
   const [level, setLevel] = useState(1);
   const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
   const [splashTargetCount, setSplashTargetCount] = useState(0);
+  const [assumeChargeBuffs, setAssumeChargeBuffs] = useState(false);
+  const [useSkillRotation, setUseSkillRotation] = useState(true);
+  const [assumeMarked, setAssumeMarked] = useState(false);
+  const [comboStacks, setComboStacks] = useState(1);
 
   const classes = Object.entries(G?.classes ?? []).map(
     ([className, item]) => ({ className, ...item } as SelectedCharacterClass),
@@ -76,11 +80,19 @@ export function GearPlanner() {
     level,
     targetMonster,
     splashTargetCount,
+    assumeChargeBuffs,
+    useSkillRotation,
+    assumeMarked,
+    comboStacks,
     setGear,
     setSelectedClass,
     setLevel,
     setTargetMonster,
     setSplashTargetCount,
+    setAssumeChargeBuffs,
+    setUseSkillRotation,
+    setAssumeMarked,
+    setComboStacks,
   });
 
   if (!G) {
@@ -154,6 +166,14 @@ export function GearPlanner() {
             onTargetMonsterChange={setTargetMonster}
             splashTargetCount={splashTargetCount}
             onSplashTargetCountChange={setSplashTargetCount}
+            assumeChargeBuffs={assumeChargeBuffs}
+            onAssumeChargeBuffsChange={setAssumeChargeBuffs}
+            useSkillRotation={useSkillRotation}
+            onUseSkillRotationChange={setUseSkillRotation}
+            assumeMarked={assumeMarked}
+            onAssumeMarkedChange={setAssumeMarked}
+            comboStacks={comboStacks}
+            onComboStacksChange={setComboStacks}
           />
         </Grid>
         <Grid item xs={12}>

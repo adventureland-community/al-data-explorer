@@ -366,7 +366,11 @@ export function ItemBalanceMatrix({
     targetMonster: combatParams.simTarget,
     simScope: combatParams.simScope,
     simGear: combatParams.simGear,
-    splashTargetCount: combatParams.simSplash,
+    splashTargetCount: combatParams.splashTargetCount ?? 0,
+    assumeChargeBuffs: combatParams.assumeChargeBuffs ?? false,
+    useSkillRotation: combatParams.useSkillRotation ?? true,
+    assumeMarked: combatParams.assumeMarked ?? false,
+    comboStacks: combatParams.comboStacks ?? 1,
   };
 
   const selectedItemKeys = selectedKeys as ItemKey[];
@@ -451,6 +455,10 @@ export function ItemBalanceMatrix({
         simScope: combatContext.simScope,
         baseGear: combatContext.simGear,
         splashTargetCount: combatContext.splashTargetCount,
+        assumeChargeBuffs: combatContext.assumeChargeBuffs,
+        useSkillRotation: combatContext.useSkillRotation,
+        assumeMarked: combatContext.assumeMarked,
+        comboStacks: combatContext.comboStacks,
       });
     },
     [
@@ -461,6 +469,10 @@ export function ItemBalanceMatrix({
       combatContext.simScope,
       combatContext.simGear,
       combatContext.splashTargetCount,
+      combatContext.assumeChargeBuffs,
+      combatContext.useSkillRotation,
+      combatContext.assumeMarked,
+      combatContext.comboStacks,
       targetEntity,
     ],
   );
@@ -571,7 +583,11 @@ export function ItemBalanceMatrix({
               simTarget: next.targetMonster,
               simScope: next.simScope,
               simGear: next.simGear,
-              simSplash: next.splashTargetCount,
+              splashTargetCount: next.splashTargetCount,
+              assumeChargeBuffs: next.assumeChargeBuffs,
+              useSkillRotation: next.useSkillRotation,
+              assumeMarked: next.assumeMarked,
+              comboStacks: next.comboStacks,
             })
           }
           compact

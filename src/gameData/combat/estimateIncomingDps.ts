@@ -7,6 +7,7 @@ import type { CustomGData } from "../../GDataContext";
 export type IncomingDpsBreakdown = DpsBreakdown & {
   evasionFactor: number;
   reflectionFactor: number;
+  critFactor: number;
   secondsToDeath: number | null;
 };
 
@@ -19,6 +20,10 @@ export function estimateIncomingDps(
     abilities?: Record<string, MonsterAbilityDef>;
   },
 ): IncomingDpsBreakdown {
+  const noCritHit = estimateHitDamage(monster, player, {
+    attackerIsPlayer: false,
+    expectedCrit: false,
+  });
   const {
     damage: rawHit,
     mitigationMult,
@@ -26,6 +31,7 @@ export function estimateIncomingDps(
   } = estimateHitDamage(monster, player, {
     attackerIsPlayer: false,
   });
+  const critFactor = noCritHit.damage > 0 ? rawHit / noCritHit.damage : 1;
 
   const reflectionFactor = incomingReflectionFactor(monster, player);
   const hitDamage = rawHit * reflectionFactor;
@@ -69,6 +75,7 @@ export function estimateIncomingDps(
     mitigationMult,
     evasionFactor,
     reflectionFactor,
+    critFactor,
     autoAttackDps: hitDamage * freq,
     abilityDps,
     abilityLines,

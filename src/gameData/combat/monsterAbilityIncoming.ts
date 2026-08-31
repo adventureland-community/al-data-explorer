@@ -101,6 +101,8 @@ export function estimateMonsterAbilityIncoming(
       attack: hit.rawDamage,
       frequency: 0,
       damage_type: hit.damageType,
+      crit: monster.crit,
+      critdamage: monster.critdamage,
     };
     const { damage: mitigated } = estimateHitDamage(attacker, player, {
       attackerIsPlayer: false,

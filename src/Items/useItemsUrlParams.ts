@@ -4,6 +4,12 @@ import { MonsterKey, SlotType, ItemInfo } from "typed-adventureland";
 
 import { ItemSortKey } from "../gameData/itemFilters";
 import { decodeLoadoutParam, encodeLoadoutParam } from "../gameData/loadoutUrl";
+import {
+  COMBAT_SIM_DEFAULTS,
+  parseCombatSimParams,
+  writeCombatSimParams,
+  type CombatSimUrlOptions,
+} from "../gameData/combatSimUrl";
 import type { MatrixSimScope } from "../gameData/combat/itemSimContext";
 
 export type ItemsBrowseParams = {
@@ -159,21 +165,14 @@ export type MatrixCombatParams = {
   simTarget: MonsterKey;
   simScope: MatrixSimScope;
   simGear: { [slot in SlotType]?: ItemInfo };
-  simSplash: number;
-};
+} & CombatSimUrlOptions;
 
 const MATRIX_VIEW_DEFAULT: MatrixViewMode = "stats";
 const MATRIX_CLASS_DEFAULT = "priest";
 const MATRIX_LEVEL_DEFAULT = 80;
 const MATRIX_TARGET_DEFAULT: MonsterKey = "ent";
 const MATRIX_SCOPE_DEFAULT: MatrixSimScope = "mainhand";
-const MATRIX_SPLASH_DEFAULT = 0;
-
-function parseMatrixSplash(raw: string | null): number {
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return MATRIX_SPLASH_DEFAULT;
-  return Math.min(5, Math.max(0, Math.round(n)));
-}
+const MATRIX_SPLASH_DEFAULT = COMBAT_SIM_DEFAULTS.splashTargetCount;
 
 function parseMatrixView(raw: string | null): MatrixViewMode {
   return raw === "dps" ? "dps" : MATRIX_VIEW_DEFAULT;
@@ -195,6 +194,7 @@ export function useMatrixCombatParams(
   const params: MatrixCombatParams = useMemo(() => {
     const classRaw = searchParams.get("simClass");
     const targetRaw = searchParams.get("simTarget");
+    const simOpts = parseCombatSimParams(searchParams);
     return {
       view: parseMatrixView(searchParams.get("view")),
       simClass: classRaw && validClass(classRaw) ? classRaw : MATRIX_CLASS_DEFAULT,
@@ -203,7 +203,11 @@ export function useMatrixCombatParams(
         targetRaw && validTarget(targetRaw) ? (targetRaw as MonsterKey) : MATRIX_TARGET_DEFAULT,
       simScope: searchParams.get("simScope") === "loadout" ? "loadout" : MATRIX_SCOPE_DEFAULT,
       simGear: decodeLoadoutParam(searchParams.get("simGear"))?.gear ?? {},
-      simSplash: parseMatrixSplash(searchParams.get("simSplash")),
+      splashTargetCount: simOpts.splashTargetCount ?? MATRIX_SPLASH_DEFAULT,
+      assumeChargeBuffs: simOpts.assumeChargeBuffs ?? COMBAT_SIM_DEFAULTS.assumeChargeBuffs,
+      useSkillRotation: simOpts.useSkillRotation ?? COMBAT_SIM_DEFAULTS.useSkillRotation,
+      assumeMarked: simOpts.assumeMarked ?? COMBAT_SIM_DEFAULTS.assumeMarked,
+      comboStacks: simOpts.comboStacks ?? COMBAT_SIM_DEFAULTS.comboStacks,
     };
   }, [searchParams, validClass, validTarget]);
 
@@ -230,7 +234,16 @@ export function useMatrixCombatParams(
     (
       next: Pick<
         MatrixCombatParams,
-        "simClass" | "simLevel" | "simTarget" | "simScope" | "simGear" | "simSplash"
+        | "simClass"
+        | "simLevel"
+        | "simTarget"
+        | "simScope"
+        | "simGear"
+        | "splashTargetCount"
+        | "assumeChargeBuffs"
+        | "useSkillRotation"
+        | "assumeMarked"
+        | "comboStacks"
       >,
     ) => {
       patch((draft) => {
@@ -250,8 +263,7 @@ export function useMatrixCombatParams(
         } else {
           draft.delete("simGear");
         }
-        if (next.simSplash === MATRIX_SPLASH_DEFAULT) draft.delete("simSplash");
-        else draft.set("simSplash", String(next.simSplash ?? MATRIX_SPLASH_DEFAULT));
+        writeCombatSimParams(draft, next);
       });
     },
     [patch, validClass],

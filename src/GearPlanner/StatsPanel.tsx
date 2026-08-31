@@ -109,6 +109,14 @@ export function StatsPanel({
   onTargetMonsterChange,
   splashTargetCount,
   onSplashTargetCountChange,
+  assumeChargeBuffs,
+  onAssumeChargeBuffsChange,
+  useSkillRotation,
+  onUseSkillRotationChange,
+  assumeMarked,
+  onAssumeMarkedChange,
+  comboStacks,
+  onComboStacksChange,
 }: {
   selectedCharacterClass?: SelectedCharacterClass;
   level: number;
@@ -117,6 +125,14 @@ export function StatsPanel({
   onTargetMonsterChange?: (key: MonsterKey) => void;
   splashTargetCount?: number;
   onSplashTargetCountChange?: (count: number) => void;
+  assumeChargeBuffs?: boolean;
+  onAssumeChargeBuffsChange?: (value: boolean) => void;
+  useSkillRotation?: boolean;
+  onUseSkillRotationChange?: (value: boolean) => void;
+  assumeMarked?: boolean;
+  onAssumeMarkedChange?: (value: boolean) => void;
+  comboStacks?: number;
+  onComboStacksChange?: (count: number) => void;
 }) {
   const G = useContext(GDataContext);
 
@@ -196,6 +212,14 @@ export function StatsPanel({
           onTargetMonsterChange={onTargetMonsterChange}
           splashTargetCount={splashTargetCount}
           onSplashTargetCountChange={onSplashTargetCountChange}
+          assumeChargeBuffs={assumeChargeBuffs}
+          onAssumeChargeBuffsChange={onAssumeChargeBuffsChange}
+          useSkillRotation={useSkillRotation}
+          onUseSkillRotationChange={onUseSkillRotationChange}
+          assumeMarked={assumeMarked}
+          onAssumeMarkedChange={onAssumeMarkedChange}
+          comboStacks={comboStacks}
+          onComboStacksChange={onComboStacksChange}
         />
       </Grid>
       <Grid item xs={12} lg={9}>

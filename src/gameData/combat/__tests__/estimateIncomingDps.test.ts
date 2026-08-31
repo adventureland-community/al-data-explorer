@@ -78,6 +78,19 @@ describe("estimateIncomingDps", () => {
     expect(incoming.abilityLines?.some((l) => l.key === "mability:multi_burn")).toBe(true);
     expect(incoming.abilityDps).toBeGreaterThan(0);
   });
+
+  it("monster crit increases expected incoming auto DPS", () => {
+    const monster = {
+      attack: 500,
+      frequency: 1,
+      damage_type: "physical" as const,
+      crit: 20,
+    };
+    const withCrit = estimateIncomingDps(monster, player);
+    const withoutCrit = estimateIncomingDps({ ...monster, crit: 0 }, player);
+    expect(withCrit.critFactor).toBeGreaterThan(1);
+    expect(withCrit.autoAttackDps).toBeGreaterThan(withoutCrit.autoAttackDps);
+  });
 });
 
 describe("assumeMarked outgoing DPS", () => {
