@@ -20,6 +20,8 @@ import {
   Tabs,
   Typography,
   Slider,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import { ItemInfo, MonsterKey, SlotType } from "typed-adventureland";
 import { useMemo, useState } from "react";
@@ -27,7 +29,7 @@ import { useMemo, useState } from "react";
 import { CustomGData } from "../GDataContext";
 import {
   DpsBreakdown,
-  estimateAutoAttackDps,
+  estimateIncomingDps,
   estimateStatWeights,
   estimateTotalDps,
   monsterToCombatEntity,
@@ -48,6 +50,8 @@ export type CombatSimPanelProps = {
   onTargetMonsterChange?: (key: MonsterKey) => void;
   splashTargetCount?: number;
   onSplashTargetCountChange?: (count: number) => void;
+  assumeChargeBuffs?: boolean;
+  onAssumeChargeBuffsChange?: (value: boolean) => void;
 };
 
 export type CombatSimPanelCompactProps = CombatSimPanelProps & {
@@ -185,6 +189,14 @@ function DpsResults({
               hint={line.detail}
             />
           ))}
+          {breakdown.riskLines?.map((line) => (
+            <StatRow
+              key={line.key}
+              label={`  ${line.label}`}
+              value={`${line.perSecond.toFixed(1)}/s`}
+              hint={line.detail}
+            />
+          ))}
           <Divider sx={{ my: 0.75 }} />
           <StatRow
             label="Hit damage"
@@ -221,8 +233,18 @@ function computeBreakdown(args: {
   targetEntity: ReturnType<typeof monsterToCombatEntity>;
   simMode: "formulation" | "event";
   splashTargetCount: number;
+  assumeChargeBuffs: boolean;
 }): DpsBreakdown {
-  const { characterClass, level, gear, G, targetEntity, simMode, splashTargetCount } = args;
+  const {
+    characterClass,
+    level,
+    gear,
+    G,
+    targetEntity,
+    simMode,
+    splashTargetCount,
+    assumeChargeBuffs,
+  } = args;
   const stats = resolveCombatStatsFromLoadout({
     characterClass,
     level,
@@ -236,11 +258,13 @@ function computeBreakdown(args: {
           durationMs: 30_000,
           classKey: characterClass.className,
           splashTargetCount,
+          assumeChargeBuffs,
         }
       : {
           mode: "formulation" as const,
           classKey: characterClass.className,
           splashTargetCount,
+          assumeChargeBuffs,
         };
   return estimateTotalDps(stats, targetEntity, G, gear, opts);
 }
@@ -255,6 +279,8 @@ export function CombatSimPanel({
   onTargetMonsterChange,
   splashTargetCount: splashProp,
   onSplashTargetCountChange,
+  assumeChargeBuffs: chargeBuffProp,
+  onAssumeChargeBuffsChange,
 }: CombatSimPanelCompactProps) {
   const [internalTarget, setInternalTarget] = useState<MonsterKey>("ent");
   const targetMonster = targetMonsterProp ?? internalTarget;
@@ -262,6 +288,9 @@ export function CombatSimPanel({
   const [internalSplash, setInternalSplash] = useState(0);
   const splashTargetCount = splashProp ?? internalSplash;
   const setSplashTargetCount = onSplashTargetCountChange ?? setInternalSplash;
+  const [internalChargeBuff, setInternalChargeBuff] = useState(false);
+  const assumeChargeBuffs = chargeBuffProp ?? internalChargeBuff;
+  const setAssumeChargeBuffs = onAssumeChargeBuffsChange ?? setInternalChargeBuff;
 
   const [simMode, setSimMode] = useState<"formulation" | "event">("formulation");
   const [eventBreakdown, setEventBreakdown] = useState<DpsBreakdown | null>(null);
@@ -285,12 +314,13 @@ export function CombatSimPanel({
       targetEntity,
       simMode: "formulation",
       splashTargetCount,
+      assumeChargeBuffs,
     });
-  }, [characterClass, gear, G, level, simMode, splashTargetCount, targetEntity]);
+  }, [characterClass, gear, G, level, simMode, splashTargetCount, assumeChargeBuffs, targetEntity]);
 
   const incoming = useMemo(() => {
     if (!combatStats) return null;
-    return estimateAutoAttackDps(monsterToCombatEntity(monster), combatStats);
+    return estimateIncomingDps(monsterToCombatEntity(monster), combatStats);
   }, [combatStats, monster]);
 
   const statWeights = useMemo(() => {
@@ -318,6 +348,7 @@ export function CombatSimPanel({
         targetEntity,
         simMode: "event",
         splashTargetCount,
+        assumeChargeBuffs,
       }),
     );
   };
@@ -335,11 +366,30 @@ export function CombatSimPanel({
   const incomingPanel = incoming && combatStats && (
     <Box>
       <StatRow label="Monster DPS" value={incoming.totalDps.toFixed(1)} />
-      <StatRow label="Your HP" value={Math.round(combatStats.hp ?? 0).toString()} />
-      {incoming.hitDamage > 0 && (combatStats.hp ?? 0) > 0 && (
+      <StatRow label="Hit damage" value={incoming.hitDamage.toFixed(1)} />
+      {incoming.evasionFactor < 1 && (
         <StatRow
-          label="Hits until defeat"
-          value={String(Math.ceil((combatStats.hp ?? 0) / incoming.hitDamage))}
+          label="Your evasion"
+          value={`${((1 - incoming.evasionFactor) * 100).toFixed(0)}%`}
+          hint="Physical attacks only"
+        />
+      )}
+      {incoming.reflectionFactor < 1 && (
+        <StatRow
+          label="Reflection"
+          value={`${((1 - incoming.reflectionFactor) * 100).toFixed(0)}% blocked`}
+          hint="Magical attacks only"
+        />
+      )}
+      <StatRow label="Your HP" value={Math.round(combatStats.hp ?? 0).toString()} />
+      {incoming.hitsToKill != null && (
+        <StatRow label="Hits until defeat" value={String(incoming.hitsToKill)} />
+      )}
+      {incoming.secondsToDeath != null && (
+        <StatRow
+          label="Time until defeat"
+          value={`${incoming.secondsToDeath.toFixed(1)}s`}
+          hint="At current monster DPS"
         />
       )}
     </Box>
@@ -379,6 +429,20 @@ export function CombatSimPanel({
               step={1}
               onChange={(_, v) => setSplashTargetCount(v as number)}
               valueLabelDisplay="auto"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={assumeChargeBuffs}
+                  onChange={(_, v) => setAssumeChargeBuffs(v)}
+                />
+              }
+              label={
+                <Typography variant="caption" color="text.secondary">
+                  Assume power glove buff active
+                </Typography>
+              }
             />
           </>
         )}

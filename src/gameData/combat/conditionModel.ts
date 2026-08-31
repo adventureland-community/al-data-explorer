@@ -10,6 +10,17 @@ export const SUGARRUSH_DURATION_MS = 10_000;
 /** Server G.conditions.sugarrush.frequency bonus. */
 export const SUGARRUSH_FREQUENCY_BONUS = 240;
 
+/** G.conditions.power — charge glove buff. */
+export const POWER_BUFF = { frequency: 360, durationMs: 4000 };
+/** G.conditions.xpower — golden power glove buff. */
+export const XPOWER_BUFF = { frequency: 480, durationMs: 6000 };
+
+export function chargeBuffFrequencyBonus(abilities: Record<string, { key: string }>): number {
+  if (abilities.xpower) return XPOWER_BUFF.frequency;
+  if (abilities.power) return POWER_BUFF.frequency;
+  return 0;
+}
+
 export type ActiveBurn = {
   intensity: number;
   msRemaining: number;

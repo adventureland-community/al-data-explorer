@@ -3,6 +3,7 @@ export { applyItemStats, type PlayerStatBucket } from "./applyItemStats";
 export { damageMultiplier, mitigationMultiplier } from "./damageMultiplier";
 export { estimateHitDamage } from "./estimateHitDamage";
 export { estimateAutoAttackDps, theoDps } from "./estimateAutoAttackDps";
+export { estimateIncomingDps, type IncomingDpsBreakdown } from "./estimateIncomingDps";
 export {
   collectGearAbilities,
   collectSplashIntensities,
@@ -21,12 +22,15 @@ export {
 export {
   burnTickDamage,
   burnTotalDamageFromProc,
+  chargeBuffFrequencyBonus,
   effectiveFrequencyWithSugarrush,
 } from "./conditionModel";
 export {
   buildSustainLines,
   evasionHitFactor,
   onHitSustain,
+  outgoingReflectionRisk,
+  incomingReflectionFactor,
   rogueStackDpsBoost,
   targetFortitudeMult,
 } from "./hitModifiers";

@@ -18,6 +18,7 @@ export type CombatEntity = {
   lifesteal?: number;
   manasteal?: number;
   stun?: number;
+  reflection?: number;
 };
 
 export type DpsBreakdown = {
@@ -40,6 +41,8 @@ export type DpsBreakdown = {
   debuffLines?: { key: string; label: string; detail: string }[];
   /** Sustain from lifesteal / manasteal (not counted in DPS). */
   sustainLines?: { key: string; label: string; perSecond: number; detail: string }[];
+  /** Self-damage risk (reflection, etc.) — not counted in DPS. */
+  riskLines?: { key: string; label: string; perSecond: number; detail: string }[];
   totalDps: number;
   hitsToKill: number | null;
   /** Set when breakdown comes from event simulation. */
@@ -56,6 +59,8 @@ export type CombatSimOptions = {
   splashTargetCount?: number;
   /** Include expected evasion (default true). Event sim sets false to roll per hit. */
   expectedEvasion?: boolean;
+  /** Model power/xpower glove buff as always active (charge ability). */
+  assumeChargeBuffs?: boolean;
   /** RNG for event sim (testing). */
   rng?: () => number;
 };

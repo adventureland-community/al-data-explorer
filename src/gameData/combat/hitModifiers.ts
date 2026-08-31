@@ -98,6 +98,34 @@ export function stunDebuffLine(
   };
 }
 
+/** Expected self-damage per second when magical attacks reflect off target. */
+export function outgoingReflectionRisk(
+  source: Pick<CombatEntity, "damage_type">,
+  target: { reflection?: number },
+  hitDamage: number,
+  frequency: number,
+): { perSecond: number; detail: string } | null {
+  if (source.damage_type !== "magical" || !target.reflection || target.reflection <= 0) {
+    return null;
+  }
+  const chance = Math.min(100, target.reflection) / 100;
+  const perSecond = hitDamage * frequency * chance;
+  if (perSecond <= 0) return null;
+  return {
+    perSecond,
+    detail: `${target.reflection}% of magical hits reflect (~${hitDamage.toFixed(0)} dmg)`,
+  };
+}
+
+/** Player reflection reduces incoming magical monster DPS. */
+export function incomingReflectionFactor(
+  attacker: Pick<CombatEntity, "damage_type">,
+  defender: Pick<CombatEntity, "reflection">,
+): number {
+  if (attacker.damage_type !== "magical" || !defender.reflection) return 1;
+  return 1 - Math.min(100, defender.reflection) / 100;
+}
+
 export function rogueStackDpsBoost(args: {
   classKey?: string;
   frequency: number;

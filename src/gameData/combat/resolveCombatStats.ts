@@ -244,6 +244,11 @@ export function monsterToCombatEntity(monster: {
   for?: number;
   evasion?: number;
   firesistance?: number;
+  reflection?: number;
+  apiercing?: number;
+  rpiercing?: number;
+  crit?: number;
+  critdamage?: number;
 }): CombatEntity {
   return {
     attack: monster.attack ?? 0,
@@ -255,6 +260,11 @@ export function monsterToCombatEntity(monster: {
     for: monster.for,
     evasion: monster.evasion,
     firesistance: monster.firesistance,
+    reflection: monster.reflection,
+    apiercing: monster.apiercing,
+    rpiercing: monster.rpiercing,
+    crit: monster.crit,
+    critdamage: monster.critdamage,
   };
 }
 

@@ -8,10 +8,11 @@ import {
   totalSplashPerHit,
   type ActiveBurn,
 } from "./abilityProc";
-import { SUGARRUSH_DURATION_MS, tickBurnDoTs } from "./conditionModel";
+import { SUGARRUSH_DURATION_MS, chargeBuffFrequencyBonus, tickBurnDoTs } from "./conditionModel";
 import { estimateHitDamage, type HitDamageTarget } from "./estimateHitDamage";
 import {
   buildSustainLines,
+  outgoingReflectionRisk,
   rogueStackBonusAtHit,
   stunDebuffLine,
   rogueStackDpsBoost,
@@ -308,8 +309,13 @@ export function estimateTotalDps(
   }
 
   const simDurationMs = options?.durationMs ?? 30_000;
+  const abilities = collectGearAbilities(gear, G, options?.classKey);
+  let freq = source.frequency ?? 0;
+  if (options?.assumeChargeBuffs) {
+    freq += chargeBuffFrequencyBonus(abilities);
+  }
+
   const { damage: hitDamage, mitigationMult } = estimateHitDamage(source, target, options);
-  const freq = source.frequency ?? 0;
   let autoAttackDps = hitDamage * freq;
 
   const rogueBoost = rogueStackDpsBoost({
@@ -330,7 +336,6 @@ export function estimateTotalDps(
     });
   }
 
-  const abilities = collectGearAbilities(gear, G, options?.classKey);
   const { abilityDps, lines, debuffLines } = estimateAbilityDps(source, target, abilities, {
     simDurationMs,
   });
@@ -346,6 +351,29 @@ export function estimateTotalDps(
     freq,
   );
   const sustainLines = buildSustainLines(source, hitDamage, freq, target.hp);
+  const reflectionRisk = outgoingReflectionRisk(source, target, hitDamage, freq);
+  const riskLines = reflectionRisk
+    ? [
+        {
+          key: "reflection",
+          label: "Reflect risk",
+          perSecond: reflectionRisk.perSecond,
+          detail: reflectionRisk.detail,
+        },
+      ]
+    : undefined;
+
+  if (options?.assumeChargeBuffs && chargeBuffFrequencyBonus(abilities) > 0) {
+    const buffFreq = chargeBuffFrequencyBonus(abilities);
+    const buffKey = abilities.xpower ? "xpower" : "power";
+    lines.unshift({
+      key: buffKey,
+      label: `${buffKey} buff`,
+      dps: hitDamage * buffFreq,
+      detail: `+${buffFreq} frequency (charge ability assumed active)`,
+    });
+  }
+
   const totalDps = autoAttackDps + abilityDps + splashDps;
 
   let hitsToKill: number | null = null;
@@ -361,6 +389,7 @@ export function estimateTotalDps(
     abilityLines: [...lines, ...abilityLinesExtra],
     debuffLines: allDebuffs.length > 0 ? allDebuffs : undefined,
     sustainLines: sustainLines.length > 0 ? sustainLines : undefined,
+    riskLines,
     splashDps: splashDps > 0 ? splashDps : undefined,
     splashLines,
     unsimulatedEffects,
