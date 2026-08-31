@@ -102,6 +102,7 @@ export function estimateSkillRotationDps(
     if (skill.share && handledShareGroups.has(skill.share)) continue;
 
     if (skill.multi || skill.max_targets) {
+      if (skill.share === "attack") continue;
       unsimulated.push({
         key: `skill:${key}`,
         label: skill.name ?? key,
@@ -111,6 +112,7 @@ export function estimateSkillRotationDps(
     }
 
     if (skill.share === "attack" || skill.apiercing) {
+      if (skill.share === "attack") continue;
       unsimulated.push({
         key: `skill:${key}`,
         label: skill.name ?? key,

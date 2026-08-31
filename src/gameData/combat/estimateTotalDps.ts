@@ -25,6 +25,7 @@ import {
   estimateAbilityDps,
 } from "./estimateAbilityDps";
 import { estimateSkillRotationDps } from "./skillRotationDps";
+import { resolveBestAutoSwing } from "./attackShareDps";
 import type { CombatEntity, CombatSimOptions, DpsBreakdown } from "./types";
 
 export type TotalDpsMode = "formulation" | "event";
@@ -321,7 +322,35 @@ export function estimateTotalDps(
     freq += chargeBuffFrequencyBonus(abilities);
   }
 
-  const { damage: hitDamage, mitigationMult } = estimateHitDamage(source, target, options);
+  const { damage: plainHitDamage, mitigationMult: plainMitigation } = estimateHitDamage(
+    source,
+    target,
+    options,
+  );
+  let hitDamage = plainHitDamage;
+  let mitigationMult = plainMitigation;
+  const abilityLinesExtra: { key: string; label: string; dps: number; detail?: string }[] = [];
+
+  if (options?.useSkillRotation && options.classKey) {
+    const swing = resolveBestAutoSwing(source, target, G, {
+      classKey: options.classKey,
+      playerLevel: options.playerLevel ?? 80,
+      mainhandWtype: options.mainhandWtype,
+      splashTargetCount: options.splashTargetCount ?? 0,
+      simOptions: options,
+    });
+    hitDamage = swing.perSwingDamage;
+    mitigationMult = swing.mitigationMult;
+    if (swing.skillKey && swing.perSwingDamage > plainHitDamage) {
+      abilityLinesExtra.push({
+        key: `skill:${swing.skillKey}`,
+        label: swing.skillLabel ?? swing.skillKey,
+        dps: 0,
+        detail: swing.skillDetail,
+      });
+    }
+  }
+
   let autoAttackDps = hitDamage * freq;
 
   const rogueBoost = rogueStackDpsBoost({
@@ -331,7 +360,6 @@ export function estimateTotalDps(
     sourceAttack: source.attack,
     simDurationMs,
   });
-  const abilityLinesExtra: { key: string; label: string; dps: number; detail?: string }[] = [];
   if (rogueBoost) {
     autoAttackDps += rogueBoost.dps;
     abilityLinesExtra.push({

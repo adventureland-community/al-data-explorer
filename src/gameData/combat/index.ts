@@ -37,6 +37,7 @@ export {
   rogueStackDpsBoost,
   targetFortitudeMult,
 } from "./hitModifiers";
+export { resolveBestAutoSwing } from "./attackShareDps";
 export { estimateSkillRotationDps } from "./skillRotationDps";
 export {
   estimateTotalDps,
