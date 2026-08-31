@@ -8,6 +8,7 @@ import {
   prepareDropSourcesForDisplay,
 } from "./drops";
 import { DropSourceType, GItems, NpcShopSource, TokenOfferSource } from "./types";
+import { normalizeTokenShopOffer } from "./tokenShopOffer";
 
 export type DropIconKind = "monster" | "table-item" | "map-text" | "key-fallback" | "none";
 
@@ -35,6 +36,10 @@ export type AcquisitionTokenView = {
   tokenKey: string;
   tokenName: string;
   costLabel: string;
+  /** Tokens spent per purchase (integer after normalizing fractional G.tokens prices). */
+  tokenCost: number;
+  /** Items received per purchase. */
+  quantity: number;
   npcId?: string;
   npcLabel?: string;
   linkTo: string;
@@ -224,14 +229,17 @@ function toTokenViews(offers: TokenOfferSource[], items: GItems): AcquisitionTok
   return offers.map((offer) => {
     const tokenItem = items[offer.tokenKey as ItemKey];
     const tokenName = tokenItem?.name ?? offer.tokenKey;
+    const normalized = normalizeTokenShopOffer(offer.cost);
     const costLabel =
-      offer.cost != null
-        ? `${offer.cost.toLocaleString("en-US")} × ${tokenName}`
+      normalized.tokenCost > 0
+        ? `${normalized.tokenCost.toLocaleString("en-US")} × ${tokenName}`
         : `? × ${tokenName}`;
     return {
       tokenKey: offer.tokenKey,
       tokenName,
       costLabel,
+      tokenCost: normalized.tokenCost,
+      quantity: normalized.quantity,
       npcId: offer.npcId ?? undefined,
       npcLabel: offer.npcName ?? offer.npcId ?? undefined,
       linkTo: `/items/${offer.tokenKey}`,

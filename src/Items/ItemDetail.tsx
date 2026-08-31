@@ -46,6 +46,7 @@ import { SpriteSkin } from "../Shared/SpriteSkin";
 import { getMaxLevel } from "../Utils";
 import { ItemSetCard } from "./components/ItemSetCard";
 import { ItemSourcesPanel } from "./components/ItemSourcesPanel";
+import { ItemUsesPanel } from "./components/ItemUsesPanel";
 import { RelatedItemsCard } from "./components/RelatedItemsCard";
 
 function StatsTable({ rows }: { rows: ReturnType<typeof buildPlayerStatRows> }) {
@@ -576,6 +577,7 @@ export function ItemDetail() {
 
       <Grid container spacing={2}>
         <Grid item xs={12} md={5}>
+          <ItemUsesPanel itemKey={key} G={G} />
           {craft && (
             <Box sx={{ mb: 2 }}>
               <CraftRecipeCard itemKey={key} craft={craft} items={G.items} />

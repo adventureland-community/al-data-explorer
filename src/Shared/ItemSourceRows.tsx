@@ -9,6 +9,12 @@ import {
   AcquisitionShopView,
   AcquisitionTokenView,
 } from "../gameData/itemAcquisition";
+import {
+  UseExchangeRewardView,
+  UseMerchantRef,
+  UseTokenSpendView,
+  UseTokenVendorGroup,
+} from "../gameData/itemUses";
 import { AcquisitionDropIcon } from "./AcquisitionDropIcon";
 import { ItemInstance } from "./ItemInstance";
 import { NpcImage } from "./SpriteSkin";
@@ -172,13 +178,24 @@ export function TokenOfferList({ offers }: { offers: AcquisitionTokenView[] }) {
               sx={{ my: 0 }}
             />
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexShrink: 0 }}>
-              <ItemInstance itemInfo={{ name: offer.tokenKey as ItemKey }} size={28} />
-              <Typography
-                variant="body2"
-                sx={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}
-              >
-                {offer.costLabel}
-              </Typography>
+              {offer.quantity > 1 ? (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontVariantNumeric: "tabular-nums" }}
+                >
+                  ×{offer.quantity.toLocaleString("en-US")}
+                </Typography>
+              ) : null}
+              <ItemInstance
+                itemInfo={{
+                  name: offer.tokenKey as ItemKey,
+                  q: Math.max(1, offer.tokenCost),
+                }}
+                size={28}
+                showQuantity
+                forceShowQuantity
+              />
             </Box>
           </ListItem>
         ))}
@@ -224,5 +241,227 @@ export function ExchangeSourceList({ exchanges }: { exchanges: AcquisitionExchan
         ))}
       </List>
     </>
+  );
+}
+
+function MerchantHeader({
+  npcId,
+  npcLabel,
+  fallback,
+}: {
+  npcId?: string;
+  npcLabel?: string;
+  fallback: string;
+}) {
+  const label = npcLabel ?? fallback;
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1.25,
+        minHeight: SOURCE_ICON_BOX,
+        py: 0.25,
+      }}
+    >
+      <Box
+        sx={{
+          width: SOURCE_ICON_BOX,
+          minWidth: SOURCE_ICON_BOX,
+          height: SOURCE_ICON_BOX,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          // Animation NPC skins are wider than character cells — don't clip them to blank.
+          overflow: "visible",
+        }}
+      >
+        {npcId ? (
+          <NpcImage npcId={npcId} scale={NPC_SCALE} />
+        ) : (
+          <Box
+            sx={{
+              width: TABLE_ITEM_SIZE,
+              height: TABLE_ITEM_SIZE,
+              borderRadius: 1,
+              bgcolor: "action.hover",
+            }}
+          />
+        )}
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="body1" sx={{ fontWeight: 600, lineHeight: 1.25 }}>
+          {label}
+        </Typography>
+        {npcId && npcLabel && npcId !== npcLabel ? (
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+            {npcId}
+          </Typography>
+        ) : null}
+      </Box>
+    </Box>
+  );
+}
+
+const USE_TILE_WIDTH = 76;
+const USE_ITEM_SIZE = 48;
+const USE_TOKEN_SIZE = 18;
+
+function UseItemGrid({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 1.25,
+        mt: 0.75,
+        mb: 0.5,
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
+function TokenSpendTile({ spend }: { spend: UseTokenSpendView }) {
+  return (
+    <Box
+      sx={{
+        width: USE_TILE_WIDTH,
+        textAlign: "center",
+        minWidth: 0,
+      }}
+    >
+      <ItemInstance
+        itemInfo={{
+          name: spend.itemKey as ItemKey,
+          ...(spend.quantity > 1 ? { q: spend.quantity } : {}),
+        }}
+        size={USE_ITEM_SIZE}
+        linkToDetail
+        showQuantity={spend.quantity > 1}
+      />
+      <Typography
+        variant="caption"
+        component={RouterLink}
+        to={spend.linkTo}
+        noWrap
+        title={spend.label}
+        sx={{
+          display: "block",
+          mt: 0.35,
+          textDecoration: "none",
+          color: "primary.main",
+          lineHeight: 1.2,
+        }}
+      >
+        {spend.label}
+      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          mt: 0.35,
+        }}
+      >
+        <ItemInstance
+          itemInfo={{
+            name: spend.tokenKey as ItemKey,
+            q: Math.max(1, spend.tokenCost),
+          }}
+          size={USE_TOKEN_SIZE + 10}
+          linkToDetail={false}
+          tooltip
+          showQuantity
+          forceShowQuantity
+        />
+      </Box>
+    </Box>
+  );
+}
+
+/** Spend this token at its NPC to buy the listed items. */
+export function TokenSpendList({ vendors }: { vendors: UseTokenVendorGroup[] }) {
+  if (vendors.length === 0) return null;
+  return (
+    <>
+      {vendors.map((vendor) => (
+        <Box key={vendor.npcId ?? vendor.npcLabel ?? "shop"} sx={{ mt: 0.5 }}>
+          <MerchantHeader npcId={vendor.npcId} npcLabel={vendor.npcLabel} fallback="Token shop" />
+          <SectionLabel>Buy with this token</SectionLabel>
+          <UseItemGrid>
+            {vendor.spends.map((spend) => (
+              <TokenSpendTile key={spend.id} spend={spend} />
+            ))}
+          </UseItemGrid>
+        </Box>
+      ))}
+    </>
+  );
+}
+
+function ExchangeRewardTile({ row }: { row: UseExchangeRewardView }) {
+  return (
+    <Box sx={{ width: USE_TILE_WIDTH, textAlign: "center", minWidth: 0 }}>
+      <ItemInstance itemInfo={{ name: row.itemKey as ItemKey }} size={USE_ITEM_SIZE} linkToDetail />
+      <Typography
+        variant="caption"
+        component={RouterLink}
+        to={row.linkTo}
+        noWrap
+        title={row.label}
+        sx={{
+          display: "block",
+          mt: 0.35,
+          textDecoration: "none",
+          color: "primary.main",
+          lineHeight: 1.2,
+        }}
+      >
+        {row.label}
+      </Typography>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{
+          display: "block",
+          mt: 0.2,
+          fontVariantNumeric: "tabular-nums",
+          fontWeight: 600,
+          lineHeight: 1.15,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {row.oddsLabel}
+      </Typography>
+    </Box>
+  );
+}
+
+/** Rewards from exchanging this item at an exchange NPC. */
+export function ExchangeRewardList({
+  rewards,
+  merchant,
+}: {
+  rewards: UseExchangeRewardView[];
+  merchant?: UseMerchantRef;
+}) {
+  if (rewards.length === 0) return null;
+  return (
+    <Box sx={{ mt: 0.5 }}>
+      <MerchantHeader
+        npcId={merchant?.npcId}
+        npcLabel={merchant?.npcLabel}
+        fallback="Exchange NPC"
+      />
+      <SectionLabel>Exchange for</SectionLabel>
+      <UseItemGrid>
+        {rewards.map((row) => (
+          <ExchangeRewardTile key={row.id} row={row} />
+        ))}
+      </UseItemGrid>
+    </Box>
   );
 }

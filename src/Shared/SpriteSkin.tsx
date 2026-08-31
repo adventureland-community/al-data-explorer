@@ -4,18 +4,58 @@ import { GDimension, GImage, GMonster } from "typed-adventureland";
 import { GDataContext } from "../GDataContext";
 import { EntityTooltip } from "./EntityTooltip";
 
-function matrixPosition(value: unknown, matrix: unknown[][]) {
-  let col = -1;
-  const row = matrix.findIndex((r) => {
-    const c = (r as unknown[]).indexOf(value);
-    if (c !== -1) {
-      col = c;
-      return true;
-    }
-    return false;
-  });
-  if (col === -1 && row === -1) return false as const;
-  return { row, col };
+type SpriteSheetEntry = {
+  file: string;
+  columns: number;
+  rows: number;
+  type?: string;
+  matrix?: unknown[][];
+};
+
+function matrixPosition(value: unknown, matrix: unknown[][]): { row: number; col: number } | null {
+  for (let row = 0; row < matrix.length; row += 1) {
+    const col = (matrix[row] as unknown[]).indexOf(value);
+    if (col !== -1) return { row, col };
+  }
+  return null;
+}
+
+/**
+ * Sub-grid inside each matrix cell — matches WorldViewer/spriteLookup.
+ * Character sheets are 3×4 walk frames; animations are 3×1, etc.
+ */
+function spriteGridSize(type: string | undefined): { colNum: number; rowNum: number } {
+  switch (type) {
+    case "animation":
+      return { colNum: 3, rowNum: 1 };
+    case "tail":
+      return { colNum: 4, rowNum: 4 };
+    case "v_animation":
+    case "head":
+    case "hair":
+    case "hat":
+    case "s_wings":
+    case "face":
+    case "makeup":
+    case "beard":
+      return { colNum: 1, rowNum: 4 };
+    case "emblem":
+    case "gravestone":
+      return { colNum: 1, rowNum: 1 };
+    case "full":
+    case "wings":
+    case "body":
+    case "armor":
+    case "skin":
+    case "character":
+    case "upper":
+    case "a_makeup":
+    case "a_hat":
+    case undefined:
+      return { colNum: 3, rowNum: 4 };
+    default:
+      return { colNum: 3, rowNum: 4 };
+  }
 }
 
 function BoxFallback({ alt }: { alt: string }) {
@@ -53,38 +93,49 @@ export function SpriteSkin({
   const G = useContext(GDataContext);
   if (!G || !skin) return null;
 
-  const sprite = Object.values(G.sprites)
-    .filter((v) => v?.matrix && v?.file)
-    .reduce((a, b) => {
-      const find = matrixPosition(skin, b.matrix as unknown[][]);
-      if (find) return { data: b, ...find };
-      return a;
-    }, {} as { data: { file: string; columns: number; rows: number }; row: number; col: number });
+  let match: { data: SpriteSheetEntry; row: number; col: number } | null = null;
+  for (const entry of Object.values(G.sprites as Record<string, SpriteSheetEntry | undefined>)) {
+    if (!entry?.matrix || !entry.file) continue;
+    const position = matrixPosition(skin, entry.matrix);
+    if (!position) continue;
+    match = { data: entry, row: position.row, col: position.col };
+    break;
+  }
 
-  if (!sprite?.data) {
+  if (!match) {
     return <BoxFallback alt={alt} />;
   }
 
-  const image = (G.images as Record<string, GImage>)[sprite.data.file.split("?")[0]];
-  if (!image) return <BoxFallback alt={alt} />;
+  const image = (G.images as Record<string, GImage>)[match.data.file.split("?")[0]];
+  if (!image?.width || !image?.height) return <BoxFallback alt={alt} />;
 
-  const width = (image.width / sprite.data.columns) * scale;
-  const height = (image.height / sprite.data.rows) * scale;
-  const dimension = (G.dimensions as Record<string, GDimension>)[skin] || false;
+  const columns = match.data.columns || 1;
+  const rows = match.data.rows || 1;
+  const { colNum, rowNum } = spriteGridSize(match.data.type);
+  const cellWidth = (image.width / (columns * colNum)) * scale;
+  const cellHeight = (image.height / (rows * rowNum)) * scale;
 
-  let offsetx = 0;
-  let offsety = 0;
+  const dimension = (G.dimensions as Record<string, GDimension>)[skin];
+  let viewWidth = cellWidth;
+  let viewHeight = cellHeight;
+  let offsetX = 0;
+  let offsetY = 0;
   if (dimension) {
-    offsetx = width / 3 - dimension[0] * scale;
-    offsety = height / 4 - (dimension[2] || 0) - dimension[1] * scale;
+    viewWidth = dimension[0] * scale;
+    viewHeight = dimension[1] * scale;
+    offsetX = Math.round((cellWidth - viewWidth) / 2 + (dimension[2] || 0) * scale);
+    offsetY = Math.round(cellHeight - viewHeight);
   }
+
+  const originX = match.col * colNum * cellWidth;
+  const originY = match.row * rowNum * cellHeight;
 
   return (
     <div
       style={{
         overflow: "hidden",
-        width: `${width / 3 - offsetx}px`,
-        height: `${height / 4 - offsety}px`,
+        width: `${Math.max(1, viewWidth)}px`,
+        height: `${Math.max(1, viewHeight)}px`,
         opacity,
         flexShrink: 0,
       }}
@@ -95,11 +146,11 @@ export function SpriteSkin({
           maxWidth: `${image.width * scale}px`,
           width: `${image.width * scale}px`,
           height: `${image.height * scale}px`,
-          marginTop: `-${sprite.row * height + offsety}px`,
-          marginLeft: `-${sprite.col * width + offsetx / 2}px`,
+          marginTop: `-${originY + offsetY}px`,
+          marginLeft: `-${originX + offsetX}px`,
           imageRendering: "pixelated",
         }}
-        src={`http://adventure.land${sprite.data.file}`}
+        src={`http://adventure.land${match.data.file}`}
       />
     </div>
   );

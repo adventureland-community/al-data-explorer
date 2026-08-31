@@ -5,7 +5,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
 import { ItemTooltip } from "./EntityTooltip";
 import type { EntityTooltipLine } from "../gameData/entityTooltip";
-import { ItemImage } from "../ItemImage";
+import { CURRENCY_SKINS, ItemImage } from "../ItemImage";
 import { getLevelString } from "../Utils";
 import { abbreviateNumber } from "./utils";
 
@@ -43,8 +43,11 @@ export function ItemInstance({
     return <></>;
   }
   const itemName = itemInfo.name;
+  const itemKey = itemName as string;
   const gItem = G.items[itemName];
-  if (!gItem) {
+  const hasPackSkin =
+    Boolean(gItem) || CURRENCY_SKINS.has(itemKey) || Boolean(G.positions[itemKey]);
+  if (!hasPackSkin) {
     return (
       <Box
         sx={{
@@ -59,10 +62,58 @@ export function ItemInstance({
           border: 1,
           borderColor: "divider",
         }}
-        title={itemName}
+        title={itemKey}
       >
         ?
       </Box>
+    );
+  }
+
+  const quantityStyle = {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    border: 0.5,
+    borderColor: (theme: any) => (theme.palette.mode === "dark" ? "grey.800" : "grey.300"),
+    width: "fit-content",
+    maxWidth: "100%",
+    height: 16,
+    paddingLeft: "3px",
+    paddingRight: "3px",
+    boxSizing: "border-box",
+    bgcolor: "#00000071",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "0.65rem",
+    lineHeight: 1,
+    fontVariantNumeric: "tabular-nums",
+    whiteSpace: "nowrap",
+    color: "#fff",
+  };
+
+  const showQtyBadge =
+    itemInfo.q != null && showQuantity && (forceShowQuantity ? itemInfo.q >= 1 : itemInfo.q > 1);
+
+  // gold / shells: skins in G.positions only (html.js render_drop), not G.items.
+  if (!gItem) {
+    return (
+      <div
+        style={{
+          position: "relative",
+          display: "inline-block",
+          verticalAlign: "middle",
+          padding: 1,
+        }}
+        title={itemKey === "shells" ? "Shells" : itemKey === "gold" ? "Gold" : itemKey}
+      >
+        <ItemImage itemName={itemKey} size={size} />
+        {showQtyBadge ? (
+          <Box sx={{ ...quantityStyle, ...(quantityColor ? { color: quantityColor } : {}) }}>
+            {abbreviateNumber(itemInfo.q!)}
+          </Box>
+        ) : null}
+      </div>
     );
   }
 
@@ -109,29 +160,6 @@ export function ItemInstance({
     },
   };
 
-  const quantityStyle = {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    border: 0.5,
-    borderColor: (theme: any) => (theme.palette.mode === "dark" ? "grey.800" : "grey.300"),
-    width: "fit-content",
-    maxWidth: "100%",
-    height: 16,
-    paddingLeft: "3px",
-    paddingRight: "3px",
-    boxSizing: "border-box",
-    bgcolor: "#00000071",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "0.65rem",
-    lineHeight: 1,
-    fontVariantNumeric: "tabular-nums",
-    whiteSpace: "nowrap",
-    color: "#fff",
-  };
-
   const levelString = getLevelString(gItem, itemInfo.level);
   const titleKey = itemInfo.p;
   let titleBorderColor;
@@ -163,9 +191,6 @@ export function ItemInstance({
     default:
       break;
   }
-
-  const showQtyBadge =
-    itemInfo.q != null && showQuantity && (forceShowQuantity ? itemInfo.q >= 1 : itemInfo.q > 1);
 
   const sprite = (
     <div

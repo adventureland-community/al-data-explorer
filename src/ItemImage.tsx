@@ -2,12 +2,23 @@ import { ItemKey } from "typed-adventureland";
 import { useContext } from "react";
 import { GDataContext } from "./GDataContext";
 
+/** Pseudo-item skins used in drops/exchanges that are not real G.items entries. */
+export const CURRENCY_SKINS = new Set(["gold", "shells"]);
+
+export function resolveItemSkin(
+  items: Record<string, { skin?: string } | undefined> | undefined,
+  itemName: string,
+): string {
+  return items?.[itemName]?.skin ?? itemName;
+}
+
 export function ItemImage({
   itemName,
   opacity,
   size = 40,
 }: {
-  itemName: ItemKey;
+  /** Real item key, or a currency skin id (`gold` / `shells`). */
+  itemName: ItemKey | string;
   opacity?: number;
   size?: number;
 }) {
@@ -17,10 +28,9 @@ export function ItemImage({
     return <></>; // TODO: render broken image
   }
 
-  // function item_container(item,actual) in html.js
-  const gItem = G.items[itemName];
-  const skinPositions = G.positions[gItem?.skin ?? itemName] ?? G.positions.placeholder;
-  // TODO: some items don't have a skin? helmets it would seem, mages hood
+  // Matches item_container() in html.js — gold/shells use G.positions skins, not G.items.
+  const skin = resolveItemSkin(G.items as Record<string, { skin?: string } | undefined>, itemName);
+  const skinPositions = G.positions[skin] ?? G.positions.placeholder;
   if (!skinPositions) {
     return <img alt={itemName} />;
   }

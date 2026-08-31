@@ -2,6 +2,8 @@ import { GData, ItemKey } from "typed-adventureland";
 
 import { MapLocation, NpcShopSource, TokenOfferSource } from "./types";
 
+export { normalizeTokenShopOffer } from "./tokenShopOffer";
+
 function asFiniteCoord(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() !== "") {
