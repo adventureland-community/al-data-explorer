@@ -24,6 +24,13 @@ export {
   effectiveFrequencyWithSugarrush,
 } from "./conditionModel";
 export {
+  buildSustainLines,
+  evasionHitFactor,
+  onHitSustain,
+  rogueStackDpsBoost,
+  targetFortitudeMult,
+} from "./hitModifiers";
+export {
   estimateTotalDps,
   simulateAutoAttackTimeline,
   simulateCombatTimeline,

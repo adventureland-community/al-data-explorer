@@ -9,7 +9,7 @@ import {
 import type { CombatEntity } from "./types";
 import type { GearAbility } from "./estimateAbilityDps";
 
-const PROC_ABILITIES = new Set(["burn", "poison", "freeze", "bash", "sugarrush"]);
+const PROC_ABILITIES = new Set(["burn", "poison", "freeze", "bash", "sugarrush", "weave"]);
 
 export function abilityProcRate(ability: GearAbility): number {
   return Math.min(1, ability.attr0 / 100);
@@ -42,8 +42,9 @@ export function rollAbilityProcsOnHit(
   let sugarrushProcs = 0;
 
   for (const ability of Object.values(abilities)) {
-    if (!PROC_ABILITIES.has(ability.key) || ability.attr0 <= 0) continue;
-    if (rng() >= abilityProcRate(ability)) continue;
+    if (!PROC_ABILITIES.has(ability.key)) continue;
+    if (ability.key !== "weave" && ability.attr0 <= 0) continue;
+    if (ability.key !== "weave" && rng() >= abilityProcRate(ability)) continue;
 
     const outcome = classifyAbilityProc(ability, hitDamage);
     if (!outcome) continue;

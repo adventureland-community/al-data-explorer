@@ -177,6 +177,14 @@ function DpsResults({
           {breakdown.debuffLines?.map((line) => (
             <StatRow key={line.key} label={`  ${line.label}`} value="—" hint={line.detail} />
           ))}
+          {breakdown.sustainLines?.map((line) => (
+            <StatRow
+              key={line.key}
+              label={`  ${line.label}`}
+              value={`${line.perSecond.toFixed(1)}/s`}
+              hint={line.detail}
+            />
+          ))}
           <Divider sx={{ my: 0.75 }} />
           <StatRow
             label="Hit damage"

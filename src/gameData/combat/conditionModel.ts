@@ -1,4 +1,5 @@
 import type { GearAbility } from "./estimateAbilityDps";
+import { burnResistanceScale, type HitTarget } from "./hitModifiers";
 
 /** Server G.conditions.burned.interval */
 export const BURN_TICK_MS = 210;
@@ -28,11 +29,12 @@ export function burnTicksInDuration(durationMs = BURN_DURATION_MS): number {
 /** Total burn damage from one proc at given hit intensity. */
 export function burnTotalDamageFromProc(
   hitDamage: number,
-  options?: { durationMs?: number; unlimited?: boolean },
+  options?: { durationMs?: number; unlimited?: boolean; target?: HitTarget },
 ): number {
   if (hitDamage <= 0) return 0;
   const durationMs = options?.durationMs ?? BURN_DURATION_MS;
-  const intensity = hitDamage;
+  const scale = options?.target ? burnResistanceScale(options.target) : 1;
+  const intensity = hitDamage * scale;
   const ticks = burnTicksInDuration(durationMs);
   let total = burnTickDamage(intensity) * ticks;
   if (options?.unlimited) {
@@ -46,13 +48,15 @@ export function applyBurnProc(
   burns: ActiveBurn[],
   hitDamage: number,
   unlimited?: boolean,
+  target?: HitTarget,
 ): ActiveBurn[] {
   if (hitDamage <= 0) return burns;
+  const scaledHit = hitDamage * (target ? burnResistanceScale(target) : 1);
   const divider = unlimited ? 1.5 : 3;
   const existing = burns[0];
   const intensity = existing
-    ? Math.max(existing.intensity, Math.floor(existing.intensity / divider) + hitDamage)
-    : hitDamage;
+    ? Math.max(existing.intensity, Math.floor(existing.intensity / divider) + scaledHit)
+    : scaledHit;
   return [{ intensity, msRemaining: BURN_DURATION_MS, msUntilNextTick: BURN_TICK_MS }];
 }
 
@@ -114,6 +118,14 @@ export type ProcOutcome =
 
 /** Classify on-hit proc — only burn and sugarrush add to outgoing DPS. */
 export function classifyAbilityProc(ability: GearAbility, hitDamage: number): ProcOutcome | null {
+  if (ability.key === "weave") {
+    return {
+      kind: "debuff",
+      key: "weave",
+      label: "Weave",
+      detail: "Slow stacks on target (−3 speed/stack)",
+    };
+  }
   if (ability.attr0 <= 0) return null;
 
   switch (ability.key) {
@@ -141,6 +153,13 @@ export function classifyAbilityProc(ability: GearAbility, hitDamage: number): Pr
         key: "bash",
         label: "Bash",
         detail: "Stun — not modeled in DPS sim",
+      };
+    case "weave":
+      return {
+        kind: "debuff",
+        key: "weave",
+        label: "Weave",
+        detail: "Slow stacks on target (−3 speed/stack)",
       };
     default:
       return null;

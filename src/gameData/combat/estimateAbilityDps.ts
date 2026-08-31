@@ -11,6 +11,7 @@ import {
   SUGARRUSH_DURATION_MS,
 } from "./conditionModel";
 import type { CombatEntity } from "./types";
+import type { HitDamageTarget } from "./estimateHitDamage";
 
 export type GearAbility = {
   key: string;
@@ -19,7 +20,7 @@ export type GearAbility = {
   unlimited?: boolean;
 };
 
-const KNOWN_PROC_ABILITIES = new Set(["burn", "poison", "freeze", "bash", "sugarrush"]);
+const KNOWN_PROC_ABILITIES = new Set(["burn", "poison", "freeze", "bash", "sugarrush", "weave"]);
 
 /** Gather stacked ability attrs from equipped gear (mirrors server player.a merge). */
 export function collectGearAbilities(
@@ -60,7 +61,7 @@ export function collectGearAbilities(
  */
 export function estimateAbilityDps(
   source: CombatEntity,
-  _target: Pick<CombatEntity, "armor" | "resistance">,
+  target: HitDamageTarget,
   abilities: Record<string, GearAbility>,
   options?: { simDurationMs?: number },
 ): {
@@ -81,15 +82,19 @@ export function estimateAbilityDps(
   const hitDamage = source.attack;
 
   for (const ability of Object.values(abilities)) {
-    if (!KNOWN_PROC_ABILITIES.has(ability.key) || ability.attr0 <= 0) continue;
+    if (ability.attr0 <= 0 && ability.key !== "weave") continue;
+    if (!KNOWN_PROC_ABILITIES.has(ability.key)) continue;
 
-    const procRate = abilityProcRate(ability);
+    const procRate = ability.key === "weave" ? 1 : abilityProcRate(ability);
     const outcome = classifyAbilityProc(ability, hitDamage);
     if (!outcome) continue;
 
     switch (outcome.kind) {
       case "burn": {
-        const perProc = burnTotalDamageFromProc(hitDamage, { unlimited: ability.unlimited });
+        const perProc = burnTotalDamageFromProc(hitDamage, {
+          unlimited: ability.unlimited,
+          target,
+        });
         const dps = freq * procRate * perProc;
         if (dps > 0) {
           lines.push({
@@ -120,7 +125,8 @@ export function estimateAbilityDps(
         debuffLines.push({
           key: outcome.key,
           label: outcome.label,
-          detail: `${ability.attr0}% proc · ${outcome.detail}`,
+          detail:
+            ability.key === "weave" ? outcome.detail : `${ability.attr0}% proc · ${outcome.detail}`,
         });
         break;
       default:
@@ -178,8 +184,8 @@ export function collectSplashIntensities(
 
 const UNSIMULATED_ABILITY_REASONS: Record<string, string> = {
   weave: "Slow debuff on target — not single-target DPS",
-  power: "Temporary attack-speed buff — use skills sim",
-  xpower: "Temporary attack-speed buff — use skills sim",
+  power: "Charge ability (+360 frequency 4s) — activate in combat, not passive DPS",
+  xpower: "Charge ability (+480 frequency 6s) — activate in combat, not passive DPS",
   warp: "Movement ability — not DPS",
   poke: "Utility ability — not DPS",
   restore_mp: "Mana restore — not DPS",
