@@ -1,5 +1,5 @@
 {
-  "version": 5821,
+  "version": 5203,
   "achievements": {
     "reach40": { "name": "Become Level 40", "item": "gem1" },
     "reach50": { "name": "Become Level 50", "shells": 50 },
@@ -6637,71 +6637,7 @@
     "mtunnel": {
       "key": "jayson_mainlandTunnel",
       "name": "Underground [Tunnel]",
-      "npcs": [
-        {
-          "id": "citizen20",
-          "positions": [
-            [0, 8],
-            [272, 8],
-            [288, -8],
-            [336, -8],
-            [368, -40],
-            [384, -40],
-            [416, -8],
-            [464, -8],
-            [480, -24],
-            [496, -24],
-            [528, -56],
-            [576, -56],
-            [592, -72],
-            [608, -72],
-            [624, -88],
-            [632, -88],
-            [664, -120],
-            [680, -104],
-            [688, -104],
-            [720, -72],
-            [752, -72],
-            [768, -56],
-            [776, -56],
-            [856, 24],
-            [864, 24],
-            [880, 40],
-            [1056, 40],
-            [1072, 24],
-            [1096, 24],
-            [1168, -48],
-            [1096, 24],
-            [1072, 24],
-            [1056, 40],
-            [880, 40],
-            [864, 24],
-            [856, 24],
-            [776, -56],
-            [768, -56],
-            [752, -72],
-            [720, -72],
-            [688, -104],
-            [680, -104],
-            [664, -120],
-            [632, -88],
-            [624, -88],
-            [608, -72],
-            [592, -72],
-            [576, -56],
-            [528, -56],
-            [496, -24],
-            [480, -24],
-            [464, -8],
-            [416, -8],
-            [384, -40],
-            [368, -40],
-            [336, -8],
-            [288, -8],
-            [272, 8]
-          ]
-        }
-      ],
+      "npcs": [],
       "monsters": [],
       "spawns": [
         [0, 8],
@@ -7174,7 +7110,7 @@
     "cyberland": {
       "key": "cyberland",
       "name": "Cyberland",
-      "npcs": [{ "id": "citizen18", "position": [0, -136] }],
+      "npcs": [],
       "monsters": [
         { "type": "mechagnome", "boundary": [-16, -88, -17, -89], "count": 1 },
         { "type": "mechagnome", "boundary": [-6, -96, -7, -95], "count": 1 },
@@ -7259,12 +7195,7 @@
       "name": "The Tavern",
       "npcs": [
         { "id": "tbartender", "position": [150, -202] },
-        { "id": "bouncer", "position": [208, -156] },
-        {
-          "id": "citizen21",
-          "position": [80, -120],
-          "boundary": [40, -144, 120, -80]
-        }
+        { "id": "bouncer", "position": [208, -156] }
       ],
       "monsters": [],
       "doors": [
@@ -7648,8 +7579,7 @@
       "npcs": [
         { "id": "transporter", "position": [-14, -477] },
         { "id": "locksmith", "position": [316, -270] },
-        { "id": "scrollsmith", "position": [606, -1590] },
-        { "id": "citizen17", "position": [48, 24] }
+        { "id": "scrollsmith", "position": [606, -1590] }
       ],
       "monsters": [
         {
@@ -8385,13 +8315,7 @@
     "mforest": {
       "key": "jayson_undergroundjungle",
       "name": "Mystical Forest",
-      "npcs": [
-        {
-          "id": "citizen19",
-          "position": [0, 48],
-          "boundary": [-120, -80, 120, 160]
-        }
-      ],
+      "npcs": [],
       "monsters": [
         {
           "type": "bluefairy",
@@ -141025,144 +140949,6 @@
       ],
       "id": "citizen16"
     },
-    "citizen17": {
-      "name": "Rook",
-      "role": "citizen",
-      "skin": "mbody4b",
-      "cx": {
-        "head": "mmakeup02",
-        "hair": "hairdo219",
-        "hat": "hat202",
-        "back": "backpacks00"
-      },
-      "cosmetic_head_y": 1,
-      "type": "fullstatic",
-      "citizen_behavior": "wayfinder",
-      "speed": 28,
-      "hp": 3200,
-      "delay": 6000,
-      "level": 40,
-      "says": [
-        "Need a bearing?",
-        "Dunes shift. Landmarks help.",
-        "I know three useful stops."
-      ],
-      "interaction": [
-        "Lost in the sand? Pick a name, and I'll show the first steps."
-      ],
-      "id": "citizen17"
-    },
-    "citizen18": {
-      "name": "Patch",
-      "role": "citizen",
-      "skin": "mbody2d",
-      "cx": {
-        "head": "makeup119",
-        "hair": "hairdo309",
-        "face": "face102",
-        "back": "backpacks03"
-      },
-      "type": "fullstatic",
-      "citizen_behavior": "repairer",
-      "speed": 24,
-      "hp": 4200,
-      "delay": 5000,
-      "level": 52,
-      "says": [
-        "Easy, little worker.",
-        "Loose bolt, bright spark.",
-        "Fighting? I'll wait."
-      ],
-      "interaction": [
-        "If a mechagnome idles, I patch it up. If it starts swinging, I keep my fingers clear."
-      ],
-      "id": "citizen18"
-    },
-    "citizen19": {
-      "name": "Moss",
-      "role": "citizen",
-      "skin": "mbody3f",
-      "cx": {
-        "head": "mmakeup04",
-        "hair": "hairdo424",
-        "hat": "hat323",
-        "back": "backpacks00"
-      },
-      "type": "fullstatic",
-      "citizen_behavior": "fairy_echo",
-      "speed": 20,
-      "hp": 3600,
-      "delay": 7000,
-      "level": 48,
-      "says": [
-        "A fairy passed this way.",
-        "Red, green, blue... hush.",
-        "Light remembers wings."
-      ],
-      "interaction": [
-        "Stand near a fairy and watch my motes. They borrow its color for a little while."
-      ],
-      "id": "citizen19"
-    },
-    "citizen20": {
-      "name": "Wick",
-      "role": "citizen",
-      "skin": "marmor8a",
-      "cx": {
-        "head": "mmakeup02",
-        "hair": "hairdo406",
-        "hat": "gcandle",
-        "back": "backpacks200"
-      },
-      "type": "fullstatic",
-      "citizen_behavior": "lamplighter",
-      "citizen_lamp_stops": [
-        [0, 8],
-        [384, -40],
-        [688, -104],
-        [880, 40],
-        [1168, -48]
-      ],
-      "speed": 22,
-      "hp": 4800,
-      "delay": 1200,
-      "level": 54,
-      "says": [
-        "One stop, one flame.",
-        "Warm light holds here.",
-        "Mind the unlit turns."
-      ],
-      "interaction": [
-        "I walk the tunnel and leave warm pools of light. The dark keeps moving, so I do too."
-      ],
-      "id": "citizen20"
-    },
-    "citizen21": {
-      "name": "Brio",
-      "role": "citizen",
-      "skin": "mbody1e",
-      "cx": {
-        "head": "fmakeup04",
-        "hair": "hairdo510",
-        "hat": "hat103",
-        "back": "backpacks02"
-      },
-      "type": "fullstatic",
-      "citizen_behavior": "tavern_echo",
-      "speed": 18,
-      "hp": 3000,
-      "delay": 8000,
-      "level": 36,
-      "says": [
-        "Show me a flourish.",
-        "I can follow that.",
-        "A bow finishes it."
-      ],
-      "interaction": [
-        "Try Wiggle, Head Wiggle, Joy, or Jump nearby. Give me a beat, and I'll copy it."
-      ],
-      "id": "citizen21"
-    },
     "holo0": {
       "name": "Green",
       "role": "citizen",
@@ -149526,7 +149312,7 @@
       "compound": { "dex": 2, "int": 2, "mp": 75, "mp_reduction": 1.5 },
       "name": "Gloam Pendant",
       "explanation": "It grows cold whenever its wearer is seen.",
-      "grades": [1, 4, 6, 7],
+      "grades": [0, 1, 4, 7],
       "g": 420000
     },
     "sapstone": {
@@ -150438,11 +150224,11 @@
     "gloampendant": {
       "items": [
         [1, "dexamulet", 2],
-        [12, "voidthread"],
+        [30, "voidthread"],
         [80, "bwing"],
         [6, "essenceofether"]
       ],
-      "cost": 420000
+      "cost": 6400000
     },
     "worldrootcrook": {
       "items": [
@@ -157227,7 +157013,7 @@
       "bat": [
         [0.004, "wbook0"],
         [0.005, "bwing"],
-        [0.0005, "voidthread"],
+        [0.000025, "voidthread"],
         [1e-8, "cxjar", 1, "wings102"]
       ],
       "scorpion": [
@@ -159522,5 +159308,5 @@
       [0.1, "cx", "mirrordance"]
     ]
   },
-  "timestamp": "2026-08-30T11:20:51.794Z"
+  "timestamp": "2026-08-31T12:49:18.660Z"
 }
