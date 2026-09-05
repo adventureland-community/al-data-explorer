@@ -28,6 +28,7 @@ describe("itemEffects", () => {
     });
     expect(effects[0]?.title).toBe("Scare");
     expect(effects[0]?.detail).toMatch(/Jack-o/);
+    expect(effects[0]?.href).toBe("/skills/scare");
   });
 
   it("formats potion gives as use effects", () => {

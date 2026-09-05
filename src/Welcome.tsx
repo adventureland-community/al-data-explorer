@@ -18,6 +18,11 @@ const sections = [
     description: "Browse monsters, drops, achievements, and search or sort the list.",
   },
   {
+    title: "Classes",
+    path: "/classes",
+    description: "Explore character classes, base stats, weapon bonuses, and every G skill.",
+  },
+  {
     title: "Drop Simulator",
     path: "/drops",
     description:

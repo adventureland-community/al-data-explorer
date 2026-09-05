@@ -14,6 +14,9 @@ import { ItemsBrowse } from "./Items/ItemsBrowse";
 import { ItemDetail } from "./Items/ItemDetail";
 import { ItemCompare } from "./Items/ItemCompare";
 import { DropSimulator } from "./DropSimulator/DropSimulator";
+import { ClassesBrowse } from "./Classes/ClassesBrowse";
+import { ClassDetail } from "./Classes/ClassDetail";
+import { SkillDetail } from "./Classes/SkillDetail";
 
 // TODO: https://reactrouter.com/en/main/start/tutorial#handling-not-found-errors
 
@@ -60,6 +63,18 @@ const router = createBrowserRouter([
           {
             path: "drops",
             element: <DropSimulator />,
+          },
+          {
+            path: "classes",
+            element: <ClassesBrowse />,
+          },
+          {
+            path: "classes/:classKey",
+            element: <ClassDetail />,
+          },
+          {
+            path: "skills/:skillKey",
+            element: <SkillDetail />,
           },
         ],
       },

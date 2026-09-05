@@ -37,6 +37,7 @@ type ItemExtras = {
   charge?: number;
   cooldown?: number;
   duration?: number;
+  gold_reward?: number;
   s?: number;
   credit?: string;
   debuff?: boolean;
@@ -226,6 +227,13 @@ export function getItemFacts(gItem: GItem, lookups?: ItemMetaLookups): ItemFact[
   }
   if (item.offering != null && Number.isFinite(item.offering)) {
     facts.push({ key: "offering", label: "Offering", value: String(item.offering) });
+  }
+  if (item.gold_reward != null && Number.isFinite(item.gold_reward)) {
+    facts.push({
+      key: "gold_reward",
+      label: "Victor gold",
+      value: item.gold_reward.toLocaleString(),
+    });
   }
   if (item.cash != null && Number.isFinite(item.cash)) {
     facts.push({

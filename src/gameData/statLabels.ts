@@ -32,4 +32,10 @@ export const STAT_DISPLAY_LABELS: Record<string, string> = {
   mp_reduction: "Skill MP Reduction",
   explosion: "Explosion",
   blast: "Blast",
+  output: "Output",
+  firesistance: "Fire resist",
+  fzresistance: "Freeze resist",
+  phresistance: "Physical resist",
+  pnresistance: "Poison resist",
+  stresistance: "Stun resist",
 };

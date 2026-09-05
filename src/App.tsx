@@ -65,9 +65,19 @@ function Menu({ compact = false }: { compact?: boolean }) {
     "/world",
     "/items",
     "/drops",
+    "/classes",
   ]);
   const itemsSelected = pathname === "/items" || pathname.startsWith("/items/");
-  const currentTab = itemsSelected ? "/items" : routeMatch?.pattern?.path ?? false;
+  const classesSelected =
+    pathname === "/classes" ||
+    pathname.startsWith("/classes/") ||
+    pathname === "/skills" ||
+    pathname.startsWith("/skills/");
+  const currentTab = itemsSelected
+    ? "/items"
+    : classesSelected
+    ? "/classes"
+    : routeMatch?.pattern?.path ?? false;
 
   return (
     <Box
@@ -84,6 +94,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
         <Tab label="Items" value="/items" to="/items" component={RouterLink} />
         <Tab label="Gear Planner" value="/gear" to="/gear" component={RouterLink} />
         <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
+        <Tab label="Classes" value="/classes" to="/classes" component={RouterLink} />
         <Tab label="Drops" value="/drops" to="/drops" component={RouterLink} />
         <Tab label="🌎 Market" value="/market" to="/market" component={RouterLink} />
         <Tab label="🌎 Bank" value="/bank" to="/bank" component={RouterLink} />

@@ -12,6 +12,59 @@ export function resolveItemSkin(
   return items?.[itemName]?.skin ?? itemName;
 }
 
+/** Sprite from G.positions + G.imagesets (items, skills, conditions). */
+export function SkinImage({
+  skin,
+  opacity,
+  size = 40,
+  alt,
+}: {
+  skin: string;
+  opacity?: number;
+  size?: number;
+  alt?: string;
+}) {
+  const G = useContext(GDataContext);
+
+  if (!G) {
+    return <></>;
+  }
+
+  const skinPositions = G.positions[skin] ?? G.positions.placeholder;
+  if (!skinPositions) {
+    return <img alt={alt ?? skin} />;
+  }
+  const pack = G.imagesets[skinPositions[0] || "pack_20"];
+  if (!pack?.size || !pack.file) {
+    return <img alt={alt ?? skin} />;
+  }
+  const x = skinPositions[1];
+  const y = skinPositions[2];
+  const scale = size / pack.size;
+  return (
+    <div
+      style={{
+        overflow: "hidden",
+        height: `${size}px`,
+        width: `${size}px`,
+        opacity: opacity ?? 1,
+      }}
+    >
+      <img
+        alt={alt ?? skin}
+        style={{
+          width: `${pack.columns * pack.size * scale}px`,
+          height: `${pack.rows * pack.size * scale}px`,
+          marginTop: `-${y * size}px`,
+          marginLeft: `-${x * size}px`,
+          imageRendering: "pixelated", // Thanks to StormSurge for making the sprites render crisp
+        }}
+        src={`https://adventure.land${pack.file}`}
+      />
+    </div>
+  );
+}
+
 export function ItemImage({
   itemName,
   opacity,
@@ -30,36 +83,7 @@ export function ItemImage({
 
   // Matches item_container() in html.js — gold/shells use G.positions skins, not G.items.
   const skin = resolveItemSkin(G.items as Record<string, { skin?: string } | undefined>, itemName);
-  const skinPositions = G.positions[skin] ?? G.positions.placeholder;
-  if (!skinPositions) {
-    return <img alt={itemName} />;
-  }
-  const pack = G.imagesets[skinPositions[0] || "pack_20"];
-  const x = skinPositions[1];
-  const y = skinPositions[2];
-  const scale = size / pack.size;
-  return (
-    <div
-      style={{
-        overflow: "hidden",
-        height: `${size}px`,
-        width: `${size}px`,
-        opacity: opacity ?? 1,
-      }}
-    >
-      <img
-        alt={itemName}
-        style={{
-          width: `${pack.columns * pack.size * scale}px`,
-          height: `${pack.rows * pack.size * scale}px`,
-          marginTop: `-${y * size}px`,
-          marginLeft: `-${x * size}px`,
-          imageRendering: "pixelated", // Thanks to StormSurge for making the sprites render crisp
-        }}
-        src={`https://adventure.land${pack.file}`}
-      />
-    </div>
-  );
+  return <SkinImage skin={skin} opacity={opacity} size={size} alt={itemName} />;
 }
 
 /**

@@ -166,9 +166,21 @@ function ItemEffectBlock({ effects }: { effects: ItemEffectView[] }) {
           <Stack key={effect.key} direction="row" spacing={1} alignItems="flex-start">
             <EffectIcon effect={effect} />
             <Box sx={{ minWidth: 0, pt: 0.25 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
-                {effect.title}
-              </Typography>
+              {effect.href ? (
+                <Link
+                  component={RouterLink}
+                  to={effect.href}
+                  underline="hover"
+                  variant="body2"
+                  sx={{ fontWeight: 600, lineHeight: 1.3, color: "inherit" }}
+                >
+                  {effect.title}
+                </Link>
+              ) : (
+                <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+                  {effect.title}
+                </Typography>
+              )}
               {effect.summary && effect.summary !== effect.title && (
                 <Typography
                   variant="caption"

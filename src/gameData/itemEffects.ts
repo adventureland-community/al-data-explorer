@@ -16,6 +16,8 @@ export type ItemEffectView = {
   skin?: string;
   /** Fallback item sprite when no skill/condition skin exists. */
   itemIcon?: string;
+  /** Deep-link when the ability is a known skill. */
+  href?: string;
 };
 
 export type EffectLookups = {
@@ -190,6 +192,7 @@ export function getItemEffects(
       detail: abilityDetail(ability, lookups),
       skin,
       itemIcon: skin ? undefined : fallbackItemIcon,
+      href: lookups?.skills?.[ability] ? `/skills/${ability}` : undefined,
     });
   }
 
