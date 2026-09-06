@@ -9,3 +9,17 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
+
+/*
+ * a_hat / a_makeup walk strips — CSS steps so frames keep painting under
+ * turntable perspective / preserve-3d (layout margin updates can freeze).
+ * --al-cx-x0 / --al-cx-y: translate for column 0; --al-cx-strip: colNum * cellWidth.
+ */
+@keyframes al-cosmetic-cols {
+  from {
+    transform: translate(var(--al-cx-x0), var(--al-cx-y));
+  }
+  to {
+    transform: translate(calc(var(--al-cx-x0) - var(--al-cx-strip)), var(--al-cx-y));
+  }
+}

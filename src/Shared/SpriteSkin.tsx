@@ -1,62 +1,16 @@
-import { useContext, useMemo } from "react";
+import { useMediaQuery } from "@mui/material";
+import { CSSProperties, useContext, useMemo } from "react";
 import { GDimension, GImage, GMonster } from "typed-adventureland";
 
 import { GDataContext } from "../GDataContext";
+import {
+  COSMETIC_ANIM_MS,
+  findSpriteSheet,
+  isAnimatedCosmeticType,
+  spriteGridSize,
+  spriteSkinViewFromMatch,
+} from "../gameData/spriteSkinLayout";
 import { EntityTooltip } from "./EntityTooltip";
-
-type SpriteSheetEntry = {
-  file: string;
-  columns: number;
-  rows: number;
-  type?: string;
-  matrix?: unknown[][];
-};
-
-function matrixPosition(value: unknown, matrix: unknown[][]): { row: number; col: number } | null {
-  for (let row = 0; row < matrix.length; row += 1) {
-    const col = (matrix[row] as unknown[]).indexOf(value);
-    if (col !== -1) return { row, col };
-  }
-  return null;
-}
-
-/**
- * Sub-grid inside each matrix cell — matches WorldViewer/spriteLookup.
- * Character sheets are 3×4 walk frames; animations are 3×1, etc.
- */
-function spriteGridSize(type: string | undefined): { colNum: number; rowNum: number } {
-  switch (type) {
-    case "animation":
-      return { colNum: 3, rowNum: 1 };
-    case "tail":
-      return { colNum: 4, rowNum: 4 };
-    case "v_animation":
-    case "head":
-    case "hair":
-    case "hat":
-    case "s_wings":
-    case "face":
-    case "makeup":
-    case "beard":
-      return { colNum: 1, rowNum: 4 };
-    case "emblem":
-    case "gravestone":
-      return { colNum: 1, rowNum: 1 };
-    case "full":
-    case "wings":
-    case "body":
-    case "armor":
-    case "skin":
-    case "character":
-    case "upper":
-    case "a_makeup":
-    case "a_hat":
-    case undefined:
-      return { colNum: 3, rowNum: 4 };
-    default:
-      return { colNum: 3, rowNum: 4 };
-  }
-}
 
 function BoxFallback({ alt }: { alt: string }) {
   return (
@@ -78,80 +32,108 @@ function BoxFallback({ alt }: { alt: string }) {
   );
 }
 
-/** Renders a cropped AdventureLand sprite sheet cell by skin id. */
+type SpriteSheetMap = Record<
+  string,
+  {
+    file?: string;
+    columns?: number;
+    rows?: number;
+    type?: string;
+    skip?: unknown;
+    matrix?: unknown[][];
+  }
+>;
+
+/**
+ * Single AdventureLand sprite-sheet cell (monster, item skin, NPC, one cosmetic layer).
+ * For armor + cosmetics composed like the game, use `CharacterLook`.
+ * `a_hat` / `a_makeup` strips animate their walk columns when `animate` is on.
+ */
 export function SpriteSkin({
   skin,
   alt,
   opacity = 1,
   scale = 1,
+  walkFrame,
+  direction,
+  animate = true,
 }: {
   skin: string;
   alt: string;
   opacity?: number;
   scale?: number;
+  /** Walk column. Omit for the standing frame (`html.js` / PIXI idle). */
+  walkFrame?: number;
+  /** Facing row (`sprite_image` `j`). Default 0 = down. */
+  direction?: number;
+  /** Cycle `a_hat` / `a_makeup` columns. Default on. */
+  animate?: boolean;
 }) {
   const G = useContext(GDataContext);
+  const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const sprites = (G?.sprites ?? {}) as SpriteSheetMap;
+  const match = skin ? findSpriteSheet(sprites, skin) : null;
+  const sheetType = match?.data.type;
+  const { colNum } = spriteGridSize(sheetType);
+  const cssAnimate =
+    Boolean(animate && walkFrame === undefined && skin) &&
+    !reduceMotion &&
+    isAnimatedCosmeticType(sheetType) &&
+    colNum > 1;
+
   if (!G || !skin) return null;
 
-  let match: { data: SpriteSheetEntry; row: number; col: number } | null = null;
-  for (const entry of Object.values(G.sprites as Record<string, SpriteSheetEntry | undefined>)) {
-    if (!entry?.matrix || !entry.file) continue;
-    const position = matrixPosition(skin, entry.matrix);
-    if (!position) continue;
-    match = { data: entry, row: position.row, col: position.col };
-    break;
-  }
+  // CSS animation owns the walk column; pin the crop to column 0 as the keyframe base.
+  const resolvedWalk = walkFrame ?? (cssAnimate ? 0 : undefined);
 
-  if (!match) {
+  const view = match
+    ? spriteSkinViewFromMatch(
+        match,
+        G.images as Record<string, GImage>,
+        G.dimensions as Record<string, GDimension | undefined>,
+        skin,
+        scale,
+        { walkFrame: resolvedWalk, direction },
+      )
+    : null;
+
+  if (!view) {
     return <BoxFallback alt={alt} />;
   }
 
-  const image = (G.images as Record<string, GImage>)[match.data.file.split("?")[0]];
-  if (!image?.width || !image?.height) return <BoxFallback alt={alt} />;
+  const imgStyle: CSSProperties = {
+    maxWidth: "none",
+    width: `${view.imageWidth}px`,
+    height: `${view.imageHeight}px`,
+    imageRendering: "pixelated",
+  };
 
-  const columns = match.data.columns || 1;
-  const rows = match.data.rows || 1;
-  const { colNum, rowNum } = spriteGridSize(match.data.type);
-  const cellWidth = (image.width / (columns * colNum)) * scale;
-  const cellHeight = (image.height / (rows * rowNum)) * scale;
-
-  const dimension = (G.dimensions as Record<string, GDimension>)[skin];
-  let viewWidth = cellWidth;
-  let viewHeight = cellHeight;
-  let offsetX = 0;
-  let offsetY = 0;
-  if (dimension) {
-    viewWidth = dimension[0] * scale;
-    viewHeight = dimension[1] * scale;
-    offsetX = Math.round((cellWidth - viewWidth) / 2 + (dimension[2] || 0) * scale);
-    offsetY = Math.round(cellHeight - viewHeight);
+  if (cssAnimate) {
+    const typed = imgStyle as CSSProperties & Record<string, string>;
+    typed["--al-cx-x0"] = `-${view.originX}px`;
+    typed["--al-cx-y"] = `-${view.originY}px`;
+    typed["--al-cx-strip"] = `${view.colNum * view.animCellWidth}px`;
+    imgStyle.transform = `translate(-${view.originX}px, -${view.originY}px)`;
+    imgStyle.animation = `al-cosmetic-cols ${COSMETIC_ANIM_MS * view.colNum}ms steps(${
+      view.colNum
+    }) infinite`;
+    imgStyle.willChange = "transform";
+  } else {
+    imgStyle.marginTop = `-${view.originY}px`;
+    imgStyle.marginLeft = `-${view.originX}px`;
   }
-
-  const originX = match.col * colNum * cellWidth;
-  const originY = match.row * rowNum * cellHeight;
 
   return (
     <div
       style={{
         overflow: "hidden",
-        width: `${Math.max(1, viewWidth)}px`,
-        height: `${Math.max(1, viewHeight)}px`,
+        width: `${view.viewWidth}px`,
+        height: `${view.viewHeight}px`,
         opacity,
         flexShrink: 0,
       }}
     >
-      <img
-        alt={alt}
-        style={{
-          maxWidth: `${image.width * scale}px`,
-          width: `${image.width * scale}px`,
-          height: `${image.height * scale}px`,
-          marginTop: `-${originY + offsetY}px`,
-          marginLeft: `-${originX + offsetX}px`,
-          imageRendering: "pixelated",
-        }}
-        src={`http://adventure.land${match.data.file}`}
-      />
+      <img alt={alt} style={imgStyle} src={`http://adventure.land${view.file}`} />
     </div>
   );
 }
