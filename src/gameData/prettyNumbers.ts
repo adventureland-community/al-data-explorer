@@ -6,6 +6,46 @@ export function toPrettyFloat(num: number): string {
   return (0 + Math.trunc((num || 0) * 100) / 100).toLocaleString("en-US");
 }
 
+/**
+ * Collapse IEEE float noise for dense UI (balance matrix cells).
+ * `1.2000000000000002` → `"1.2"`, integers stay un-dotted.
+ */
+export function formatCompactNumber(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  const cleaned = Number(value.toPrecision(12));
+  if (Object.is(cleaned, -0)) return "0";
+  return String(cleaned);
+}
+
+export type CompactNumberDisplay = {
+  /** Cell text — `~` prefix when cleaned display differs from the raw value. */
+  text: string;
+  /** Exact raw value for hover when approximated. */
+  title?: string;
+};
+
+/**
+ * Compact display with honesty marker: when cleaning changes the string form,
+ * prefix `~` and expose the exact value via `title`.
+ */
+export function formatCompactNumberDisplay(
+  value: number,
+  opts?: { signed?: boolean },
+): CompactNumberDisplay {
+  const exact = String(value);
+  const compact = formatCompactNumber(value);
+  const approximated = Number.isFinite(value) && compact !== exact;
+
+  let text = compact;
+  if (opts?.signed && value > 0) text = `+${text}`;
+  if (approximated) text = `~${text}`;
+
+  if (!approximated) return { text };
+
+  const exactSigned = opts?.signed && value > 0 ? `+${exact}` : exact;
+  return { text, title: `exact ${exactSigned}` };
+}
+
 /** Combat rates stored as percent points (0.325 → "0.32%"), matching character sheet / tooltips. */
 export const RATE_PERCENT_STATS = new Set([
   "evasion",

@@ -35,6 +35,7 @@ import {
 } from "../../gameData/compareStats";
 import { getItemEffects } from "../../gameData/itemEffects";
 import { sortItemKeysByTier } from "../../gameData/itemFilters";
+import { formatCompactNumberDisplay } from "../../gameData/prettyNumbers";
 import { STAT_DISPLAY_LABELS } from "../../gameData/statLabels";
 import { GItems } from "../../GDataContext";
 import { ItemInstance } from "../../Shared/ItemInstance";
@@ -43,7 +44,7 @@ import { useMatrixUrlParams } from "../useItemsUrlParams";
 
 const ITEM_COL_WIDTH = 248;
 /** Floor so equal level columns still scroll on narrow viewports. */
-const LEVEL_COL_MIN = 88;
+const LEVEL_COL_MIN = 112;
 
 const STICKY_CELL_SX = {
   position: "sticky" as const,
@@ -68,11 +69,6 @@ const LEVEL_CELL_SX = {
   overflow: "hidden",
   py: 1,
 };
-
-function formatDelta(delta: number): string {
-  if (delta > 0) return `+${delta}`;
-  return String(delta);
-}
 
 function keysPresentOrDiffering(stats: LevelStats, baseline?: LevelStats): CompareStatKey[] {
   if (!baseline) {
@@ -168,6 +164,8 @@ function LevelStatCell({
         if (showDelta) {
           deltaColor = delta > 0 ? "success.light" : "error.light";
         }
+        const valueDisplay = formatCompactNumberDisplay(value ?? 0);
+        const deltaDisplay = showDelta ? formatCompactNumberDisplay(delta, { signed: true }) : null;
         return (
           <Box key={key} sx={{ display: "contents" }}>
             <Box
@@ -183,11 +181,16 @@ function LevelStatCell({
             >
               {labelFor(key)}
             </Box>
-            <Box component="span" sx={{ textAlign: "right", whiteSpace: "nowrap", pl: 0.5 }}>
-              {value ?? 0}
+            <Box
+              component="span"
+              title={valueDisplay.title}
+              sx={{ textAlign: "right", whiteSpace: "nowrap", pl: 0.5 }}
+            >
+              {valueDisplay.text}
             </Box>
             <Box
               component="span"
+              title={deltaDisplay?.title}
               sx={{
                 textAlign: "right",
                 whiteSpace: "nowrap",
@@ -196,7 +199,7 @@ function LevelStatCell({
                 color: deltaColor,
               }}
             >
-              {showDelta ? formatDelta(delta) : "\u00a0"}
+              {deltaDisplay ? deltaDisplay.text : "\u00a0"}
             </Box>
           </Box>
         );
