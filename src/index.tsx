@@ -17,6 +17,7 @@ import { DropSimulator } from "./DropSimulator/DropSimulator";
 import { ClassesBrowse } from "./Classes/ClassesBrowse";
 import { ClassDetail } from "./Classes/ClassDetail";
 import { SkillDetail } from "./Classes/SkillDetail";
+import { DressingRoom } from "./Cosmetics/DressingRoom";
 
 // TODO: https://reactrouter.com/en/main/start/tutorial#handling-not-found-errors
 
@@ -84,6 +85,10 @@ const router = createBrowserRouter([
           {
             path: "world",
             element: <WorldViewer />,
+          },
+          {
+            path: "cosmetics",
+            element: <DressingRoom />,
           },
         ],
       },
