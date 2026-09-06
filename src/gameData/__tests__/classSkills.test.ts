@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { GSkill } from "typed-adventureland";
 
+import { classLooks } from "../characterLook";
 import {
   classAttributeRows,
   classLookSkins,
@@ -100,6 +101,7 @@ describe("classSkills", () => {
     const skins = classLookSkins(G.classes.warrior);
     expect(skins.length).toBeGreaterThan(0);
     expect(skins[0]).toBe("marmor6d");
+    expect(classLooks(G.classes.warrior)[0]?.cx.head).toBe("makeup117");
   });
 
   it("builds hero stats for cleave", () => {

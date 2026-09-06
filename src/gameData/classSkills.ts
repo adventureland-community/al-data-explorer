@@ -1,6 +1,7 @@
 import { ClassKey, GClass, GSkill } from "typed-adventureland";
 
 import { CustomGData } from "../GDataContext";
+import { classLooks, classLookSkins, ClassLook } from "./characterLook";
 import { calculateClassStatByLevel } from "./classLevelStats";
 import { STAT_DISPLAY_LABELS } from "./statLabels";
 
@@ -46,7 +47,7 @@ export type ClassCatalogEntry = {
   key: ClassKey;
   gClass: GClass;
   skillCount: number;
-  lookSkin?: string;
+  look?: ClassLook;
 };
 
 export type ClassCombatStat = { key: string; label: string; value: string };
@@ -208,42 +209,19 @@ export function skillsForClass(skills: CustomGData["skills"], classKey: ClassKey
   return querySkills(skills, { classes: [classKey], sort: "name" });
 }
 
-export function classLookSkin(gClass: GClass): string | undefined {
-  const { looks } = gClass;
-  if (!looks) return undefined;
-  const first = looks[0];
-  if (!first) return undefined;
-  return first[0];
-}
-
-export function classLookSkins(gClass: GClass): string[] {
-  const skins: string[] = [];
-  if (!gClass.looks) return skins;
-  for (const look of gClass.looks) {
-    const skin = look?.[0];
-    if (!skin) continue;
-    let seen = false;
-    for (const existing of skins) {
-      if (existing === skin) {
-        seen = true;
-        break;
-      }
-    }
-    if (!seen) skins.push(skin);
-  }
-  return skins;
-}
+export { classLookSkins };
 
 export function listClassCatalog(G: Pick<CustomGData, "classes" | "skills">): ClassCatalogEntry[] {
   const entries: ClassCatalogEntry[] = [];
   for (const key of CLASS_KEYS) {
     const gClass = G.classes[key];
     if (!gClass) continue;
+    const looks = classLooks(gClass);
     entries.push({
       key,
       gClass,
       skillCount: skillsForClass(G.skills, key).length,
-      lookSkin: classLookSkin(gClass),
+      look: looks[0],
     });
   }
   return entries;

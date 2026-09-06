@@ -19,10 +19,10 @@ import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 import { ItemKey } from "typed-adventureland";
 
 import { GDataContext } from "../GDataContext";
+import { classLooks } from "../gameData/characterLook";
 import {
   classAttributeRows,
   classCombatStats,
-  classLookSkins,
   classWeaponRows,
   formatSkillMs,
   isClassKey,
@@ -30,9 +30,9 @@ import {
   skillsForClass,
   titleCaseKey,
 } from "../gameData/classSkills";
+import { CharacterLook } from "../Shared/CharacterLook";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { LoadingState } from "../Shared/LoadingState";
-import { SpriteSkin } from "../Shared/SpriteSkin";
 import { classAccent, classColor } from "./ClassChip";
 import { SkillImage } from "./SkillImage";
 
@@ -147,7 +147,7 @@ export function ClassDetail() {
   const [level, setLevel] = useState(80);
 
   const gClass = classKey && isClassKey(classKey) && G ? G.classes[classKey] : undefined;
-  const lookSkins = gClass ? classLookSkins(gClass) : [];
+  const looks = gClass ? classLooks(gClass) : [];
   const combatRows = useMemo(() => (gClass ? classCombatStats(gClass) : []), [gClass]);
   const attrRows = useMemo(
     () => (gClass ? classAttributeRows(gClass, level) : []),
@@ -204,8 +204,15 @@ export function ClassDetail() {
           <Stack spacing={1.5} sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={1.5} alignItems="flex-start">
               <Stack direction="row" spacing={0.75} sx={{ flexShrink: 0, pt: 0.25 }}>
-                {lookSkins.map((skin) => (
-                  <SpriteSkin key={skin} skin={skin} alt={classKey} scale={1.25} />
+                {looks.map((look) => (
+                  <CharacterLook
+                    key={`${look.skin}-${look.cx.head ?? ""}-${look.cx.hair ?? ""}-${
+                      look.cx.hat ?? ""
+                    }-${look.cx.chin ?? ""}`}
+                    look={look}
+                    alt={classKey}
+                    size="class"
+                  />
                 ))}
               </Stack>
               <Box sx={{ minWidth: 0, flex: 1 }}>

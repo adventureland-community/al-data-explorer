@@ -29,9 +29,9 @@ import {
   SkillSortKey,
   titleCaseKey,
 } from "../gameData/classSkills";
+import { CharacterLook } from "../Shared/CharacterLook";
 import { LoadingState } from "../Shared/LoadingState";
 import { MultiFilterAutocomplete } from "../Shared/MultiFilterAutocomplete";
-import { SpriteSkin } from "../Shared/SpriteSkin";
 import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
 import { classAccent, ClassChip, classColor, KindChip } from "./ClassChip";
 import { SkillImage } from "./SkillImage";
@@ -284,8 +284,8 @@ export function ClassesBrowse() {
                   }}
                 >
                   <Stack direction="row" spacing={0.75} alignItems="center">
-                    {entry.lookSkin ? (
-                      <SpriteSkin skin={entry.lookSkin} alt={entry.key} scale={1} />
+                    {entry.look ? (
+                      <CharacterLook look={entry.look} alt={entry.key} size="class" />
                     ) : null}
                     <Box sx={{ minWidth: 0 }}>
                       <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>
