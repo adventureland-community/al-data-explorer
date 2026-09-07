@@ -6,6 +6,7 @@ import {
   NpcFeature,
   ParsedDoor,
   ParsedMap,
+  RectFeature,
   SpawnFeature,
   SpawnLink,
 } from "./types";
@@ -171,6 +172,68 @@ function npcRoam(npc: GMap["npcs"][number]): NpcFeature["roam"] {
   return boxRect(npc.boundary[0], npc.boundary[1], npc.boundary[2], npc.boundary[3]);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readCoordPair(value: unknown): { x: number; y: number } | undefined {
+  if (!Array.isArray(value) || value.length < 2) {
+    return undefined;
+  }
+  if (typeof value[0] !== "number" || typeof value[1] !== "number") {
+    return undefined;
+  }
+  return { x: value[0], y: value[1] };
+}
+
+function readAreaBox(value: unknown): ReturnType<typeof boxRect> | undefined {
+  if (!Array.isArray(value) || value.length < 4) {
+    return undefined;
+  }
+  if (
+    typeof value[0] !== "number" ||
+    typeof value[1] !== "number" ||
+    typeof value[2] !== "number" ||
+    typeof value[3] !== "number"
+  ) {
+    return undefined;
+  }
+  return boxRect(value[0], value[1], value[2], value[3]);
+}
+
+/** Market patron overlays live on `G.npcs[id].market` (not yet in typed-adventureland). */
+function npcMarketOverlay(def: unknown): Pick<NpcFeature, "marketAreas" | "marketStops"> {
+  if (!isRecord(def)) {
+    return {};
+  }
+  const { market } = def;
+  if (!isRecord(market)) {
+    return {};
+  }
+  const marketAreas: RectFeature[] = [];
+  if (Array.isArray(market.areas)) {
+    for (const area of market.areas) {
+      const box = readAreaBox(area);
+      if (box) {
+        marketAreas.push(box);
+      }
+    }
+  }
+  const marketStops: Array<{ x: number; y: number }> = [];
+  if (Array.isArray(market.stops)) {
+    for (const stop of market.stops) {
+      const point = readCoordPair(stop);
+      if (point) {
+        marketStops.push(point);
+      }
+    }
+  }
+  return {
+    ...(marketAreas.length > 0 ? { marketAreas } : {}),
+    ...(marketStops.length > 0 ? { marketStops } : {}),
+  };
+}
+
 function npcPoints(map: GMap, npcDefs: Record<string, GNpc>): NpcFeature[] {
   const points: NpcFeature[] = [];
   for (const npc of map.npcs || []) {
@@ -180,6 +243,7 @@ function npcPoints(map: GMap, npcDefs: Record<string, GNpc>): NpcFeature[] {
     const name = npc.name || def?.name;
     const roam = npcRoam(npc);
     const moving = Boolean(def?.moving);
+    const market = npcMarketOverlay(def);
     if (npc.position) {
       points.push({
         id: npc.id,
@@ -187,6 +251,7 @@ function npcPoints(map: GMap, npcDefs: Record<string, GNpc>): NpcFeature[] {
         name,
         roam,
         moving,
+        ...market,
         x: npc.position[0],
         y: npc.position[1],
         label,
@@ -200,6 +265,7 @@ function npcPoints(map: GMap, npcDefs: Record<string, GNpc>): NpcFeature[] {
           name,
           roam,
           moving,
+          ...market,
           x: position[0],
           y: position[1],
           label,
@@ -412,6 +478,17 @@ function parseOneMap(
   }
   for (const npc of npcs) {
     bump(npc.x, npc.y);
+    if (npc.roam) {
+      bump(npc.roam.x - npc.roam.width / 2, npc.roam.y - npc.roam.height / 2);
+      bump(npc.roam.x + npc.roam.width / 2, npc.roam.y + npc.roam.height / 2);
+    }
+    for (const area of npc.marketAreas || []) {
+      bump(area.x - area.width / 2, area.y - area.height / 2);
+      bump(area.x + area.width / 2, area.y + area.height / 2);
+    }
+    for (const stop of npc.marketStops || []) {
+      bump(stop.x, stop.y);
+    }
   }
   for (const quirk of quirks) {
     bump(quirk.x, quirk.y);

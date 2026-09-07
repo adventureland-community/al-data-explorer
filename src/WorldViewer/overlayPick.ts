@@ -59,6 +59,13 @@ export function spawnOverlayHint(spawn: SpawnFeature): string {
 }
 
 function npcOverlayHint(npc: NpcFeature): string {
+  if (npc.marketAreas && npc.marketAreas.length > 0) {
+    const stops =
+      npc.marketStops && npc.marketStops.length > 0 ? ` · ${npc.marketStops.length} stops` : "";
+    return `Market patron · ${npc.marketAreas.length} area${
+      npc.marketAreas.length === 1 ? "" : "s"
+    }${stops}`;
+  }
   if (npc.roam) {
     return "Moves around in this area";
   }

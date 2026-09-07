@@ -41,6 +41,10 @@ export interface NpcFeature extends PointFeature {
   roam?: RectFeature;
   /** True when `G.npcs[id].moving` — walks the map without a fixed box. */
   moving?: boolean;
+  /** Market patron patrol boxes (`G.npcs[id].market.areas`). */
+  marketAreas?: RectFeature[];
+  /** Market patron waypoints (`G.npcs[id].market.stops`). */
+  marketStops?: Array<{ x: number; y: number }>;
 }
 
 export interface MonsterFeature {

@@ -437,6 +437,32 @@ export function buildMapOverlays(
         { lift: LIFT.npcs, opacity: OVERLAY_FILL_OPACITY.npcs },
       );
     }
+    for (const area of npc.marketAreas || []) {
+      attachOverlay(
+        npcs,
+        makeRectMesh(
+          area.x,
+          area.y,
+          area.width,
+          area.height,
+          overlayColor("npcs"),
+          LIFT.npcs,
+          OVERLAY_FILL_OPACITY.npcs * 0.85,
+        ),
+        pick,
+        npc.label,
+        { lift: LIFT.npcs, opacity: OVERLAY_FILL_OPACITY.npcs * 0.85 },
+      );
+    }
+    for (const stop of npc.marketStops || []) {
+      attachOverlay(
+        npcs,
+        makeCircleMesh(stop.x, stop.y, 3, overlayColor("npcs"), LIFT.npcs + 0.15, 0.9),
+        pick,
+        npc.label,
+        { lift: LIFT.npcs + 0.15, opacity: 0.9 },
+      );
+    }
     attachOverlay(
       npcs,
       makeRectMesh(npc.x, npc.y, 20, 28, overlayColor("npcs"), LIFT.npcs + 0.2, 0.85, true),

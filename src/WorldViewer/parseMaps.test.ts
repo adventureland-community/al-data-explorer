@@ -92,6 +92,55 @@ describe("parseMaps spawn links and roaming", () => {
   });
 });
 
+describe("parseMaps npc market areas", () => {
+  const merrit = {
+    id: "citizen22",
+    name: "Merrit",
+    role: "citizen",
+    skin: "mbody4b",
+    market: {
+      areas: [
+        [-240, -120, 240, 144],
+        [-88, 144, 88, 360],
+      ],
+      stops: [
+        [0, 0],
+        [-96, 0],
+        [0, 320],
+      ],
+    },
+  };
+  const maps = parseMaps(
+    {
+      maps: {
+        main: emptyMap({
+          name: "Town",
+          outside: true,
+          npcs: [{ id: "citizen22", position: [0, 0] } as unknown as GMap["npcs"][number]],
+        }),
+      },
+      geometry: {},
+    },
+    false,
+    { citizen22: merrit as unknown as GNpc },
+  );
+
+  it("copies market.areas and market.stops onto the npc feature", () => {
+    expect(maps.main.npcs[0]).toMatchObject({
+      id: "citizen22",
+      marketAreas: [
+        { x: 0, y: 12, width: 480, height: 264 },
+        { x: 0, y: 252, width: 176, height: 216 },
+      ],
+      marketStops: [
+        { x: 0, y: 0 },
+        { x: -96, y: 0 },
+        { x: 0, y: 320 },
+      ],
+    });
+  });
+});
+
 describe("parseMaps random-respawn boundaries", () => {
   const maps = parseMaps(
     {

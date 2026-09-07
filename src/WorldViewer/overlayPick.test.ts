@@ -155,5 +155,33 @@ describe("overlayPick", () => {
         maps,
       ),
     ).toMatchObject({ title: "Bean", hint: "Moves around in this area" });
+    expect(
+      overlayTooltip(
+        {
+          kind: "npc",
+          mapId: "main",
+          npc: {
+            id: "citizen22",
+            skin: "mbody4b",
+            name: "Merrit",
+            x: 0,
+            y: 0,
+            label: "Merrit",
+            marketAreas: [
+              { x: 0, y: 12, width: 480, height: 264 },
+              { x: 0, y: 252, width: 176, height: 216 },
+            ],
+            marketStops: [
+              { x: 0, y: 0 },
+              { x: -96, y: 0 },
+            ],
+          },
+        },
+        maps,
+      ),
+    ).toMatchObject({
+      title: "Merrit",
+      hint: "Market patron · 2 areas · 2 stops",
+    });
   });
 });

@@ -105,7 +105,15 @@ function InspectDetails({ pick, mapName }: { pick: OverlayPick; mapName: string 
               Roams area ({Math.round(pick.npc.roam.width)}×{Math.round(pick.npc.roam.height)})
             </Typography>
           )}
-          {pick.npc.moving && !pick.npc.roam && (
+          {pick.npc.marketAreas && pick.npc.marketAreas.length > 0 && (
+            <Typography variant="caption" sx={{ opacity: 0.55 }}>
+              Market areas: {pick.npc.marketAreas.length}
+              {pick.npc.marketStops && pick.npc.marketStops.length > 0
+                ? ` · ${pick.npc.marketStops.length} stops`
+                : ""}
+            </Typography>
+          )}
+          {pick.npc.moving && !pick.npc.roam && !pick.npc.marketAreas && (
             <Typography variant="caption" sx={{ opacity: 0.55 }}>
               Roams the map
             </Typography>
