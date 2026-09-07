@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Autocomplete, Box, TextField, Typography } from "@mui/material";
 import { GMonster } from "typed-adventureland";
-import { ParsedMap } from "./types";
+import { MapFocus, NpcFeature, ParsedMap } from "./types";
 
 type SearchGroup = "Maps" | "Monsters" | "NPCs";
 
@@ -12,6 +12,8 @@ interface SearchOption {
   mapId: string;
   x?: number;
   y?: number;
+  npcId?: string;
+  monsterType?: string;
 }
 
 interface MapChoice {
@@ -19,12 +21,20 @@ interface MapChoice {
   name: string;
 }
 
+export type WorldSearchSelect = {
+  mapId: string;
+  x: number;
+  y: number;
+  fit: NonNullable<MapFocus["fit"]>;
+  inspectNpc?: NpcFeature;
+};
+
 interface WorldSearchBarProps {
   maps: Record<string, ParsedMap>;
   monsters: Record<string, GMonster>;
   mapChoices: MapChoice[];
   onFocusMap: (mapId: string) => void;
-  onSelectMap: (mapId: string | null, focusAt?: { x: number; y: number }) => void;
+  onSelectHit: (hit: WorldSearchSelect) => void;
 }
 
 export function WorldSearchBar({
@@ -32,7 +42,7 @@ export function WorldSearchBar({
   monsters,
   mapChoices,
   onFocusMap,
-  onSelectMap,
+  onSelectHit,
 }: WorldSearchBarProps) {
   const options = useMemo(() => {
     const result: SearchOption[] = [];
@@ -68,8 +78,9 @@ export function WorldSearchBar({
         label: displayName,
         detail: `${type} — ${mapIds.map((id) => maps[id]?.name ?? id).join(", ")}`,
         mapId: firstMap,
-        x: spawn ? spawn.x + spawn.width / 2 : undefined,
-        y: spawn ? spawn.y + spawn.height / 2 : undefined,
+        monsterType: type,
+        x: spawn ? spawn.x : undefined,
+        y: spawn ? spawn.y : undefined,
       });
     }
 
@@ -80,6 +91,7 @@ export function WorldSearchBar({
           label: npc.name ?? npc.label,
           detail: `${npc.id} — ${map.name}`,
           mapId,
+          npcId: npc.id,
           x: npc.x,
           y: npc.y,
         });
@@ -96,8 +108,22 @@ export function WorldSearchBar({
       options={options}
       groupBy={(option) => option.group}
       getOptionLabel={(option) => option.label}
+      isOptionEqualToValue={(a, b) =>
+        a.group === b.group &&
+        a.mapId === b.mapId &&
+        a.npcId === b.npcId &&
+        a.monsterType === b.monsterType &&
+        a.x === b.x &&
+        a.y === b.y &&
+        a.label === b.label
+      }
       renderOption={(props, option) => (
-        <li {...props} key={`${option.group}-${option.mapId}-${option.label}`}>
+        <li
+          {...props}
+          key={`${option.group}-${option.mapId}-${
+            option.npcId ?? option.monsterType ?? option.label
+          }-${option.x ?? ""}-${option.y ?? ""}`}
+        >
           <Box>
             <Typography variant="body2">{option.label}</Typography>
             <Typography variant="caption" color="text.secondary">
@@ -120,13 +146,26 @@ export function WorldSearchBar({
             onFocusMap(option.mapId);
             break;
           case "Monsters":
-          case "NPCs":
-            if (option.x !== undefined && option.y !== undefined) {
-              onSelectMap(option.mapId, { x: option.x, y: option.y });
-            } else {
+          case "NPCs": {
+            if (option.x === undefined || option.y === undefined) {
               onFocusMap(option.mapId);
+              break;
             }
+            const inspectNpc =
+              option.group === "NPCs" && option.npcId
+                ? maps[option.mapId]?.npcs.find(
+                    (npc) => npc.id === option.npcId && npc.x === option.x && npc.y === option.y,
+                  )
+                : undefined;
+            onSelectHit({
+              mapId: option.mapId,
+              x: option.x,
+              y: option.y,
+              fit: "point",
+              inspectNpc,
+            });
             break;
+          }
           default: {
             const exhaustive: never = option.group;
             throw new Error(`Unhandled group: ${exhaustive}`);

@@ -132,15 +132,19 @@ export function WorldViewer() {
     syncHashFromState(selectedMap, focus, viewMode, layerHeight);
   }, [selectedMap, focus, viewMode, layerHeight]);
 
-  const requestMapFocus = (mapId: string, x: number, y: number) => {
+  const requestMapFocus = (mapId: string, x: number, y: number, fit: MapFocus["fit"] = "map") => {
     focusSeqRef.current += 1;
-    setFocus({ mapId, x, y, seq: focusSeqRef.current });
+    setFocus({ mapId, x, y, seq: focusSeqRef.current, fit });
   };
 
-  const selectMap = (mapId: string | null, focusAt?: { x: number; y: number }) => {
+  const selectMap = (
+    mapId: string | null,
+    focusAt?: { x: number; y: number },
+    fit: MapFocus["fit"] = "map",
+  ) => {
     setSelectedMap((current) => nextSelectedMap(viewMode, current, mapId));
     if (mapId && focusAt) {
-      requestMapFocus(mapId, focusAt.x, focusAt.y);
+      requestMapFocus(mapId, focusAt.x, focusAt.y, fit);
     }
   };
 
@@ -294,7 +298,19 @@ export function WorldViewer() {
           monsters={world.monsters}
           mapChoices={mapChoices}
           onFocusMap={focusMap}
-          onSelectMap={selectMap}
+          onSelectHit={(hit) => {
+            if (hit.inspectNpc) {
+              const npc = hit.inspectNpc;
+              const showMarket = Boolean(npc.marketAreas?.length || npc.marketStops?.length);
+              setOverlays((current) => ({
+                ...current,
+                npcs: true,
+                ...(showMarket ? { market: true } : {}),
+              }));
+              setInspect({ kind: "npc", mapId: hit.mapId, npc });
+            }
+            selectMap(hit.mapId, { x: hit.x, y: hit.y }, hit.fit);
+          }}
         />
       </WorldTopBar>
       <TravelBreadcrumb

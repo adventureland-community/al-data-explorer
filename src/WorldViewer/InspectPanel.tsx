@@ -101,12 +101,12 @@ function InspectDetails({ pick, mapName }: { pick: OverlayPick; mapName: string 
             Skin: {pick.npc.skin}
           </Typography>
           {pick.npc.roam && (
-            <Typography variant="caption" sx={{ opacity: 0.55 }}>
-              Roams area ({Math.round(pick.npc.roam.width)}×{Math.round(pick.npc.roam.height)})
+            <Typography variant="caption" sx={{ opacity: 0.55, color: "#84d5ff" }}>
+              Roam box ({Math.round(pick.npc.roam.width)}×{Math.round(pick.npc.roam.height)})
             </Typography>
           )}
           {pick.npc.marketAreas && pick.npc.marketAreas.length > 0 && (
-            <Typography variant="caption" sx={{ opacity: 0.55 }}>
+            <Typography variant="caption" sx={{ opacity: 0.7, color: "#f0b742" }}>
               Market areas: {pick.npc.marketAreas.length}
               {pick.npc.marketStops && pick.npc.marketStops.length > 0
                 ? ` · ${pick.npc.marketStops.length} stops`

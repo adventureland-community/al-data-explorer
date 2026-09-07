@@ -1,4 +1,4 @@
-import { ParsedMap, MapPose, WorldLayout } from "./types";
+import { MapFocus, MapPose, ParsedMap, ViewerMode, WorldLayout } from "./types";
 
 export interface WorldBounds {
   minX: number;
@@ -138,6 +138,11 @@ export function computeMapFocusDistance(map: ParsedMap, margin = 1.45): number {
   return Math.max(spanX, spanZ, 240) * margin;
 }
 
+/** Tighter zoom for NPC/monster/search point focus (not whole-map framing). */
+export function computePointFocusDistance(span = 640, margin = 1.55): number {
+  return Math.max(span, 320) * margin;
+}
+
 /** Default overview camera for the full laid-out world (Home / reset). */
 export function computeOverviewPose(bounds: WorldBounds): CameraPose {
   const target = { x: bounds.centerX, y: bounds.centerY, z: bounds.centerZ };
@@ -160,6 +165,28 @@ export function computeWorldFocusPoseAtPoint(
   distance: number,
 ): CameraPose {
   return { target: point, position: axisAlignedFocusCameraPosition(point, distance) };
+}
+
+/**
+ * Camera target for a MapFocus. Always uses focus x/y (not map center alone) so
+ * NPC/monster search can land on the entity; `fit` only changes zoom distance.
+ */
+export function resolveMapFocusPose(
+  map: ParsedMap,
+  pose: MapPose,
+  targetFocus: MapFocus,
+  viewMode: ViewerMode,
+): { point: { x: number; y: number; z: number }; distance: number; worldPose: CameraPose } {
+  const point = mapPointToWorld(pose, targetFocus.x, targetFocus.y);
+  const distance =
+    targetFocus.fit === "point"
+      ? computePointFocusDistance()
+      : computeMapFocusDistance(map, viewMode === "world" ? 1.65 : 1.45);
+  return {
+    point,
+    distance,
+    worldPose: computeWorldFocusPoseAtPoint(point, distance),
+  };
 }
 
 /**

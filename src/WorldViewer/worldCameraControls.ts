@@ -8,6 +8,7 @@ import { panDeltaFromScreen, WORLD_UNITS_PER_PIXEL } from "./worldCameraPan";
 
 export {
   computeMapFocusDistance,
+  computePointFocusDistance,
   computeOverviewPose,
   computeTopDownPose,
   computeWorldBounds,
@@ -15,6 +16,7 @@ export {
   computeWorldFocusPoseAtPoint,
   mapCenterWorld,
   mapPointToWorld,
+  resolveMapFocusPose,
   worldFocusDirection,
 } from "./worldCameraBounds";
 export type { CameraPose, WorldBounds } from "./worldCameraBounds";

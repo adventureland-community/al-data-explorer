@@ -33,6 +33,8 @@ export function overlayLabel(kind: OverlayKind): string {
       return "Doors";
     case "npcs":
       return "NPCs";
+    case "market":
+      return "Market";
     case "zones":
       return "Zones";
     case "monsters":

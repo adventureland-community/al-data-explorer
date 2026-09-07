@@ -1,11 +1,13 @@
 import * as THREE from "three";
 import {
   computeMapFocusDistance,
+  computePointFocusDistance,
   computeOverviewPose,
   computeTopDownPose,
   computeWorldBounds,
   computeWorldFocusPose,
   mapCenterWorld,
+  resolveMapFocusPose,
 } from "./worldCameraBounds";
 import { panDeltaFromScreen } from "./worldCameraPan";
 import { stubParsedMap } from "./parsedMapStub";
@@ -92,6 +94,35 @@ describe("worldCameraControls", () => {
   it("frames a map footprint for focus zoom", () => {
     const map = stubMap("main", 0, 1000, 0, 600);
     expect(computeMapFocusDistance(map)).toBeCloseTo(1450);
+  });
+
+  it("frames a local point focus tighter than the whole map", () => {
+    const map = stubMap("main", -1600, 2300, -1000, 2200);
+    expect(computePointFocusDistance()).toBeLessThan(computeMapFocusDistance(map) / 3);
+  });
+
+  it("world search focus targets the entity point, not only the map center", () => {
+    const map = stubMap("main", -1000, 1000, -1000, 1000);
+    const pose = { x: 50, y: 0, z: 480 };
+    const mapFit = resolveMapFocusPose(
+      map,
+      pose,
+      { mapId: "main", x: 0, y: 0, seq: 1, fit: "map" },
+      "world",
+    );
+    const pointFit = resolveMapFocusPose(
+      map,
+      pose,
+      { mapId: "main", x: -96, y: 320, seq: 2, fit: "point" },
+      "world",
+    );
+    expect(mapFit.worldPose.target.x).toBeCloseTo(50);
+    expect(mapFit.worldPose.target.y).toBeCloseTo(480);
+    expect(mapFit.worldPose.target.z).toBeCloseTo(0);
+    expect(pointFit.worldPose.target.x).toBeCloseTo(-46);
+    expect(pointFit.worldPose.target.y).toBeCloseTo(480);
+    expect(pointFit.worldPose.target.z).toBeCloseTo(320);
+    expect(pointFit.distance).toBeLessThan(mapFit.distance);
   });
 
   it("uses an axis-aligned 45° view for map focus", () => {

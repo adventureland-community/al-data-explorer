@@ -1,6 +1,13 @@
 import * as THREE from "three";
 import { GMonster } from "typed-adventureland";
-import { EXTRA_PACK_BOUNDS_COLOR, GROW_PACK_LINE_COLOR, overlayColor } from "./overlayColors";
+import {
+  EXTRA_PACK_BOUNDS_COLOR,
+  GROW_PACK_LINE_COLOR,
+  MARKET_AREA_COLOR,
+  MARKET_STOP_COLOR,
+  NPC_ROAM_COLOR,
+  overlayColor,
+} from "./overlayColors";
 import { OverlayPick } from "./overlayPick";
 import { packOverlayLabel } from "./packSpriteSlots";
 import { MonsterFeature, OverlayKind, OverlayVisibility, ParsedMap } from "./types";
@@ -20,6 +27,7 @@ const OVERLAY_FILL_OPACITY: Record<Exclude<OverlayKind, "bounds">, number> = {
   doors: 0.45,
   spawns: 0.7,
   npcs: 0.35,
+  market: 0.2,
 };
 
 const BOUNDS_LINE_OPACITY = 0.7;
@@ -47,6 +55,7 @@ const LIFT: Record<OverlayKind, number> = {
   animatables: 10,
   spawns: 11,
   npcs: 12,
+  market: 13,
 };
 
 function makeLineLoop(
@@ -78,6 +87,39 @@ function makeLineLoop(
   line.userData.baseOpacity = opacity;
   line.renderOrder = lift + 0.5;
   return line;
+}
+
+function makeCircleLine(
+  x: number,
+  y: number,
+  radius: number,
+  color: number,
+  lift: number,
+  opacity: number,
+  steps = 24,
+): THREE.LineLoop | null {
+  const points: Array<[number, number]> = [];
+  for (let i = 0; i < steps; i += 1) {
+    const angle = (i / steps) * Math.PI * 2;
+    points.push([x + Math.cos(angle) * radius, y + Math.sin(angle) * radius]);
+  }
+  return makeLineLoop(points, color, lift, opacity);
+}
+
+function rectOutlinePoints(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): Array<[number, number]> {
+  const hw = width / 2;
+  const hh = height / 2;
+  return [
+    [x - hw, y - hh],
+    [x + hw, y - hh],
+    [x + hw, y + hh],
+    [x - hw, y + hh],
+  ];
 }
 
 function growPackOutline(monster: MonsterFeature, lift: number): THREE.LineLoop | null {
@@ -418,6 +460,7 @@ export function buildMapOverlays(
   }
 
   const npcs = overlayGroup("npcs");
+  const market = overlayGroup("market");
   for (const npc of map.npcs) {
     const pick = { kind: "npc" as const, mapId: map.id, npc };
     if (npc.roam) {
@@ -428,7 +471,7 @@ export function buildMapOverlays(
           npc.roam.y,
           npc.roam.width,
           npc.roam.height,
-          overlayColor("npcs"),
+          NPC_ROAM_COLOR,
           LIFT.npcs,
           OVERLAY_FILL_OPACITY.npcs,
         ),
@@ -436,39 +479,72 @@ export function buildMapOverlays(
         npc.label,
         { lift: LIFT.npcs, opacity: OVERLAY_FILL_OPACITY.npcs },
       );
+      const roamOutline = makeLineLoop(
+        rectOutlinePoints(npc.roam.x, npc.roam.y, npc.roam.width, npc.roam.height),
+        NPC_ROAM_COLOR,
+        LIFT.npcs + 0.04,
+        0.9,
+      );
+      if (roamOutline) {
+        roamOutline.userData.pick = pick;
+        roamOutline.userData.mapId = map.id;
+        roamOutline.userData.label = npc.label;
+        npcs.add(roamOutline);
+      }
     }
     for (const area of npc.marketAreas || []) {
+      const areaLift = LIFT.market;
       attachOverlay(
-        npcs,
+        market,
         makeRectMesh(
           area.x,
           area.y,
           area.width,
           area.height,
-          overlayColor("npcs"),
-          LIFT.npcs,
-          OVERLAY_FILL_OPACITY.npcs * 0.85,
+          MARKET_AREA_COLOR,
+          areaLift,
+          OVERLAY_FILL_OPACITY.market,
         ),
         pick,
         npc.label,
-        { lift: LIFT.npcs, opacity: OVERLAY_FILL_OPACITY.npcs * 0.85 },
+        { lift: areaLift, opacity: OVERLAY_FILL_OPACITY.market },
       );
+      const outline = makeLineLoop(
+        rectOutlinePoints(area.x, area.y, area.width, area.height),
+        MARKET_AREA_COLOR,
+        areaLift + 0.05,
+        1,
+      );
+      if (outline) {
+        outline.userData.pick = pick;
+        outline.userData.mapId = map.id;
+        outline.userData.label = npc.label;
+        market.add(outline);
+      }
     }
     for (const stop of npc.marketStops || []) {
+      const stopLift = LIFT.market + 0.08;
+      const ring = makeCircleLine(stop.x, stop.y, 7, MARKET_STOP_COLOR, stopLift, 1);
+      if (ring) {
+        ring.userData.pick = pick;
+        ring.userData.mapId = map.id;
+        ring.userData.label = npc.label;
+        market.add(ring);
+      }
       attachOverlay(
-        npcs,
-        makeCircleMesh(stop.x, stop.y, 3, overlayColor("npcs"), LIFT.npcs + 0.15, 0.9),
+        market,
+        makeCircleMesh(stop.x, stop.y, 2.5, MARKET_STOP_COLOR, stopLift + 0.05, 1),
         pick,
         npc.label,
-        { lift: LIFT.npcs + 0.15, opacity: 0.9 },
+        { lift: stopLift + 0.05, opacity: 1 },
       );
     }
     attachOverlay(
       npcs,
-      makeRectMesh(npc.x, npc.y, 20, 28, overlayColor("npcs"), LIFT.npcs + 0.2, 0.85, true),
+      makeRectMesh(npc.x, npc.y, 20, 28, overlayColor("npcs"), LIFT.npcs + 0.28, 0.85, true),
       pick,
       npc.label,
-      { lift: LIFT.npcs + 0.2, opacity: 0.85 },
+      { lift: LIFT.npcs + 0.28, opacity: 0.85 },
     );
   }
 
@@ -608,7 +684,20 @@ export function buildMapOverlays(
     );
   }
 
-  return [bounds, doors, spawns, quirks, npcs, monsters, rage, machines, animatables, traps, zones];
+  return [
+    bounds,
+    doors,
+    spawns,
+    quirks,
+    npcs,
+    market,
+    monsters,
+    rage,
+    machines,
+    animatables,
+    traps,
+    zones,
+  ];
 }
 
 export function applyOverlayMeshStyle(object: THREE.Object3D, seeThrough: boolean): void {

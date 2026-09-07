@@ -41,6 +41,7 @@ import {
   createWorldCameraControls,
   mapCenterWorld,
   mapPointToWorld,
+  resolveMapFocusPose,
   updateWorldCameraResetPose,
   WorldCameraControls,
 } from "./worldCameraControls";
@@ -56,13 +57,15 @@ function applyMapFocus(
   if (!map || !pose) {
     return;
   }
+  const resolved = resolveMapFocusPose(map, pose, targetFocus, viewMode);
   if (viewMode === "world") {
-    navigation.focusOnPose(computeWorldFocusPose(map, pose));
+    navigation.focusOnPose(resolved.worldPose);
     return;
   }
-  const point = mapPointToWorld(pose, targetFocus.x, targetFocus.y);
-  const distance = computeMapFocusDistance(map);
-  navigation.focusOnPoint(new THREE.Vector3(point.x, point.y, point.z), distance);
+  navigation.focusOnPoint(
+    new THREE.Vector3(resolved.point.x, resolved.point.y, resolved.point.z),
+    resolved.distance,
+  );
 }
 
 interface WorldCanvasProps {

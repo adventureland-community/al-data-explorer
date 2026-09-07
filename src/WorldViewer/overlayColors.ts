@@ -12,6 +12,7 @@ const BORDER_MODE: Record<OverlayKind, number> = {
   rage: 0x916bbd,
   bounds: 0xff2335,
   npcs: 0x84d5ff,
+  market: 0xf0b742,
   machines: 0xfeb222,
   animatables: 0xfeb222,
   zones: 0x9966ff,
@@ -27,6 +28,12 @@ export function overlayHex(kind: OverlayKind): string {
 }
 
 export const EXTRA_PACK_BOUNDS_COLOR = 0x5294ff;
+/** NPC map `boundary` roam box — same family as border_mode npcs. */
+export const NPC_ROAM_COLOR = BORDER_MODE.npcs;
+/** Market patron patrol boxes (`G.npcs[].market.areas`) — merchant gold. */
+export const MARKET_AREA_COLOR = BORDER_MODE.market;
+/** Market patron waypoints (`G.npcs[].market.stops`). */
+export const MARKET_STOP_COLOR = 0xff7a3d;
 export const TWO_WAY_CONNECTION_COLOR = 0x33ff66;
 export const ONE_WAY_CONNECTION_COLOR = 0xffaa33;
 export const FLOOR_OUTSIDE_COLOR = 0x1b3d2a;

@@ -6,6 +6,7 @@ export type OverlayKind =
   | "quirks"
   | "doors"
   | "npcs"
+  | "market"
   | "zones"
   | "monsters"
   | "rage"
@@ -183,6 +184,11 @@ export interface MapFocus {
   y: number;
   /** Bumped on each focus request so re-selecting the same map still recenters. */
   seq: number;
+  /**
+   * `map` frames the whole map (default). `point` zooms in around x/y — used for
+   * NPC/monster search so market areas and spawn boxes are readable.
+   */
+  fit?: "map" | "point";
 }
 
 export interface DoorTravel {
@@ -222,6 +228,7 @@ export const DEFAULT_OVERLAYS: OverlayVisibility = {
   quirks: true,
   doors: true,
   npcs: true,
+  market: true,
   zones: true,
   monsters: true,
   rage: false,
@@ -236,6 +243,7 @@ export const OVERLAY_KINDS: OverlayKind[] = [
   "quirks",
   "doors",
   "npcs",
+  "market",
   "zones",
   "monsters",
   "rage",

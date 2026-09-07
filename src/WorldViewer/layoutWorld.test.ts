@@ -496,6 +496,30 @@ describe("layoutWorld", () => {
     expect(countSameSlabOverlaps(overworldMaps, overworldPoses, 240)).toBe(0);
   });
 
+  it("parses Merrit market.areas and stops from production data", () => {
+    const dataPath = join(process.cwd(), "public/data.json");
+    const gameData = JSON.parse(readFileSync(dataPath, "utf8")) as MapSource & {
+      npcs?: Record<string, unknown>;
+    };
+    const layout = layoutWorld(
+      { maps: gameData.maps, geometry: gameData.geometry },
+      480,
+      false,
+      (gameData.npcs ?? {}) as Record<string, GNpc>,
+    );
+    const merrit = layout.maps.main.npcs.find((npc) => npc.id === "citizen22");
+    expect(merrit).toMatchObject({
+      name: "Merrit",
+      x: 0,
+      y: 0,
+      marketAreas: [
+        { x: 0, y: 12, width: 480, height: 264 },
+        { x: 0, y: 252, width: 176, height: 216 },
+      ],
+    });
+    expect(merrit?.marketStops).toHaveLength(7);
+  });
+
   it("separates sibling town interiors instead of stacking them on the hub", () => {
     const interiorSource: MapSource = {
       maps: {
