@@ -22,6 +22,7 @@ export const COMPARE_STAT_KEYS = [
   "vit",
   "for",
   "speed",
+  "frequency",
   "range",
   "resistance",
   "apiercing",
@@ -59,6 +60,7 @@ export const MATRIX_STAT_PRIORITY: readonly CompareStatKey[] = [
   "vit",
   "for",
   "speed",
+  "frequency",
   "range",
   "apiercing",
   "rpiercing",
@@ -77,7 +79,6 @@ export const MATRIX_STAT_PRIORITY: readonly CompareStatKey[] = [
 export const MATRIX_MAX_LEVEL = 13;
 
 export type LevelStats = Partial<Record<CompareStatKey, number>> & {
-  frequency?: number;
   damage_type?: string;
   critdamage?: number;
 };

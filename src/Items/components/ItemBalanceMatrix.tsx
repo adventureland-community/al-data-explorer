@@ -141,6 +141,16 @@ function LevelStatCell({
     return key;
   };
 
+  const titleFor = (key: CompareStatKey): string => {
+    const label = labelFor(key);
+    const pretty = STAT_DISPLAY_LABELS[key];
+    // attr0→ability must stay distinct from frequency (ellipsis used to turn "freeze" into "fre.").
+    if (key === "attr0" && ability)
+      return pretty ? `${ability} (${key}, ${pretty})` : `${ability} (${key})`;
+    if (pretty && pretty !== label) return `${label} (${pretty})`;
+    return pretty ?? label;
+  };
+
   return (
     <Box
       sx={{
@@ -166,17 +176,23 @@ function LevelStatCell({
         }
         const valueDisplay = formatCompactNumberDisplay(value ?? 0);
         const deltaDisplay = showDelta ? formatCompactNumberDisplay(delta, { signed: true }) : null;
+        const isAbilityLabel = key === "attr0" && Boolean(ability);
         return (
           <Box key={key} sx={{ display: "contents" }}>
             <Box
               component="span"
-              title={STAT_DISPLAY_LABELS[key] ?? key}
+              title={titleFor(key)}
               sx={{
                 color: "text.secondary",
                 textAlign: "left",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                // Ability names must not ellipsize into fake abbreviations (freeze → fre.).
+                ...(isAbilityLabel
+                  ? { overflow: "visible", whiteSpace: "normal", wordBreak: "break-word" }
+                  : {
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }),
               }}
             >
               {labelFor(key)}

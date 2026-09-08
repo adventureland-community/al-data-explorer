@@ -65,4 +65,16 @@ describe("pickRowStatKeys", () => {
       "mp_reduction",
     ]);
   });
+
+  it("keeps flat frequency visible alongside scaling attr0 (stormquiver)", () => {
+    const levelStats: LevelStats[] = [
+      { frequency: 2, attr0: 0.5, dex: 5, int: 2, mp: 100, resistance: 16, range: 24 },
+      { frequency: 2, attr0: 0.6, dex: 6.6, int: 2, mp: 100, resistance: 19, range: 28 },
+    ];
+
+    const keys = pickRowStatKeys(levelStats);
+    expect(keys).toContain("frequency");
+    expect(keys).toContain("attr0");
+    expect(keys.indexOf("attr0")).toBeLessThan(keys.indexOf("frequency"));
+  });
 });
