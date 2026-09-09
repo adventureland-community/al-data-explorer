@@ -1,38 +1,11 @@
-import { GData, ItemInfoPValues, ItemKey, ItemType } from "typed-adventureland";
-import { itemMatchesSearch } from "../gameData/itemFilters";
+import { GData, ItemInfoPValues, ItemKey } from "typed-adventureland";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
+import { getBankItemCategory } from "./bankCategory";
 import { isOfficialBankPack, SLOTS_PER_BANK_PACK } from "./bankPacks";
+import { bankItemMatchesSearchQuery } from "./bankSearchQuery";
 import { BankDataProps } from "./getBankData";
 
-const types: { [key in ItemType | "exchange" | "other"]?: string } = {
-  helmet: "Helmets",
-  chest: "Armors",
-  pants: "Pants",
-  gloves: "Gloves",
-  shoes: "Shoes",
-  cape: "Capes",
-  ring: "Rings",
-  earring: "Earrings",
-  amulet: "Amulets",
-  belt: "Belts",
-  orb: "Orbs",
-  weapon: "Weapons",
-  shield: "Shields",
-  source: "Offhands",
-  quiver: "Offhands",
-  misc_offhand: "Offhands",
-  elixir: "Elixirs",
-  pot: "Potions",
-  cscroll: "Scrolls",
-  uscroll: "Scrolls",
-  pscroll: "Scrolls",
-  offering: "Scrolls",
-  material: "Crafting and Collecting",
-  exchange: "Exchangeables",
-  dungeon_key: "Keys",
-  token: "Tokens",
-  other: "Others",
-};
+export { getBankItemCategory } from "./bankCategory";
 
 export type AggregatedBankItem = {
   p?: ItemInfoPValues;
@@ -107,11 +80,7 @@ export function aggregateBankData(bankData: BankDataProps, G?: GData): Aggregate
       if (!data) {
         const itemKey = item.name as ItemKey;
         const gItem = G?.items[itemKey];
-        let category = (gItem && types[gItem.type]) ?? "Others";
-
-        if (gItem && gItem.e) {
-          category = types.exchange ?? "Others";
-        }
+        const category = getBankItemCategory(item.name, G);
 
         data = {
           p: item.p,
@@ -154,22 +123,7 @@ export function bankItemMatchesSearch(
   G: GData | undefined,
   searchTerm: string,
 ): boolean {
-  const term = searchTerm.trim().toLowerCase();
-  if (!term) return true;
-
-  if (item.category.toLowerCase().includes(term)) return true;
-  if (String(item.level).includes(term)) return true;
-
-  const itemKey = item.name as ItemKey;
-  const gItem = G?.items[itemKey];
-  if (gItem && itemMatchesSearch(itemKey, gItem, term)) return true;
-
-  if (G) {
-    const titleName = getTitleName(item, G);
-    if (titleName.toLowerCase().includes(term)) return true;
-  }
-
-  return item.name.toLowerCase().includes(term);
+  return bankItemMatchesSearchQuery(item, G, searchTerm);
 }
 
 export function filterAggregatedBankItems(

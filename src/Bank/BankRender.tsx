@@ -31,8 +31,8 @@ import {
   formatBankItemLabel,
   getUniqueItemKey,
 } from "./bankItems";
-import { bankItemMatchesFilters, EMPTY_BANK_FILTERS, findItemLocations } from "./bankAnalysis";
-import { BankFilters, hasActiveBankFilters } from "./BankFilters";
+import { BankSearchBar } from "./BankSearchBar";
+import { findItemLocations } from "./bankAnalysis";
 import { BankInsightsSidebar } from "./BankInsightsSidebar";
 import { getBankData, BankDataProps } from "./getBankData";
 import { BankPacksView, PackFocus } from "./BankPacksView";
@@ -40,7 +40,6 @@ import { BankRefreshSummaryView } from "./BankRefreshSummaryView";
 import { downloadBankSnapshot, loadBankSnapshot, saveBankSnapshot } from "./bankSnapshot";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { Search } from "../Shared/Search";
 import { abbreviateNumber, msToTime } from "../Shared/utils";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
 
@@ -220,7 +219,6 @@ export function BankRender(props: BankRenderProps) {
   );
   const [sortMode, setSortMode] = useState<"category" | "quantity" | "stack">("category");
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState(EMPTY_BANK_FILTERS);
   const [visitSummary, setVisitSummary] = useState<BankRefreshSummary | undefined>(undefined);
   const [changeFilter, setChangeFilter] = useState<"all" | "gear" | "quantity">("all");
   const [packFocus, setPackFocus] = useState<PackFocus | null>(null);
@@ -279,7 +277,6 @@ export function BankRender(props: BankRenderProps) {
 
   useEffect(() => {
     setSearch("");
-    setFilters(EMPTY_BANK_FILTERS);
     setRefreshSummary(undefined);
     setVisitSummary(undefined);
     setPackFocus(null);
@@ -313,13 +310,10 @@ export function BankRender(props: BankRenderProps) {
   }, [ownerId, applySnapshotComparison]);
 
   const aggregated = useMemo(() => aggregateBankData(bankData, G), [bankData, G]);
-  const filteredItems = useMemo(() => {
-    let result = filterAggregatedBankItems(aggregated.items, G, search);
-    if (hasActiveBankFilters(filters)) {
-      result = result.filter((item) => bankItemMatchesFilters(item, G, filters));
-    }
-    return result;
-  }, [aggregated.items, G, search, filters]);
+  const filteredItems = useMemo(
+    () => filterAggregatedBankItems(aggregated.items, G, search),
+    [aggregated.items, G, search],
+  );
   const filteredItemsByCategory = useMemo(
     () => filterItemsByCategory(aggregated.itemsByCategory, G, search),
     [aggregated.itemsByCategory, G, search],
@@ -455,14 +449,7 @@ export function BankRender(props: BankRenderProps) {
             spacing={1.5}
             alignItems={{ sm: "center" }}
           >
-            <Search
-              doSearch={setSearch}
-              placeholder="Search by name, key, category, or type"
-              variant="outlined"
-              size="small"
-              fullWidth
-              sx={{ flex: 1 }}
-            />
+            <BankSearchBar items={aggregated.items} search={search} onSearch={setSearch} />
             <Button
               variant="outlined"
               size="small"
@@ -474,8 +461,6 @@ export function BankRender(props: BankRenderProps) {
               Refresh
             </Button>
           </Stack>
-
-          <BankFilters items={aggregated.items} filters={filters} onChange={setFilters} />
 
           {searchLocations.length > 0 && (
             <Stack direction="row" flexWrap="wrap" gap={0.5}>
@@ -505,7 +490,7 @@ export function BankRender(props: BankRenderProps) {
                 {usedSlots} / {totalSlots}
               </Box>{" "}
               slots ({totalSlots - usedSlots} free)
-              {(search.trim() || hasActiveBankFilters(filters)) && ` · ${items.length} shown`}
+              {search.trim() && ` · ${items.length} shown`}
               {lastUpdated ? (
                 <>
                   {" · "}
