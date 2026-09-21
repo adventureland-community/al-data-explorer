@@ -1,5 +1,5 @@
 {
-  "version": 17083,
+  "version": 17139,
   "achievements": {
     "reach40": { "name": "Become Level 40", "item": "gem1" },
     "reach50": { "name": "Become Level 50", "shells": 50 },
@@ -4483,9 +4483,9 @@
       "matrix": [["t1", "test", "t3", "t4"]]
     },
     "makeup1": {
-      "file": "/images/cosmetics/makeup/makeup1.png?v=6",
+      "file": "/images/cosmetics/makeup/makeup1.png?v=7",
       "rows": 1,
-      "columns": 42,
+      "columns": 47,
       "type": "head",
       "matrix": [
         [
@@ -4530,9 +4530,30 @@
           "makeup138",
           "makeup139",
           "makeup140",
-          "makeup141"
+          "makeup141",
+          "cyclops0",
+          "eyehead0",
+          "mimichead0",
+          "slimehead0",
+          "lanternhead0"
         ]
       ]
+    },
+    "lavaglass": {
+      "file": "/images/cosmetics/makeup/lavaglass_anim.png?v=1",
+      "rows": 1,
+      "columns": 1,
+      "type": "head",
+      "frames": 8,
+      "matrix": [["lavaglasshead0"]]
+    },
+    "stormhead": {
+      "file": "/images/cosmetics/makeup/stormhead_anim.png?v=1",
+      "rows": 1,
+      "columns": 1,
+      "type": "head",
+      "frames": 6,
+      "matrix": [["stormhead0"]]
     },
     "bwhair": {
       "file": "/images/cosmetics/hairdo/bwhair.png?v=2",
@@ -4570,10 +4591,11 @@
       "matrix": [["gcandle"]]
     },
     "halo": {
-      "file": "/images/cosmetics/hats/halo_anim.png",
+      "file": "/images/cosmetics/hats/halo_anim.png?v=2",
       "rows": 1,
       "columns": 1,
       "type": "a_hat",
+      "frames": 4,
       "matrix": [["halo"]]
     },
     "aniv2": {
@@ -5558,36 +5580,38 @@
       ]
     },
     "sskin1": {
-      "file": "/images/cosmetics/skins/sskin1.png",
+      "file": "/images/cosmetics/skins/sskin1.png?v=2",
       "type": "skin",
       "size": "small",
-      "rows": 2,
+      "rows": 3,
       "columns": 4,
       "matrix": [
         ["sskin1a", "sskin1b", "sskin1c", "sskin1d"],
-        ["sskin1e", "sskin1f", "sskin1g", "sskin1h"]
+        ["sskin1e", "sskin1f", "sskin1g", "sskin1h"],
+        ["sslimeskin", null, null, null]
       ]
     },
     "mskin1": {
-      "file": "/images/cosmetics/skins/mskin1.png",
+      "file": "/images/cosmetics/skins/mskin1.png?v=2",
       "type": "skin",
       "size": "normal",
-      "rows": 2,
+      "rows": 3,
       "columns": 4,
       "matrix": [
         ["mskin1a", "mskin1b", "mskin1c", "mskin1d"],
-        ["mskin1e", "mskin1f", "mskin1g", "mskin1h"]
+        ["mskin1e", "mskin1f", "mskin1g", "mskin1h"],
+        ["mslimeskin", null, null, null]
       ]
     },
     "lskin1": {
-      "file": "/images/cosmetics/skins/lskin1.png",
+      "file": "/images/cosmetics/skins/lskin1.png?v=2",
       "type": "skin",
       "size": "large",
       "rows": 2,
       "columns": 4,
       "matrix": [
         ["lskin1a", "lskin1b", "lskin1c", "lskin1d"],
-        [null, null, null, null]
+        ["lskin1e", "lslimeskin", null, null]
       ]
     },
     "sbody1": {
@@ -9185,7 +9209,16 @@
         ["biocaves", 16, 160, 16],
         ["biocaves", 32, 160, 16],
         ["biocaves", 112, 160, 16],
-        ["biocaves", 176, 80, 16]
+        ["biocaves", 176, 80, 16],
+        ["biocaves", 64, 16, 16],
+        ["biocaves", 48, 16, 16],
+        ["biocaves", 24, 16, 16],
+        ["biocaves", 16, 48, 16],
+        ["biocaves", 96, 16, 16],
+        ["biocaves", 80, 16, 16],
+        ["biocaves", 112, 16, 16],
+        ["biocaves", 64, 192, 32],
+        ["biocaves", 96, 192, 32]
       ],
       "placements": [
         [0, 24, 56, 552, 328],
@@ -11351,7 +11384,65 @@
         [48, -48, 440],
         [48, 416, 392],
         [101, 8, 440],
-        [101, -560, 360]
+        [101, -560, 360],
+        [102, -416, 128],
+        [102, -288, 200],
+        [102, -144, 216],
+        [102, -528, 248],
+        [102, -224, 280],
+        [102, 312, -64],
+        [102, 424, -240],
+        [102, 488, -136],
+        [102, 304, -288],
+        [102, 144, -320],
+        [103, 344, -176],
+        [103, 216, -120],
+        [103, 200, -232],
+        [103, 408, -104],
+        [103, -320, 96],
+        [103, -200, 200],
+        [103, -328, 288],
+        [103, -200, 40],
+        [104, -352, 160],
+        [104, -240, 88],
+        [104, 120, -176],
+        [104, 192, -272],
+        [104, 304, -152],
+        [104, 496, -248],
+        [105, 320, 16],
+        [106, 16, -216],
+        [106, 104, -24],
+        [106, 480, -24],
+        [106, 560, -224],
+        [106, -64, 240],
+        [106, -392, 32],
+        [106, -584, 184],
+        [106, -328, 344],
+        [107, -128, 88],
+        [107, 584, -56],
+        [108, 504, -352],
+        [108, 48, -80],
+        [108, -352, -24],
+        [108, -512, 72],
+        [108, -424, 320],
+        [108, -128, 312],
+        [59, -248, 232],
+        [59, 144, -128],
+        [58, 456, -200],
+        [61, 392, -272],
+        [61, -136, 136],
+        [60, -488, 120],
+        [59, -296, 0],
+        [109, 72, -448],
+        [109, -408, -400],
+        [110, 592, -344],
+        [110, -616, -360],
+        [110, 288, 368],
+        [109, -288, 400],
+        [109, 1200, -64],
+        [85, -568, -368],
+        [86, 632, -48],
+        [94, 128, -416]
       ],
       "x_lines": [
         [-1168, -32, 32],
@@ -140059,7 +140150,7 @@
         null,
         null
       ],
-      "items": ["cosmo0", "cosmo2", "cosmo3", "cosmo5"],
+      "items": ["cosmo0", "cosmo1", "cosmo2", "cosmo3", "cosmo4", "cosmo5"],
       "skin": "fancyd",
       "says": "Sup",
       "type": "fullstatic",
@@ -146425,8 +146516,9 @@
       "cash": 459,
       "g": 14688000,
       "name": "New Make-up",
-      "explanation": "Give this to NPC Haila to receive a new make-up. Heads-up! It's random, you may or may-not like it. [Work in progress - Not functional yet.]",
+      "explanation": "Give this to Haila for a random unique head or a set of related head colors and faces.",
       "s": 9999,
+      "e": 1,
       "quest": "cx"
     },
     "cosmo2": {
@@ -146457,8 +146549,9 @@
       "cash": 1399,
       "g": 44768000,
       "name": "New Accessory",
-      "explanation": "Give this to NPC Haila to receive a unique accessory. Heads-up! It's random, you may or may-not like it. [Work in progress - Not functional yet.]",
+      "explanation": "Give this to Haila for a random accessory: glasses, facial hair, a mask, face markings, a backpack, wings or a tail.",
       "s": 9999,
+      "e": 1,
       "quest": "cx"
     },
     "cosmo5": {
@@ -146467,7 +146560,7 @@
       "cash": 1299,
       "g": 41568000,
       "name": "New Misc.",
-      "explanation": "Give this to Haila for a curious new flourish. It may be an emote or a gravestone.",
+      "explanation": "Give this to Haila for an emote, a gravestone or a glowing halo.",
       "s": 9999,
       "e": 1,
       "quest": "cx"
@@ -151363,9 +151456,125 @@
     "bundle": {
       "rogueb": ["sbody1c", "sarmor1h"],
       "blackw": ["mbody6b", "mbody6c", "blackhead"],
-      "pinkb": ["mbody2g", "mbody2h"]
+      "pinkb": ["mbody2g", "mbody2h"],
+      "headcolors": [
+        "makeup100",
+        "makeup102",
+        "makeup107",
+        "makeup109",
+        "makeup111",
+        "makeup113",
+        "makeup114",
+        "makeup118",
+        "makeup121",
+        "makeup122",
+        "makeup123",
+        "makeup125",
+        "makeup127",
+        "makeup128",
+        "makeup130",
+        "makeup133",
+        "makeup135",
+        "makeup136",
+        "makeup138",
+        "makeup140",
+        "mmakeup01",
+        "mmakeup02",
+        "nmmakeup00"
+      ],
+      "headcolorsf": [
+        "fmakeup00",
+        "nfmakeup01",
+        "nfmakeup02",
+        "nfmakeup03",
+        "nfmakeup04",
+        "nfmakeup05",
+        "nfmakeup06",
+        "nfmakeup07",
+        "nfmakeup08",
+        "nfmakeup09",
+        "nfmakeup10",
+        "nfmakeup11",
+        "nfmakeup12",
+        "nfmakeup13",
+        "nfmakeup14",
+        "nfmakeup15",
+        "nfmakeup16",
+        "nfmakeup17",
+        "nfmakeup18",
+        "nfmakeup19",
+        "nfmakeup20",
+        "nfmakeup21",
+        "nfmakeup22"
+      ],
+      "headbeards": [
+        "makeup104",
+        "makeup106",
+        "makeup108",
+        "makeup110",
+        "makeup112",
+        "mmakeup08",
+        "mmakeup09",
+        "mmakeup10",
+        "fmakeup09",
+        "fmakeup10"
+      ],
+      "headfangs": ["makeup101", "makeup103", "makeup129", "fmakeup05"],
+      "headfins": ["makeup115", "makeup131"],
+      "headelves": ["makeup116", "mmakeup03", "fmakeup04"],
+      "headhorns": [
+        "makeup124",
+        "makeup126",
+        "makeup137",
+        "makeup139",
+        "mmakeup06",
+        "fmakeup07",
+        "fmakeup11"
+      ],
+      "headskulls": [
+        "makeup119",
+        "makeup132",
+        "makeup134",
+        "fmakeup08",
+        "fmakeup12"
+      ],
+      "headroundbrown": ["makeup135", "makeup138", "mmakeup01", "mmakeup02"],
+      "headroundred": ["makeup109", "makeup121"],
+      "headroundgold": ["makeup113", "makeup125", "nmmakeup00"],
+      "headroundgreen": ["makeup100", "makeup102", "makeup114", "makeup128"],
+      "headroundblue": ["makeup118", "makeup122", "makeup133"],
+      "headroundslate": ["makeup107", "makeup140"],
+      "headroundpale": ["makeup111", "makeup123", "makeup127", "makeup136"],
+      "headsoftwarm": ["fmakeup00", "nfmakeup01", "nfmakeup02", "nfmakeup03"],
+      "headsoftbrown": ["nfmakeup04", "nfmakeup05", "nfmakeup06", "nfmakeup07"],
+      "headsoftgold": ["nfmakeup08", "nfmakeup14"],
+      "headsoftred": ["nfmakeup09", "nfmakeup10"],
+      "headsoftgreen": ["nfmakeup12", "nfmakeup13", "nfmakeup19"],
+      "headsoftpale": ["nfmakeup15", "nfmakeup16", "nfmakeup20"],
+      "headsoftblue": ["nfmakeup17", "nfmakeup18"],
+      "headsoftslate": ["nfmakeup21", "nfmakeup22"],
+      "headsoftbrightgreen": ["nfmakeup12", "nfmakeup13"],
+      "headsoftmuted": [
+        "nfmakeup15",
+        "nfmakeup16",
+        "nfmakeup17",
+        "nfmakeup18",
+        "nfmakeup19",
+        "nfmakeup20",
+        "nfmakeup21",
+        "nfmakeup22"
+      ],
+      "headaliens": ["makeup101", "makeup103"],
+      "headorcs": ["makeup129", "fmakeup05"],
+      "headmice": ["makeup124", "makeup126", "mmakeup06", "fmakeup07"],
+      "headwolves": ["makeup137", "makeup139", "fmakeup11"],
+      "headyetis": ["makeup119", "fmakeup08"],
+      "headbones": ["makeup132", "makeup134", "fmakeup12"]
     },
+    "head_animation": { "lavaglasshead0": 160, "stormhead0": 220 },
     "prop": {
+      "hairdo604": ["no_hat"],
+      "hairdo605": ["no_hat"],
       "lchar1b": ["hair"],
       "lchar1d": ["bulky"],
       "lchar1e": ["female"],
@@ -151383,6 +151592,8 @@
       "bathat": ["manim", "fast"]
     },
     "head": {
+      "lavaglasshead0": ["sskin1b", "mskin1b", "lskin1b", 0],
+      "stormhead0": ["sskin1d", "mskin1d", "lskin1d", 0],
       "bwhead": ["sskin1e", "mbw", "lskin1d"],
       "makeup100": ["sskin1e", "mskin1e", "lskin1d"],
       "makeup101": ["sskin1e", "mskin1e", "lskin1d", 1],
@@ -151448,7 +151659,38 @@
       "mmakeup11": ["sskin1d", "mskin1d", "lskin1d"],
       "mmakeup13": ["sskin1d", "mskin1d", "lskin1d"],
       "makeup140": ["sskin1d", "mskin1d", "lskin1d"],
-      "smakeup00": ["sskin1a", "mskin1a", "lskin1a", -1]
+      "smakeup00": ["sskin1a", "mskin1a", "lskin1a", -1],
+      "nmmakeup00": ["sskin1a", "mskin1a", "lskin1a"],
+      "mmakeup03": ["sskin1a", "mskin1a", "lskin1a"],
+      "fmakeup00": ["sskin1a", "mskin1a", "lskin1a"],
+      "fmakeup04": ["sskin1a", "mskin1a", "lskin1a"],
+      "nfmakeup01": ["sskin1a", "mskin1a", "lskin1a"],
+      "nfmakeup02": ["sskin1a", "mskin1a", "lskin1a"],
+      "nfmakeup03": ["sskin1a", "mskin1a", "lskin1a"],
+      "nfmakeup04": ["sskin1b", "mskin1b", "lskin1b"],
+      "nfmakeup05": ["sskin1b", "mskin1b", "lskin1b"],
+      "nfmakeup06": ["sskin1b", "mskin1b", "lskin1b"],
+      "nfmakeup07": ["sskin1b", "mskin1b", "lskin1b"],
+      "nfmakeup08": ["sskin1b", "mskin1b", "lskin1b"],
+      "nfmakeup09": ["sskin1b", "mskin1b", "lskin1b"],
+      "nfmakeup10": ["sskin1h", "mskin1h", "lskin1b"],
+      "nfmakeup11": ["sskin1g", "mskin1g", "lskin1a"],
+      "nfmakeup12": ["sskin1c", "mskin1c", "lskin1c"],
+      "nfmakeup13": ["sskin1c", "mskin1c", "lskin1c"],
+      "nfmakeup14": ["sskin1f", "mskin1f", "lskin1a"],
+      "nfmakeup15": ["sskin1e", "mskin1e", "lskin1e"],
+      "nfmakeup16": ["sskin1e", "mskin1e", "lskin1e"],
+      "nfmakeup17": ["sskin1e", "mskin1e", "lskin1e"],
+      "nfmakeup18": ["sskin1d", "mskin1d", "lskin1d"],
+      "nfmakeup19": ["sskin1e", "mskin1e", "lskin1e"],
+      "nfmakeup20": ["sskin1e", "mskin1e", "lskin1e"],
+      "nfmakeup21": ["sskin1d", "mskin1d", "lskin1d"],
+      "nfmakeup22": ["sskin1d", "mskin1d", "lskin1d"],
+      "cyclops0": ["sskin1a", "mskin1a", "lskin1a", 1],
+      "eyehead0": ["sskin1e", "mskin1e", "lskin1e"],
+      "mimichead0": ["sskin1b", "mskin1b", "lskin1b"],
+      "slimehead0": ["sslimeskin", "mslimeskin", "lslimeskin", 1],
+      "lanternhead0": ["sskin1d", "mskin1d", "lskin1d"]
     },
     "hair": {
       "bwhair": [-2, 1],
@@ -151575,10 +151817,16 @@
       "hairdo520": [0, 0],
       "hairdo521": [0, 1],
       "hairdo522": [0, 1],
-      "hairdo523": [0, 1]
+      "hairdo523": [0, 1],
+      "hairdo600": [0, 1],
+      "hairdo601": [0, 1],
+      "hairdo602": [0, 1],
+      "hairdo603": [0, 1],
+      "hairdo604": [0, 0],
+      "hairdo605": [0, 0]
     },
     "hat": { "hat100": 0 },
-    "hat_animation": { "gcandle": 180, "aniv2": 160 },
+    "hat_animation": { "gcandle": 180, "aniv2": 160, "halo": 200 },
     "gravestone": {
       "gravestone": 19,
       "gravestonea": 19,
@@ -158939,7 +159187,17 @@
     },
     "/images/cosmetics/makeup/makeup1.png": {
       "height": 120,
-      "width": 1134,
+      "width": 1269,
+      "type": "png"
+    },
+    "/images/cosmetics/makeup/lavaglass_anim.png": {
+      "height": 120,
+      "width": 216,
+      "type": "png"
+    },
+    "/images/cosmetics/makeup/stormhead_anim.png": {
+      "height": 120,
+      "width": 162,
       "type": "png"
     },
     "/images/cosmetics/hairdo/bwhair.png": {
@@ -158969,7 +159227,7 @@
     },
     "/images/cosmetics/hats/halo_anim.png": {
       "height": 120,
-      "width": 81,
+      "width": 108,
       "type": "png"
     },
     "/images/cosmetics/hats/aniv2_anim.png": {
@@ -159568,12 +159826,12 @@
       "type": "png"
     },
     "/images/cosmetics/skins/sskin1.png": {
-      "height": 288,
+      "height": 432,
       "width": 324,
       "type": "png"
     },
     "/images/cosmetics/skins/mskin1.png": {
-      "height": 288,
+      "height": 432,
       "width": 324,
       "type": "png"
     },
@@ -163937,7 +164195,40 @@
       [0.08333333333333333, "cxbundle", "pinkb"],
       [0.025, "cxbundle", "blackw"]
     ],
-    "cosmo1": [[1, "cx", "mmakeup0"]],
+    "cosmo1": [
+      [1, "cxbundle", "headroundbrown"],
+      [1, "cxbundle", "headroundred"],
+      [1, "cxbundle", "headroundgold"],
+      [1, "cxbundle", "headroundgreen"],
+      [1, "cxbundle", "headroundblue"],
+      [1, "cxbundle", "headroundslate"],
+      [1, "cxbundle", "headroundpale"],
+      [1, "cx", "makeup130"],
+      [1, "cxbundle", "headsoftwarm"],
+      [1, "cxbundle", "headsoftbrown"],
+      [1, "cxbundle", "headsoftgold"],
+      [1, "cxbundle", "headsoftred"],
+      [1, "cx", "nfmakeup11"],
+      [1, "cxbundle", "headsoftbrightgreen"],
+      [1, "cxbundle", "headsoftmuted"],
+      [1, "cxbundle", "headbeards"],
+      [1, "cxbundle", "headaliens"],
+      [1, "cxbundle", "headorcs"],
+      [1, "cxbundle", "headfins"],
+      [1, "cxbundle", "headelves"],
+      [1, "cxbundle", "headmice"],
+      [1, "cxbundle", "headwolves"],
+      [1, "cxbundle", "headyetis"],
+      [1, "cxbundle", "headbones"],
+      [1, "cx", "makeup120"],
+      [1, "cx", "cyclops0"],
+      [1, "cx", "eyehead0"],
+      [1, "cx", "mimichead0"],
+      [1, "cx", "slimehead0"],
+      [1, "cx", "lanternhead0"],
+      [1, "cx", "lavaglasshead0"],
+      [1, "cx", "stormhead0"]
+    ],
     "cosmo2": [
       [1, "cx", "hairdo100"],
       [1, "cx", "hairdo101"],
@@ -164058,6 +164349,12 @@
       [1, "cx", "hairdo519"],
       [1, "cx", "hairdo520"],
       [1, "cx", "hairdo521"],
+      [1, "cx", "hairdo600"],
+      [1, "cx", "hairdo601"],
+      [1, "cx", "hairdo602"],
+      [1, "cx", "hairdo603"],
+      [1, "cx", "hairdo604"],
+      [1, "cx", "hairdo605"],
       [0.5, "cx", "hairdo122"],
       [0.3333333333333333, "cx", "hairdo404"],
       [0.1, "cx", "hairdo203"]
@@ -164134,7 +164431,83 @@
       [0.08333333333333333, "cx", "hat400"],
       [0.08333333333333333, "cx", "hat405"]
     ],
+    "cosmo4": [
+      [1, "open", "cosmo4_face"],
+      [1, "open", "cosmo4_chin"],
+      [1, "open", "cosmo4_makeup"],
+      [1, "open", "cosmo4_back"],
+      [1, "open", "cosmo4_tail"]
+    ],
+    "cosmo4_face": [
+      [1, "cx", "bwglasses"],
+      [1, "cx", "face100"],
+      [1, "cx", "face101"],
+      [1, "cx", "face102"],
+      [1, "cx", "face103"],
+      [1, "cx", "face104"],
+      [1, "cx", "face105"],
+      [1, "cx", "face106"],
+      [1, "cx", "face107"],
+      [1, "cx", "face108"],
+      [1, "cx", "face109"],
+      [1, "cx", "face110"],
+      [1, "cx", "tortoise_g"]
+    ],
+    "cosmo4_chin": [
+      [1, "cx", "beard100"],
+      [1, "cx", "beard101"],
+      [1, "cx", "beard102"],
+      [1, "cx", "beard103"],
+      [1, "cx", "beard104"],
+      [1, "cx", "beard105"],
+      [1, "cx", "beard106"],
+      [1, "cx", "beard107"],
+      [1, "cx", "beard108"],
+      [1, "cx", "beard109"],
+      [1, "cx", "beard110"],
+      [1, "cx", "beard111"],
+      [1, "cx", "beard113"],
+      [1, "cx", "beard114"],
+      [1, "cx", "mask100"],
+      [1, "cx", "mask101"],
+      [1, "cx", "mask102"],
+      [1, "cx", "mask103"]
+    ],
+    "cosmo4_makeup": [
+      [1, "cx", "bbeyes"],
+      [1, "cx", "facemakeup00"],
+      [1, "cx", "facemakeup01"],
+      [1, "cx", "facemakeup03"],
+      [1, "cx", "facemakeup04"],
+      [1, "cx", "facemakeup05"],
+      [1, "cx", "facemakeup06"],
+      [1, "cx", "facemakeup07"]
+    ],
+    "cosmo4_back": [
+      [1, "cx", "backpacks00"],
+      [1, "cx", "backpacks01"],
+      [1, "cx", "backpacks02"],
+      [1, "cx", "backpacks03"],
+      [1, "cx", "backpacks04"],
+      [1, "cx", "backpacks200"],
+      [1, "cx", "backpacks201"],
+      [1, "cx", "wings100"],
+      [1, "cx", "wings101"],
+      [1, "cx", "wings103"],
+      [1, "cx", "wings104"],
+      [1, "cx", "wings300"],
+      [1, "cx", "wings301"],
+      [1, "cx", "wings302"],
+      [1, "cx", "wings303"],
+      [1, "cx", "wings304"]
+    ],
+    "cosmo4_tail": [
+      [1, "cx", "tail100"],
+      [1, "cx", "tail200"],
+      [1, "cx", "tail300"]
+    ],
     "cosmo5": [
+      [0.1, "cx", "halo"],
       [1, "cx", "gravestonea"],
       [1, "cx", "xgravestone0"],
       [1, "cx", "xgravestone1"],
@@ -164230,5 +164603,5 @@
       [0.001, "cave_ambercoat"]
     ]
   },
-  "timestamp": "2026-09-20T10:43:08.863Z"
+  "timestamp": "2026-09-21T12:06:42.270Z"
 }
