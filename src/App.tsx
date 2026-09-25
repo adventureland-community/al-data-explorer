@@ -61,6 +61,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
     "/market",
     "/gear",
     "/monsters",
+    "/npcs",
     "/bank",
     "/world",
     "/items",
@@ -75,12 +76,15 @@ function Menu({ compact = false }: { compact?: boolean }) {
     pathname === "/skills" ||
     pathname.startsWith("/skills/");
   const cosmeticsSelected = pathname === "/cosmetics" || pathname.startsWith("/cosmetics/");
+  const npcsSelected = pathname === "/npcs" || pathname.startsWith("/npcs/");
   const currentTab = itemsSelected
     ? "/items"
     : classesSelected
     ? "/classes"
     : cosmeticsSelected
     ? "/cosmetics"
+    : npcsSelected
+    ? "/npcs"
     : routeMatch?.pattern?.path ?? false;
 
   return (
@@ -98,6 +102,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
         <Tab label="Items" value="/items" to="/items" component={RouterLink} />
         <Tab label="Gear Planner" value="/gear" to="/gear" component={RouterLink} />
         <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
+        <Tab label="NPCs" value="/npcs" to="/npcs" component={RouterLink} />
         <Tab label="Classes" value="/classes" to="/classes" component={RouterLink} />
         <Tab label="Cosmetics" value="/cosmetics" to="/cosmetics" component={RouterLink} />
         <Tab label="Drops" value="/drops" to="/drops" component={RouterLink} />

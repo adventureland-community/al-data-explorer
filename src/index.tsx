@@ -18,6 +18,8 @@ import { ClassesBrowse } from "./Classes/ClassesBrowse";
 import { ClassDetail } from "./Classes/ClassDetail";
 import { SkillDetail } from "./Classes/SkillDetail";
 import { DressingRoom } from "./Cosmetics/DressingRoom";
+import { NpcsBrowse } from "./Npc/NpcsBrowse";
+import { NpcDetail } from "./Npc/NpcDetail";
 
 // TODO: https://reactrouter.com/en/main/start/tutorial#handling-not-found-errors
 
@@ -36,6 +38,14 @@ const router = createBrowserRouter([
           {
             path: "monsters",
             element: <Monsters />,
+          },
+          {
+            path: "npcs",
+            element: <NpcsBrowse />,
+          },
+          {
+            path: "npcs/:npcId",
+            element: <NpcDetail />,
           },
           {
             path: "gear",
