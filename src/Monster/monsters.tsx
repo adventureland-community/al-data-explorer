@@ -10,23 +10,25 @@
 // min hit, max hit consider crit.
 // consider levels of monster.
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TextField,
-  Grid,
-  Paper,
-} from "@mui/material";
+import { Table, TableBody, TableCell, TableHead, TableRow, Paper } from "@mui/material";
 import { GMonster, MonsterKey } from "typed-adventureland";
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
 import { formatMonsterDropsDisplay } from "../gameData/drops";
 import { MonsterImage } from "../Shared/SpriteSkin";
+import { QuerySearchBar } from "../Shared/QuerySearchBar";
 import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
+import { MonsterAdvancedSearchPanel } from "./MonsterAdvancedSearchPanel";
+import {
+  buildMonsterSearchSuggestions,
+  EMPTY_MONSTER_ADVANCED,
+  monsterAdvancedFromQuery,
+  monsterMatchesSearch,
+  parseMonsterSearchQuery,
+  serializeMonsterAdvancedForm,
+  type MonsterAdvancedForm,
+} from "./monsterSearchQuery";
 
 // function ItemImage({
 //   itemName,
@@ -94,48 +96,45 @@ export function Monsters() {
   const G = useContext(GDataContext);
   const [searchParams] = useSearchParams();
 
-  // Add a state variable for the search terms
   const [sortConfig, setSortConfig] = useState({
     key: "",
     direction: "",
   });
 
-  // Add state for filters
-  const [filters, setFilters] = useState({
-    monsterName: searchParams.get("monster") ?? "",
-    hpMin: "",
-    hpMax: "",
-    respawnMin: "",
-    respawnMax: "",
-    itemName: searchParams.get("item") ?? "",
-    achievement: "",
-  });
-
-  useEffect(() => {
+  const initialFromUrl = useMemo(() => {
+    const parts: string[] = [];
     const monster = searchParams.get("monster");
     const item = searchParams.get("item");
-    if (monster != null || item != null) {
-      setFilters((prev) => ({
-        ...prev,
-        ...(monster != null ? { monsterName: monster } : {}),
-        ...(item != null ? { itemName: item } : {}),
-      }));
-    }
+    if (monster) parts.push(monster);
+    if (item) parts.push(`drop:${item}`);
+    return parts.join(" ");
   }, [searchParams]);
+
+  const [search, setSearch] = useState(initialFromUrl);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<MonsterAdvancedForm>(EMPTY_MONSTER_ADVANCED);
+
+  useEffect(() => {
+    setSearch(initialFromUrl);
+  }, [initialFromUrl]);
+
+  useEffect(() => {
+    if (!open) return;
+    setForm(monsterAdvancedFromQuery(parseMonsterSearchQuery(search)));
+  }, [open, search]);
+
+  const suggestions = useMemo(() => (draft: string) => buildMonsterSearchSuggestions(draft), []);
 
   const handleSort = (key: string) => {
     setSortConfig((prevSortConfig) => {
       if (prevSortConfig.key === key) {
-        // If clicking on the same column, toggle the direction
         return { key, direction: prevSortConfig.direction === "asc" ? "desc" : "asc" };
       }
-      // If clicking on a different column, set the new key and default to ascending order
       return { key, direction: "asc" };
     });
   };
 
   useEffect(() => {
-    // Set the initial sorting configuration to sort by HP in ascending order
     setSortConfig({
       key: "hp",
       direction: "asc",
@@ -258,41 +257,8 @@ export function Monsters() {
     },
   ][];
 
-  // Filter the rows based on the selected filters
-  const filteredRows = rows.filter(([, monster]) => {
-    const matchesMonsterName = monster.name
-      .toLowerCase()
-      .includes(filters.monsterName.toLowerCase());
-
-    // Convert filters.hpMin, filters.hpMax, respawnMin, respawnMax, and achievement to numbers for comparison
-    const hpMinFilter = filters.hpMin ? Number(filters.hpMin) : -Infinity;
-    const hpMaxFilter = filters.hpMax ? Number(filters.hpMax) : Infinity;
-    const respawnMinFilter = filters.respawnMin ? Number(filters.respawnMin) : -Infinity;
-    const respawnMaxFilter = filters.respawnMax ? Number(filters.respawnMax) : Infinity;
-    const matchesAchievement = monster.achievements
-      ? monster.achievements.some((achievement: any) =>
-          achievement[2].toLowerCase().includes(filters.achievement.toLowerCase()),
-        )
-      : filters.achievement === "";
-
-    const matchesHpMin = monster.hp >= hpMinFilter;
-    const matchesHp = monster.hp < hpMaxFilter;
-    const matchesRespawnMin = monster.respawn >= respawnMinFilter;
-    const matchesRespawn = monster.respawn <= respawnMaxFilter;
-    const matchesItem = monster.drops
-      ? monster.drops.toLowerCase().includes(filters.itemName.toLowerCase())
-      : filters.itemName === "";
-
-    return (
-      matchesMonsterName &&
-      matchesHpMin &&
-      matchesHp &&
-      matchesRespawnMin &&
-      matchesRespawn &&
-      matchesItem &&
-      matchesAchievement
-    );
-  });
+  // Filter the rows based on the query search
+  const filteredRows = rows.filter(([key, monster]) => monsterMatchesSearch(key, monster, search));
 
   // Ensure filteredRowsWithFilters is defined
   const filteredRowsWithFilters = filteredRows as [
@@ -303,105 +269,43 @@ export function Monsters() {
       xpPerHp: number;
       drops: any;
       spawns: string[];
-      achievements: any; // Add achievements to the row type
+      achievements: any;
     },
   ][];
 
-  // G.drops.monsters.goo
-  // monsters does not contain gold, where does that come from?
-  // sub table with spawn locations?
+  const advancedContent = (
+    <MonsterAdvancedSearchPanel
+      form={form}
+      onChange={setForm}
+      onApply={() => {
+        setSearch(serializeMonsterAdvancedForm(form));
+        setOpen(false);
+      }}
+      onClear={() => {
+        setForm(EMPTY_MONSTER_ADVANCED);
+        setSearch("");
+        setOpen(false);
+      }}
+    />
+  );
+
   return (
     <StickyListLayout
       filters={
         <Paper sx={{ p: 2 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={2}>
-              <TextField
-                fullWidth
-                label="Monster"
-                variant="outlined"
-                size="small"
-                value={filters.monsterName}
-                onChange={(e) => setFilters({ ...filters, monsterName: e.target.value })}
-              />
-            </Grid>
-            <Grid item xs={2}>
-              <TextField
-                fullWidth
-                label="Item Drop"
-                variant="outlined"
-                size="small"
-                value={filters.itemName}
-                onChange={(e) => setFilters({ ...filters, itemName: e.target.value })}
-              />
-            </Grid>
-            <Grid item xs={2}>
-              <TextField
-                fullWidth
-                label="Achievement"
-                variant="outlined"
-                size="small"
-                value={filters.achievement}
-                onChange={(e) => setFilters({ ...filters, achievement: e.target.value })}
-              />
-            </Grid>
-            <Grid item xs={1}>
-              <TextField
-                fullWidth
-                label="HP MIN"
-                type="number"
-                variant="outlined"
-                size="small"
-                value={filters.hpMin}
-                onChange={(e) => {
-                  const { value } = e.target;
-                  setFilters({ ...filters, hpMin: value === "" ? "" : String(Number(value)) });
-                }}
-              />
-            </Grid>
-            <Grid item xs={1}>
-              <TextField
-                fullWidth
-                label="HP MAX"
-                type="number"
-                variant="outlined"
-                size="small"
-                value={filters.hpMax}
-                onChange={(e) => {
-                  const { value } = e.target;
-                  setFilters({ ...filters, hpMax: value === "" ? "" : String(Number(value)) });
-                }}
-              />
-            </Grid>
-            <Grid item xs={1}>
-              <TextField
-                fullWidth
-                label="Respawn MIN"
-                type="number"
-                variant="outlined"
-                size="small"
-                value={filters.respawnMin}
-                onChange={(e) => {
-                  const { value } = e.target;
-                  setFilters({ ...filters, respawnMin: value === "" ? "" : String(Number(value)) });
-                }}
-              />
-            </Grid>
-            <Grid item xs={1}>
-              <TextField
-                fullWidth
-                label="Respawn MAX"
-                type="number"
-                variant="outlined"
-                size="small"
-                value={filters.respawnMax}
-                onChange={(e) => {
-                  const { value } = e.target;
-                  setFilters({ ...filters, respawnMax: value === "" ? "" : String(Number(value)) });
-                }}
-              />
-            </Grid>
-          </Grid>
+          <QuerySearchBar
+            context="monster"
+            value={search}
+            onChange={setSearch}
+            suggestions={suggestions}
+            advanced={{
+              open,
+              onToggle: () => setOpen((v) => !v),
+              onClose: () => setOpen(false),
+              content: advancedContent,
+              active: Boolean(search.trim()),
+            }}
+          />
         </Paper>
       }
     >

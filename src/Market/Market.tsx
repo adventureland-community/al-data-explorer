@@ -1,5 +1,4 @@
 import {
-  Autocomplete,
   Box,
   Button,
   Card,
@@ -12,7 +11,6 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from "@mui/material";
 import { useContext, useMemo, useState } from "react";
@@ -23,9 +21,11 @@ import { ItemInfoPValues, ItemKey, TitleKey } from "typed-adventureland";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { MultiFilterAutocomplete } from "../Shared/MultiFilterAutocomplete";
+import { QuerySearchBar } from "../Shared/QuerySearchBar";
 import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
 import { abbreviateNumber } from "../Shared/utils";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
+import { buildMarketSearchSuggestions, marketRowMatchesSearch } from "./marketSearchQuery";
 import { useMerchants } from "./useMerchants";
 import type { BuySellItemPrices, Merchant } from "./useMerchants";
 
@@ -37,8 +37,9 @@ function Info() {
           This page shows market data from adventureland merchants using the merchant endpoint from{" "}
           <a href="https://aldata.earthiverse.ca">earthiverse&apos;s aldata</a>
           <br />
-          You can search for items, separating searches by either space or comma. Press REFRESH DATA
-          to refresh the data from the merchant endpoint.
+          You can search with market ops — try <code>price:&gt;=1m</code>,{" "}
+          <code>attr:armor&gt;=40</code>, <code>is:sell</code>. Press REFRESH DATA to refresh from
+          the merchant endpoint.
         </Typography>
       </CardContent>
     </Card>
@@ -294,23 +295,31 @@ export function Market() {
     return Array.from(sellers);
   }, [items]);
 
-  const getMerchantData = () => {
+  const merchantIds = useMemo(
+    () => Array.from(new Set([...uniqueBuyers, ...uniqueSellers])),
+    [uniqueBuyers, uniqueSellers],
+  );
+
+  const suggestions = useMemo(
+    () => (draft: string) =>
+      buildMarketSearchSuggestions(draft, {
+        itemKeys: Object.keys(items),
+        merchants: merchantIds,
+      }),
+    [items, merchantIds],
+  );
+
+  const onRefreshData = () => {
     refresh();
   };
 
-  const onRefreshData = () => {
-    getMerchantData();
-  };
-
   const rows = useMemo(() => {
-    let tmpRows: Array<{
+    const tmpRows: Array<{
       itemName: ItemKey;
       title: TitleKey;
       level: number;
       prices: BuySellItemPrices;
     }> = [];
-
-    console.log("search triggered filterDataBySearch", filter);
 
     // eslint-disable-next-line guard-for-in
     for (const itemKey in items) {
@@ -321,28 +330,6 @@ export function Market() {
         // eslint-disable-next-line guard-for-in
         for (const level in itemsByTitle) {
           const pricesByLevel = itemsByTitle[level];
-
-          // why are we filtering it twice? here and in filtered rows?
-          if (filter) {
-            const lowercaseFilter = filter.toLowerCase();
-
-            const itemNames: string[] = [];
-            itemNames.push(...lowercaseFilter.split(" "));
-            itemNames.push(...lowercaseFilter.split(","));
-
-            const itemNameMatchesSearch = (name: string) =>
-              itemNames.some((nname) => name.toLowerCase().includes(nname));
-
-            const gItem = G?.items[itemKey as ItemKey];
-            const itemNameMatches = itemNameMatchesSearch(itemKey);
-            const gItemNameMatches = gItem && itemNameMatchesSearch(gItem.name);
-
-            if (!itemNameMatches && !gItemNameMatches) {
-              continue;
-            }
-          }
-
-          // TODO: no filter
           tmpRows.push({
             itemName: itemKey as ItemKey,
             title: titleKey as TitleKey,
@@ -353,17 +340,15 @@ export function Market() {
       }
     }
 
-    tmpRows = tmpRows.sort((a, b) => a.itemName.localeCompare(b.itemName));
-    console.log("=========================================");
-
+    tmpRows.sort((a, b) => a.itemName.localeCompare(b.itemName));
     return tmpRows;
-  }, [filter, items, G]);
+  }, [items]);
 
   const filteredRows = useMemo(
     () =>
-      rows.filter(({ itemName, prices }) => {
-        const buyerKeys = Object.keys(prices.buying.merchants);
-        const sellerKeys = Object.keys(prices.selling.merchants);
+      rows.filter((row) => {
+        const buyerKeys = Object.keys(row.prices.buying.merchants);
+        const sellerKeys = Object.keys(row.prices.selling.merchants);
         const buyerMatches =
           selectedBuyers.length === 0 || selectedBuyers.some((buyer) => buyerKeys.includes(buyer));
         const sellerMatches =
@@ -373,22 +358,15 @@ export function Market() {
         const hasSellers = sellerKeys.length > 0;
         const hasBuyers = buyerKeys.length > 0;
 
-        const itemNameMatchesSearch = (name: string) =>
-          !filter || name.toLowerCase().includes(filter.toLowerCase());
-
         return (
           (hasSellers || hasBuyers) &&
           buyerMatches &&
           sellerMatches &&
-          itemNameMatchesSearch(itemName)
+          marketRowMatchesSearch(row, G, filter)
         );
       }),
-    [rows, selectedBuyers, selectedSellers, filter],
+    [rows, selectedBuyers, selectedSellers, filter, G],
   );
-
-  // TODO: two children with key = helmet10 ???
-  console.log(filteredRows.filter((x) => x.itemName === "helmet"));
-  // TODO: also when searching, helmet10 shows up???
 
   return (
     <StickyListLayout
@@ -403,16 +381,13 @@ export function Market() {
       }
       filters={
         <Paper sx={{ p: 2 }}>
-          <Box display="flex" flexWrap="wrap" gap={2}>
-            <Box sx={{ width: 300, maxWidth: "100%" }}>
-              <Autocomplete
-                options={Object.keys(items)}
-                onInputChange={(event, newInputValue) => {
-                  setFilter(newInputValue);
-                }}
-                renderInput={(params) => (
-                  <TextField {...params} label="Search Items" variant="outlined" size="small" />
-                )}
+          <Box display="flex" flexWrap="wrap" gap={2} alignItems="flex-start">
+            <Box sx={{ flex: "1 1 280px", minWidth: 220, maxWidth: 420 }}>
+              <QuerySearchBar
+                context="market"
+                value={filter}
+                onChange={setFilter}
+                suggestions={suggestions}
               />
             </Box>
             <Box sx={{ minWidth: 220, flex: 1 }}>
