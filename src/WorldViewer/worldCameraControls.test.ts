@@ -101,6 +101,27 @@ describe("worldCameraControls", () => {
     expect(computePointFocusDistance()).toBeLessThan(computeMapFocusDistance(map) / 3);
   });
 
+  it("keeps point fit tighter than map fit on small indoor maps", () => {
+    const map = stubMap("winter_inn", -216, 216, -296, 48);
+    const pose = { x: 0, y: 0, z: 480 };
+    const mapFit = resolveMapFocusPose(
+      map,
+      pose,
+      { mapId: "winter_inn", x: -143, y: -220, seq: 1, fit: "map" },
+      "map",
+    );
+    const pointFit = resolveMapFocusPose(
+      map,
+      pose,
+      { mapId: "winter_inn", x: -143, y: -220, seq: 2, fit: "point" },
+      "map",
+    );
+    expect(pointFit.distance).toBeLessThan(mapFit.distance);
+    expect(pointFit.distance).toBeLessThanOrEqual(mapFit.distance * 0.28 + 1e-6);
+    expect(pointFit.worldPose.target.x).toBeCloseTo(mapFit.worldPose.target.x);
+    expect(pointFit.worldPose.target.z).toBeCloseTo(mapFit.worldPose.target.z);
+  });
+
   it("world search focus targets the entity point, not only the map center", () => {
     const map = stubMap("main", -1000, 1000, -1000, 1000);
     const pose = { x: 50, y: 0, z: 480 };

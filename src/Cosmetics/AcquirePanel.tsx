@@ -29,9 +29,11 @@ const AVAIL_CHIP: Record<
 
 const ICON = 44;
 
-function IconWell({ children, title }: { children: ReactNode; title?: string }) {
+function IconWell({ children, title, to }: { children: ReactNode; title?: string; to?: string }) {
   return (
     <Box
+      component={to ? RouterLink : "div"}
+      to={to}
       title={title}
       sx={{
         width: ICON,
@@ -46,6 +48,8 @@ function IconWell({ children, title }: { children: ReactNode; title?: string }) 
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
+        textDecoration: "none",
+        color: "inherit",
       }}
     >
       {children}
@@ -189,12 +193,15 @@ function CosmoSourceIcons({
         </IconWell>
       ) : null}
       {src.vendorId ? (
-        <IconWell title={src.vendorName ?? src.vendorId}>
+        <IconWell title={src.vendorName ?? src.vendorId} to={`/npcs/${src.vendorId}`}>
           <NpcImage npcId={src.vendorId} scale={1.35} tooltip={false} />
         </IconWell>
       ) : null}
       {src.exchangeNpcId ? (
-        <IconWell title={src.exchangeNpcName ?? src.exchangeNpcId}>
+        <IconWell
+          title={src.exchangeNpcName ?? src.exchangeNpcId}
+          to={`/npcs/${src.exchangeNpcId}`}
+        >
           <NpcImage npcId={src.exchangeNpcId} scale={1.35} tooltip={false} />
         </IconWell>
       ) : null}

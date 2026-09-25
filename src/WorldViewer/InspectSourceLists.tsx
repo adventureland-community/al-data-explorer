@@ -75,6 +75,9 @@ export function NpcShopItemList({
     : [];
   return (
     <>
+      <Link component={RouterLink} to={`/npcs/${encodeURIComponent(npcId)}`} variant="body2">
+        View NPC page
+      </Link>
       {badges.length > 0 && (
         <>
           {badges.map((b) => (

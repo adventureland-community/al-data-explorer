@@ -139,8 +139,8 @@ export function computeMapFocusDistance(map: ParsedMap, margin = 1.45): number {
 }
 
 /** Tighter zoom for NPC/monster/search point focus (not whole-map framing). */
-export function computePointFocusDistance(span = 640, margin = 1.55): number {
-  return Math.max(span, 320) * margin;
+export function computePointFocusDistance(span = 200, margin = 1.25): number {
+  return Math.max(span, 160) * margin;
 }
 
 /** Default overview camera for the full laid-out world (Home / reset). */
@@ -170,6 +170,8 @@ export function computeWorldFocusPoseAtPoint(
 /**
  * Camera target for a MapFocus. Always uses focus x/y (not map center alone) so
  * NPC/monster search can land on the entity; `fit` only changes zoom distance.
+ * Point fit is always at least as tight as half the map frame so small maps
+ * (inns, shops) still zoom in around the marker.
  */
 export function resolveMapFocusPose(
   map: ParsedMap,
@@ -178,10 +180,11 @@ export function resolveMapFocusPose(
   viewMode: ViewerMode,
 ): { point: { x: number; y: number; z: number }; distance: number; worldPose: CameraPose } {
   const point = mapPointToWorld(pose, targetFocus.x, targetFocus.y);
+  const mapDistance = computeMapFocusDistance(map, viewMode === "world" ? 1.65 : 1.45);
   const distance =
     targetFocus.fit === "point"
-      ? computePointFocusDistance()
-      : computeMapFocusDistance(map, viewMode === "world" ? 1.65 : 1.45);
+      ? Math.min(computePointFocusDistance(), mapDistance * 0.28)
+      : mapDistance;
   return {
     point,
     distance,

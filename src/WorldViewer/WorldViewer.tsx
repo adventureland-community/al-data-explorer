@@ -8,6 +8,7 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
+import { useLocation } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
 import { DEFAULT_LAYER_HEIGHT, layoutWorld } from "./layoutWorld";
 import { collectMonsterTypes, collectUsedSpriteUrls } from "./spriteLookup";
@@ -34,8 +35,18 @@ import { toWorldSource } from "./worldData";
 
 const MAX_TRAVEL_HISTORY = 15;
 
+function focusFromHash(hash: Record<string, string>): MapFocus | null {
+  const mapId = hash.map;
+  if (!mapId) return null;
+  const x = Number(hash.x);
+  const y = Number(hash.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { mapId, x, y, seq: 1, fit: "point" };
+}
+
 export function WorldViewer() {
   const G = useContext(GDataContext);
+  const location = useLocation();
   const initialHash = useRef(parseHash());
   const [overlays, setOverlays] = useState<OverlayVisibility>(DEFAULT_OVERLAYS);
   const [viewMode, setViewMode] = useState<ViewerMode>(
@@ -47,8 +58,15 @@ export function WorldViewer() {
   });
   const [includeIgnored, setIncludeIgnored] = useState(false);
   const [selectedMap, setSelectedMap] = useState<string | null>(initialHash.current.map || "main");
-  const [focus, setFocus] = useState<MapFocus | null>(null);
   const focusSeqRef = useRef(0);
+  const [focus, setFocus] = useState<MapFocus | null>(() => {
+    const fromHash = focusFromHash(initialHash.current);
+    if (fromHash) {
+      focusSeqRef.current = fromHash.seq;
+      return fromHash;
+    }
+    return null;
+  });
   const travelSeqRef = useRef(0);
   const [travelHistory, setTravelHistory] = useState<Array<{ mapId: string; key: number }>>([]);
   const [pixelArt, setPixelArt] = useState(true);
@@ -156,23 +174,30 @@ export function WorldViewer() {
     selectMap(mapId, { x: (map.artMinX + map.artMaxX) / 2, y: (map.artMinY + map.artMaxY) / 2 });
   };
 
-  // On mount: if hash specified a map, focus it
-  const didInitFocus = useRef(false);
+  // Deep links (`#map=&x=&y=`) and in-app hash navigations → point focus at coords.
   useEffect(() => {
-    if (didInitFocus.current || !layout) return;
-    didInitFocus.current = true;
-    const h = initialHash.current;
-    if (h.map && layout.maps[h.map]) {
-      const hx = Number(h.x);
-      const hy = Number(h.y);
-      if (Number.isFinite(hx) && Number.isFinite(hy)) {
-        requestMapFocus(h.map, hx, hy);
-      } else {
-        focusMap(h.map);
-      }
+    if (!layout) return;
+    const h = parseHash();
+    if (!h.map || !layout.maps[h.map]) return;
+    const hx = Number(h.x);
+    const hy = Number(h.y);
+    if (!Number.isFinite(hx) || !Number.isFinite(hy)) {
+      if (!focus) focusMap(h.map);
+      return;
     }
+    setSelectedMap((current) => (current === h.map ? current : h.map));
+    if (
+      focus &&
+      focus.mapId === h.map &&
+      Math.round(focus.x) === Math.round(hx) &&
+      Math.round(focus.y) === Math.round(hy) &&
+      focus.fit === "point"
+    ) {
+      return;
+    }
+    requestMapFocus(h.map, hx, hy, "point");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout]);
+  }, [layout, location.hash]);
 
   const applyViewMode = (mode: ViewerMode) => {
     if (mode === viewMode) {

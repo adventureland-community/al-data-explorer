@@ -121,7 +121,11 @@ export function NpcShopSourceList({ shops }: { shops: AcquisitionShopView[] }) {
               <NpcImage npcId={shop.npcId} scale={NPC_SCALE} />
             </SourceIconSlot>
             <ListItemText
-              primary={shop.label}
+              primary={
+                <Link component={RouterLink} to={shop.linkTo} variant="body2">
+                  {shop.label}
+                </Link>
+              }
               secondary={shop.mapLabel}
               primaryTypographyProps={{ variant: "body2" }}
               secondaryTypographyProps={{ variant: "caption" }}
@@ -164,7 +168,15 @@ export function TokenOfferList({ offers }: { offers: AcquisitionTokenView[] }) {
               )}
             </SourceIconSlot>
             <ListItemText
-              primary={offer.npcLabel ?? offer.tokenName}
+              primary={
+                offer.npcLinkTo ? (
+                  <Link component={RouterLink} to={offer.npcLinkTo} variant="body2">
+                    {offer.npcLabel ?? offer.tokenName}
+                  </Link>
+                ) : (
+                  offer.npcLabel ?? offer.tokenName
+                )
+              }
               secondary={
                 <>
                   <Link component={RouterLink} to={offer.linkTo} variant="caption">
@@ -291,9 +303,20 @@ function MerchantHeader({
         )}
       </Box>
       <Box sx={{ minWidth: 0 }}>
-        <Typography variant="body1" sx={{ fontWeight: 600, lineHeight: 1.25 }}>
-          {label}
-        </Typography>
+        {npcId ? (
+          <Link
+            component={RouterLink}
+            to={`/npcs/${encodeURIComponent(npcId)}`}
+            variant="body1"
+            sx={{ fontWeight: 600, lineHeight: 1.25 }}
+          >
+            {label}
+          </Link>
+        ) : (
+          <Typography variant="body1" sx={{ fontWeight: 600, lineHeight: 1.25 }}>
+            {label}
+          </Typography>
+        )}
         {npcId && npcLabel && npcId !== npcLabel ? (
           <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
             {npcId}

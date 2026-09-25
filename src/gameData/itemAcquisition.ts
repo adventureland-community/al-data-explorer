@@ -7,6 +7,7 @@ import {
   getMapDisplayName,
   prepareDropSourcesForDisplay,
 } from "./drops";
+import { npcHref } from "./npcCatalog";
 import { DropSourceType, GItems, NpcShopSource, TokenOfferSource } from "./types";
 import { normalizeTokenShopOffer } from "./tokenShopOffer";
 
@@ -30,6 +31,7 @@ export type AcquisitionShopView = {
   mapLabel?: string;
   /** What you pay the NPC to buy (gold or shells). */
   priceLabel: string;
+  linkTo: string;
 };
 
 export type AcquisitionTokenView = {
@@ -43,6 +45,7 @@ export type AcquisitionTokenView = {
   npcId?: string;
   npcLabel?: string;
   linkTo: string;
+  npcLinkTo?: string;
 };
 
 /** Reward from exchanging an input item (`G.items[input].e` + `G.drops[input]`). */
@@ -219,6 +222,7 @@ function toShopViews(
       label: shop.name ?? shop.npcId,
       mapLabel: [shop.role, mapLabel].filter(Boolean).join(" · ") || undefined,
       priceLabel,
+      linkTo: npcHref(shop.npcId),
     });
   }
 
@@ -243,6 +247,7 @@ function toTokenViews(offers: TokenOfferSource[], items: GItems): AcquisitionTok
       npcId: offer.npcId ?? undefined,
       npcLabel: offer.npcName ?? offer.npcId ?? undefined,
       linkTo: `/items/${offer.tokenKey}`,
+      npcLinkTo: offer.npcId ? npcHref(offer.npcId) : undefined,
     };
   });
 }
