@@ -19,6 +19,7 @@ export function GearPickDialog({
   classKey,
   showAffixes = true,
   initialItem,
+  searchContext = "gear",
 }: {
   slot: SlotType | false;
   items?: GItems;
@@ -33,6 +34,7 @@ export function GearPickDialog({
   classKey?: string;
   showAffixes?: boolean;
   initialItem?: ItemInfo;
+  searchContext?: "gear" | "luck" | "catalog";
 }) {
   const G = useContext(GDataContext);
   const [open, setOpen] = useState(false);
@@ -64,6 +66,7 @@ export function GearPickDialog({
           onSelect={onSelectItem}
           searchAttributes
           searchPlaceholder={searchPlaceholder}
+          searchContext={searchContext}
           statColumn={statColumn}
           resetFocusKey={slot}
           classKey={classKey}

@@ -5,6 +5,7 @@ import { GItem, ItemInfo, ItemKey, SlotType } from "typed-adventureland";
 import { CustomGData, GItems } from "../GDataContext";
 import { ItemSourcesPanel } from "../Items/components/ItemSourcesPanel";
 import { ItemPicker, ItemPickerRow } from "./ItemPicker";
+import type { SearchContextId } from "./querySearch";
 
 /** Cap for sources on stacked (xs) layout; desktop height follows the picker column. */
 const SOURCES_STACKED_MAX_HEIGHT = 440;
@@ -16,6 +17,7 @@ export function ItemPickerWithSources({
   onSelect,
   searchAttributes = false,
   searchPlaceholder,
+  searchContext = "catalog",
   statColumn = "attack",
   /** When this changes, hover preview resets (e.g. gear slot). */
   resetFocusKey,
@@ -31,6 +33,7 @@ export function ItemPickerWithSources({
   onSelect?: (row: ItemPickerRow) => void;
   searchAttributes?: boolean;
   searchPlaceholder?: string;
+  searchContext?: Extract<SearchContextId, "catalog" | "gear" | "luck">;
   statColumn?: "attack" | "luck";
   resetFocusKey?: unknown;
   classKey?: string;
@@ -68,6 +71,7 @@ export function ItemPickerWithSources({
         onFocusItem={setFocusKey}
         searchAttributes={searchAttributes}
         searchPlaceholder={searchPlaceholder}
+        searchContext={searchContext}
         statColumn={statColumn}
         classKey={classKey}
         showAffixes={showAffixes}

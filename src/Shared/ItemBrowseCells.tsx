@@ -141,7 +141,11 @@ export function BrowseShopsCell({ shops }: { shops: AcquisitionShopView[] }) {
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, alignItems: "flex-start" }}>
       {shops.map((shop) => (
         <Tooltip key={shop.npcId} title={`${shop.label} · ${shop.priceLabel}`}>
-          <Box sx={tileColumnSx}>
+          <Box
+            component={RouterLink}
+            to={shop.linkTo}
+            sx={{ ...tileColumnSx, textDecoration: "none", color: "inherit" }}
+          >
             <Box sx={tileSlotSx}>
               <NpcImage npcId={shop.npcId} scale={BROWSE_NPC_SCALE} />
             </Box>

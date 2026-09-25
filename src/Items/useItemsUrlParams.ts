@@ -1,14 +1,11 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ItemSortKey } from "../gameData/itemFilters";
+import { serializeLegacyBrowseFacets } from "./itemCatalogAdvancedForm";
 
 export type ItemsBrowseParams = {
   search: string;
-  types: string[];
-  wtypes: string[];
-  tiers: number[];
-  classes: string[];
   sort: ItemSortKey;
 };
 
@@ -41,15 +38,36 @@ export function parseNumberCsvParam(raw: string | null): number[] {
   return values;
 }
 
+const LEGACY_FACET_KEYS = ["type", "wtype", "tier", "class"] as const;
+
+/** Browse URL state: query search + sort. Legacy facet params migrate into `search`. */
 export function useItemsBrowseParams() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const migratedRef = useRef(false);
+
+  useEffect(() => {
+    if (migratedRef.current) return;
+    const types = parseCsvParam(searchParams.get("type"));
+    const wtypes = parseCsvParam(searchParams.get("wtype"));
+    const tiers = parseNumberCsvParam(searchParams.get("tier"));
+    const classes = parseCsvParam(searchParams.get("class"));
+    const hasLegacy =
+      types.length > 0 || wtypes.length > 0 || tiers.length > 0 || classes.length > 0;
+    if (!hasLegacy) {
+      migratedRef.current = true;
+      return;
+    }
+    migratedRef.current = true;
+    const folded = serializeLegacyBrowseFacets({ types, wtypes, tiers, classes });
+    const next = new URLSearchParams(searchParams);
+    for (const key of LEGACY_FACET_KEYS) next.delete(key);
+    const existing = (next.get("search") ?? "").trim();
+    next.set("search", [existing, folded].filter(Boolean).join(" ").trim());
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const params: ItemsBrowseParams = {
     search: searchParams.get("search") ?? "",
-    types: parseCsvParam(searchParams.get("type")),
-    wtypes: parseCsvParam(searchParams.get("wtype")),
-    tiers: parseNumberCsvParam(searchParams.get("tier")),
-    classes: parseCsvParam(searchParams.get("class")),
     sort: (searchParams.get("sort") as ItemSortKey | null) ?? "name",
   };
 
@@ -58,18 +76,11 @@ export function useItemsBrowseParams() {
       const next = new URLSearchParams(searchParams);
       if (value) next.set(key, value);
       else next.delete(key);
+      // Search owns filters — drop leftover facet keys if any.
+      if (key === "search") {
+        for (const facet of LEGACY_FACET_KEYS) next.delete(facet);
+      }
       setSearchParams(next, { replace: options?.replace ?? false });
-    },
-    [searchParams, setSearchParams],
-  );
-
-  const setListParam = useCallback(
-    (key: "type" | "wtype" | "tier" | "class", values: string[]) => {
-      const next = new URLSearchParams(searchParams);
-      const encoded = writeCsvParam(values);
-      if (encoded) next.set(key, encoded);
-      else next.delete(key);
-      setSearchParams(next);
     },
     [searchParams, setSearchParams],
   );
@@ -78,17 +89,11 @@ export function useItemsBrowseParams() {
     setSearchParams({});
   }, [setSearchParams]);
 
-  const hasActiveFilters = Boolean(
-    params.search ||
-      params.types.length > 0 ||
-      params.wtypes.length > 0 ||
-      params.tiers.length > 0 ||
-      params.classes.length > 0,
-  );
+  const hasActiveFilters = Boolean(params.search.trim());
 
   const browseQuery = searchParams.toString();
 
-  return { params, setParam, setListParam, clearFilters, hasActiveFilters, browseQuery };
+  return { params, setParam, clearFilters, hasActiveFilters, browseQuery };
 }
 
 /** Matrix selection + optional baseline (`show` / `baseline` / legacy `highlight`). */

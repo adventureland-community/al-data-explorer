@@ -17,14 +17,19 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { GItem, ItemInfo, ItemKey, SlotType, StatType } from "typed-adventureland";
 
 import { listTitleOptions, itemAcceptsStatScroll } from "../gameData/itemAffixes";
-import { ItemSortKey, queryItems } from "../gameData/itemFilters";
+import { ItemSortKey, getItemTypes, getItemWtypes, queryItems } from "../gameData/itemFilters";
 import { itemTitleDefsFromG, resolveItemInstanceStats } from "../gameData/itemProperties";
+import {
+  buildItemCatalogSuggestions,
+  itemCatalogMatchesSearch,
+} from "../Items/itemCatalogSearchQuery";
 import { GDataContext, GItems } from "../GDataContext";
 import { getMaxLevel } from "../Utils";
 import { ItemAffixControls } from "./ItemAffixControls";
 import { ItemInstance } from "./ItemInstance";
 import { LoadingState } from "./LoadingState";
-import { Search } from "./Search";
+import { QuerySearchBar } from "./QuerySearchBar";
+import type { SearchContextId } from "./querySearch";
 
 export type ItemPickerRow = {
   itemName: ItemKey;
@@ -54,7 +59,8 @@ export function ItemPicker({
   level: controlledLevel,
   onLevelChange,
   searchAttributes = false,
-  searchPlaceholder = "Search by name, key, type, or wtype",
+  searchPlaceholder,
+  searchContext = "catalog",
   /** Default list order — matrix uses tier so “Add all” lands in tier order. */
   defaultSort = "name",
   statColumn = "attack",
@@ -78,9 +84,11 @@ export function ItemPicker({
   showLevelSlider?: boolean;
   level?: number;
   onLevelChange?: (level: number) => void;
-  /** When true, also match upgrade/compound/set attribute names (gear planner parity). */
+  /** @deprecated Prefer real attr: queries via searchContext. */
   searchAttributes?: boolean;
   searchPlaceholder?: string;
+  /** Context-aware ops/suggestions: catalog | gear | luck. */
+  searchContext?: Extract<SearchContextId, "catalog" | "gear" | "luck">;
   defaultSort?: ItemSortKey;
   /** Last column: attack (default) or luck (gear planner / drop sim luck picker). */
   statColumn?: "attack" | "luck";
@@ -142,36 +150,51 @@ export function ItemPicker({
     };
   }, [filterItem, showAffixes, statType]);
 
+  const types = useMemo(() => (items ? getItemTypes(items) : []), [items]);
+  const wtypes = useMemo(() => (items ? getItemWtypes(items) : []), [items]);
+
+  const suggestions = useMemo(
+    () => (draft: string) => buildItemCatalogSuggestions(draft, searchContext, { types, wtypes }),
+    [searchContext, types, wtypes],
+  );
+
   const rows = useMemo(() => {
     if (!items) return [];
     return queryItems(items, {
-      search,
+      search: undefined,
       sort,
-      matchAttributes: searchAttributes,
-      sets: searchAttributes
-        ? (G?.sets as Record<string, Record<string, unknown>> | undefined)
-        : undefined,
       filterItem: rowsFilter,
-    }).map(([itemName, gItem]) => {
-      const maxLevel = getMaxLevel(gItem);
-      const itemLevel = maxLevel ? Math.min(level, maxLevel) : level;
-      const stats = resolveItemInstanceStats({
-        def: gItem,
-        itemInfo: {
-          level: itemLevel,
+    })
+      .filter(([itemName, gItem]) =>
+        itemCatalogMatchesSearch(itemName as ItemKey, gItem, G ?? undefined, search, {
+          level,
           p: titleKey || undefined,
-          stat_type: itemAcceptsStatScroll(gItem) ? (statType as StatType) || undefined : undefined,
-        },
-        G: G ?? undefined,
-        classKey,
+          statType: statType || undefined,
+          matchAttributeNames: searchAttributes,
+        }),
+      )
+      .map(([itemName, gItem]) => {
+        const maxLevel = getMaxLevel(gItem);
+        const itemLevel = maxLevel ? Math.min(level, maxLevel) : level;
+        const stats = resolveItemInstanceStats({
+          def: gItem,
+          itemInfo: {
+            level: itemLevel,
+            p: titleKey || undefined,
+            stat_type: itemAcceptsStatScroll(gItem)
+              ? (statType as StatType) || undefined
+              : undefined,
+          },
+          G: G ?? undefined,
+          classKey,
+        });
+        return {
+          itemName,
+          level: itemLevel,
+          ...gItem,
+          ...stats,
+        } as ItemPickerRow;
       });
-      return {
-        itemName,
-        level: itemLevel,
-        ...gItem,
-        ...stats,
-      } as ItemPickerRow;
-    });
   }, [G, classKey, items, level, rowsFilter, search, searchAttributes, sort, statType, titleKey]);
 
   if (!G) {
@@ -230,7 +253,14 @@ export function ItemPicker({
         alignItems={{ xs: "stretch", sm: "center" }}
         sx={{ mt: showLevelSlider || showAffixes ? 0 : 1 }}
       >
-        <Search doSearch={setSearch} placeholder={searchPlaceholder} />
+        <QuerySearchBar
+          context={searchContext}
+          value={search}
+          onChange={setSearch}
+          suggestions={suggestions}
+          placeholder={searchPlaceholder}
+          debounceMs={200}
+        />
         {onAddAll && (
           <Button
             variant="outlined"
@@ -238,7 +268,7 @@ export function ItemPicker({
             disabled={rows.length === 0 || !search.trim()}
             onClick={() => onAddAll(rows)}
             sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
-            title={!search.trim() ? "Search by type or wtype first" : undefined}
+            title={!search.trim() ? "Search first" : undefined}
           >
             Add all {rows.length} matching
           </Button>

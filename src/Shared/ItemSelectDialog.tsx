@@ -47,6 +47,7 @@ export function ItemSelectDialog({
           onLevelChange={onLevelChange}
           showLevelSlider={showLevelSlider}
           defaultSort={defaultSort}
+          searchContext="catalog"
           onSelect={(row) => {
             onSelect(row);
             if (!stayOpenOnSelect) onClose();

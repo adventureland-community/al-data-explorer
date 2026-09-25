@@ -2,7 +2,6 @@ import {
   Box,
   Button,
   Chip,
-  Grid,
   Link,
   Paper,
   Stack,
@@ -12,7 +11,6 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
-  TextField,
   Typography,
 } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
@@ -23,7 +21,6 @@ import { getItemAcquisitionCached } from "../gameData/itemAcquisition";
 import type { AcquisitionDropView, AcquisitionShopView } from "../gameData/itemAcquisition";
 import { isEquippable } from "../gameData/compareStats";
 import {
-  getItemTiers,
   getItemTypes,
   getItemWtypes,
   ItemSortKey,
@@ -41,46 +38,19 @@ import {
 } from "../Shared/ItemBrowseCells";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { LoadingState } from "../Shared/LoadingState";
-import { MultiFilterAutocomplete } from "../Shared/MultiFilterAutocomplete";
+import { QuerySearchBar } from "../Shared/QuerySearchBar";
 import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
+import { EMPTY_ITEM_CATALOG_ADVANCED, ItemsAdvancedSearchPanel } from "./ItemsAdvancedSearchPanel";
+import {
+  itemCatalogAdvancedFromSearch,
+  itemCatalogAdvancedHasValues,
+  serializeItemCatalogAdvancedForm,
+  type ItemCatalogAdvancedForm,
+} from "./itemCatalogAdvancedForm";
+import { buildItemCatalogSuggestions, itemCatalogMatchesSearch } from "./itemCatalogSearchQuery";
 import { useItemsBrowseParams, writeCsvParam } from "./useItemsUrlParams";
 
 const EMPTY_ITEM_KEYS: ItemKey[] = [];
-
-/** Local draft + debounce so keystrokes don't re-render the item table. */
-function DebouncedSearchField({
-  value,
-  onCommit,
-  delayMs = 250,
-}: {
-  value: string;
-  onCommit: (next: string) => void;
-  delayMs?: number;
-}) {
-  const [draft, setDraft] = useState(value);
-
-  useEffect(() => {
-    setDraft(value);
-  }, [value]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (draft !== value) onCommit(draft);
-    }, delayMs);
-    return () => clearTimeout(timer);
-  }, [delayMs, draft, onCommit, value]);
-
-  return (
-    <TextField
-      fullWidth
-      label="Search"
-      placeholder="Name or item key"
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      size="small"
-    />
-  );
-}
 
 type ItemBrowseRowProps = {
   itemKey: ItemKey;
@@ -115,7 +85,6 @@ const ItemBrowseRow = memo(
           cursor: "pointer",
           textDecoration: "none",
           color: "inherit",
-          // Skip layout/paint for off-screen rows in long catalogs.
           contentVisibility: "auto",
           containIntrinsicSize: "auto 88px",
           "&:hover": { backgroundColor: "action.hover" },
@@ -159,17 +128,16 @@ const ItemBrowseRow = memo(
           </Stack>
         </TableCell>
         <TableCell>
-          <Typography variant="body2">
-            {gItem.type}
-            {gItem.wtype ? ` · ${gItem.wtype}` : ""}
-          </Typography>
-          {(gItem as { class?: string[] }).class?.length ? (
-            <Typography variant="caption" color="text.secondary" display="block" noWrap>
-              {(gItem as { class?: string[] }).class!.join(", ")}
+          <Typography variant="body2">{gItem.type ?? "—"}</Typography>
+          {gItem.wtype ? (
+            <Typography variant="caption" color="text.secondary" display="block">
+              {gItem.wtype}
             </Typography>
           ) : null}
         </TableCell>
-        <TableCell align="right">{gItem.tier ?? "—"}</TableCell>
+        <TableCell align="right">
+          <Typography variant="body2">{gItem.tier ?? "—"}</Typography>
+        </TableCell>
         <TableCell>
           <BrowseDropsCell drops={drops} />
         </TableCell>
@@ -190,8 +158,9 @@ ItemBrowseRow.displayName = "ItemBrowseRow";
 
 export function ItemsBrowse() {
   const G = useContext(GDataContext);
-  const { params, setParam, setListParam, clearFilters, hasActiveFilters, browseQuery } =
-    useItemsBrowseParams();
+  const { params, setParam, clearFilters, hasActiveFilters, browseQuery } = useItemsBrowseParams();
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<ItemCatalogAdvancedForm>(EMPTY_ITEM_CATALOG_ADVANCED);
 
   const commitSearch = useCallback(
     (next: string) => {
@@ -200,23 +169,32 @@ export function ItemsBrowse() {
     [setParam],
   );
 
+  useEffect(() => {
+    if (!open) return;
+    setForm(itemCatalogAdvancedFromSearch(params.search));
+  }, [open, params.search]);
+
   const types = useMemo(() => (G ? getItemTypes(G.items) : []), [G]);
-  const tiers = useMemo(() => (G ? getItemTiers(G.items).map(String) : []), [G]);
   const wtypes = useMemo(() => (G ? getItemWtypes(G.items) : []), [G]);
   const classes = useMemo(() => (G ? getItemClasses(G.items) : []), [G]);
 
+  const suggestions = useMemo(
+    () => (draft: string) => buildItemCatalogSuggestions(draft, "catalog", { types, wtypes }),
+    [types, wtypes],
+  );
+
   const rows = useMemo(() => {
     if (!G) return [];
-    return queryItems(G.items, {
-      search: params.search,
-      types: params.types,
-      wtypes: params.wtypes,
-      tiers: params.tiers,
-      classes: params.classes,
+    const base = queryItems(G.items, {
+      search: undefined,
       sort: params.sort,
       matchAttributes: false,
     });
-  }, [G, params.classes, params.search, params.sort, params.tiers, params.types, params.wtypes]);
+    if (!params.search.trim()) return base;
+    return base.filter(([itemKey, gItem]) =>
+      itemCatalogMatchesSearch(itemKey as ItemKey, gItem, G, params.search),
+    );
+  }, [G, params.search, params.sort]);
 
   const tableRows = useMemo(() => {
     if (!G) return [];
@@ -236,7 +214,6 @@ export function ItemsBrowse() {
     });
   }, [G, browseQuery, rows]);
 
-  /** Equippable rows from the current filter — preloaded into the matrix via `show`. */
   const matrixHref = useMemo(() => {
     if (!G || tableRows.length === 0 || !hasActiveFilters) return "/items/compare";
     const keys = sortItemKeysByTier(
@@ -260,6 +237,17 @@ export function ItemsBrowse() {
     setParam("sort", key);
   };
 
+  const applyAdvanced = () => {
+    commitSearch(serializeItemCatalogAdvancedForm(form));
+    setOpen(false);
+  };
+
+  const clearAdvanced = () => {
+    setForm(EMPTY_ITEM_CATALOG_ADVANCED);
+    clearFilters();
+    setOpen(false);
+  };
+
   return (
     <StickyListLayout
       toolbar={
@@ -277,62 +265,45 @@ export function ItemsBrowse() {
       }
       filters={
         <Paper sx={{ p: 2 }}>
-          <Grid container spacing={2} alignItems="flex-start">
-            <Grid item xs={12} sm={6} md={3}>
-              <DebouncedSearchField value={params.search} onCommit={commitSearch} />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <MultiFilterAutocomplete
-                label="Type"
-                options={types}
-                value={params.types}
-                onChange={(next) => setListParam("type", next)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <MultiFilterAutocomplete
-                label="Wtype"
-                options={wtypes}
-                value={params.wtypes}
-                onChange={(next) => setListParam("wtype", next)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <MultiFilterAutocomplete
-                label="Tier"
-                options={tiers}
-                value={params.tiers.map(String)}
-                onChange={(next) => setListParam("tier", next)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <MultiFilterAutocomplete
-                label="Class"
-                options={classes}
-                value={params.classes}
-                onChange={(next) => setListParam("class", next)}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                flexWrap="wrap"
-                sx={{ gap: 1 }}
-              >
-                <Chip label={`${tableRows.length} items`} size="small" />
-                {hasActiveFilters && (
-                  <Button size="small" onClick={clearFilters}>
-                    Clear
-                  </Button>
-                )}
-                <Link component={RouterLink} to={matrixHref} variant="body2" sx={{ ml: "auto" }}>
-                  {matrixAddCount > 0 ? `Open matrix with ${matrixAddCount} items` : "Open matrix"}
-                </Link>
-              </Stack>
-            </Grid>
-          </Grid>
+          <Stack spacing={1.5}>
+            <QuerySearchBar
+              context="catalog"
+              value={params.search}
+              onChange={commitSearch}
+              suggestions={suggestions}
+              debounceMs={250}
+              onClear={() => setForm(EMPTY_ITEM_CATALOG_ADVANCED)}
+              advanced={{
+                open,
+                onToggle: () => setOpen((was) => !was),
+                onClose: () => setOpen(false),
+                content: (
+                  <ItemsAdvancedSearchPanel
+                    form={form}
+                    onChange={setForm}
+                    typeOptions={types}
+                    wtypeOptions={wtypes}
+                    classOptions={classes}
+                    search={params.search}
+                    onApply={applyAdvanced}
+                    onClear={clearAdvanced}
+                  />
+                ),
+                active: hasActiveFilters || itemCatalogAdvancedHasValues(form),
+              }}
+            />
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ gap: 1 }}>
+              <Chip label={`${tableRows.length} items`} size="small" />
+              {hasActiveFilters && (
+                <Button size="small" onClick={clearFilters}>
+                  Clear
+                </Button>
+              )}
+              <Link component={RouterLink} to={matrixHref} variant="body2" sx={{ ml: "auto" }}>
+                {matrixAddCount > 0 ? `Open matrix with ${matrixAddCount} items` : "Open matrix"}
+              </Link>
+            </Stack>
+          </Stack>
         </Paper>
       }
     >

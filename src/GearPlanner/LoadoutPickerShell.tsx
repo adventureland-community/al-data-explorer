@@ -134,10 +134,9 @@ export function LoadoutPickerShell({
         onSelect={onSelect}
         onClose={() => setSelectedSlot(false)}
         searchPlaceholder={
-          variant === "luck"
-            ? "Search items by name, key, or type — set Lucky / Festive title above"
-            : undefined
+          variant === "luck" ? "Filter luck gear — attr:luck>=10, title:lucky" : undefined
         }
+        searchContext={variant === "luck" ? "luck" : "gear"}
         statColumn={variant === "luck" ? "luck" : undefined}
         titleId={variant === "luck" ? "luck-gear-pick-title" : "scroll-dialog-title"}
         classKey={selectedClass?.className}
