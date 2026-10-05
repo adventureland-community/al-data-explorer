@@ -1,5 +1,5 @@
 {
-  "version": 17397,
+  "version": 17478,
   "achievements": {
     "reach40": { "name": "Become Level 40", "item": "gem1" },
     "reach50": { "name": "Become Level 50", "shells": 50 },
@@ -4617,7 +4617,7 @@
           "makeup117",
           "makeup118",
           "makeup119",
-          "makeup120",
+          null,
           "makeup121",
           "makeup122",
           "makeup123",
@@ -4646,6 +4646,14 @@
           "lanternhead0"
         ]
       ]
+    },
+    "makeup120": {
+      "file": "/images/cosmetics/makeup/makeup120_anim.png?v=1",
+      "rows": 1,
+      "columns": 1,
+      "type": "head",
+      "frames": 3,
+      "matrix": [["makeup120"]]
     },
     "lavaglass": {
       "file": "/images/cosmetics/makeup/lavaglass_anim.png?v=1",
@@ -140970,6 +140978,8 @@
       "int": 9,
       "mp": 400,
       "resistance": 60,
+      "compound": { "int": 1, "mp": 40, "resistance": 6 },
+      "grades": [0, 0, 6, 7],
       "g": 240000,
       "exclusive": true,
       "cx": { "accent": "#59C7B8" },
@@ -149564,7 +149574,8 @@
       "skin": "cave_loaded_die",
       "crit": 8,
       "critdamage": 10,
-      "grade": 1,
+      "compound": { "crit": 0.5, "critdamage": 2 },
+      "grades": [0, 0, 6, 7],
       "g": 72000,
       "cx": { "accent": "#E5BC83" },
       "name": "Loaded Die",
@@ -150894,7 +150905,7 @@
     "cave_deepaxe": {
       "cost": 480000,
       "items": [
-        [400, "cave_amber"],
+        [200, "cave_amber"],
         [1, "cave_tunnelaxe", 0],
         [10, "gemfragment"],
         [20, "leather"]
@@ -150987,8 +150998,9 @@
       "manual": true,
       "misc": true,
       "stackable": true,
-      "title": "Cave-found",
-      "source": "dreams"
+      "title": "Cave",
+      "source": "dreams",
+      "resistance": 5
     }
   },
   "tokens": {
@@ -152064,7 +152076,11 @@
       "headyetis": ["makeup119", "fmakeup08"],
       "headbones": ["makeup132", "makeup134", "fmakeup12"]
     },
-    "head_animation": { "lavaglasshead0": 160, "stormhead0": 220 },
+    "head_animation": {
+      "makeup120": 160,
+      "lavaglasshead0": 160,
+      "stormhead0": 220
+    },
     "prop": {
       "hairdo604": ["no_hat"],
       "hairdo605": ["no_hat"],
@@ -159708,6 +159724,11 @@
       "width": 1269,
       "type": "png"
     },
+    "/images/cosmetics/makeup/makeup120_anim.png": {
+      "height": 120,
+      "width": 81,
+      "type": "png"
+    },
     "/images/cosmetics/makeup/lavaglass_anim.png": {
       "height": 120,
       "width": 216,
@@ -165272,5 +165293,5 @@
       [0.001, "cave_ambercoat"]
     ]
   },
-  "timestamp": "2026-09-27T11:29:11.427Z"
+  "timestamp": "2026-10-05T13:43:29.987Z"
 }
