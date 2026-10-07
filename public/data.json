@@ -1,5 +1,5 @@
 {
-  "version": 17478,
+  "version": 17665,
   "achievements": {
     "reach40": { "name": "Become Level 40", "item": "gem1" },
     "reach50": { "name": "Become Level 50", "shells": 50 },
@@ -2295,7 +2295,7 @@
         [70, "halloween1"],
         [200, "halloween2"]
       ],
-      "respawn": 51840,
+      "respawn": 480,
       "range": 80,
       "frequency": 20,
       "aggro": 1,
@@ -2331,7 +2331,7 @@
         [70, "halloween1"],
         [200, "halloween2"]
       ],
-      "respawn": 25920,
+      "respawn": 480,
       "range": 30,
       "frequency": 20,
       "aggro": 1,
@@ -141101,7 +141101,7 @@
       "gold": 3,
       "stat": 5,
       "speed": 1,
-      "name": "Horse Leather Cape",
+      "name": "Gilded Horse Leather Cape",
       "upgrade": {
         "armor": 2,
         "resistance": 2,
@@ -151599,7 +151599,7 @@
       "debuff": true,
       "defense": "phresistance",
       "duration": 3200,
-      "explanation": "Cannot move, attack, heal, or use skills.",
+      "explanation": "Cannot move, attack, heal, use skills, or use items.",
       "cleansable": true
     },
     "deepfreezed": {
@@ -159703,6 +159703,14 @@
       ]
     }
   },
+  "event_flags": {
+    "anniversary": false,
+    "holidayseason": false,
+    "lunarnewyear": false,
+    "valentines": false,
+    "egghunt": false,
+    "halloween": true
+  },
   "images": {
     "/images/tiles/monsters/femaledjinn_1.png": {
       "height": 212,
@@ -162421,13 +162429,8 @@
     "maps": {
       "global_static": [],
       "global": [
-        [0.0006666666666666666, "anniversarygift"],
-        [0.00002, "slice_strawberry"],
-        [0.00002, "slice_citrus"],
-        [0.00002, "slice_honey"],
-        [0.00002, "slice_mint"],
-        [0.00002, "slice_blueberry"],
-        [0.00002, "slice_nightberry"]
+        [0.00005, "candy0"],
+        [0.00125, "candy1"]
       ],
       "main": [
         [0.0007, "ringsj"],
@@ -165293,5 +165296,5 @@
       [0.001, "cave_ambercoat"]
     ]
   },
-  "timestamp": "2026-10-05T13:43:29.987Z"
+  "timestamp": "2026-10-07T12:43:52.976Z"
 }
