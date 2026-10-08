@@ -13,6 +13,7 @@ import {
   ThemeProvider,
   Typography,
   useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Outlet, Link as RouterLink, useLocation, matchPath } from "react-router-dom";
 
@@ -56,6 +57,9 @@ const ThemeModeContext = React.createContext<{
 
 function Menu({ compact = false }: { compact?: boolean }) {
   const { mode, toggleMode } = useContext(ThemeModeContext);
+  const theme = useTheme();
+  // Ten tabs overflow phones and many tablets; scroll instead of clipping.
+  const scrollNav = useMediaQuery(theme.breakpoints.down("lg"));
   const { pathname } = useLocation();
   const routeMatch = useRouteMatch([
     "/market",
@@ -92,13 +96,33 @@ function Menu({ compact = false }: { compact?: boolean }) {
       sx={{
         display: "flex",
         alignItems: "center",
-        justifyContent: "center",
-        gap: 1,
+        gap: 0.5,
         marginBottom: compact ? 0 : "15px",
         flexShrink: 0,
+        width: "100%",
+        minWidth: 0,
+        px: { xs: 0.5, sm: 1 },
       }}
     >
-      <Tabs value={currentTab} centered sx={{ flex: 1 }}>
+      <Tabs
+        value={currentTab}
+        variant={scrollNav ? "scrollable" : "standard"}
+        centered={!scrollNav}
+        scrollButtons={scrollNav ? "auto" : false}
+        allowScrollButtonsMobile
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          "& .MuiTabs-scroller": {
+            // iOS Safari needs touch scrolling on the scroller itself.
+            WebkitOverflowScrolling: "touch",
+          },
+          "& .MuiTab-root": {
+            minWidth: { xs: "auto", md: 90 },
+            px: { xs: 1.25, sm: 2 },
+          },
+        }}
+      >
         <Tab label="Items" value="/items" to="/items" component={RouterLink} />
         <Tab label="Gear Planner" value="/gear" to="/gear" component={RouterLink} />
         <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
@@ -114,7 +138,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
         aria-label={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         onClick={toggleMode}
         size="small"
-        sx={{ mr: 1 }}
+        sx={{ flexShrink: 0, mr: { xs: 0.5, sm: 1 } }}
       >
         {mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
       </IconButton>
