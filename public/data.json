@@ -1,5 +1,5 @@
 {
-  "version": 17665,
+  "version": 18183,
   "achievements": {
     "reach40": { "name": "Become Level 40", "item": "gem1" },
     "reach50": { "name": "Become Level 50", "shells": 50 },
@@ -712,7 +712,8 @@
         [10000, "stat", "attack", 2],
         [100000, "stat", "apiercing", 2],
         [1000000, "stat", "attack", 3],
-        [10000000, "stat", "xp", 1]
+        [10000000, "stat", "xp", 1],
+        [50000000, "stat", "attack", 10]
       ],
       "skin": "bee",
       "mp": 6
@@ -735,7 +736,8 @@
       "avoidance": 99.9,
       "achievements": [
         [1, "stat", "hp", 10],
-        [20, "stat", "for", 1]
+        [20, "stat", "for", 1],
+        [200, "stat", "luck", 5]
       ],
       "cute": true,
       "skin": "cutebee",
@@ -880,7 +882,10 @@
       "frequency": 0.5,
       "aggro": 0,
       "difficulty": 0.2,
-      "achievements": [[1000000, "stat", "for", 5]],
+      "achievements": [
+        [1000, "stat", "luck", 1],
+        [1000000, "stat", "for", 5]
+      ],
       "rage": 0,
       "mp": 80
     },
@@ -958,7 +963,8 @@
         [100000, "stat", "hp", 200],
         [1000000, "stat", "rpiercing", 3],
         [10000000, "stat", "range", 2],
-        [100000000, "stat", "hp", 5]
+        [100000000, "stat", "hp", 5],
+        [500000000, "stat", "armor", 15]
       ],
       "skin": "crab",
       "rage": 0,
@@ -1013,7 +1019,9 @@
       "cooperative": true,
       "achievements": [
         [1, "stat", "hp", 10],
-        [100, "stat", "luck", 1]
+        [100, "stat", "luck", 1],
+        [500, "stat", "hp", 150],
+        [2500, "stat", "luck", 3]
       ],
       "rage": 0,
       "mp": 19200
@@ -1086,7 +1094,11 @@
       "aggro": 1,
       "rage": 0.2,
       "cute": true,
-      "achievements": [[1000, "stat", "gold", 2]],
+      "achievements": [
+        [1000, "stat", "gold", 2],
+        [10000, "stat", "hp", 100],
+        [100000, "stat", "gold", 5]
+      ],
       "skin": "hen",
       "mp": 2
     },
@@ -1103,7 +1115,11 @@
       "aggro": 1,
       "rage": 0.2,
       "cute": true,
-      "achievements": [[1000, "stat", "for", 1]],
+      "achievements": [
+        [1000, "stat", "for", 1],
+        [10000, "stat", "mp", 50],
+        [100000, "stat", "xp", 2]
+      ],
       "skin": "rooster",
       "mp": 2
     },
@@ -1150,7 +1166,8 @@
         [10000, "stat", "dex", 1],
         [100000, "stat", "speed", 0.25],
         [1000000, "stat", "armor", 5],
-        [10000000, "stat", "resistance", 10]
+        [10000000, "stat", "resistance", 10],
+        [50000000, "stat", "speed", 0.5]
       ],
       "skin": "snake",
       "rage": 0,
@@ -1258,7 +1275,9 @@
         [10, "stat", "mp", 10],
         [100, "stat", "mp", 10],
         [1000, "stat", "dex", 0.5],
-        [10000, "stat", "dex", 0.5]
+        [10000, "stat", "dex", 0.5],
+        [25000, "stat", "dex", 1],
+        [250000, "stat", "apiercing", 10]
       ],
       "skin": "bscorpion",
       "rage": 0,
@@ -1498,7 +1517,11 @@
       "aggro": 0.3,
       "armor": 200,
       "hide": true,
-      "achievements": [[1, "stat", "luck", 50]],
+      "achievements": [
+        [1, "stat", "luck", 50],
+        [1000, "stat", "armor", 15],
+        [10000, "stat", "str", 2]
+      ],
       "skin": "dknight2",
       "rage": 0,
       "mp": 1720
@@ -1609,7 +1632,11 @@
       "cooperative": true,
       "special": true,
       "size": 1.5,
-      "achievements": [[1000, "stat", "vit", 1]],
+      "achievements": [
+        [1000, "stat", "vit", 1],
+        [5000, "stat", "hp", 100],
+        [50000, "stat", "vit", 2]
+      ],
       "rage": 0,
       "mp": 2000
     },
@@ -1633,7 +1660,9 @@
       "special": true,
       "achievements": [
         [1, "stat", "hp", 20],
-        [100, "stat", "for", 1]
+        [100, "stat", "for", 1],
+        [300, "stat", "luck", 2],
+        [1500, "stat", "xp", 2]
       ],
       "rage": 0,
       "mp": 20000
@@ -1676,7 +1705,11 @@
       "aggro": 0.2,
       "charge": 60,
       "explanation": "A genetically modified and cybernetically enhanced beast!",
-      "achievements": [[1, "stat", "luck", 50]],
+      "achievements": [
+        [1, "stat", "luck", 50],
+        [100, "stat", "attack", 10],
+        [1000, "stat", "frequency", 1]
+      ],
       "skin": "ligerx",
       "rage": 0,
       "mp": 1600
@@ -1779,7 +1812,8 @@
         [10000, "stat", "int", 1],
         [100000, "stat", "dex", 2],
         [1000000, "stat", "resistance", 5],
-        [10000000, "stat", "range", 2.5]
+        [10000000, "stat", "range", 2.5],
+        [25000000, "stat", "fzresistance", 3]
       ],
       "skin": "arcticbee",
       "mp": 32
@@ -2237,7 +2271,9 @@
       "achievements": [
         [1, "stat", "hp", 10],
         [10, "stat", "mp", 10],
-        [100, "stat", "for", 1]
+        [100, "stat", "for", 1],
+        [500, "stat", "speed", 0.5],
+        [2500, "stat", "luck", 3]
       ],
       "skin": "slenderman",
       "rage": 0,
@@ -2281,6 +2317,144 @@
       "skin": "mrpumpkin",
       "rage": 0,
       "mp": 720000
+    },
+    "horseman": {
+      "name": "Headless Horseman",
+      "speed": 46,
+      "charge": 110,
+      "hp": 30000000,
+      "xp": 42000000,
+      "attack": 1600,
+      "damage_type": "physical",
+      "respawn": -1,
+      "range": 40,
+      "frequency": 1,
+      "aggro": 1,
+      "rage": 1,
+      "armor": 300,
+      "resistance": 300,
+      "phresistance": 60,
+      "special": true,
+      "cooperative": true,
+      "announce": "#E8742A",
+      "cbuff": [
+        [60, "halloween0"],
+        [70, "halloween1"],
+        [200, "halloween2"]
+      ],
+      "spawns": [
+        ["hp:0.75", "jackowalker", 4],
+        ["hp:0.25", "jackowalker", 4]
+      ],
+      "achievements": [
+        [1, "stat", "hp", 20],
+        [10, "stat", "mp", 20],
+        [30, "stat", "vit", 1],
+        [100, "stat", "attack", 10],
+        [500, "stat", "frequency", 1]
+      ],
+      "skin": "horseman",
+      "mp": 600000
+    },
+    "jackowalker": {
+      "name": "Jack-o Walker",
+      "speed": 30,
+      "charge": 60,
+      "hp": 60000,
+      "xp": 40000,
+      "attack": 700,
+      "damage_type": "magical",
+      "respawn": -1,
+      "range": 40,
+      "frequency": 1,
+      "aggro": 1,
+      "rage": 1,
+      "resistance": 200,
+      "achievements": [
+        [1, "stat", "mp", 10],
+        [100, "stat", "resistance", 5],
+        [500, "stat", "resistance", 10],
+        [5000, "stat", "crit", 0.5]
+      ],
+      "skin": "jackowalker",
+      "mp": 1200
+    },
+    "zombie": {
+      "name": "Zombie",
+      "speed": 14,
+      "hp": 9000,
+      "xp": 9000,
+      "attack": 260,
+      "damage_type": "physical",
+      "respawn": -1,
+      "range": 30,
+      "frequency": 1,
+      "aggro": 1,
+      "rage": 1,
+      "cooperative": true,
+      "achievements": [
+        [10, "stat", "hp", 10],
+        [100, "stat", "mp", 10],
+        [1000, "stat", "vit", 1],
+        [25000, "stat", "hp", 100],
+        [250000, "stat", "vit", 3]
+      ],
+      "skin": "zombie",
+      "mp": 180
+    },
+    "ghoul": {
+      "name": "Ghoul",
+      "speed": 24,
+      "charge": 60,
+      "hp": 32000,
+      "xp": 30000,
+      "attack": 540,
+      "damage_type": "physical",
+      "respawn": -1,
+      "range": 34,
+      "frequency": 1.2,
+      "aggro": 1,
+      "rage": 1,
+      "armor": 160,
+      "cooperative": true,
+      "achievements": [
+        [1, "stat", "hp", 10],
+        [100, "stat", "armor", 5],
+        [1000, "stat", "for", 1],
+        [5000, "stat", "armor", 15],
+        [50000, "stat", "speed", 0.5]
+      ],
+      "skin": "ghoul",
+      "mp": 640
+    },
+    "gargoyle": {
+      "name": "Gargoyle",
+      "speed": 18,
+      "hp": 6000000,
+      "xp": 8000000,
+      "attack": 1200,
+      "damage_type": "physical",
+      "respawn": -1,
+      "range": 50,
+      "frequency": 0.8,
+      "aggro": 1,
+      "rage": 1,
+      "armor": 700,
+      "resistance": 200,
+      "phresistance": 80,
+      "special": true,
+      "cooperative": true,
+      "announce": "#8C9196",
+      "achievements": [
+        [1, "stat", "hp", 20],
+        [10, "stat", "armor", 5],
+        [25, "stat", "resistance", 5],
+        [50, "stat", "phresistance", 1],
+        [500, "stat", "armor", 20],
+        [3000, "stat", "vit", 2]
+      ],
+      "skin": "gargoyle",
+      "mp": 120000
     },
     "greenjr": {
       "name": "Green Jr.",
@@ -2418,7 +2592,9 @@
       "abilities": { "multi_freeze": { "cooldown": 2000, "damage": 2000 } },
       "achievements": [
         [1, "stat", "hp", 10],
-        [10, "stat", "hp", 30]
+        [10, "stat", "hp", 30],
+        [200, "stat", "fzresistance", 2],
+        [1000, "stat", "resistance", 15]
       ],
       "skin": "icegolem",
       "rage": 0,
@@ -2585,6 +2761,11 @@
       "armor": 65,
       "resistance": 80,
       "spawns": [[8000, "spider"]],
+      "achievements": [
+        [1, "stat", "hp", 20],
+        [100, "stat", "attack", 10],
+        [1000, "stat", "crit", 0.5]
+      ],
       "skin": "spiderr",
       "mp": 90000
     },
@@ -2606,6 +2787,11 @@
       "armor": 110,
       "resistance": 135,
       "spawns": [[6000, "spider"]],
+      "achievements": [
+        [1, "stat", "hp", 20],
+        [100, "stat", "resistance", 10],
+        [1000, "stat", "pnresistance", 3]
+      ],
       "skin": "spiderbl",
       "mp": 90000
     },
@@ -2627,6 +2813,11 @@
       "armor": 90,
       "resistance": 115,
       "spawns": [[5000, "spider"]],
+      "achievements": [
+        [1, "stat", "hp", 20],
+        [100, "stat", "armor", 10],
+        [1000, "stat", "vit", 2]
+      ],
       "skin": "spiderbr",
       "mp": 90000
     },
@@ -2708,7 +2899,11 @@
       "aggro": 0,
       "hit": "explode_c",
       "aa": 1,
-      "achievements": [[10, "stat", "luck", 2]],
+      "achievements": [
+        [10, "stat", "luck", 2],
+        [100, "stat", "luck", 3],
+        [1000, "stat", "luck", 5]
+      ],
       "skin": "greenfairy",
       "rage": 0,
       "mp": 72000
@@ -2727,7 +2922,11 @@
       "aggro": 0,
       "hit": "explode_c",
       "aa": 1,
-      "achievements": [[10, "stat", "gold", 2]],
+      "achievements": [
+        [10, "stat", "gold", 2],
+        [100, "stat", "gold", 3],
+        [1000, "stat", "gold", 5]
+      ],
       "abilities": { "heal": { "heal": 20000, "cooldown": 1000 } },
       "skin": "redfairy",
       "rage": 0,
@@ -2747,7 +2946,11 @@
       "aggro": 0,
       "hit": "explode_c",
       "aa": 1,
-      "achievements": [[10, "stat", "xp", 2]],
+      "achievements": [
+        [10, "stat", "xp", 2],
+        [100, "stat", "xp", 1],
+        [1000, "stat", "xp", 3]
+      ],
       "skin": "bluefairy",
       "rage": 0,
       "mp": 80000
@@ -2769,7 +2972,8 @@
       "armor": 1200,
       "achievements": [
         [100, "stat", "for", 2],
-        [1000, "stat", "for", 2]
+        [1000, "stat", "for", 2],
+        [10000, "stat", "speed", 0.5]
       ],
       "skin": "rudolph",
       "rage": 0,
@@ -2886,7 +3090,9 @@
       "phresistance": 98,
       "achievements": [
         [1, "stat", "for", 0.25],
-        [10, "stat", "luck", 0.5]
+        [10, "stat", "luck", 0.5],
+        [100, "stat", "luck", 1],
+        [500, "stat", "luck", 2]
       ],
       "skin": "tinyp",
       "rage": 0,
@@ -2917,7 +3123,11 @@
       "drop_on_hit": true,
       "peaceful": true,
       "roam": true,
-      "achievements": [[1, "stat", "vit", 1]],
+      "achievements": [
+        [1, "stat", "vit", 1],
+        [100, "stat", "attack", 10],
+        [1000, "stat", "crit", 0.5]
+      ],
       "skin": "tiger",
       "mp": 240
     },
@@ -3025,7 +3235,9 @@
       "achievements": [
         [1, "stat", "gold", 1],
         [10, "stat", "for", 0.5],
-        [20, "stat", "luck", 1]
+        [20, "stat", "luck", 1],
+        [100, "stat", "firesistance", 3],
+        [500, "stat", "gold", 5]
       ],
       "projectile": "fireball",
       "skin": "dragold",
@@ -3494,6 +3706,11 @@
       "aggro": 0.3,
       "rage": 0.1,
       "aa": 1,
+      "achievements": [
+        [10, "stat", "hp", 20],
+        [5000, "stat", "attack", 10],
+        [50000, "stat", "frequency", 1]
+      ],
       "skin": "vbat",
       "mp": 3120
     },
@@ -3664,6 +3881,11 @@
       "unlist": true,
       "armor": 560,
       "resistance": 920,
+      "achievements": [
+        [1, "stat", "mp", 20],
+        [1000, "stat", "int", 1],
+        [10000, "stat", "resistance", 15]
+      ],
       "rage": 0,
       "mp": 2000
     },
@@ -5627,6 +5849,48 @@
         ["mvampire", "fvampire", null, null],
         [null, null, "vbat", null]
       ]
+    },
+    "horseman": {
+      "file": "/images/misc/horseman_c_1.png",
+      "rows": 1,
+      "columns": 1,
+      "matrix": [["horseman"]]
+    },
+    "jackowalker": {
+      "file": "/images/tiles/monsters/jacko_a_1.png",
+      "rows": 1,
+      "columns": 1,
+      "matrix": [["jackowalker"]]
+    },
+    "zombies": {
+      "file": "/images/tiles/monsters/mzombies_1.png",
+      "rows": 2,
+      "columns": 4,
+      "matrix": [
+        ["zombie", "zombie1", "zombie2", "zombie3"],
+        ["zombie4", "zombie5", "zombie6", "zombie7"]
+      ]
+    },
+    "zombies_rise": {
+      "file": "/images/tiles/monsters/mzombies_ground_a_1.png",
+      "rows": 2,
+      "columns": 4,
+      "matrix": [
+        ["grave_mound", null, null, "grave_hand"],
+        [null, null, null, null]
+      ]
+    },
+    "ghoul": {
+      "file": "/images/tiles/monsters/mghoulA_1.png",
+      "rows": 1,
+      "columns": 1,
+      "matrix": [["ghoul"]]
+    },
+    "gargoyle": {
+      "file": "/images/tiles/monsters/gargoyle_1.png",
+      "rows": 1,
+      "columns": 1,
+      "matrix": [["gargoyle"]]
     },
     "mrpumpkin": {
       "file": "/images/tiles/monsters/mr_pumpkin.png",
@@ -8516,10 +8780,10 @@
           -178,
           32,
           40,
-          "log",
+          "knock",
           "Locked but there are noises coming from inside"
         ],
-        [331, -210, 32, 40, "log", "Locked"],
+        [331, -210, 32, 40, "knock", "Locked"],
         [128, -251, 20, 16, "sign", "Beware! Don't fall down!"]
       ],
       "drop_norm": 4000,
@@ -8591,7 +8855,14 @@
         [34, 1449, 80, 30, "halloween", 2, 1],
         [240, -181, 48, 32, "level2", 5, 2]
       ],
-      "quirks": [[-63, -44, 30, 24, "invisible_statue"]],
+      "quirks": [
+        [-63, -44, 30, 24, "invisible_statue"],
+        [-130, -60, 32, 40, "knock", "Locked"],
+        [70, -103, 32, 40, "knock", "Locked"],
+        [217, -27, 32, 40, "knock", "Locked"],
+        [-170, 180, 32, 40, "knock", "Locked"],
+        [117, 133, 32, 40, "knock", "Locked"]
+      ],
       "ref": {
         "poof": { "map": "spookytown", "in": "spookytown", "x": -63, "y": -44 }
       },
@@ -140840,7 +141111,7 @@
         "hair": "hairdo410",
         "chin": "beard102",
         "hat": "hat221",
-        "back": "backpacks202"
+        "back": "backpacks201"
       },
       "type": "fullstatic",
       "says": ["Going in? Bring your whole party close."],
@@ -140939,7 +141210,7 @@
       "size": 20,
       "rows": 40,
       "columns": 20,
-      "file": "/images/tiles/items/raw_items.png?v=31",
+      "file": "/images/tiles/items/raw_items.png?v=36",
       "load": true
     }
   },
@@ -143633,6 +143904,76 @@
       "extra_stat": 2,
       "armor": 42,
       "resistance": 28
+    },
+    "hexweavegloves": {
+      "type": "gloves",
+      "tier": 4,
+      "skin": "hexweavegloves",
+      "scroll": true,
+      "mp_reduction": 20,
+      "upgrade": { "stat": 1, "resistance": 7.5, "armor": 7.5 },
+      "name": "Hexweave Gloves",
+      "explanation": "A pair of gloves stitched with a little witchcraft.",
+      "g": 9600000,
+      "exclusive": true,
+      "cx": { "accent": "#E07A2E" },
+      "grades": [0, 0, 8, 10],
+      "stat": 4,
+      "extra_stat": 3,
+      "armor": 36,
+      "resistance": 18
+    },
+    "candleboots": {
+      "type": "shoes",
+      "tier": 4,
+      "skin": "candleboots",
+      "scroll": true,
+      "firesistance": 15,
+      "mcourage": 3,
+      "pcourage": 2,
+      "upgrade": {
+        "stat": 1,
+        "speed": 1.375,
+        "armor": 7.5,
+        "resistance": 3.75
+      },
+      "name": "Candlewick Boots",
+      "explanation": "Boots with a little candlelight for dark paths.",
+      "g": 9600000,
+      "exclusive": true,
+      "cx": { "accent": "#F5A623" },
+      "grades": [0, 0, 8, 10],
+      "stat": 4,
+      "extra_stat": 3,
+      "armor": 18,
+      "speed": 8,
+      "resistance": 8
+    },
+    "horsemanpumpkin": {
+      "type": "helmet",
+      "tier": 3,
+      "skin": "horsemanpumpkin",
+      "scroll": true,
+      "reflection": 5,
+      "speed": 2,
+      "firesistance": 10,
+      "upgrade": {
+        "reflection": 0.5,
+        "stat": 1,
+        "resistance": 5.5,
+        "armor": 5.5
+      },
+      "name": "Horseman's Pumpkin",
+      "explanation": "The Headless Horseman's rare helmet. Still grinning!",
+      "g": 4800000,
+      "exclusive": true,
+      "cx": { "accent": "#F26B1D" },
+      "grades": [0, 0, 9, 10],
+      "stat": 3,
+      "extra_stat": 2,
+      "armor": 25,
+      "resistance": 28,
+      "protection": true
     },
     "tollkeeperspike": {
       "name": "Tollkeeper's Pike",
@@ -149551,6 +149892,169 @@
       "exclusive": true,
       "cx": { "accent": "#3FC7B0" }
     },
+    "verdantspore": {
+      "type": "material",
+      "skin": "verdantspore",
+      "name": "Verdant Spore",
+      "explanation": "A strange little spore. The Witch needs it for her cauldron.",
+      "s": 9999,
+      "g": 1200,
+      "exclusive": true
+    },
+    "frostscale": {
+      "type": "material",
+      "skin": "frostscale",
+      "name": "Frost Scale",
+      "explanation": "Cold to the touch. The Witch can brew with it.",
+      "s": 9999,
+      "g": 1200,
+      "exclusive": true
+    },
+    "embercoal": {
+      "type": "material",
+      "skin": "embercoal",
+      "name": "Ember Coal",
+      "explanation": "Still warm! Toss it into the Witch's cauldron.",
+      "s": 9999,
+      "g": 1200,
+      "exclusive": true
+    },
+    "gloomfeather": {
+      "type": "material",
+      "skin": "gloomfeather",
+      "name": "Gloom Feather",
+      "explanation": "A spooky feather. Just what the Witch needs.",
+      "s": 9999,
+      "g": 1200,
+      "exclusive": true
+    },
+    "witchparcel": {
+      "type": "gem",
+      "skin": "witchparcel",
+      "name": "Witch's Parcel",
+      "explanation": "What's inside? Open it at the Witch, or save it for her recipes.",
+      "s": 9999,
+      "g": 100,
+      "e": 1,
+      "quest": "witch",
+      "exclusive": true,
+      "cx": { "accent": "#9B6BC9" }
+    },
+    "cipherdraught": {
+      "type": "elixir",
+      "skin": "cipherdraught",
+      "skin_a": "cipherdraught",
+      "name": "Cipher Draught",
+      "explanation": "A lucky brew for two hours of better adventures.",
+      "luck": 25,
+      "gold": 10,
+      "xp": 10,
+      "speed": 2,
+      "duration": 2,
+      "s": 9999,
+      "g": 60000,
+      "exclusive": true
+    },
+    "crookedkey": {
+      "type": "earring",
+      "tier": 3,
+      "skin": "crookedkey",
+      "name": "Crooked Key Earring",
+      "explanation": "A crooked key. It might open something!",
+      "apiercing": 20,
+      "rpiercing": 20,
+      "set": "crookedkeys",
+      "compound": { "apiercing": 4, "rpiercing": 4 },
+      "grades": [0, 3, 6, 7],
+      "g": 1600000,
+      "exclusive": true,
+      "cx": { "accent": "#C08A3A" }
+    },
+    "patchbuckler": {
+      "type": "shield",
+      "tier": 3,
+      "skin": "patchbuckler",
+      "name": "Patchwork Buckler",
+      "explanation": "Four scraps. One stubborn shield.",
+      "armor": 90,
+      "resistance": 50,
+      "courage": 2,
+      "mcourage": 2,
+      "pcourage": 2,
+      "upgrade": {
+        "armor": 12,
+        "resistance": 7,
+        "courage": 0.25,
+        "mcourage": 0.25,
+        "pcourage": 0.25
+      },
+      "grades": [0, 0, 10, 12],
+      "g": 2400000,
+      "exclusive": true,
+      "cx": { "accent": "#E0782A" }
+    },
+    "blackcatbell": {
+      "type": "orb",
+      "tier": 3,
+      "skin": "blackcatbell",
+      "name": "Black Cat's Bell",
+      "explanation": "A little bell that rings when no cat is near.",
+      "frequency": 10,
+      "compound": { "frequency": 2 },
+      "grades": [0, 0, 6, 7],
+      "g": 2400000,
+      "exclusive": true,
+      "cx": { "accent": "#D9A132" }
+    },
+    "nightmarketsash": {
+      "type": "belt",
+      "tier": 3,
+      "skin": "nightmarketsash",
+      "name": "Nightmarket Sash",
+      "explanation": "Extra pockets for whatever you find.",
+      "gold": 10,
+      "vit": 4,
+      "merchant": { "gold": 10 },
+      "compound": { "gold": 2.5, "vit": 1 },
+      "grades": [0, 3, 6, 7],
+      "g": 2400000,
+      "exclusive": true,
+      "cx": { "accent": "#8A4E8C" }
+    },
+    "witchlightmantle": {
+      "type": "cape",
+      "tier": 4,
+      "skin": "witchlightmantle",
+      "name": "Witchlight Mantle",
+      "explanation": "A mantle with a little moonlight tucked inside.",
+      "scroll": true,
+      "stat": 6,
+      "armor": 14,
+      "resistance": 24,
+      "halloween": { "evasion": 25 },
+      "spookytown": { "evasion": 25 },
+      "upgrade": { "stat": 0.1, "armor": 2, "resistance": 2 },
+      "grades": [0, 0, 8, 10],
+      "g": 9600000,
+      "exclusive": true,
+      "cx": { "accent": "#915AA0" }
+    },
+    "laughingbook": {
+      "type": "source",
+      "tier": 4,
+      "skin": "laughingbook",
+      "name": "Laughing Grimoire",
+      "explanation": "A book that laughs at its own jokes.",
+      "int": 22,
+      "mp": 200,
+      "priest": { "int": 20 },
+      "mage": { "crit": 4, "critdamage": 25 },
+      "compound": { "int": 5, "mp": 50 },
+      "grades": [0, 2, 6, 7],
+      "g": 12400000,
+      "exclusive": true,
+      "cx": { "accent": "#9563B5", "scale": 0.5, "extension": true }
+    },
     "cave_counterweight": {
       "type": "shield",
       "tier": 2,
@@ -149682,6 +150186,12 @@
       "3": { "mp": 500, "speed": 1, "rpiercing": 20 },
       "name": "MP X",
       "items": ["mpxbelt", "mpxgloves", "mpxamulet"]
+    },
+    "crookedkeys": {
+      "1": {},
+      "2": { "apiercing": 80, "rpiercing": 80 },
+      "name": "Skeleton Keys",
+      "items": ["crookedkey", "crookedkey"]
     },
     "watchers": {
       "1": {},
@@ -150448,6 +150958,99 @@
         [1, "hpot0"]
       ],
       "cost": 0,
+      "quest": "witch"
+    },
+    "witchparcel": {
+      "items": [
+        [5, "verdantspore"],
+        [5, "frostscale"],
+        [5, "embercoal"],
+        [5, "gloomfeather"]
+      ],
+      "cost": 10000,
+      "quest": "witch"
+    },
+    "cipherdraught": {
+      "items": [
+        [1, "verdantspore"],
+        [1, "frostscale"],
+        [1, "embercoal"],
+        [1, "gloomfeather"],
+        [1, "hpot0"]
+      ],
+      "cost": 20000,
+      "quest": "witch"
+    },
+    "crookedkey": {
+      "items": [
+        [30, "witchparcel"],
+        [1, "goldingot"],
+        [20, "mbones"]
+      ],
+      "cost": 2000000,
+      "quest": "witch"
+    },
+    "patchbuckler": {
+      "items": [
+        [30, "witchparcel"],
+        [1, "goldingot"],
+        [20, "bandages"]
+      ],
+      "cost": 2000000,
+      "quest": "witch"
+    },
+    "blackcatbell": {
+      "items": [
+        [40, "witchparcel"],
+        [1, "goldingot"],
+        [100, "bwing"]
+      ],
+      "cost": 2000000,
+      "quest": "witch"
+    },
+    "nightmarketsash": {
+      "items": [
+        [30, "witchparcel"],
+        [1, "goldingot"],
+        [50, "pstem"]
+      ],
+      "cost": 2000000,
+      "quest": "witch"
+    },
+    "hexweavegloves": {
+      "items": [
+        [50, "witchparcel"],
+        [1, "goldingot"],
+        [100, "spidersilk"]
+      ],
+      "cost": 4000000,
+      "quest": "witch"
+    },
+    "candleboots": {
+      "items": [
+        [50, "witchparcel"],
+        [1, "goldingot"],
+        [2, "bcandle"]
+      ],
+      "cost": 4000000,
+      "quest": "witch"
+    },
+    "witchlightmantle": {
+      "items": [
+        [50, "witchparcel"],
+        [1, "goldingot"],
+        [20, "essenceofether"]
+      ],
+      "cost": 4000000,
+      "quest": "witch"
+    },
+    "laughingbook": {
+      "items": [
+        [50, "witchparcel"],
+        [1, "goldingot"],
+        [1, "ectoplasm"]
+      ],
+      "cost": 4000000,
       "quest": "witch"
     },
     "daggerofthedead": {
@@ -151783,6 +152386,18 @@
       "explanation": "Reduces damage output by 20% and movement speed by 20. Increases damage taken by 20%.",
       "cleansable": true
     },
+    "hexed": {
+      "name": "Hexed",
+      "skin": "mummyhex",
+      "ui": true,
+      "output": -20,
+      "incdmgamp": 20,
+      "speed": -20,
+      "duration": 5000,
+      "debuff": true,
+      "explanation": "Reduces damage output by 20% and movement speed by 20. Increases damage taken by 20%.",
+      "cleansable": true
+    },
     "exposed": {
       "name": "Exposed",
       "skin": "condition_exposed",
@@ -151811,6 +152426,21 @@
       "ui": true,
       "buff": true,
       "explanation": "Attack speed is increased by 40 for 6 seconds."
+    },
+    "rising": {
+      "name": "Rising",
+      "skin": "condition_bad",
+      "duration": 1500,
+      "ui": false
+    },
+    "spooked": {
+      "name": "Spooked!",
+      "skin": "condition_spooked",
+      "speed": 40,
+      "duration": 3000,
+      "ui": true,
+      "buff": true,
+      "explanation": "Boo! Speed increased by 40 for 3 seconds."
     },
     "stonebreak": {
       "name": "Crumbling",
@@ -153308,6 +153938,11 @@
     "mrgreen": 16000,
     "slenderman": 16000,
     "mrpumpkin": 16000,
+    "horseman": 10000,
+    "jackowalker": 2000,
+    "zombie": 400,
+    "ghoul": 1200,
+    "gargoyle": 10000,
     "greenjr": 16000,
     "jr": 6000,
     "chestm": 280,
@@ -154274,7 +154909,24 @@
     "condition_stoned": ["rawitems", 15, 5],
     "condition_exposed": ["rawitems", 16, 5],
     "condition_sundered": ["rawitems", 17, 5],
-    "condition_frenzied": ["rawitems", 18, 5]
+    "condition_frenzied": ["rawitems", 18, 5],
+    "verdantspore": ["rawitems", 19, 5],
+    "frostscale": ["rawitems", 0, 6],
+    "embercoal": ["rawitems", 1, 6],
+    "gloomfeather": ["rawitems", 2, 6],
+    "witchparcel": ["rawitems", 3, 6],
+    "cipherdraught": ["rawitems", 4, 6],
+    "crookedkey": ["rawitems", 5, 6],
+    "patchbuckler": ["rawitems", 6, 6],
+    "blackcatbell": ["rawitems", 7, 6],
+    "nightmarketsash": ["rawitems", 8, 6],
+    "hexweavegloves": ["rawitems", 9, 6],
+    "candleboots": ["rawitems", 10, 6],
+    "witchlightmantle": ["rawitems", 11, 6],
+    "laughingbook": ["rawitems", 12, 6],
+    "horsemanpumpkin": ["rawitems", 13, 6],
+    "emote_sinisterlaugh": ["rawitems", 14, 6],
+    "condition_spooked": ["rawitems", 15, 6]
   },
   "skills": {
     "rimeshatter": {
@@ -154516,6 +155168,15 @@
       "mp": 50,
       "cooldown": 240000,
       "emote": "makeawish"
+    },
+    "sinisterlaugh": {
+      "type": "skill",
+      "skin": "emote_sinisterlaugh",
+      "name": "Sinister Laugh",
+      "explanation": "A wicked laugh to scare your friends.",
+      "mp": 20,
+      "cooldown": 12000,
+      "emote": "sinisterlaugh"
     },
     "ikissyou": {
       "type": "skill",
@@ -155604,8 +156265,11 @@
       "name": "Purify",
       "level": 60,
       "damage": 2000,
+      "condition_damage": 400,
+      "stack_damage": 1,
+      "stack_bonus_cap": 400,
       "damage_type": "pure",
-      "explanation": "Deals 2000 pure damage purifying the target, removes all buffs and debuffs dealing additional 400 damage for each and receive the Purifier buff if the target is defeated!",
+      "explanation": "Deals 2000 pure damage, plus 400 for each eligible nonpersistent buff or debuff. These effects are removed, except Rogue stacks and burning on monsters. Rogue stacks add 400 plus 1 per stack, up to 800 damage in total. Innate poison and persistent conditions are unaffected. Defeating the target grants the Purifier buff.",
       "kill_buff": "purifier",
       "projectile": "purify",
       "hostile": true,
@@ -156258,6 +156922,130 @@
       },
       "duration": 1296000,
       "type": "seasonal"
+    },
+    "witchcipher": {
+      "name": "Witch's Cipher",
+      "modal": "event-witchcipher",
+      "sprite": "brewingwitch",
+      "announcement": {
+        "color": "#AF6AE2",
+        "accent": "#F59A3C",
+        "effect": "sparks",
+        "text": "Gather ingredients and crack the Witch's lost recipe."
+      },
+      "duration": 1680,
+      "gathering": 1200,
+      "ingredients": [
+        ["verdantspore", ["goo", "bee", "spider", "croc"]],
+        ["frostscale", ["arcticbee", "boar", "wolfie", "iceroamer"]],
+        ["embercoal", ["plantoid", "porcupine", "fireroamer", "gscorpion"]],
+        ["gloomfeather", ["snake", "osnake", "minimush", "ghost"]]
+      ],
+      "loot": 0.003,
+      "slots": 5,
+      "mixes": 5,
+      "board": 30,
+      "payout": { "right": 1, "crack": 50 },
+      "type": "daily"
+    },
+    "horseman": {
+      "name": "Headless Horseman",
+      "modal": "event-horseman",
+      "sprite": "horseman",
+      "announcement": {
+        "color": "#E8742A",
+        "accent": "#AD91DC",
+        "effect": "embers",
+        "text": "The Headless Horseman rides out of Spooky Forest's graveyard."
+      },
+      "duration": 2400,
+      "join": true,
+      "type": "nightly",
+      "season": "halloween"
+    },
+    "graveyard": {
+      "name": "Graveyard Rising",
+      "modal": "event-graveyard",
+      "sprite": "gargoyle",
+      "announcement": {
+        "color": "#9FA3A8",
+        "accent": "#9FCF6D",
+        "effect": "embers",
+        "text": "Zombies and Ghouls are rising in Spooky Town's graveyard."
+      },
+      "duration": 600,
+      "waves": [
+        [0, { "zombie": 12 }],
+        [180, { "zombie": 16, "ghoul": 3 }],
+        [360, { "zombie": 20, "ghoul": 6 }]
+      ],
+      "gargoyle": [255, -1545],
+      "graves": [
+        [65, -1550],
+        [127, -1550],
+        [190, -1550],
+        [320, -1550],
+        [382, -1550],
+        [447, -1550],
+        [65, -1482],
+        [127, -1482],
+        [190, -1482],
+        [320, -1482],
+        [382, -1482],
+        [447, -1482],
+        [65, -1372],
+        [127, -1372],
+        [190, -1372],
+        [320, -1372],
+        [382, -1372],
+        [447, -1372],
+        [65, -1312],
+        [127, -1312],
+        [190, -1312],
+        [320, -1312],
+        [382, -1312],
+        [447, -1312]
+      ],
+      "join": true,
+      "type": "seasonal",
+      "season": "halloween"
+    },
+    "trickortreat": {
+      "name": "Trick or Treat",
+      "modal": "event-trickortreat",
+      "sprite": "phelmet",
+      "announcement": false,
+      "doors": [
+        ["halloween", 331, -210],
+        ["halloween", -228, -178],
+        ["spookytown", -130, -60],
+        ["spookytown", 70, -103],
+        ["spookytown", 217, -27],
+        ["spookytown", -170, 180],
+        ["spookytown", 117, 133]
+      ],
+      "knocks": 14,
+      "treat": 70,
+      "costume_treat": 85,
+      "costumes": ["phelmet", "gphelmet", "horsemanpumpkin"],
+      "treats": [
+        [50, "candy1", 3],
+        [20, "candy0", 1],
+        [5, "verdantspore", 2],
+        [5, "frostscale", 2],
+        [5, "embercoal", 2],
+        [5, "gloomfeather", 2],
+        [10, "witchparcel", 1]
+      ],
+      "tricks": [
+        [1, "spooked"],
+        [1, "ghost"]
+      ],
+      "ghost_time": 120,
+      "reveal": 0.75,
+      "stamps": { "parcel": 10, "laugh": 40 },
+      "type": "seasonal",
+      "season": "halloween"
     },
     "halloween": {
       "name": "Halloween",
@@ -160327,6 +161115,36 @@
       "width": 312,
       "type": "png"
     },
+    "/images/misc/horseman_c_1.png": {
+      "height": 212,
+      "width": 156,
+      "type": "png"
+    },
+    "/images/tiles/monsters/jacko_a_1.png": {
+      "height": 144,
+      "width": 78,
+      "type": "png"
+    },
+    "/images/tiles/monsters/mzombies_1.png": {
+      "height": 288,
+      "width": 312,
+      "type": "png"
+    },
+    "/images/tiles/monsters/mzombies_ground_a_1.png": {
+      "height": 288,
+      "width": 312,
+      "type": "png"
+    },
+    "/images/tiles/monsters/mghoulA_1.png": {
+      "height": 144,
+      "width": 78,
+      "type": "png"
+    },
+    "/images/tiles/monsters/gargoyle_1.png": {
+      "height": 192,
+      "width": 144,
+      "type": "png"
+    },
     "/images/tiles/monsters/mr_pumpkin.png": {
       "height": 144,
       "width": 80,
@@ -160835,7 +161653,7 @@
     }
   },
   "multipliers": {
-    "extra_shells": 0,
+    "extra_shells": 25,
     "shells_to_gold": 32000,
     "buy_to_sell": 0.6,
     "secondhands_mult": 2,
@@ -160863,6 +161681,7 @@
       "bet_dice",
       "bet_wheel",
       "bless_server",
+      "brew",
       "buy",
       "buy_lost_and_found",
       "buy_secondhand",
@@ -160965,6 +161784,7 @@
       "join",
       "join_giveaway",
       "kick_party_member",
+      "knock",
       "leave",
       "leave_party",
       "load_code",
@@ -161058,6 +161878,7 @@
       "wait_for",
       "wait_for_event",
       "wishlist",
+      "witch_cipher_info",
       "xmove"
     ],
     "documented": [
@@ -161080,6 +161901,7 @@
       "bet_dice",
       "bet_wheel",
       "bless_server",
+      "brew",
       "buy",
       "buy_lost_and_found",
       "buy_secondhand",
@@ -161182,6 +162004,7 @@
       "join",
       "join_giveaway",
       "kick_party_member",
+      "knock",
       "leave",
       "leave_party",
       "load_code",
@@ -161275,6 +162098,7 @@
       "wait_for",
       "wait_for_event",
       "wishlist",
+      "witch_cipher_info",
       "xmove"
     ],
     "javascript": [
@@ -161618,6 +162442,29 @@
         ],
         "proximity": true
       },
+      "witchcipher": {
+        "title": "Witch's Cipher",
+        "article": "event-witchcipher",
+        "skin": "brewingwitch",
+        "summary": "Every day at 06:00 and 18:00 realm time, gather ingredients and brew the Witch's lost recipe.",
+        "functions": [
+          "join",
+          "brew",
+          "witch_cipher_info",
+          "exchange",
+          "auto_craft"
+        ],
+        "proximity": true
+      },
+      "trickortreat": {
+        "title": "Trick or Treat",
+        "article": "event-trickortreat",
+        "icon": "phelmet",
+        "summary": "Knock on this door during Halloween for a treat or a fright.",
+        "functions": ["knock"],
+        "proximity": true,
+        "season": "halloween"
+      },
       "anniversary": {
         "title": "Mira's Anniversary Workshop",
         "article": "event-anniversary",
@@ -161948,7 +162795,7 @@
         "secondhands": "markets",
         "standmerchant": "markets",
         "transporter": "travel",
-        "witch": "crafting"
+        "witch": "witchcipher"
       },
       "npc_roles": {
         "cavalry": "cavalry",
@@ -162000,7 +162847,7 @@
         "tease": "inactive",
         "thesearch": "travel",
         "transport": "travel",
-        "witch": "crafting"
+        "witch": "witchcipher"
       },
       "quirks": {
         "comic": "decorative",
@@ -162010,6 +162857,7 @@
         "goldenbot_info": "goldenbot",
         "info": "travel",
         "invisible_statue": "special",
+        "knock": "trickortreat",
         "list_pvp": "pvp",
         "log": "decorative",
         "mainframe": "mainframe",
@@ -162212,6 +163060,30 @@
             "Cave of Many Dreams",
             "cave,party,vote,roguelike,doors",
             "#B7A083"
+          ],
+          [
+            "event-witchcipher",
+            "Witch's Cipher",
+            "witch,cipher,brew,cauldron,parcel,ingredient,daily",
+            "#AF6AE2"
+          ],
+          [
+            "event-horseman",
+            "Headless Horseman",
+            "halloween,horseman,boss,jack-o walker,pumpkin",
+            "#E8742A"
+          ],
+          [
+            "event-graveyard",
+            "Graveyard Rising",
+            "halloween,zombie,ghoul,gargoyle,spooky town,waves",
+            "#9FA3A8"
+          ],
+          [
+            "event-trickortreat",
+            "Trick or Treat",
+            "halloween,door,knock,treat,stamp,spooked",
+            "#F5A05B"
           ],
           [
             "cave-story",
@@ -162554,7 +163426,7 @@
         [0.1, "candycane"],
         [0.1, "candycane"],
         [0.1, "mistletoe"],
-        [0.00075, "offering"],
+        [0.0008163265306122449, "offering"],
         [1, "carrot"],
         [1, "snowball"],
         [1, "snowball"],
@@ -162593,8 +163465,6 @@
         [100, "seashell"],
         [500, "cclaw"],
         [10000, "cshell"],
-        [1000, "funtoken"],
-        [1000, "funtoken"],
         [1000, "funtoken"],
         [10, "funtoken"],
         [10, "funtoken"]
@@ -162791,6 +163661,33 @@
         [100, "candy0"],
         [100, "candy1"]
       ],
+      "horseman": [
+        [100, "candy0", 5],
+        [100, "candy1", 10],
+        [10, "witchparcel", 5],
+        [4, "pstem", 25],
+        [0.5, "horsemanpumpkin"],
+        [0.25, "bcandle"]
+      ],
+      "jackowalker": [
+        [1, "pstem"],
+        [0.05, "candy1"]
+      ],
+      "zombie": [
+        [0.02, "bandages"],
+        [0.01, "mbones"]
+      ],
+      "ghoul": [
+        [0.06, "bandages"],
+        [0.0015, "ectoplasm"]
+      ],
+      "gargoyle": [
+        [100, "candy1", 6],
+        [10, "witchparcel"],
+        [1, "essenceofether", 2],
+        [0.05, "ectoplasm"],
+        [0.04, "bcandle"]
+      ],
       "bbpompom": [
         [0.0004, "essenceoffrost"],
         [0.006, "lspores"],
@@ -162840,23 +163737,17 @@
         [200, "candy1"],
         [200, "candy1"],
         [10, "frankypants"],
-        [0.0005, "mpxgloves"],
-        [0.0002, "ukey"],
         [0.000125, "cxjar", 1, "marmor3h"]
       ],
       "dragold": [
         [3, "goldenegg"],
         [3, "goldenegg"],
-        [3, "goldenegg"],
-        [50, "essenceoffire"],
-        [40, "essenceoffire"],
-        [30, "essenceoffire"],
         [20, "essenceoffire"],
         [10, "essenceoffire"],
         [10, "essenceoffire"],
-        [1, "embercore", 5],
+        [0.005, "embercore"],
         [0.2, "offering"],
-        [0.5, "lmace"],
+        [0.2, "lmace"],
         [5e-7, "cxjar", 1, "hat400"],
         [3.333333333333333e-7, "chrysalis0"],
         [1, "horsecapeg"]
@@ -162877,7 +163768,7 @@
         [7e-7, "ringofluck"]
       ],
       "grinch": [
-        [0.006, "ringhs"],
+        [0.004, "ringhs"],
         [10, "wbookhs"],
         [20, "gcape"],
         [0.0001, "northstar"],
@@ -163129,7 +164020,13 @@
       ]
     },
     "monsters_home_server": {
-      "crabxx": [[1, "reefglass", 3]],
+      "crabxx": [
+        [1, "reefglass", 3],
+        [0.001, "suckerpunch"],
+        [1000, "funtoken"],
+        [1000, "funtoken"],
+        [1000, "funtoken"]
+      ],
       "rharpy": [
         [0.05, "feather1"],
         [0.2, "essenceoffrost"]
@@ -163143,10 +164040,18 @@
         [0.05, "frostcore"]
       ],
       "dragold": [
+        [3, "goldenegg"],
+        [50, "essenceoffire"],
+        [40, "essenceoffire"],
+        [30, "essenceoffire"],
         [1, "essenceoffire"],
-        [0.005, "embercore"]
+        [1, "embercore", 2],
+        [0.75, "lmace"],
+        [0.5, "lmace"]
       ],
       "franky": [
+        [0.0005, "mpxgloves"],
+        [0.0002, "ukey"],
         [1, "bandages", 10],
         [0.005, "ectoplasm"]
       ],
@@ -163163,6 +164068,21 @@
         [1, "candy1", 12],
         [0.285714, "candy0", 4],
         [0.285714, "candy1", 8]
+      ],
+      "snowman": [
+        [0.1, "candycane"],
+        [0.1, "candycane"],
+        [0.1, "mistletoe"],
+        [0.0008163265306122449, "offering"],
+        [0.01, "wbookhs"]
+      ],
+      "grinch": [
+        [0.004, "ringhs"],
+        [10, "wbookhs"],
+        [5, "wbookhs"],
+        [3, "wbookhs"],
+        [20, "gcape"],
+        [1, "sweaterhs"]
       ]
     },
     "konami": [
@@ -164549,6 +165469,30 @@
       [0.1, "emptyheart"],
       [1, "cupid"]
     ],
+    "witchparcel": [
+      [28, "hpot1", 10],
+      [28, "mpot1", 10],
+      [20, "cscroll0", 4],
+      [14, "scroll0", 5],
+      [2, "scroll1", 2],
+      [2, "cscroll1"],
+      [1.4, "cipherdraught"],
+      [1.6, "gemfragment", 3],
+      [1.4, "goldnugget"],
+      [1.2, "funtoken", 4],
+      [0.25, "scroll2"],
+      [0.025, "cscroll2"],
+      [0.01, "platinumnugget"],
+      [0.01, "crookedkey"],
+      [0.01, "patchbuckler"],
+      [0.01, "blackcatbell"],
+      [0.01, "nightmarketsash"],
+      [0.004, "hexweavegloves"],
+      [0.004, "candleboots"],
+      [0.004, "witchlightmantle"],
+      [0.004, "laughingbook"],
+      [0.004, "cxjar", 1, "sinisterlaugh"]
+    ],
     "candy0": [
       [0.008, "spookyamulet"],
       [1, "gold", 480000],
@@ -165296,5 +166240,5 @@
       [0.001, "cave_ambercoat"]
     ]
   },
-  "timestamp": "2026-10-07T12:43:52.976Z"
+  "timestamp": "2026-10-21T11:15:10.958Z"
 }
