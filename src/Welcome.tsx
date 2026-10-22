@@ -34,6 +34,11 @@ const sections = [
       "Simulate exchange loot tables and monster kills, with coop and 1hp what-if controls.",
   },
   {
+    title: "Upgrade Calculator",
+    path: "/upgrade",
+    description: "Plan upgrade and compound paths — cheapest expected gold or fewest base copies.",
+  },
+  {
     title: "Market",
     path: "/market",
     description: "See what merchants are buying and selling across Adventure Land.",

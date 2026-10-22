@@ -28,6 +28,7 @@ export function SimEntityAutocomplete<T extends string>({
   renderListIcon,
   renderInputIcon,
   inputIconBoxSx,
+  fullWidth,
 }: {
   options: T[];
   value: T | null;
@@ -40,6 +41,8 @@ export function SimEntityAutocomplete<T extends string>({
   renderListIcon: (key: T) => ReactNode;
   renderInputIcon?: (key: T) => ReactNode;
   inputIconBoxSx?: object;
+  /** Stretch to parent width (column layouts). Default is row-flex 280px basis. */
+  fullWidth?: boolean;
 }) {
   return (
     <Autocomplete
@@ -47,12 +50,17 @@ export function SimEntityAutocomplete<T extends string>({
       value={value}
       onChange={(_, next) => onChange(next)}
       getOptionLabel={getOptionLabel}
+      isOptionEqualToValue={(option, selected) => option === selected}
       filterOptions={(opts, state) => {
         const q = state.inputValue.trim().toLowerCase();
         if (!q) return opts;
         return opts.filter((key) => filterOption(key, q));
       }}
-      sx={{ minWidth: 0, flex: "1 1 280px", maxWidth: "100%" }}
+      sx={
+        fullWidth
+          ? { minWidth: 0, width: "100%", maxWidth: "100%" }
+          : { minWidth: 0, flex: "1 1 280px", maxWidth: "100%" }
+      }
       ListboxProps={{ style: { maxHeight: 360 } }}
       renderOption={(props, option) => (
         <li {...props} key={option}>

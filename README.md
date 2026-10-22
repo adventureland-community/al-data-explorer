@@ -9,6 +9,7 @@ It currently contains
 - A market data renderer (what merchant is selling what?)
 - A list of monsters
 - A drop simulator (exchange tables + monster kills, with coop / 1hp what-if)
+- An upgrade / compound calculator (cheapest EV path and fewest copies; Cheapest follows [Kora Dereva's pastebin](https://pastebin.com/jBMKeLfd))
 - A 3D world viewer that stacks maps by door connections
 
 # Contributing
