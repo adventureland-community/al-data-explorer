@@ -7,16 +7,21 @@ import {
   statsMatchAttrSpecs,
   getSearchContextProfile,
   listSearchContextIds,
+  ITEM_ATTR_KEYS,
 } from "..";
 import { parseBankSearchQuery, bankItemMatchesQuery } from "../../../Bank/bankSearchQuery";
+import { buildBankSearchSuggestions } from "../../../Bank/bankSearch/suggestions";
 import { parseMarketSearchQuery, marketRowMatchesQuery } from "../../../Market/marketSearchQuery";
 import {
   parseItemCatalogQuery,
   itemCatalogMatchesQuery,
+  itemCatalogMatchesSearch,
+  buildItemCatalogSuggestions,
 } from "../../../Items/itemCatalogSearchQuery";
 import { parseMonsterSearchQuery, monsterMatchesQuery } from "../../../Monster/monsterSearchQuery";
 import { parseNpcSearchQuery, npcMatchesQuery } from "../../../Npc/npcSearchQuery";
 import type { NpcCatalogRow } from "../../../gameData/npcCatalog";
+import { itemMatchesSearch } from "../../../gameData/itemFilters";
 
 describe("querySearch shared primitives", () => {
   it("parses amounts with suffixes", () => {
@@ -110,6 +115,143 @@ describe("market query", () => {
       marketRowMatchesQuery(row, undefined, parseMarketSearchQuery("price:>=1m is:sell")),
     ).toBe(true);
     expect(marketRowMatchesQuery(row, undefined, parseMarketSearchQuery("is:buy"))).toBe(false);
+  });
+});
+
+describe("item attribute coverage", () => {
+  const orba = {
+    name: "Orb of Adventures",
+    type: "orb",
+    firesistance: 15,
+    fzresistance: 15,
+    pnresistance: 15,
+    phresistance: 15,
+    compound: {
+      firesistance: 5,
+      fzresistance: 5,
+      pnresistance: 5,
+      phresistance: 5,
+    },
+  } as unknown as import("typed-adventureland").GItem;
+
+  const ruggedBoots = {
+    name: "Rugged Boots",
+    type: "shoes",
+    set: "rugged",
+    str: 1,
+    armor: 12,
+    speed: 1,
+  } as unknown as import("typed-adventureland").GItem;
+
+  it("ITEM_ATTR_KEYS includes every labeled player-facing stat", () => {
+    const expected = [
+      "apiercing",
+      "armor",
+      "attack",
+      "avoidance",
+      "awesomeness",
+      "blast",
+      "bling",
+      "breaks",
+      "charisma",
+      "courage",
+      "crit",
+      "critdamage",
+      "cuteness",
+      "dex",
+      "dreturn",
+      "evasion",
+      "explosion",
+      "firesistance",
+      "for",
+      "frequency",
+      "fzresistance",
+      "gold",
+      "hp",
+      "incdmgamp",
+      "int",
+      "lifesteal",
+      "luck",
+      "manasteal",
+      "mcourage",
+      "miss",
+      "mp",
+      "mp_cost",
+      "mp_reduction",
+      "output",
+      "pcourage",
+      "phresistance",
+      "pnresistance",
+      "range",
+      "reflection",
+      "resistance",
+      "rpiercing",
+      "speed",
+      "stat",
+      "str",
+      "stresistance",
+      "stun",
+      "vit",
+      "xp",
+    ];
+    expect([...ITEM_ATTR_KEYS]).toEqual(expected);
+  });
+
+  it("attr: and free-text helpers suggest any attribute by key or label", () => {
+    const byKey = buildItemCatalogSuggestions("attr:crit", "catalog");
+    expect(byKey.flat.map((row) => row.label)).toEqual(
+      expect.arrayContaining(["crit>=", "critdamage>="]),
+    );
+
+    const byLabel = buildItemCatalogSuggestions("attr:status", "gear");
+    expect(byLabel.flat.some((row) => row.label.startsWith("stresistance"))).toBe(true);
+
+    const fortitude = buildItemCatalogSuggestions("attr:fort", "luck");
+    expect(fortitude.flat.some((row) => row.label.startsWith("for"))).toBe(true);
+
+    const freeText = buildItemCatalogSuggestions("impact", "catalog");
+    expect(freeText.flat.some((row) => row.label === "phresistance")).toBe(true);
+
+    const bank = buildBankSearchSuggestions("attr:stre", { types: [], categories: [] });
+    expect(bank.flat.map((row) => row.label)).toEqual(
+      expect.arrayContaining(["str>=", "stresistance>="]),
+    );
+  });
+
+  it("free text matches attribute keys and display labels", () => {
+    expect(itemMatchesSearch("orba", orba, "firesistance", { matchAttributes: true })).toBe(true);
+    expect(itemMatchesSearch("orba", orba, "fire res", { matchAttributes: true })).toBe(true);
+    expect(itemMatchesSearch("orba", orba, "impact res", { matchAttributes: true })).toBe(true);
+    expect(
+      itemMatchesSearch("ruggedboots", ruggedBoots, "strength", { matchAttributes: true }),
+    ).toBe(true);
+    expect(
+      itemMatchesSearch("ruggedboots", ruggedBoots, "fortitude", {
+        matchAttributes: true,
+        sets: { rugged: { "4": { for: 8 } } },
+      }),
+    ).toBe(true);
+  });
+
+  it("catalog free text and attr: find items by any attribute", () => {
+    expect(
+      itemCatalogMatchesSearch("orba" as ItemKey, orba, undefined, "firesistance", {
+        matchAttributeNames: true,
+      }),
+    ).toBe(true);
+    expect(
+      itemCatalogMatchesSearch("orba" as ItemKey, orba, undefined, "attr:firesistance"),
+    ).toBe(true);
+    expect(
+      itemCatalogMatchesSearch("ruggedboots" as ItemKey, ruggedBoots, undefined, "attr:str", {
+        matchAttributeNames: true,
+      }),
+    ).toBe(true);
+    expect(
+      itemCatalogMatchesSearch("ruggedboots" as ItemKey, ruggedBoots, undefined, "dexterity", {
+        matchAttributeNames: true,
+      }),
+    ).toBe(false);
   });
 });
 

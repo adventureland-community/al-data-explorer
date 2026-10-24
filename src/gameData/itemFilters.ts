@@ -1,7 +1,20 @@
 import { GItem, ItemKey } from "typed-adventureland";
 
 import { itemMatchesClasses } from "./itemMeta";
+import { STAT_DISPLAY_LABELS } from "./statLabels";
 import { GItems } from "./types";
+
+function attributeMatchesTerm(key: string, term: string): boolean {
+  if (key.toLowerCase().includes(term)) return true;
+  const label = STAT_DISPLAY_LABELS[key];
+  if (!label) return false;
+  const labelLower = label.toLowerCase();
+  if (labelLower.includes(term)) return true;
+  // "status res" ↔ "Status Res.", "fire resist" ↔ "Fire Res."
+  const compactLabel = labelLower.replace(/[.\s]+/gu, "");
+  const compactTerm = term.replace(/[.\s]+/gu, "");
+  return compactTerm.length > 0 && compactLabel.includes(compactTerm);
+}
 
 export type ItemFilterOptions = {
   search?: string;
@@ -48,13 +61,15 @@ export function itemMatchesSearch(
     ...gItem,
     ...(gItem.upgrade as object | undefined),
     ...(gItem.compound as object | undefined),
-  }).filter((key) => key.toLowerCase().includes(term));
-  if (itemAttrs.length > 0) return true;
+  });
+  for (const key of itemAttrs) {
+    if (attributeMatchesTerm(key, term)) return true;
+  }
 
   if (gItem.set && options.sets?.[gItem.set]) {
     for (const setStats of Object.values(options.sets[gItem.set])) {
-      if (Object.keys(setStats ?? {}).some((key) => key.toLowerCase().includes(term))) {
-        return true;
+      for (const key of Object.keys(setStats ?? {})) {
+        if (attributeMatchesTerm(key, term)) return true;
       }
     }
   }

@@ -1,3 +1,4 @@
+import { attrLabel } from "./attr";
 import { pushQuerySearchSection } from "./applySuggestion";
 import type { QuerySearchMenu, SurfaceOpDef } from "./types";
 
@@ -36,24 +37,63 @@ export function pushOperatorSuggestions(
   pushQuerySearchSection(menu, "Operators", rows);
 }
 
+function attrKeyMatchesNeedle(key: string, needle: string): boolean {
+  if (!needle) return true;
+  const label = attrLabel(key).toLowerCase();
+  const compactLabel = label.replace(/[.\s]+/gu, "");
+  const compactNeedle = needle.replace(/[.\s]+/gu, "");
+  return (
+    key.startsWith(needle) ||
+    label.includes(needle) ||
+    (compactNeedle.length > 0 && compactLabel.includes(compactNeedle))
+  );
+}
+
+/** `attr:` value completions — insert `key>=`. */
 export function pushAttrKeySuggestions(
   menu: QuerySearchMenu,
   keys: readonly string[],
   needle: string,
   title = "Attributes",
 ): void {
-  const keyNeedle = needle.replace(/[<>]=?.*$/u, "");
+  const keyNeedle = needle.replace(/[<>]=?.*$/u, "").toLowerCase();
   const rows = [];
   for (const k of keys) {
-    if (keyNeedle && !k.startsWith(keyNeedle)) continue;
+    if (!attrKeyMatchesNeedle(k, keyNeedle)) continue;
     rows.push({
       kind: "value" as const,
       label: `${k}>=`,
-      hint: `attr:${k}>=…`,
+      hint: attrLabel(k),
       value: `${k}>=`,
     });
   }
   pushQuerySearchSection(menu, title, rows);
+}
+
+/**
+ * Free-text attribute helper — insert bare keys that match name/key/label search.
+ * Caps rows so the menu stays usable next to operators.
+ */
+export function pushFreeTextAttrSuggestions(
+  menu: QuerySearchMenu,
+  keys: readonly string[],
+  freeNeedle: string,
+  limit = 16,
+): void {
+  const needle = freeNeedle.toLowerCase();
+  if (needle.length < 2) return;
+  const rows = [];
+  for (const k of keys) {
+    if (!attrKeyMatchesNeedle(k, needle)) continue;
+    rows.push({
+      kind: "op" as const,
+      label: k,
+      hint: attrLabel(k),
+      insert: `${k} `,
+    });
+    if (rows.length >= limit) break;
+  }
+  pushQuerySearchSection(menu, "Attributes", rows);
 }
 
 export function pushFlagValueSuggestions(

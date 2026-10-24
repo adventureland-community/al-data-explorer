@@ -15,6 +15,7 @@ import {
   emptyQuerySearchMenu,
   freeTokenNeedle,
   GEAR_OPS,
+  ITEM_ATTR_KEYS,
   ITEM_FLAG_ALIASES,
   itemHasSearchFlag,
   ITEM_SEARCH_FLAG_SUGGESTIONS,
@@ -25,6 +26,7 @@ import {
   parseOrGroups,
   pushAttrKeySuggestions,
   pushFlagValueSuggestions,
+  pushFreeTextAttrSuggestions,
   pushOperatorSuggestions,
   pushQuerySearchSection,
   queryMatchesAnyGroup,
@@ -370,16 +372,6 @@ function opsForContext(
   return CATALOG_OPS;
 }
 
-function attrKeysForContext(
-  context: Extract<SearchContextId, "catalog" | "gear" | "luck">,
-): readonly string[] {
-  if (context === "luck") return ["luck", "gold", "xp", "str", "int", "dex", "vit"];
-  if (context === "gear") {
-    return ["attack", "armor", "resistance", "str", "int", "dex", "crit", "frequency", "range"];
-  }
-  return ["str", "int", "dex", "vit", "armor", "resistance", "attack", "crit", "luck", "hp", "mp"];
-}
-
 export function buildItemCatalogSuggestions(
   raw: string,
   context: Extract<SearchContextId, "catalog" | "gear" | "luck">,
@@ -395,7 +387,7 @@ export function buildItemCatalogSuggestions(
   }
 
   if (trailing?.op === "attr") {
-    pushAttrKeySuggestions(menu, attrKeysForContext(context), needle);
+    pushAttrKeySuggestions(menu, ITEM_ATTR_KEYS, needle);
     return menu;
   }
 
@@ -423,6 +415,8 @@ export function buildItemCatalogSuggestions(
 
   if (trailing) return menu;
 
-  pushOperatorSuggestions(menu, opsForContext(context), freeTokenNeedle(raw));
+  const freeNeedle = freeTokenNeedle(raw);
+  pushOperatorSuggestions(menu, opsForContext(context), freeNeedle);
+  pushFreeTextAttrSuggestions(menu, ITEM_ATTR_KEYS, freeNeedle);
   return menu;
 }

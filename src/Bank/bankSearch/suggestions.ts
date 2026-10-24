@@ -3,29 +3,17 @@ import {
   BANK_OPS,
   emptyQuerySearchMenu,
   freeTokenNeedle,
+  ITEM_ATTR_KEYS,
   ITEM_SEARCH_FLAG_SUGGESTIONS,
   pushAttrKeySuggestions,
   pushFlagValueSuggestions,
+  pushFreeTextAttrSuggestions,
   pushOperatorSuggestions,
   pushQuerySearchSection,
   trailingFieldContext,
   trailingOpsFor,
   type QuerySearchMenu,
 } from "../../Shared/querySearch";
-
-const BANK_ATTR_SUGGEST_KEYS = [
-  "str",
-  "int",
-  "dex",
-  "vit",
-  "armor",
-  "resistance",
-  "attack",
-  "crit",
-  "luck",
-  "hp",
-  "mp",
-] as const;
 
 /** Bank-only suggestion menu for QuerySearchBar. */
 export function buildBankSearchSuggestions(
@@ -46,7 +34,7 @@ export function buildBankSearchSuggestions(
   }
 
   if (trailing?.op === "attr") {
-    pushAttrKeySuggestions(menu, BANK_ATTR_SUGGEST_KEYS, needle);
+    pushAttrKeySuggestions(menu, ITEM_ATTR_KEYS, needle);
     return menu;
   }
 
@@ -86,6 +74,7 @@ export function buildBankSearchSuggestions(
 
   const freeNeedle = freeTokenNeedle(raw);
   pushOperatorSuggestions(menu, BANK_OPS, freeNeedle);
+  pushFreeTextAttrSuggestions(menu, ITEM_ATTR_KEYS, freeNeedle);
 
   if (opts.itemNames?.length && freeNeedle.length >= 2) {
     const rows = [];

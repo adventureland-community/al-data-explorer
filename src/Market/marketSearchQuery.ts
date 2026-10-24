@@ -4,6 +4,7 @@
 
 import type { GData, ItemKey, TitleKey } from "typed-adventureland";
 
+import { itemMatchesSearch } from "../gameData/itemFilters";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
 import {
   ITEM_ATTR_KEYS,
@@ -20,6 +21,7 @@ import {
   parseAttrSpecs,
   parseOrGroups,
   pushAttrKeySuggestions,
+  pushFreeTextAttrSuggestions,
   pushOperatorSuggestions,
   pushQuerySearchSection,
   queryMatchesAnyGroup,
@@ -148,7 +150,14 @@ function clauseMatches(ctx: MarketMatchCtx, clause: MarketClause): boolean {
       hit =
         row.itemName.toLowerCase().includes(needle) ||
         display.includes(needle) ||
-        String(row.title).toLowerCase().includes(needle);
+        String(row.title).toLowerCase().includes(needle) ||
+        Boolean(
+          gItem &&
+            itemMatchesSearch(row.itemName, gItem, needle, {
+              matchAttributes: true,
+              sets: G?.sets as Record<string, Record<string, unknown>> | undefined,
+            }),
+        );
       break;
     }
     case "item": {
@@ -306,6 +315,8 @@ export function buildMarketSearchSuggestions(
 
   if (trailing) return menu;
 
-  pushOperatorSuggestions(menu, MARKET_OPS, freeTokenNeedle(raw));
+  const freeNeedle = freeTokenNeedle(raw);
+  pushOperatorSuggestions(menu, MARKET_OPS, freeNeedle);
+  pushFreeTextAttrSuggestions(menu, ITEM_ATTR_KEYS, freeNeedle);
   return menu;
 }

@@ -43,7 +43,15 @@ function matchesTextTerm(
 
   const itemKey = item.name as ItemKey;
   const gItem = G?.items[itemKey];
-  if (gItem && itemMatchesSearch(itemKey, gItem, needle)) return true;
+  if (
+    gItem &&
+    itemMatchesSearch(itemKey, gItem, needle, {
+      matchAttributes: true,
+      sets: G?.sets as Record<string, Record<string, unknown>> | undefined,
+    })
+  ) {
+    return true;
+  }
 
   if (G?.titles) {
     const titleName = getTitleName(item, G);

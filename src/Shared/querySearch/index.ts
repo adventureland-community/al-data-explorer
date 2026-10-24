@@ -60,6 +60,7 @@ export {
   freeTokenNeedle,
   pushOperatorSuggestions,
   pushAttrKeySuggestions,
+  pushFreeTextAttrSuggestions,
   pushFlagValueSuggestions,
   ITEM_SEARCH_FLAG_SUGGESTIONS,
 } from "./suggest";

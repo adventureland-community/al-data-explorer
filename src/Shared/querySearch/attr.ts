@@ -1,44 +1,9 @@
-import { STAT_DISPLAY_LABELS } from "../../gameData/statLabels";
+import { ITEM_STAT_KEYS, STAT_DISPLAY_LABELS } from "../../gameData/statLabels";
 import { parseAmount, compareAmount } from "./amount";
 import type { AttrSpec } from "./types";
 
-/** Item combat/stat keys usable in `attr:`. */
-export const ITEM_ATTR_KEYS: readonly string[] = [
-  "str",
-  "int",
-  "dex",
-  "vit",
-  "for",
-  "hp",
-  "mp",
-  "armor",
-  "resistance",
-  "attack",
-  "range",
-  "speed",
-  "evasion",
-  "reflection",
-  "lifesteal",
-  "manasteal",
-  "crit",
-  "critdamage",
-  "rpiercing",
-  "apiercing",
-  "dreturn",
-  "frequency",
-  "gold",
-  "luck",
-  "xp",
-  "output",
-  "stat",
-  "courage",
-  "mcourage",
-  "pcourage",
-  "explosion",
-  "blast",
-  "mp_cost",
-  "mp_reduction",
-];
+/** Item combat/stat keys usable in `attr:` — all player-facing labeled stats. */
+export const ITEM_ATTR_KEYS: readonly string[] = ITEM_STAT_KEYS;
 
 /** Monster numeric fields for `hp:` / `attr:` on the monsters page. */
 export const MONSTER_NUMERIC_KEYS: readonly string[] = [

@@ -192,7 +192,9 @@ export function ItemsBrowse() {
     });
     if (!params.search.trim()) return base;
     return base.filter(([itemKey, gItem]) =>
-      itemCatalogMatchesSearch(itemKey as ItemKey, gItem, G, params.search),
+      itemCatalogMatchesSearch(itemKey as ItemKey, gItem, G, params.search, {
+        matchAttributeNames: true,
+      }),
     );
   }, [G, params.search, params.sort]);
 
