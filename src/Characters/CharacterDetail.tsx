@@ -12,7 +12,7 @@ import { GearPaperDoll } from "../GearPlanner/GearPaperDoll";
 import { StatsPanel } from "../GearPlanner/StatsPanel";
 import { SelectedCharacterClass } from "../GearPlanner/types";
 import { CharacterLook } from "../Shared/CharacterLook";
-import { ItemInstance } from "../Shared/ItemInstance";
+import { ItemInstanceLabel } from "../Shared/ItemInstanceLabel";
 import {
   CharacterLoadout,
   fetchCharacterLoadout,
@@ -145,7 +145,7 @@ export function CharacterDetail() {
   };
 
   return (
-    <Box sx={{ padding: 2 }}>
+    <Box sx={{ p: { xs: 1.25, sm: 2 }, pb: { xs: 3, sm: 2 } }}>
       <Typography variant="body2" sx={{ mb: 1 }}>
         <Link component={RouterLink} to="/characters" underline="hover">
           Characters
@@ -162,22 +162,36 @@ export function CharacterDetail() {
         {name}
       </Typography>
 
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: { xs: 1.25, sm: 2 },
+          mb: 1,
+          minWidth: 0,
+        }}
+      >
         {look && <CharacterLook look={look} alt={loadout?.name ?? name} size="class" />}
-        <Box>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography
             variant="h4"
             component="h1"
             gutterBottom
-            sx={{ color: online ? "success.main" : classKey ? CLASS_COLOR[classKey] : "inherit" }}
+            sx={{
+              fontSize: { xs: "1.5rem", sm: "2.125rem" },
+              color: online ? "success.main" : classKey ? CLASS_COLOR[classKey] : "inherit",
+              wordBreak: "break-word",
+            }}
           >
             {loadout?.name ?? name}
           </Typography>
-          <Typography color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.45 }}>
             {classKey ? titleCaseKey(classKey) : listed?.className ?? "Unknown class"}
             {level != null ? ` · Level ${level}` : ""}
             {online ? " · online" : listed ? " · offline" : ""}
-            {fromListCache ? " · from characters list" : " · individual page"}
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+              {fromListCache ? " · from characters list" : " · individual page"}
+            </Box>
             {" · "}
             <Link
               href={`https://adventure.land/character/${encodeURIComponent(name)}`}
@@ -213,7 +227,15 @@ export function CharacterDetail() {
 
       {loadout && (
         <>
-          <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1,
+              mb: 2,
+              flexWrap: "wrap",
+              "& .MuiButton-root": { minHeight: 36, flex: { xs: "1 1 auto", sm: "0 0 auto" } },
+            }}
+          >
             <Button variant="contained" size="small" onClick={openInGearPlanner}>
               Load in Gear Planner
             </Button>
@@ -227,34 +249,33 @@ export function CharacterDetail() {
             </Button>
           </Box>
 
-          <Grid container spacing={3}>
+          <Grid container spacing={{ xs: 2, md: 3 }}>
             <Grid item xs={12} md={4}>
               <Typography variant="h6" component="h2" gutterBottom>
                 Equipment
               </Typography>
-              <GearPaperDoll gear={loadout.gear} onSlotClick={() => undefined} dhConflict={false} />
+              <Box sx={{ overflowX: "auto", WebkitOverflowScrolling: "touch", pb: 0.5 }}>
+                <GearPaperDoll
+                  gear={loadout.gear}
+                  onSlotClick={() => undefined}
+                  dhConflict={false}
+                />
+              </Box>
               <Typography variant="subtitle2" sx={{ mt: 2 }} gutterBottom>
                 Items
               </Typography>
               {equipped.length === 0 ? (
                 <Typography color="text.secondary">No items equipped.</Typography>
               ) : (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                   {equipped.map(({ slot, item }) => (
-                    <Box
+                    <ItemInstanceLabel
                       key={slot}
-                      sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        width: 64,
-                      }}
-                    >
-                      <ItemInstance itemInfo={item} size={36} linkToDetail />
-                      <Typography variant="caption" color="text.secondary">
-                        {slot}
-                      </Typography>
-                    </Box>
+                      itemInfo={item}
+                      size={36}
+                      caption={slot}
+                      includeLevel
+                    />
                   ))}
                 </Box>
               )}

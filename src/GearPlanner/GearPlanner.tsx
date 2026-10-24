@@ -38,13 +38,12 @@ import { useSearchParams } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
 import { LoadoutPickerShell } from "./LoadoutPickerShell";
 import { SavedLoadout, SelectedCharacterClass } from "./types";
-import { ItemInstance } from "../Shared/ItemInstance";
+import { ItemInstanceLabel } from "../Shared/ItemInstanceLabel";
 import { SaveLinkButton } from "./SaveLinkButton";
 import { LoadLinkButton } from "./LoadLinkButton";
 import { ImportLinkButton } from "./ImportLinkButton";
 import { ShareLinkButton } from "./ShareLinkButton";
 import { StatsPanel } from "./StatsPanel";
-import { getFullItemName } from "../Shared/iteminfo-util";
 import { cloneLoadoutGear } from "../gameData/loadoutStats";
 import { takePendingGearPlannerLoadout } from "../Characters/pendingGearPlannerLoadout";
 import {
@@ -218,10 +217,9 @@ export function GearPlanner() {
                         onClick={() => onRemoveGear(slot as SlotType)}
                       />
                     </TableCell>
-                    <TableCell width={40}>
-                      <ItemInstance itemInfo={itemInfo} />
+                    <TableCell>
+                      <ItemInstanceLabel itemInfo={itemInfo} includeLevel linkToDetail={false} />
                     </TableCell>
-                    <TableCell>{getFullItemName(itemInfo, G)}</TableCell>
                   </TableRow>
                 );
               })}

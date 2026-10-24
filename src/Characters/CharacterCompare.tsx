@@ -90,8 +90,10 @@ function CompareColumn({
           </Typography>
         </Box>
       </Box>
-      <GearPaperDoll gear={loadout.gear} onSlotClick={() => undefined} dhConflict={false} />
-      <Box sx={{ mt: 2 }}>
+      <Box sx={{ overflowX: "auto", WebkitOverflowScrolling: "touch", pb: 0.5 }}>
+        <GearPaperDoll gear={loadout.gear} onSlotClick={() => undefined} dhConflict={false} />
+      </Box>
+      <Box sx={{ mt: 2, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
         <StatsPanel
           selectedCharacterClass={selectedClass}
           level={loadout.level}
@@ -210,22 +212,31 @@ export function CharacterCompare() {
   };
 
   return (
-    <Box sx={{ padding: 2 }}>
+    <Box sx={{ p: { xs: 1.25, sm: 2 }, pb: { xs: 3, sm: 2 } }}>
       <Typography variant="body2" sx={{ mb: 1 }}>
         <Link component={RouterLink} to="/characters" underline="hover">
           Characters
         </Link>
         {" / Compare"}
       </Typography>
-      <Typography variant="h4" component="h1" gutterBottom>
+      <Typography
+        variant="h4"
+        component="h1"
+        gutterBottom
+        sx={{ fontSize: { xs: "1.5rem", sm: "2.125rem" } }}
+      >
         Compare characters
       </Typography>
-      <Typography sx={{ mb: 2 }} color="text.secondary">
+      <Typography
+        variant="body2"
+        sx={{ mb: 2, display: { xs: "none", sm: "block" } }}
+        color="text.secondary"
+      >
         Side-by-side gear and stats (green = higher, red = lower). Names on the public characters
         list load instantly from that page&apos;s embedded gear.
       </Typography>
 
-      <Grid container spacing={2} sx={{ mb: 3 }} alignItems="center">
+      <Grid container spacing={1.5} sx={{ mb: 2 }} alignItems="center">
         <Grid item xs={12} sm={5}>
           <TextField
             fullWidth
@@ -245,13 +256,13 @@ export function CharacterCompare() {
           />
         </Grid>
         <Grid item xs={12} sm={2}>
-          <Button fullWidth variant="contained" onClick={apply}>
+          <Button fullWidth variant="contained" onClick={apply} sx={{ minHeight: 40 }}>
             Compare
           </Button>
         </Grid>
       </Grid>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12} md={6}>
           <CompareColumn
             {...left}

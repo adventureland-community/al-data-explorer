@@ -158,7 +158,12 @@ function Menu({ compact = false }: { compact?: boolean }) {
           component={RouterLink}
         />
         <Tab label="World" value="/world" to="/world" component={RouterLink} />
-        <Tab label="Characters" value="/characters" to="/characters" component={RouterLink} />
+        <Tab
+          label={scrollNav ? "Chars" : "Characters"}
+          value="/characters"
+          to="/characters"
+          component={RouterLink}
+        />
       </Tabs>
       <IconButton
         aria-label={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}

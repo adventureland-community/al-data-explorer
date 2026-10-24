@@ -7,6 +7,7 @@ import {
   FormControlLabel,
   Grid,
   Link,
+  Paper,
   Switch,
   Table,
   TableBody,
@@ -14,13 +15,18 @@ import {
   TableHead,
   TableRow,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Link as RouterLink, useParams } from "react-router-dom";
+import { ClassKey } from "typed-adventureland";
 
 import { CLASS_COLOR } from "../constants";
 import { isClassKey, titleCaseKey } from "../gameData/classSkills";
-import { ItemInstance } from "../Shared/ItemInstance";
+import { ItemInstanceLabel } from "../Shared/ItemInstanceLabel";
 import { CharacterLook } from "../Shared/CharacterLook";
+import { StickyListLayout } from "../Shared/StickyListLayout";
+import { CharacterBrowseCard } from "./CharacterBrowseCard";
 import { classKeyToName } from "./characterClasses";
 import { CharacterNameLink } from "./CharacterNameLink";
 import {
@@ -28,13 +34,56 @@ import {
   getAllCachedLoadouts,
   getCachedCharacterLoadout,
 } from "./fetchCharacterLoadout";
-import { gearFrequencyFromLoadouts } from "./gearFrequency";
+import { GearFrequencyRow, gearFrequencyFromLoadouts } from "./gearFrequency";
 import { charactersForClass } from "./parseCharacters";
 import { useCharactersList } from "./useCharactersList";
 
 const TOP_GEAR_SAMPLE = 10;
 
+function AlsoUsedBy({ keys }: { keys: ClassKey[] }) {
+  if (keys.length === 0) return <>-</>;
+  return (
+    <>
+      {keys.map((key, i) => (
+        <span key={key}>
+          {i > 0 ? ", " : null}
+          <Link component={RouterLink} to={`/characters/class/${key}`} underline="hover">
+            {titleCaseKey(key)}
+          </Link>
+        </span>
+      ))}
+    </>
+  );
+}
+
+function GearFrequencyCard({ row, sampleSize }: { row: GearFrequencyRow; sampleSize: number }) {
+  return (
+    <Box
+      sx={{
+        px: 1.25,
+        py: 1.1,
+        borderBottom: 1,
+        borderColor: "divider",
+      }}
+    >
+      <ItemInstanceLabel itemInfo={row.sample} size={32} />
+      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+        {row.count}/{sampleSize} players
+        {row.maxLevel > 0 ? ` · max +${row.maxLevel}` : ""}
+        {row.alsoUsedBy.length > 0 ? (
+          <>
+            {" · also "}
+            <AlsoUsedBy keys={row.alsoUsedBy} />
+          </>
+        ) : null}
+      </Typography>
+    </Box>
+  );
+}
+
 export function CharacterClassPage() {
+  const theme = useTheme();
+  const narrow = useMediaQuery(theme.breakpoints.down("md"), { noSsr: true });
   const { classKey: classKeyParam } = useParams();
   const classKey = classKeyParam && isClassKey(classKeyParam) ? classKeyParam : undefined;
   const className = classKey ? classKeyToName(classKey) : undefined;
@@ -48,7 +97,6 @@ export function CharacterClassPage() {
     return onlineOnly ? list.filter((c) => c.online) : list;
   }, [characters, className, onlineOnly]);
 
-  // Gear comes from the bulk `/characters` HTML parse (var slots…), not per-character fetches.
   const loadouts = useMemo(() => {
     if (!loadoutsReady) return [] as CharacterLoadout[];
     return ranked
@@ -76,34 +124,55 @@ export function CharacterClassPage() {
   }
 
   return (
-    <Box sx={{ padding: 2 }}>
-      <Typography variant="body2" sx={{ mb: 1 }}>
-        <Link component={RouterLink} to="/characters" underline="hover">
-          Characters
-        </Link>
-        {" / "}
-        {className}
-      </Typography>
-
-      <Typography
-        variant="h4"
-        component="h1"
-        gutterBottom
-        sx={{ color: CLASS_COLOR[classKey], borderBottom: 3, borderColor: CLASS_COLOR[classKey] }}
-      >
-        {className}
-      </Typography>
-
-      <Typography sx={{ mb: 2 }} color="text.secondary">
-        Level rankings and equipped gear from the live adventure.land/characters page (one fetch for
-        all 500). Common gear uses every cached loadout for cross-class &quot;also used by&quot;.
-        Game data:{" "}
-        <Link component={RouterLink} to={`/classes/${classKey}`} underline="hover">
-          {titleCaseKey(classKey)} class page
-        </Link>
-        .
-      </Typography>
-
+    <StickyListLayout
+      toolbar={
+        <Box>
+          <Typography variant="body2" sx={{ mb: 0.5 }}>
+            <Link component={RouterLink} to="/characters" underline="hover">
+              Characters
+            </Link>
+            {" / "}
+            {className}
+          </Typography>
+          <Typography
+            variant={narrow ? "h5" : "h4"}
+            component="h1"
+            sx={{
+              color: CLASS_COLOR[classKey],
+              borderBottom: 3,
+              borderColor: CLASS_COLOR[classKey],
+            }}
+          >
+            {className}
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ mt: 1, display: { xs: "none", sm: "block" } }}
+          >
+            Rankings and gear from adventure.land/characters.{" "}
+            <Link component={RouterLink} to={`/classes/${classKey}`} underline="hover">
+              {titleCaseKey(classKey)} class data
+            </Link>
+            .
+          </Typography>
+        </Box>
+      }
+      filters={
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+          <FormControlLabel
+            control={
+              <Switch checked={onlineOnly} onChange={(e) => setOnlineOnly(e.target.checked)} />
+            }
+            label="Online only"
+          />
+          <Typography variant="caption" color="text.secondary">
+            {ranked.length} ranked
+            {allCached.length > 0 ? ` · ${allCached.length} loadouts` : ""}
+          </Typography>
+        </Box>
+      }
+    >
       {loading && characters.length === 0 && (
         <Box sx={{ display: "flex", justifyContent: "center", padding: 4 }}>
           <CircularProgress />
@@ -113,7 +182,7 @@ export function CharacterClassPage() {
       {error && (
         <Alert
           severity="error"
-          sx={{ mb: 2 }}
+          sx={{ mb: 1 }}
           action={
             <Button color="inherit" size="small" onClick={reload}>
               Retry
@@ -124,52 +193,78 @@ export function CharacterClassPage() {
         </Alert>
       )}
 
-      <FormControlLabel
-        control={<Switch checked={onlineOnly} onChange={(e) => setOnlineOnly(e.target.checked)} />}
-        label="Online only"
-        sx={{ mb: 2 }}
-      />
-
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={5}>
-          <Typography variant="h6" component="h2" gutterBottom>
+      <Grid container spacing={2} sx={{ flex: 1, minHeight: 0, alignContent: "flex-start" }}>
+        <Grid
+          item
+          xs={12}
+          md={5}
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+            maxHeight: { xs: "none", md: "100%" },
+          }}
+        >
+          <Typography variant="subtitle1" component="h2" gutterBottom sx={{ flexShrink: 0 }}>
             Rankings ({ranked.length})
           </Typography>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>#</TableCell>
-                <TableCell width={56} />
-                <TableCell>Name</TableCell>
-                <TableCell align="right">Level</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {ranked.map((character, index) => {
-                const look = getCachedCharacterLoadout(character.name)?.look;
-                return (
-                  <TableRow key={character.name} hover>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell sx={{ py: 0.5 }}>
-                      {look ? (
-                        <CharacterLook look={look} alt={character.name} size="default" />
-                      ) : null}
-                    </TableCell>
-                    <TableCell>
-                      <CharacterNameLink character={character} showMeta={false} />
-                    </TableCell>
-                    <TableCell align="right">{character.level}</TableCell>
+          {narrow ? (
+            <Paper
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                maxHeight: { xs: 360, sm: 420 },
+                overflow: "auto",
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
+              {ranked.map((character, index) => (
+                <CharacterBrowseCard
+                  key={character.name}
+                  character={character}
+                  rank={index + 1}
+                  showClass={false}
+                />
+              ))}
+            </Paper>
+          ) : (
+            <Paper sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>#</TableCell>
+                    <TableCell width={56} />
+                    <TableCell>Name</TableCell>
+                    <TableCell align="right">Level</TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                </TableHead>
+                <TableBody>
+                  {ranked.map((character, index) => {
+                    const look = getCachedCharacterLoadout(character.name)?.look;
+                    return (
+                      <TableRow key={character.name} hover>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell sx={{ py: 0.5 }}>
+                          {look ? (
+                            <CharacterLook look={look} alt={character.name} size="default" />
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          <CharacterNameLink character={character} showMeta={false} />
+                        </TableCell>
+                        <TableCell align="right">{character.level}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Paper>
+          )}
         </Grid>
 
-        <Grid item xs={12} md={7}>
-          <Typography variant="h6" component="h2" gutterBottom>
-            Common gear among top {Math.min(TOP_GEAR_SAMPLE, ranked.length)}
-            {allCached.length > 0 ? ` · meta from ${allCached.length} loadouts` : ""}
+        <Grid item xs={12} md={7} sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <Typography variant="subtitle1" component="h2" gutterBottom sx={{ flexShrink: 0 }}>
+            Common gear (top {Math.min(TOP_GEAR_SAMPLE, ranked.length)})
           </Typography>
           {!loadoutsReady && <CircularProgress size={28} />}
           {loadoutsReady && loadouts.length === 0 && (
@@ -177,56 +272,54 @@ export function CharacterClassPage() {
               No gear found in the characters list parse for this class.
             </Alert>
           )}
-          {frequency.length > 0 && (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Item</TableCell>
-                  <TableCell align="right">Players</TableCell>
-                  <TableCell align="right">Max +</TableCell>
-                  <TableCell>Also used by</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
+          {frequency.length > 0 &&
+            (narrow ? (
+              <Paper
+                sx={{
+                  flex: 1,
+                  minHeight: 0,
+                  overflow: "auto",
+                  WebkitOverflowScrolling: "touch",
+                }}
+              >
                 {frequency.map((row) => (
-                  <TableRow key={row.itemKey} hover>
-                    <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <ItemInstance itemInfo={row.sample} size={32} linkToDetail />
-                        <Link component={RouterLink} to={`/items/${row.itemKey}`} underline="hover">
-                          {row.itemKey}
-                        </Link>
-                      </Box>
-                    </TableCell>
-                    <TableCell align="right">
-                      {row.count}/{loadouts.length}
-                    </TableCell>
-                    <TableCell align="right">
-                      {row.maxLevel > 0 ? `+${row.maxLevel}` : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {row.alsoUsedBy.length === 0
-                        ? "-"
-                        : row.alsoUsedBy.map((key, i) => (
-                            <span key={key}>
-                              {i > 0 ? ", " : null}
-                              <Link
-                                component={RouterLink}
-                                to={`/characters/class/${key}`}
-                                underline="hover"
-                              >
-                                {titleCaseKey(key)}
-                              </Link>
-                            </span>
-                          ))}
-                    </TableCell>
-                  </TableRow>
+                  <GearFrequencyCard key={row.itemKey} row={row} sampleSize={loadouts.length} />
                 ))}
-              </TableBody>
-            </Table>
-          )}
+              </Paper>
+            ) : (
+              <Paper sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Item</TableCell>
+                      <TableCell align="right">Players</TableCell>
+                      <TableCell align="right">Max +</TableCell>
+                      <TableCell>Also used by</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {frequency.map((row) => (
+                      <TableRow key={row.itemKey} hover>
+                        <TableCell>
+                          <ItemInstanceLabel itemInfo={row.sample} size={32} />
+                        </TableCell>
+                        <TableCell align="right">
+                          {row.count}/{loadouts.length}
+                        </TableCell>
+                        <TableCell align="right">
+                          {row.maxLevel > 0 ? `+${row.maxLevel}` : "-"}
+                        </TableCell>
+                        <TableCell>
+                          <AlsoUsedBy keys={row.alsoUsedBy} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Paper>
+            ))}
         </Grid>
       </Grid>
-    </Box>
+    </StickyListLayout>
   );
 }
