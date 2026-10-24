@@ -194,12 +194,12 @@ describe("item attribute coverage", () => {
       "vit",
       "xp",
     ];
-    expect([...ITEM_ATTR_KEYS]).toEqual(expected);
+    expect([...ITEM_ATTR_KEYS]).toStrictEqual(expected);
   });
 
   it("attr: and free-text helpers suggest any attribute by key or label", () => {
     const byKey = buildItemCatalogSuggestions("attr:crit", "catalog");
-    expect(byKey.flat.map((row) => row.label)).toEqual(
+    expect(byKey.flat.map((row) => row.label)).toStrictEqual(
       expect.arrayContaining(["crit>=", "critdamage>="]),
     );
 
@@ -213,7 +213,7 @@ describe("item attribute coverage", () => {
     expect(freeText.flat.some((row) => row.label === "phresistance")).toBe(true);
 
     const bank = buildBankSearchSuggestions("attr:stre", { types: [], categories: [] });
-    expect(bank.flat.map((row) => row.label)).toEqual(
+    expect(bank.flat.map((row) => row.label)).toStrictEqual(
       expect.arrayContaining(["str>=", "stresistance>="]),
     );
   });
@@ -239,9 +239,9 @@ describe("item attribute coverage", () => {
         matchAttributeNames: true,
       }),
     ).toBe(true);
-    expect(
-      itemCatalogMatchesSearch("orba" as ItemKey, orba, undefined, "attr:firesistance"),
-    ).toBe(true);
+    expect(itemCatalogMatchesSearch("orba" as ItemKey, orba, undefined, "attr:firesistance")).toBe(
+      true,
+    );
     expect(
       itemCatalogMatchesSearch("ruggedboots" as ItemKey, ruggedBoots, undefined, "attr:str", {
         matchAttributeNames: true,

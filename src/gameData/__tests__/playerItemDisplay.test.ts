@@ -109,6 +109,69 @@ describe("playerItemDisplay", () => {
     expect(byKey.grade).toBeUndefined();
     expect(rows.some((r) => r.key === "g")).toBe(false);
   });
+
+  it("shows elemental resistance stats (orba)", () => {
+    const orba = {
+      type: "orb",
+      skin: "orba",
+      name: "Orb of Adventures",
+      firesistance: 15,
+      fzresistance: 15,
+      pnresistance: 15,
+      phresistance: 15,
+      edge: -2,
+      g: 240000,
+      compound: {
+        firesistance: 5,
+        fzresistance: 5,
+        pnresistance: 5,
+        phresistance: 5,
+      },
+      grades: [0, 2, 6, 7],
+    } as never;
+
+    const rows = buildPlayerStatRows(orba, 0);
+    const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
+    expect(byKey.firesistance).toStrictEqual({
+      key: "firesistance",
+      label: "Fire Res.",
+      value: "15",
+    });
+    expect(byKey.fzresistance).toStrictEqual({
+      key: "fzresistance",
+      label: "Freeze Res.",
+      value: "15",
+    });
+    expect(byKey.pnresistance).toStrictEqual({
+      key: "pnresistance",
+      label: "Poison Res.",
+      value: "15",
+    });
+    expect(byKey.phresistance).toStrictEqual({
+      key: "phresistance",
+      label: "Impact Res.",
+      value: "15",
+    });
+    expect(byKey.edge).toBeUndefined();
+    expect(byKey.g).toBeUndefined();
+  });
+
+  it("shows unlabeled numeric attrs instead of dropping them", () => {
+    const rows = buildPlayerStatRows(
+      {
+        type: "orb",
+        name: "Future Orb",
+        newtude: 7,
+        g: 100,
+        tier: 2,
+      } as never,
+      0,
+    );
+    const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
+    expect(byKey.newtude).toStrictEqual({ key: "newtude", label: "newtude", value: "7" });
+    expect(byKey.g).toBeUndefined();
+    expect(byKey.tier).toBeUndefined();
+  });
 });
 
 describe("dropSourceSortKey", () => {
