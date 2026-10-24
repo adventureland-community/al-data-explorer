@@ -1,13 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { Alert, Box, Button, CircularProgress, Grid, Link, Typography } from "@mui/material";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 import { SlotType } from "typed-adventureland";
 
 import { CLASS_COLOR } from "../constants";
-import { GearPaperDoll } from "../GearPlanner/GearPaperDoll";
+import { classLooks } from "../gameData/characterLook";
 import { titleCaseKey } from "../gameData/classSkills";
+import { GDataContext } from "../GDataContext";
+import { GearPaperDoll } from "../GearPlanner/GearPaperDoll";
+import { CharacterLook } from "../Shared/CharacterLook";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { CharacterLoadout, fetchCharacterLoadout } from "./fetchCharacterLoadout";
+import { stashLoadoutForGearPlanner } from "./pendingGearPlannerLoadout";
 import { useCharactersList } from "./useCharactersList";
 
 const SLOT_ORDER: SlotType[] = [
@@ -30,6 +34,8 @@ const SLOT_ORDER: SlotType[] = [
 ];
 
 export function CharacterDetail() {
+  const G = useContext(GDataContext);
+  const navigate = useNavigate();
   const { name: nameParam } = useParams();
   const name = nameParam ? decodeURIComponent(nameParam) : "";
   const { characters } = useCharactersList();
@@ -81,6 +87,24 @@ export function CharacterDetail() {
   const level = loadout?.level ?? listed?.level;
   const online = listed?.online;
 
+  const look = useMemo(() => {
+    if (loadout?.look) return loadout.look;
+    if (!G || !classKey) return undefined;
+    const gClass = G.classes?.[classKey];
+    if (!gClass) return undefined;
+    return classLooks(gClass)[0];
+  }, [G, classKey, loadout?.look]);
+
+  const openInGearPlanner = () => {
+    if (!loadout) return;
+    stashLoadoutForGearPlanner(loadout.name, {
+      gear: loadout.gear,
+      classKey: loadout.classKey,
+      level: loadout.level,
+    });
+    navigate("/gear");
+  };
+
   return (
     <Box sx={{ padding: 2 }}>
       <Typography variant="body2" sx={{ mb: 1 }}>
@@ -99,37 +123,41 @@ export function CharacterDetail() {
         {name}
       </Typography>
 
-      <Typography
-        variant="h4"
-        component="h1"
-        gutterBottom
-        sx={{ color: online ? "success.main" : classKey ? CLASS_COLOR[classKey] : "inherit" }}
-      >
-        {loadout?.name ?? name}
-      </Typography>
-
-      <Typography sx={{ mb: 2 }} color="text.secondary">
-        {classKey ? titleCaseKey(classKey) : listed?.className ?? "Unknown class"}
-        {level != null ? ` · Level ${level}` : ""}
-        {online ? " · online" : listed ? " · offline" : ""}
-        {" · "}
-        <Link
-          href={`https://adventure.land/character/${encodeURIComponent(name)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-        >
-          adventure.land
-        </Link>
-        {classKey && (
-          <>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+        {look && <CharacterLook look={look} alt={loadout?.name ?? name} size="class" />}
+        <Box>
+          <Typography
+            variant="h4"
+            component="h1"
+            gutterBottom
+            sx={{ color: online ? "success.main" : classKey ? CLASS_COLOR[classKey] : "inherit" }}
+          >
+            {loadout?.name ?? name}
+          </Typography>
+          <Typography color="text.secondary">
+            {classKey ? titleCaseKey(classKey) : listed?.className ?? "Unknown class"}
+            {level != null ? ` · Level ${level}` : ""}
+            {online ? " · online" : listed ? " · offline" : ""}
             {" · "}
-            <Link component={RouterLink} to={`/classes/${classKey}`} underline="hover">
-              class data
+            <Link
+              href={`https://adventure.land/character/${encodeURIComponent(name)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              underline="hover"
+            >
+              adventure.land
             </Link>
-          </>
-        )}
-      </Typography>
+            {classKey && (
+              <>
+                {" · "}
+                <Link component={RouterLink} to={`/classes/${classKey}`} underline="hover">
+                  class data
+                </Link>
+              </>
+            )}
+          </Typography>
+        </Box>
+      </Box>
 
       {loading && (
         <Box sx={{ display: "flex", justifyContent: "center", padding: 4 }}>
@@ -144,7 +172,7 @@ export function CharacterDetail() {
       )}
 
       {loadout && (
-        <Grid container spacing={3}>
+        <Grid container spacing={3} sx={{ mt: 1 }}>
           <Grid item xs={12} md={5}>
             <Typography variant="h6" component="h2" gutterBottom>
               Equipment
@@ -177,15 +205,14 @@ export function CharacterDetail() {
                 ))}
               </Box>
             )}
-            <Button
-              component={RouterLink}
-              to="/gear"
-              variant="outlined"
-              size="small"
-              sx={{ mt: 2 }}
-            >
-              Open Gear Planner
-            </Button>
+            <Box sx={{ display: "flex", gap: 1, mt: 2, flexWrap: "wrap" }}>
+              <Button variant="contained" size="small" onClick={openInGearPlanner}>
+                Load in Gear Planner
+              </Button>
+              <Button component={RouterLink} to="/gear" variant="outlined" size="small">
+                Open Gear Planner
+              </Button>
+            </Box>
           </Grid>
         </Grid>
       )}

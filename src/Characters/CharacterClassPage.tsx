@@ -22,7 +22,12 @@ import { isClassKey, titleCaseKey } from "../gameData/classSkills";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { classKeyToName } from "./characterClasses";
 import { CharacterNameLink } from "./CharacterNameLink";
-import { CharacterLoadout, fetchCharacterLoadout } from "./fetchCharacterLoadout";
+import { CharacterLook } from "../Shared/CharacterLook";
+import {
+  CharacterLoadout,
+  getCachedCharacterLoadout,
+  prefetchCharacterLoadouts,
+} from "./fetchCharacterLoadout";
 import { gearFrequencyFromLoadouts } from "./gearFrequency";
 import { charactersForClass } from "./parseCharacters";
 import { useCharactersList } from "./useCharactersList";
@@ -46,34 +51,40 @@ export function CharacterClassPage() {
     return onlineOnly ? list.filter((c) => c.online) : list;
   }, [characters, className, onlineOnly]);
 
+  const sampleNames = useMemo(
+    () =>
+      ranked
+        .slice(0, TOP_GEAR_SAMPLE)
+        .map((c) => c.name)
+        .join("|"),
+    [ranked],
+  );
+
   useEffect(() => {
-    if (!className || ranked.length === 0) {
+    if (!className || !sampleNames) {
       setLoadouts([]);
       return undefined;
     }
 
     let cancelled = false;
-    const sample = ranked.slice(0, TOP_GEAR_SAMPLE);
+    const names = sampleNames.split("|");
 
     const run = async () => {
       setGearLoading(true);
       setGearError(null);
-      const results: CharacterLoadout[] = [];
-      for (const character of sample) {
-        try {
-          const loadout = await fetchCharacterLoadout(character.name);
-          if (cancelled) return;
-          results.push(loadout);
-          setLoadouts([...results]);
-        } catch (err) {
-          console.error(`Failed to load gear for ${character.name}`, err);
-        }
-      }
-      if (!cancelled) {
-        setGearLoading(false);
-        if (results.length === 0) {
-          setGearError("Could not load gear samples for this class.");
-        }
+      const primed = names
+        .map((n) => getCachedCharacterLoadout(n))
+        .filter((v): v is CharacterLoadout => Boolean(v));
+      if (primed.length) setLoadouts(primed);
+
+      const results = await prefetchCharacterLoadouts(names, 3, (partial) => {
+        if (!cancelled) setLoadouts(partial);
+      });
+      if (cancelled) return;
+      setLoadouts(results);
+      setGearLoading(false);
+      if (results.length === 0) {
+        setGearError("Could not load gear samples for this class.");
       }
     };
 
@@ -81,7 +92,7 @@ export function CharacterClassPage() {
     return () => {
       cancelled = true;
     };
-  }, [className, ranked]);
+  }, [className, sampleNames]);
 
   const frequency = useMemo(() => gearFrequencyFromLoadouts(loadouts).slice(0, 24), [loadouts]);
 
@@ -159,20 +170,29 @@ export function CharacterClassPage() {
             <TableHead>
               <TableRow>
                 <TableCell>#</TableCell>
+                <TableCell width={56} />
                 <TableCell>Name</TableCell>
                 <TableCell align="right">Level</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {ranked.map((character, index) => (
-                <TableRow key={character.name} hover>
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell>
-                    <CharacterNameLink character={character} showMeta={false} />
-                  </TableCell>
-                  <TableCell align="right">{character.level}</TableCell>
-                </TableRow>
-              ))}
+              {ranked.map((character, index) => {
+                const look = getCachedCharacterLoadout(character.name)?.look;
+                return (
+                  <TableRow key={character.name} hover>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell sx={{ py: 0.5 }}>
+                      {look ? (
+                        <CharacterLook look={look} alt={character.name} size="default" />
+                      ) : null}
+                    </TableCell>
+                    <TableCell>
+                      <CharacterNameLink character={character} showMeta={false} />
+                    </TableCell>
+                    <TableCell align="right">{character.level}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </Grid>

@@ -33,7 +33,7 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { ItemInfo, SlotType } from "typed-adventureland";
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { GDataContext } from "../GDataContext";
 import { LoadoutPickerShell } from "./LoadoutPickerShell";
 import { SavedLoadout, SelectedCharacterClass } from "./types";
@@ -44,6 +44,7 @@ import { ImportLinkButton } from "./ImportLinkButton";
 import { StatsPanel } from "./StatsPanel";
 import { getFullItemName } from "../Shared/iteminfo-util";
 import { cloneLoadoutGear } from "../gameData/loadoutStats";
+import { takePendingGearPlannerLoadout } from "../Characters/pendingGearPlannerLoadout";
 
 function Info() {
   return (
@@ -78,6 +79,20 @@ export function GearPlanner() {
   const [gear, setGear] = useState<{ [slot in SlotType]?: ItemInfo }>({});
   const [selectedClass, setSelectedClass] = useState<SelectedCharacterClass>();
   const [level, setLevel] = useState(1);
+  const appliedPending = useRef(false);
+
+  useEffect(() => {
+    if (!G || appliedPending.current) return;
+    const pending = takePendingGearPlannerLoadout();
+    if (!pending) return;
+    appliedPending.current = true;
+    const classList = Object.entries(G.classes ?? []).map(
+      ([className, item]) => ({ className, ...item } as SelectedCharacterClass),
+    );
+    setLevel(pending.data.level);
+    setGear(cloneLoadoutGear(pending.data.gear));
+    setSelectedClass(classList.find((c) => c.className === pending.data.classKey));
+  }, [G]);
 
   if (!G) {
     return <>WAITING!</>;
