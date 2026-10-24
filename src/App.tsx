@@ -59,7 +59,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
   const { mode, toggleMode } = useContext(ThemeModeContext);
   const theme = useTheme();
   // Ten tabs overflow phones and many tablets; scroll instead of clipping.
-  const scrollNav = useMediaQuery(theme.breakpoints.down("lg"));
+  const scrollNav = useMediaQuery(theme.breakpoints.down("lg"), { noSsr: true });
   const { pathname } = useLocation();
   const routeMatch = useRouteMatch([
     "/market",
@@ -108,8 +108,9 @@ function Menu({ compact = false }: { compact?: boolean }) {
         value={currentTab}
         variant={scrollNav ? "scrollable" : "standard"}
         centered={!scrollNav}
-        scrollButtons={scrollNav ? "auto" : false}
-        allowScrollButtonsMobile
+        // Swipe the tab strip on phones — chevrons steal scarce width.
+        scrollButtons={false}
+        allowScrollButtonsMobile={false}
         sx={{
           flex: 1,
           minWidth: 0,
@@ -124,14 +125,34 @@ function Menu({ compact = false }: { compact?: boolean }) {
         }}
       >
         <Tab label="Items" value="/items" to="/items" component={RouterLink} />
-        <Tab label="Gear Planner" value="/gear" to="/gear" component={RouterLink} />
+        <Tab
+          label={scrollNav ? "Gear" : "Gear Planner"}
+          value="/gear"
+          to="/gear"
+          component={RouterLink}
+        />
         <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
         <Tab label="NPCs" value="/npcs" to="/npcs" component={RouterLink} />
         <Tab label="Classes" value="/classes" to="/classes" component={RouterLink} />
-        <Tab label="Cosmetics" value="/cosmetics" to="/cosmetics" component={RouterLink} />
+        <Tab
+          label={scrollNav ? "Looks" : "Cosmetics"}
+          value="/cosmetics"
+          to="/cosmetics"
+          component={RouterLink}
+        />
         <Tab label="Drops" value="/drops" to="/drops" component={RouterLink} />
-        <Tab label="🌎 Market" value="/market" to="/market" component={RouterLink} />
-        <Tab label="🌎 Bank" value="/bank" to="/bank" component={RouterLink} />
+        <Tab
+          label={scrollNav ? "Market" : "🌎 Market"}
+          value="/market"
+          to="/market"
+          component={RouterLink}
+        />
+        <Tab
+          label={scrollNav ? "Bank" : "🌎 Bank"}
+          value="/bank"
+          to="/bank"
+          component={RouterLink}
+        />
         <Tab label="World" value="/world" to="/world" component={RouterLink} />
       </Tabs>
       <IconButton

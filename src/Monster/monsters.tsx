@@ -10,7 +10,19 @@
 // min hit, max hit consider crit.
 // consider levels of monster.
 
-import { Table, TableBody, TableCell, TableHead, TableRow, Paper } from "@mui/material";
+import {
+  Box,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import { GMonster, MonsterKey } from "typed-adventureland";
 import { useState, useContext, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -19,6 +31,7 @@ import { formatMonsterDropsDisplay } from "../gameData/drops";
 import { MonsterImage } from "../Shared/SpriteSkin";
 import { QuerySearchBar } from "../Shared/QuerySearchBar";
 import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
+import { abbreviateNumber } from "../Shared/utils";
 import { MonsterAdvancedSearchPanel } from "./MonsterAdvancedSearchPanel";
 import {
   buildMonsterSearchSuggestions,
@@ -29,6 +42,105 @@ import {
   serializeMonsterAdvancedForm,
   type MonsterAdvancedForm,
 } from "./monsterSearchQuery";
+
+type MonsterBrowseRowData = GMonster & {
+  avgGold: number;
+  hpPerGold: number;
+  xpPerHp: number;
+  drops: unknown;
+  spawns: string[];
+  achievements: unknown;
+};
+
+function formatMonsterStat(value: number): string {
+  if (value === -1) return "—";
+  if (Math.abs(value) >= 10000) {
+    const abbreviated = abbreviateNumber(value);
+    return abbreviated == null ? String(value) : String(abbreviated);
+  }
+  return String(value);
+}
+
+function MonsterBrowseCard({
+  monsterKey,
+  row,
+}: {
+  monsterKey: MonsterKey;
+  row: MonsterBrowseRowData;
+}) {
+  const goldValues =
+    row.avgGold != null && !Number.isNaN(row.avgGold) ? Math.round(row.avgGold) : 0;
+  const spawnLabel = row.spawns.length > 0 ? row.spawns.join(", ") : null;
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        gap: 1.25,
+        alignItems: "flex-start",
+        px: 1.25,
+        py: 1.2,
+        borderBottom: 1,
+        borderColor: "divider",
+        textAlign: "left",
+        minHeight: 64,
+      }}
+    >
+      <Box
+        sx={{
+          width: 48,
+          height: 48,
+          mt: 0.15,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+          "& > *": { maxWidth: 48, maxHeight: 48 },
+        }}
+      >
+        <MonsterImage monsterName={monsterKey} opacity={1} scale={0.85} tooltip={false} />
+      </Box>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
+          {row.name}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" noWrap display="block">
+          {monsterKey}
+          {spawnLabel ? ` · ${spawnLabel}` : ""}
+        </Typography>
+        <Stack
+          direction="row"
+          spacing={1.25}
+          sx={{ mt: 0.45, flexWrap: "wrap", columnGap: 1.25, rowGap: 0.35 }}
+        >
+          {(
+            [
+              ["HP", formatMonsterStat(row.hp)],
+              ["XP", formatMonsterStat(row.xp)],
+              ["Gold", formatMonsterStat(goldValues)],
+              ["Respawn", formatMonsterStat(row.respawn)],
+            ] as const
+          ).map(([label, value]) => (
+            <Typography
+              key={label}
+              variant="caption"
+              component="span"
+              sx={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>
+                {value}
+              </Box>{" "}
+              <Box component="span" sx={{ color: "text.secondary" }}>
+                {label}
+              </Box>
+            </Typography>
+          ))}
+        </Stack>
+      </Box>
+    </Box>
+  );
+}
 
 // function ItemImage({
 //   itemName,
@@ -94,6 +206,8 @@ import {
 
 export function Monsters() {
   const G = useContext(GDataContext);
+  const theme = useTheme();
+  const narrow = useMediaQuery(theme.breakpoints.down("md"), { noSsr: true });
   const [searchParams] = useSearchParams();
 
   const [sortConfig, setSortConfig] = useState({
@@ -292,7 +406,7 @@ export function Monsters() {
   return (
     <StickyListLayout
       filters={
-        <Paper sx={{ p: 2 }}>
+        <Paper sx={{ p: { xs: 1.25, sm: 2 } }}>
           <QuerySearchBar
             context="monster"
             value={search}
@@ -309,134 +423,149 @@ export function Monsters() {
         </Paper>
       }
     >
-      <StickyTableShell>
-        <Table stickyHeader size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell onClick={() => handleSort("monsterkey")} style={{ cursor: "pointer" }}>
-                MKey
-              </TableCell>
-              <TableCell>Monster</TableCell>
-              <TableCell onClick={() => handleSort("hp")} style={{ cursor: "pointer" }}>
-                HP
-              </TableCell>
-              <TableCell onClick={() => handleSort("avgGold")} style={{ cursor: "pointer" }}>
-                GOLD
-              </TableCell>
-              <TableCell onClick={() => handleSort("hpPerGold")} style={{ cursor: "pointer" }}>
-                HP/GOLD
-              </TableCell>
-              <TableCell onClick={() => handleSort("xp")} style={{ cursor: "pointer" }}>
-                XP
-              </TableCell>
-              <TableCell onClick={() => handleSort("xpPerHp")} style={{ cursor: "pointer" }}>
-                XP/HP
-              </TableCell>
-              <TableCell onClick={() => handleSort("respawn")} style={{ cursor: "pointer" }}>
-                Respawn
-              </TableCell>
-              <TableCell onClick={() => handleSort("armor")} style={{ cursor: "pointer" }}>
-                Armor
-              </TableCell>
-              <TableCell onClick={() => handleSort("resistance")} style={{ cursor: "pointer" }}>
-                Resistance
-              </TableCell>
-              <TableCell onClick={() => handleSort("evasion")} style={{ cursor: "pointer" }}>
-                Evasion
-              </TableCell>
-              <TableCell onClick={() => handleSort("reflection")} style={{ cursor: "pointer" }}>
-                Reflection
-              </TableCell>
-              <TableCell onClick={() => handleSort("drop")} style={{ cursor: "pointer" }}>
-                Drop
-              </TableCell>
-              <TableCell onClick={() => handleSort("spawns")} style={{ cursor: "pointer" }}>
-                Spawns
-              </TableCell>
-              <TableCell onClick={() => handleSort("achievements")} style={{ cursor: "pointer" }}>
-                Achievements
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredRowsWithFilters.map(
-              ([monsterKey, row]: [
-                MonsterKey,
-                GMonster & {
-                  avgGold: number;
-                  hpPerGold: number;
-                  xpPerHp: number;
-                  drops: any;
-                  spawns: string[];
-                  achievements: any;
+      {narrow ? (
+        <Paper
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflow: "auto",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          {filteredRowsWithFilters.map(([monsterKey, row]) => (
+            <MonsterBrowseCard key={monsterKey} monsterKey={monsterKey} row={row} />
+          ))}
+        </Paper>
+      ) : (
+        <StickyTableShell>
+          <Table stickyHeader size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell onClick={() => handleSort("monsterkey")} style={{ cursor: "pointer" }}>
+                  MKey
+                </TableCell>
+                <TableCell>Monster</TableCell>
+                <TableCell onClick={() => handleSort("hp")} style={{ cursor: "pointer" }}>
+                  HP
+                </TableCell>
+                <TableCell onClick={() => handleSort("avgGold")} style={{ cursor: "pointer" }}>
+                  GOLD
+                </TableCell>
+                <TableCell onClick={() => handleSort("hpPerGold")} style={{ cursor: "pointer" }}>
+                  HP/GOLD
+                </TableCell>
+                <TableCell onClick={() => handleSort("xp")} style={{ cursor: "pointer" }}>
+                  XP
+                </TableCell>
+                <TableCell onClick={() => handleSort("xpPerHp")} style={{ cursor: "pointer" }}>
+                  XP/HP
+                </TableCell>
+                <TableCell onClick={() => handleSort("respawn")} style={{ cursor: "pointer" }}>
+                  Respawn
+                </TableCell>
+                <TableCell onClick={() => handleSort("armor")} style={{ cursor: "pointer" }}>
+                  Armor
+                </TableCell>
+                <TableCell onClick={() => handleSort("resistance")} style={{ cursor: "pointer" }}>
+                  Resistance
+                </TableCell>
+                <TableCell onClick={() => handleSort("evasion")} style={{ cursor: "pointer" }}>
+                  Evasion
+                </TableCell>
+                <TableCell onClick={() => handleSort("reflection")} style={{ cursor: "pointer" }}>
+                  Reflection
+                </TableCell>
+                <TableCell onClick={() => handleSort("drop")} style={{ cursor: "pointer" }}>
+                  Drop
+                </TableCell>
+                <TableCell onClick={() => handleSort("spawns")} style={{ cursor: "pointer" }}>
+                  Spawns
+                </TableCell>
+                <TableCell onClick={() => handleSort("achievements")} style={{ cursor: "pointer" }}>
+                  Achievements
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredRowsWithFilters.map(
+                ([monsterKey, row]: [
+                  MonsterKey,
+                  GMonster & {
+                    avgGold: number;
+                    hpPerGold: number;
+                    xpPerHp: number;
+                    drops: any;
+                    spawns: string[];
+                    achievements: any;
+                  },
+                ]) => {
+                  const base_gold = G.base_gold[monsterKey as keyof typeof G.base_gold];
+                  const goldPerMapString = base_gold
+                    ? Object.entries(base_gold)
+                        .map(([map, gold]) => `${map}:${gold}`)
+                        .join("\n")
+                    : "";
+
+                  const goldValues = base_gold ? Object.values(base_gold) : ([] as number[]);
+                  const minGold = Math.min(...goldValues);
+                  const maxGold = Math.max(...goldValues);
+
+                  let avgGold = (minGold + maxGold) / 2;
+
+                  if (isNaN(avgGold)) {
+                    avgGold = 0;
+                  }
+
+                  let hpPerAvgGold = 0;
+                  if (!isNaN(avgGold) && avgGold !== 0) {
+                    hpPerAvgGold = Number((row.hp / avgGold).toFixed(2));
+                  }
+
+                  const achievementsList = row.achievements
+                    ? row.achievements
+                        .map((achievement: any) => `${achievement[2]}: ${achievement[3]}`)
+                        .join(", ")
+                    : "None";
+
+                  return (
+                    <TableRow key={monsterKey} hover>
+                      <TableCell>
+                        <a
+                          href={`https://adventure.land/docs/guide/all/monsters/${monsterKey.toLowerCase()}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ textDecoration: "underline", color: "inherit" }}
+                        >
+                          {monsterKey}
+                        </a>
+                      </TableCell>
+                      <TableCell>
+                        <div style={{ display: "flex", alignItems: "center" }}>
+                          <MonsterImage monsterName={monsterKey} opacity={1} scale={1} />
+                          <span style={{ marginLeft: "8px" }}>{row.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{row.hp}</TableCell>
+                      <TableCell title={goldPerMapString}>{avgGold}</TableCell>
+                      <TableCell>{hpPerAvgGold}</TableCell>
+                      <TableCell>{row.xp}</TableCell>
+                      <TableCell>{(row.xp / row.hp).toFixed(2)}</TableCell>
+                      <TableCell>{row.respawn}</TableCell>
+                      <TableCell>{row.armor}</TableCell>
+                      <TableCell>{row.resistance}</TableCell>
+                      <TableCell>{row.evasion}</TableCell>
+                      <TableCell>{row.reflection}</TableCell>
+                      <TableCell>{row.drops}</TableCell>
+                      <TableCell>{row.spawns.join(", ")}</TableCell>
+                      <TableCell>{achievementsList}</TableCell>
+                    </TableRow>
+                  );
                 },
-              ]) => {
-                const base_gold = G.base_gold[monsterKey as keyof typeof G.base_gold];
-                const goldPerMapString = base_gold
-                  ? Object.entries(base_gold)
-                      .map(([map, gold]) => `${map}:${gold}`)
-                      .join("\n")
-                  : "";
-
-                const goldValues = base_gold ? Object.values(base_gold) : ([] as number[]);
-                const minGold = Math.min(...goldValues);
-                const maxGold = Math.max(...goldValues);
-
-                let avgGold = (minGold + maxGold) / 2;
-
-                if (isNaN(avgGold)) {
-                  avgGold = 0;
-                }
-
-                let hpPerAvgGold = 0;
-                if (!isNaN(avgGold) && avgGold !== 0) {
-                  hpPerAvgGold = Number((row.hp / avgGold).toFixed(2));
-                }
-
-                const achievementsList = row.achievements
-                  ? row.achievements
-                      .map((achievement: any) => `${achievement[2]}: ${achievement[3]}`)
-                      .join(", ")
-                  : "None";
-
-                return (
-                  <TableRow key={monsterKey} hover>
-                    <TableCell>
-                      <a
-                        href={`https://adventure.land/docs/guide/all/monsters/${monsterKey.toLowerCase()}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ textDecoration: "underline", color: "inherit" }}
-                      >
-                        {monsterKey}
-                      </a>
-                    </TableCell>
-                    <TableCell>
-                      <div style={{ display: "flex", alignItems: "center" }}>
-                        <MonsterImage monsterName={monsterKey} opacity={1} scale={1} />
-                        <span style={{ marginLeft: "8px" }}>{row.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{row.hp}</TableCell>
-                    <TableCell title={goldPerMapString}>{avgGold}</TableCell>
-                    <TableCell>{hpPerAvgGold}</TableCell>
-                    <TableCell>{row.xp}</TableCell>
-                    <TableCell>{(row.xp / row.hp).toFixed(2)}</TableCell>
-                    <TableCell>{row.respawn}</TableCell>
-                    <TableCell>{row.armor}</TableCell>
-                    <TableCell>{row.resistance}</TableCell>
-                    <TableCell>{row.evasion}</TableCell>
-                    <TableCell>{row.reflection}</TableCell>
-                    <TableCell>{row.drops}</TableCell>
-                    <TableCell>{row.spawns.join(", ")}</TableCell>
-                    <TableCell>{achievementsList}</TableCell>
-                  </TableRow>
-                );
-              },
-            )}
-          </TableBody>
-        </Table>
-      </StickyTableShell>
+              )}
+            </TableBody>
+          </Table>
+        </StickyTableShell>
+      )}
     </StickyListLayout>
   );
 }

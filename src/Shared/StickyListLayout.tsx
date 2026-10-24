@@ -22,11 +22,11 @@ export function StickyListLayout({
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
-        p: 2,
+        p: { xs: 1, sm: 1.5, md: 2 },
       }}
     >
-      {toolbar ? <Box sx={{ flexShrink: 0, mb: 2 }}>{toolbar}</Box> : null}
-      {filters ? <Box sx={{ flexShrink: 0, mb: 2 }}>{filters}</Box> : null}
+      {toolbar ? <Box sx={{ flexShrink: 0, mb: { xs: 1, md: 2 } }}>{toolbar}</Box> : null}
+      {filters ? <Box sx={{ flexShrink: 0, mb: { xs: 1, md: 2 } }}>{filters}</Box> : null}
       <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>{children}</Box>
     </Box>
   );

@@ -12,9 +12,11 @@ import {
   TableRow,
   TableSortLabel,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
-import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { GCraft, GItem, ItemKey } from "typed-adventureland";
 
 import { getItemAcquisitionCached } from "../gameData/itemAcquisition";
@@ -31,6 +33,7 @@ import { getItemAbilityKey, getItemBadges, getItemClasses } from "../gameData/it
 import { abilityBlurb } from "../gameData/itemEffects";
 import { GDataContext } from "../GDataContext";
 import {
+  BrowseAcquisitionStrip,
   BrowseCraftCell,
   BrowseDropsCell,
   BrowseShopsCell,
@@ -62,102 +65,179 @@ type ItemBrowseRowProps = {
   to: string;
 };
 
-const ItemBrowseRow = memo(
-  ({ itemKey, gItem, drops, shops, craft, usedIn, to }: ItemBrowseRowProps) => {
-    const ability = getItemAbilityKey(gItem);
-    const abilityLine = ability
-      ? abilityBlurb(
-          ability,
-          (gItem as { attr0?: number }).attr0,
-          (gItem as { attr1?: number }).attr1,
-        )
-      : null;
-    const flagBadges = getItemBadges(gItem).filter((b) =>
-      ["event", "exclusive", "exchange", "quest", "special"].includes(b.key),
-    );
+function ItemIdentity({
+  itemKey,
+  gItem,
+  dense = false,
+  showTypeInMeta = false,
+  footer = null,
+}: {
+  itemKey: ItemKey;
+  gItem: GItem;
+  dense?: boolean;
+  /** Fold type/wtype into the key line (mobile cards). */
+  showTypeInMeta?: boolean;
+  /** Extra content under the identity (e.g. acquisition strip on cards). */
+  footer?: ReactNode;
+}) {
+  const ability = getItemAbilityKey(gItem);
+  const abilityLine = ability
+    ? abilityBlurb(
+        ability,
+        (gItem as { attr0?: number }).attr0,
+        (gItem as { attr1?: number }).attr1,
+      )
+    : null;
+  const flagBadges = getItemBadges(gItem).filter((b) =>
+    ["event", "exclusive", "exchange", "quest", "special"].includes(b.key),
+  );
+  const typeBits = showTypeInMeta ? [gItem.type, gItem.wtype].filter(Boolean) : [];
+  const metaLine = [itemKey, ...typeBits].join(" · ");
 
-    return (
-      <TableRow
-        hover
-        component={RouterLink}
-        to={to}
-        sx={{
-          cursor: "pointer",
-          textDecoration: "none",
-          color: "inherit",
-          contentVisibility: "auto",
-          containIntrinsicSize: "auto 88px",
-          "&:hover": { backgroundColor: "action.hover" },
-        }}
-      >
-        <TableCell>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <ItemInstance itemInfo={{ name: itemKey }} />
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="body2" noWrap>
-                {gItem.name}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" noWrap display="block">
-                {itemKey}
-              </Typography>
-              {abilityLine && (
-                <Typography
-                  variant="caption"
-                  color="warning.light"
-                  noWrap
-                  display="block"
-                  title={abilityLine}
-                >
-                  {abilityLine}
-                </Typography>
-              )}
-              {flagBadges.length > 0 && (
-                <Stack direction="row" spacing={0.5} sx={{ mt: 0.25, flexWrap: "wrap", gap: 0.5 }}>
-                  {flagBadges.map((badge) => (
-                    <Chip
-                      key={badge.key}
-                      size="small"
-                      label={badge.label}
-                      variant="outlined"
-                      sx={{ height: 20, fontSize: 10 }}
-                    />
-                  ))}
-                </Stack>
-              )}
-            </Box>
-          </Stack>
-        </TableCell>
-        <TableCell>
-          <Typography variant="body2">{gItem.type ?? "—"}</Typography>
-          {gItem.wtype ? (
-            <Typography variant="caption" color="text.secondary" display="block">
-              {gItem.wtype}
-            </Typography>
+  return (
+    <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ minWidth: 0 }}>
+      <Box sx={{ flexShrink: 0, pt: 0.15 }}>
+        <ItemInstance itemInfo={{ name: itemKey }} size={40} />
+      </Box>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+          <Typography variant="body2" noWrap sx={{ fontWeight: dense ? 600 : 400, minWidth: 0 }}>
+            {gItem.name}
+          </Typography>
+          {dense && gItem.tier != null ? (
+            <Chip
+              size="small"
+              label={`T${gItem.tier}`}
+              variant="outlined"
+              sx={{ height: 20, fontSize: 10, flexShrink: 0 }}
+            />
           ) : null}
-        </TableCell>
-        <TableCell align="right">
-          <Typography variant="body2">{gItem.tier ?? "—"}</Typography>
-        </TableCell>
-        <TableCell>
-          <BrowseDropsCell drops={drops} />
-        </TableCell>
-        <TableCell>
-          <BrowseShopsCell shops={shops} />
-        </TableCell>
-        <TableCell>
-          <BrowseCraftCell craft={craft} />
-        </TableCell>
-        <TableCell>
-          <BrowseUsedForCell outputs={usedIn} />
-        </TableCell>
-      </TableRow>
-    );
-  },
+        </Stack>
+        <Typography variant="caption" color="text.secondary" noWrap display="block">
+          {metaLine}
+        </Typography>
+        {abilityLine && (
+          <Typography
+            variant="caption"
+            color="warning.light"
+            noWrap
+            display="block"
+            title={abilityLine}
+          >
+            {abilityLine}
+          </Typography>
+        )}
+        {flagBadges.length > 0 && (
+          <Stack direction="row" spacing={0.5} sx={{ mt: 0.25, flexWrap: "wrap", gap: 0.5 }}>
+            {flagBadges.map((badge) => (
+              <Chip
+                key={badge.key}
+                size="small"
+                label={badge.label}
+                variant="outlined"
+                sx={{ height: 20, fontSize: 10 }}
+              />
+            ))}
+          </Stack>
+        )}
+        {footer}
+      </Box>
+    </Stack>
+  );
+}
+
+const ItemBrowseRow = memo(
+  ({ itemKey, gItem, drops, shops, craft, usedIn, to }: ItemBrowseRowProps) => (
+    <TableRow
+      hover
+      component={RouterLink}
+      to={to}
+      sx={{
+        cursor: "pointer",
+        textDecoration: "none",
+        color: "inherit",
+        contentVisibility: "auto",
+        containIntrinsicSize: "auto 88px",
+        "&:hover": { backgroundColor: "action.hover" },
+      }}
+    >
+      <TableCell>
+        <ItemIdentity itemKey={itemKey} gItem={gItem} />
+      </TableCell>
+      <TableCell>
+        <Typography variant="body2">{gItem.type ?? "—"}</Typography>
+        {gItem.wtype ? (
+          <Typography variant="caption" color="text.secondary" display="block">
+            {gItem.wtype}
+          </Typography>
+        ) : null}
+      </TableCell>
+      <TableCell align="right">
+        <Typography variant="body2">{gItem.tier ?? "—"}</Typography>
+      </TableCell>
+      <TableCell>
+        <BrowseDropsCell drops={drops} />
+      </TableCell>
+      <TableCell>
+        <BrowseShopsCell shops={shops} />
+      </TableCell>
+      <TableCell>
+        <BrowseCraftCell craft={craft} />
+      </TableCell>
+      <TableCell>
+        <BrowseUsedForCell outputs={usedIn} />
+      </TableCell>
+    </TableRow>
+  ),
 );
 ItemBrowseRow.displayName = "ItemBrowseRow";
 
+const ItemBrowseCard = memo(
+  ({
+    itemKey,
+    gItem,
+    drops,
+    shops,
+    craft,
+    usedIn,
+    to,
+    showTypeInMeta,
+  }: ItemBrowseRowProps & { showTypeInMeta: boolean }) => (
+    <Box
+      component={RouterLink}
+      to={to}
+      sx={{
+        display: "block",
+        textDecoration: "none",
+        color: "inherit",
+        px: 1.25,
+        py: 1.15,
+        borderBottom: 1,
+        borderColor: "divider",
+        "&:active": { backgroundColor: "action.selected" },
+        "@media (hover: hover)": {
+          "&:hover": { backgroundColor: "action.hover" },
+        },
+      }}
+    >
+      <ItemIdentity
+        itemKey={itemKey}
+        gItem={gItem}
+        dense
+        showTypeInMeta={showTypeInMeta}
+        footer={
+          <BrowseAcquisitionStrip drops={drops} shops={shops} craft={craft} usedIn={usedIn} />
+        }
+      />
+    </Box>
+  ),
+);
+ItemBrowseCard.displayName = "ItemBrowseCard";
+
 export function ItemsBrowse() {
   const G = useContext(GDataContext);
+  const theme = useTheme();
+  const narrow = useMediaQuery(theme.breakpoints.down("md"), { noSsr: true });
   const { params, setParam, clearFilters, hasActiveFilters, browseQuery } = useItemsBrowseParams();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ItemCatalogAdvancedForm>(EMPTY_ITEM_CATALOG_ADVANCED);
@@ -250,24 +330,45 @@ export function ItemsBrowse() {
     setOpen(false);
   };
 
+  const matrixLabel = narrow
+    ? matrixAddCount > 0
+      ? `Matrix (${matrixAddCount})`
+      : "Matrix"
+    : matrixAddCount > 0
+    ? `Balance matrix (${matrixAddCount})`
+    : "Balance matrix";
+
+  // When the query already pins a type, repeating it on every card is noise.
+  const searchHasTypeFilter = /\btype\s*:/i.test(params.search);
+
   return (
     <StickyListLayout
       toolbar={
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Box>
-            <Typography variant="h5">Items</Typography>
-            <Typography variant="body2" color="text.secondary">
+        <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant={narrow ? "h6" : "h5"}>Items</Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ display: { xs: "none", sm: "block" } }}
+            >
               Browse drops, shops, crafts, and what each item is used for
             </Typography>
           </Box>
-          <Button component={RouterLink} to={matrixHref} variant="outlined">
-            {matrixAddCount > 0 ? `Balance matrix (${matrixAddCount})` : "Balance matrix"}
+          <Button
+            component={RouterLink}
+            to={matrixHref}
+            variant="outlined"
+            size="small"
+            sx={{ flexShrink: 0, minHeight: 36, px: { xs: 1.25, sm: 2 } }}
+          >
+            {matrixLabel}
           </Button>
         </Stack>
       }
       filters={
-        <Paper sx={{ p: 2 }}>
-          <Stack spacing={1.5}>
+        <Paper sx={{ p: { xs: 1, sm: 2 } }}>
+          <Stack spacing={1}>
             <QuerySearchBar
               context="catalog"
               value={params.search}
@@ -294,16 +395,46 @@ export function ItemsBrowse() {
                 active: hasActiveFilters || itemCatalogAdvancedHasValues(form),
               }}
             />
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ gap: 1 }}>
-              <Chip label={`${tableRows.length} items`} size="small" />
+            <Stack
+              direction="row"
+              spacing={0.75}
+              alignItems="center"
+              sx={{ flexWrap: "wrap", gap: 0.75 }}
+            >
+              <Chip
+                label={`${tableRows.length} items`}
+                size="small"
+                sx={{ fontVariantNumeric: "tabular-nums" }}
+              />
               {hasActiveFilters && (
-                <Button size="small" onClick={clearFilters}>
+                <Button size="small" onClick={clearFilters} sx={{ minHeight: 28, py: 0 }}>
                   Clear
                 </Button>
               )}
-              <Link component={RouterLink} to={matrixHref} variant="body2" sx={{ ml: "auto" }}>
-                {matrixAddCount > 0 ? `Open matrix with ${matrixAddCount} items` : "Open matrix"}
-              </Link>
+              {narrow ? (
+                (
+                  [
+                    ["name", "Name"],
+                    ["type", "Type"],
+                    ["tier", "Tier"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <Chip
+                    key={key}
+                    size="small"
+                    clickable
+                    color={params.sort === key ? "primary" : "default"}
+                    variant={params.sort === key ? "filled" : "outlined"}
+                    label={params.sort === key ? `${label} ↑` : label}
+                    onClick={() => toggleSort(key)}
+                    sx={{ height: 26, fontSize: 12 }}
+                  />
+                ))
+              ) : (
+                <Link component={RouterLink} to={matrixHref} variant="body2" sx={{ ml: "auto" }}>
+                  {matrixAddCount > 0 ? `Open matrix with ${matrixAddCount} items` : "Open matrix"}
+                </Link>
+              )}
             </Stack>
           </Stack>
         </Paper>
@@ -319,6 +450,29 @@ export function ItemsBrowse() {
               Clear filters
             </Button>
           )}
+        </Paper>
+      ) : narrow ? (
+        <Paper
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflow: "auto",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          {tableRows.map((row) => (
+            <ItemBrowseCard
+              key={row.key}
+              itemKey={row.key}
+              gItem={row.gItem}
+              drops={row.drops}
+              shops={row.shops}
+              craft={row.craft}
+              usedIn={row.usedIn}
+              to={row.to}
+              showTypeInMeta={!searchHasTypeFilter}
+            />
+          ))}
         </Paper>
       ) : (
         <StickyTableShell>

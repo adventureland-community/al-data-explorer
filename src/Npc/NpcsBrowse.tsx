@@ -2,12 +2,15 @@ import {
   Box,
   Chip,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
@@ -37,8 +40,13 @@ import {
   type NpcAdvancedForm,
 } from "./npcSearchQuery";
 
+function npcMapLabel(row: NpcCatalogRow): string {
+  if (row.maps.length === 0) return "—";
+  return row.maps.map((m) => mapDisplayLabel(m)).join(", ");
+}
+
 const NpcBrowseRow = memo(({ row }: { row: NpcCatalogRow }) => {
-  const mapLabel = row.maps.length === 0 ? "—" : row.maps.map((m) => mapDisplayLabel(m)).join(", ");
+  const mapLabel = npcMapLabel(row);
 
   return (
     <TableRow hover component={RouterLink} to={npcHref(row.id)} sx={{ textDecoration: "none" }}>
@@ -80,8 +88,89 @@ const NpcBrowseRow = memo(({ row }: { row: NpcCatalogRow }) => {
 });
 NpcBrowseRow.displayName = "NpcBrowseRow";
 
+const NpcBrowseCard = memo(({ row }: { row: NpcCatalogRow }) => {
+  const mapLabel = npcMapLabel(row);
+  const extras = [
+    row.shopItemCount > 0 ? `${row.shopItemCount} shop` : null,
+    row.token || null,
+  ].filter(Boolean);
+
+  return (
+    <Box
+      component={RouterLink}
+      to={npcHref(row.id)}
+      sx={{
+        display: "flex",
+        gap: 1.25,
+        alignItems: "flex-start",
+        px: 1.25,
+        py: 1.25,
+        textDecoration: "none",
+        color: "inherit",
+        borderBottom: 1,
+        borderColor: "divider",
+        minHeight: 64,
+        "&:active": { backgroundColor: "action.selected" },
+        "@media (hover: hover)": {
+          "&:hover": { backgroundColor: "action.hover" },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          width: 48,
+          pt: 0.25,
+          flexShrink: 0,
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        <NpcImage npcId={row.id} scale={1.2} tooltip={false} />
+      </Box>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Stack
+          direction="row"
+          spacing={0.75}
+          alignItems="center"
+          sx={{ flexWrap: "wrap", gap: 0.75 }}
+        >
+          <Typography variant="body2" noWrap sx={{ fontWeight: 600, minWidth: 0 }}>
+            {row.name}
+          </Typography>
+          <Chip size="small" label={row.role} sx={{ height: 22, fontSize: 11 }} />
+        </Stack>
+        <Typography variant="caption" color="text.secondary" noWrap display="block">
+          {row.id}
+          {extras.length > 0 ? ` · ${extras.join(" · ")}` : ""}
+        </Typography>
+        {mapLabel !== "—" ? (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            title={mapLabel}
+            sx={{
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              mt: 0.2,
+              lineHeight: 1.35,
+              textAlign: "left",
+            }}
+          >
+            {mapLabel}
+          </Typography>
+        ) : null}
+      </Box>
+    </Box>
+  );
+});
+NpcBrowseCard.displayName = "NpcBrowseCard";
+
 export function NpcsBrowse() {
   const G = useContext(GDataContext);
+  const theme = useTheme();
+  const narrow = useMediaQuery(theme.breakpoints.down("md"), { noSsr: true });
   const [searchParams, setSearchParams] = useSearchParams();
   const migratedRef = useRef(false);
   const [open, setOpen] = useState(false);
@@ -159,13 +248,17 @@ export function NpcsBrowse() {
       toolbar={
         <Box>
           <Typography variant="h5">NPCs</Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ display: { xs: "none", sm: "block" } }}
+          >
             Merchants, quest givers, transporters, and townsfolk
           </Typography>
         </Box>
       }
       filters={
-        <Paper sx={{ p: 2 }}>
+        <Paper sx={{ p: { xs: 1.25, sm: 2 } }}>
           <QuerySearchBar
             context="npc"
             value={search}
@@ -197,25 +290,40 @@ export function NpcsBrowse() {
         </Paper>
       }
     >
-      <StickyTableShell>
-        <Table stickyHeader size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell />
-              <TableCell>Name</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Maps</TableCell>
-              <TableCell align="right">Shop</TableCell>
-              <TableCell>Token</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((row) => (
-              <NpcBrowseRow key={row.id} row={row} />
-            ))}
-          </TableBody>
-        </Table>
-      </StickyTableShell>
+      {narrow ? (
+        <Paper
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflow: "auto",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          {rows.map((row) => (
+            <NpcBrowseCard key={row.id} row={row} />
+          ))}
+        </Paper>
+      ) : (
+        <StickyTableShell>
+          <Table stickyHeader size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell />
+                <TableCell>Name</TableCell>
+                <TableCell>Role</TableCell>
+                <TableCell>Maps</TableCell>
+                <TableCell align="right">Shop</TableCell>
+                <TableCell>Token</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.map((row) => (
+                <NpcBrowseRow key={row.id} row={row} />
+              ))}
+            </TableBody>
+          </Table>
+        </StickyTableShell>
+      )}
     </StickyListLayout>
   );
 }
