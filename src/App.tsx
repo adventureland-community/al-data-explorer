@@ -58,7 +58,7 @@ const ThemeModeContext = React.createContext<{
 function Menu({ compact = false }: { compact?: boolean }) {
   const { mode, toggleMode } = useContext(ThemeModeContext);
   const theme = useTheme();
-  // Ten tabs overflow phones and many tablets; scroll instead of clipping.
+  // Eleven tabs overflow phones and many tablets; scroll instead of clipping.
   const scrollNav = useMediaQuery(theme.breakpoints.down("lg"), { noSsr: true });
   const { pathname } = useLocation();
   const routeMatch = useRouteMatch([
@@ -72,6 +72,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
     "/drops",
     "/classes",
     "/cosmetics",
+    "/characters",
   ]);
   const itemsSelected = pathname === "/items" || pathname.startsWith("/items/");
   const classesSelected =
@@ -81,6 +82,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
     pathname.startsWith("/skills/");
   const cosmeticsSelected = pathname === "/cosmetics" || pathname.startsWith("/cosmetics/");
   const npcsSelected = pathname === "/npcs" || pathname.startsWith("/npcs/");
+  const charactersSelected = pathname === "/characters" || pathname.startsWith("/characters/");
   const currentTab = itemsSelected
     ? "/items"
     : classesSelected
@@ -89,6 +91,8 @@ function Menu({ compact = false }: { compact?: boolean }) {
     ? "/cosmetics"
     : npcsSelected
     ? "/npcs"
+    : charactersSelected
+    ? "/characters"
     : routeMatch?.pattern?.path ?? false;
 
   return (
@@ -154,6 +158,12 @@ function Menu({ compact = false }: { compact?: boolean }) {
           component={RouterLink}
         />
         <Tab label="World" value="/world" to="/world" component={RouterLink} />
+        <Tab
+          label={scrollNav ? "Chars" : "Characters"}
+          value="/characters"
+          to="/characters"
+          component={RouterLink}
+        />
       </Tabs>
       <IconButton
         aria-label={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}

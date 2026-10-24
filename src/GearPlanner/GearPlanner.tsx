@@ -33,17 +33,24 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { ItemInfo, SlotType } from "typed-adventureland";
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
 import { LoadoutPickerShell } from "./LoadoutPickerShell";
 import { SavedLoadout, SelectedCharacterClass } from "./types";
-import { ItemInstance } from "../Shared/ItemInstance";
+import { ItemInstanceLabel } from "../Shared/ItemInstanceLabel";
 import { SaveLinkButton } from "./SaveLinkButton";
 import { LoadLinkButton } from "./LoadLinkButton";
 import { ImportLinkButton } from "./ImportLinkButton";
+import { ShareLinkButton } from "./ShareLinkButton";
 import { StatsPanel } from "./StatsPanel";
-import { getFullItemName } from "../Shared/iteminfo-util";
 import { cloneLoadoutGear } from "../gameData/loadoutStats";
+import { takePendingGearPlannerLoadout } from "../Characters/pendingGearPlannerLoadout";
+import {
+  decodeGearShareState,
+  encodeGearShareState,
+  shareStateToSavedLoadout,
+} from "./gearShareState";
 
 function Info() {
   return (
@@ -74,10 +81,61 @@ function Info() {
 export { GearSlot } from "./GearSlot";
 export function GearPlanner() {
   const G = useContext(GDataContext);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [gear, setGear] = useState<{ [slot in SlotType]?: ItemInfo }>({});
   const [selectedClass, setSelectedClass] = useState<SelectedCharacterClass>();
   const [level, setLevel] = useState(1);
+  const appliedPending = useRef(false);
+  const skipNextUrlWrite = useRef(false);
+
+  useEffect(() => {
+    if (!G || appliedPending.current) return;
+
+    const classList = Object.entries(G.classes ?? []).map(
+      ([className, item]) => ({ className, ...item } as SelectedCharacterClass),
+    );
+
+    const apply = (data: SavedLoadout) => {
+      appliedPending.current = true;
+      skipNextUrlWrite.current = true;
+      setLevel(data.level);
+      setGear(cloneLoadoutGear(data.gear));
+      setSelectedClass(classList.find((c) => c.className === data.classKey));
+    };
+
+    const fromUrl = searchParams.get("gear");
+    if (fromUrl) {
+      const decoded = decodeGearShareState(fromUrl);
+      if (decoded) {
+        apply(shareStateToSavedLoadout(decoded));
+        return;
+      }
+    }
+
+    const pending = takePendingGearPlannerLoadout();
+    if (pending) apply(pending.data);
+  }, [G, searchParams]);
+
+  // Keep ?gear= in sync so the address bar stays a shareable source of truth.
+  useEffect(() => {
+    if (!G) return;
+    if (skipNextUrlWrite.current) {
+      skipNextUrlWrite.current = false;
+      return;
+    }
+    const hasContent = Object.keys(gear).length > 0 || Boolean(selectedClass);
+    if (!hasContent) return;
+    appliedPending.current = true;
+    const encoded = encodeGearShareState({
+      gear,
+      className: selectedClass?.className,
+      level,
+    });
+    const current = searchParams.get("gear");
+    if (current === encoded) return;
+    setSearchParams({ gear: encoded }, { replace: true });
+  }, [G, gear, selectedClass, level, searchParams, setSearchParams]);
 
   if (!G) {
     return <>WAITING!</>;
@@ -102,6 +160,8 @@ export function GearPlanner() {
   };
 
   const onLoadSavedLoadout = (_name: string, data: SavedLoadout) => {
+    skipNextUrlWrite.current = true;
+    appliedPending.current = true;
     setLevel(data.level);
     setGear(cloneLoadoutGear(data.gear));
     setSelectedClass(classes.find((c) => c.className === data.classKey));
@@ -124,6 +184,7 @@ export function GearPlanner() {
           <SaveLinkButton gear={gear} characterClass={selectedClass} level={level} />
           <LoadLinkButton load={onLoadSavedLoadout} />
           <ImportLinkButton load={onLoadSavedLoadout} />
+          <ShareLinkButton gear={gear} characterClass={selectedClass} level={level} />
         </Grid>
         <Grid item xs={4}>
           <LoadoutPickerShell
@@ -156,10 +217,9 @@ export function GearPlanner() {
                         onClick={() => onRemoveGear(slot as SlotType)}
                       />
                     </TableCell>
-                    <TableCell width={40}>
-                      <ItemInstance itemInfo={itemInfo} />
+                    <TableCell>
+                      <ItemInstanceLabel itemInfo={itemInfo} includeLevel linkToDetail={false} />
                     </TableCell>
-                    <TableCell>{getFullItemName(itemInfo, G)}</TableCell>
                   </TableRow>
                 );
               })}

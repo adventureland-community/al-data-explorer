@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 
 import "./index.css";
 import App, { FullBleedLayout, StandardLayout } from "./App";
@@ -20,6 +20,11 @@ import { SkillDetail } from "./Classes/SkillDetail";
 import { DressingRoom } from "./Cosmetics/DressingRoom";
 import { NpcsBrowse } from "./Npc/NpcsBrowse";
 import { NpcDetail } from "./Npc/NpcDetail";
+import { CharactersBrowse } from "./Characters/CharactersBrowse";
+import { CharacterClassPage } from "./Characters/CharacterClassPage";
+import { CharacterCompare } from "./Characters/CharacterCompare";
+import { CharacterDetail } from "./Characters/CharacterDetail";
+import { CharacterPlayerPage } from "./Characters/CharacterPlayerPage";
 
 // TODO: https://reactrouter.com/en/main/start/tutorial#handling-not-found-errors
 
@@ -86,6 +91,30 @@ const router = createBrowserRouter([
           {
             path: "skills/:skillKey",
             element: <SkillDetail />,
+          },
+          {
+            path: "characters",
+            element: <CharactersBrowse />,
+          },
+          {
+            path: "characters/compare",
+            element: <CharacterCompare />,
+          },
+          {
+            path: "characters/player/:name",
+            element: <CharacterPlayerPage />,
+          },
+          {
+            path: "characters/class/:classKey",
+            element: <CharacterClassPage />,
+          },
+          {
+            path: "characters/:name",
+            element: <CharacterDetail />,
+          },
+          {
+            path: "hof",
+            element: <Navigate to="/characters" replace />,
           },
         ],
       },
