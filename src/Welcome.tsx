@@ -43,6 +43,12 @@ const sections = [
     path: "/world",
     description: "Explore a map top-down like the game, or view every map at once in 3D.",
   },
+  {
+    title: "Characters",
+    path: "/characters",
+    description:
+      "Browse live characters by class and level, inspect equipped gear, and see common items.",
+  },
 ];
 
 export function Welcome() {

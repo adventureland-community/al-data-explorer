@@ -3,8 +3,9 @@
  *
  * Deployed URL: https://al-proxy.thmsn.workers.dev
  *
- * Proxies adventure.land player/character HTML for gear import on
- * https://aldata.adventureland.community (local npm start uses /al).
+ * Proxies adventure.land player/character/characters HTML for gear import
+ * and Hall of Fame on https://aldata.adventureland.community
+ * (local npm start uses /al).
  */
 
 const AL_UPSTREAM = "https://adventure.land";
@@ -69,15 +70,16 @@ export default {
       return json(
         {
           ok: true,
-          endpoints: ["/player/:name", "/character/:name"],
+          endpoints: ["/player/:name", "/character/:name", "/characters"],
         },
         200,
         cors,
       );
     }
 
-    if (!/^\/(player|character)\/[^/]+$/.test(path)) {
-      return text("Not found", 404, cors);
+    const allowedPath = path === "/characters" || /^\/(player|character)\/[^/]+$/.test(path);
+    if (!allowedPath) {
+      return text("Not found. Use /player/:name, /character/:name, or /characters", 404, cors);
     }
 
     try {
