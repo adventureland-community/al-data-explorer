@@ -47,7 +47,11 @@ import { StatsPanel } from "./StatsPanel";
 import { getFullItemName } from "../Shared/iteminfo-util";
 import { cloneLoadoutGear } from "../gameData/loadoutStats";
 import { takePendingGearPlannerLoadout } from "../Characters/pendingGearPlannerLoadout";
-import { decodeGearShareState, shareStateToSavedLoadout } from "./gearShareState";
+import {
+  decodeGearShareState,
+  encodeGearShareState,
+  shareStateToSavedLoadout,
+} from "./gearShareState";
 
 function Info() {
   return (
@@ -78,12 +82,13 @@ function Info() {
 export { GearSlot } from "./GearSlot";
 export function GearPlanner() {
   const G = useContext(GDataContext);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [gear, setGear] = useState<{ [slot in SlotType]?: ItemInfo }>({});
   const [selectedClass, setSelectedClass] = useState<SelectedCharacterClass>();
   const [level, setLevel] = useState(1);
   const appliedPending = useRef(false);
+  const skipNextUrlWrite = useRef(false);
 
   useEffect(() => {
     if (!G || appliedPending.current) return;
@@ -94,6 +99,7 @@ export function GearPlanner() {
 
     const apply = (data: SavedLoadout) => {
       appliedPending.current = true;
+      skipNextUrlWrite.current = true;
       setLevel(data.level);
       setGear(cloneLoadoutGear(data.gear));
       setSelectedClass(classList.find((c) => c.className === data.classKey));
@@ -111,6 +117,26 @@ export function GearPlanner() {
     const pending = takePendingGearPlannerLoadout();
     if (pending) apply(pending.data);
   }, [G, searchParams]);
+
+  // Keep ?gear= in sync so the address bar stays a shareable source of truth.
+  useEffect(() => {
+    if (!G) return;
+    if (skipNextUrlWrite.current) {
+      skipNextUrlWrite.current = false;
+      return;
+    }
+    const hasContent = Object.keys(gear).length > 0 || Boolean(selectedClass);
+    if (!hasContent) return;
+    appliedPending.current = true;
+    const encoded = encodeGearShareState({
+      gear,
+      className: selectedClass?.className,
+      level,
+    });
+    const current = searchParams.get("gear");
+    if (current === encoded) return;
+    setSearchParams({ gear: encoded }, { replace: true });
+  }, [G, gear, selectedClass, level, searchParams, setSearchParams]);
 
   if (!G) {
     return <>WAITING!</>;
@@ -135,6 +161,8 @@ export function GearPlanner() {
   };
 
   const onLoadSavedLoadout = (_name: string, data: SavedLoadout) => {
+    skipNextUrlWrite.current = true;
+    appliedPending.current = true;
     setLevel(data.level);
     setGear(cloneLoadoutGear(data.gear));
     setSelectedClass(classes.find((c) => c.className === data.classKey));

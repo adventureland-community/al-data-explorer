@@ -6,7 +6,9 @@ import { isClassKey } from "../gameData/classSkills";
 import { SavedLoadout } from "../GearPlanner/types";
 
 const AL_PROXY_BASE = "https://al-proxy.thmsn.workers.dev";
-const CACHE_TTL_MS = 5 * 60 * 1000;
+/** List-page gear is bulk-hydrated; keep it around for the session + localStorage. */
+const CACHE_TTL_MS = 30 * 60 * 1000;
+const STORAGE_KEY = "al-characters-loadouts-v1";
 
 export type CharacterLoadout = SavedLoadout & {
   name: string;
@@ -26,6 +28,42 @@ function characterUrl(name: string): string {
 function cacheKey(name: string): string {
   return name.trim().toLowerCase();
 }
+
+function persistCache() {
+  try {
+    const entries = Array.from(loadoutCache.values()).map((e) => ({
+      at: e.at,
+      value: e.value,
+    }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ at: Date.now(), entries }));
+  } catch {
+    // quota / private mode
+  }
+}
+
+function hydrateCacheFromStorage() {
+  if (loadoutCache.size > 0) return;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as {
+      at: number;
+      entries: CacheEntry[];
+    };
+    if (!parsed?.entries?.length) return;
+    if (Date.now() - parsed.at > CACHE_TTL_MS) return;
+    const now = Date.now();
+    for (const entry of parsed.entries) {
+      if (!entry?.value?.name) continue;
+      if (now - entry.at > CACHE_TTL_MS) continue;
+      loadoutCache.set(cacheKey(entry.value.name), entry);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+hydrateCacheFromStorage();
 
 /** Parse armor skin + cosmetics from adventure.land character HTML. */
 export function parseCharacterLookFromHtml(html: string): ClassLook | undefined {
@@ -101,7 +139,16 @@ export function putCachedCharacterLoadout(value: CharacterLoadout): void {
   loadoutCache.set(cacheKey(value.name), { at: Date.now(), value });
 }
 
-/** Fetch and parse a character page. Results are cached briefly across Characters routes. */
+/** Seed cache from a bulk `/characters` parse (gear + looks already in the list HTML). */
+export function seedLoadoutsFromCharactersPage(loadouts: CharacterLoadout[]): void {
+  const at = Date.now();
+  for (const value of loadouts) {
+    loadoutCache.set(cacheKey(value.name), { at, value });
+  }
+  persistCache();
+}
+
+/** Fetch and parse a character page. Prefer list-page cache when present. */
 export async function fetchCharacterLoadout(
   name: string,
   options?: { force?: boolean },
@@ -118,6 +165,7 @@ export async function fetchCharacterLoadout(
   });
   const value = parseCharacterLoadoutHtml(response.data, name);
   loadoutCache.set(key, { at: Date.now(), value });
+  persistCache();
   return value;
 }
 

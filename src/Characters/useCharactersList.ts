@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 
+import { seedLoadoutsFromCharactersPage } from "./fetchCharacterLoadout";
 import { getCharactersHtml } from "./getCharacters";
-import { ListedCharacter, parseCharactersHtml } from "./parseCharacters";
+import { ListedCharacter, parseCharactersPage } from "./parseCharacters";
 
 type CharactersListState = {
   characters: ListedCharacter[];
@@ -9,6 +10,8 @@ type CharactersListState = {
   error: string | null;
   /** True when showing a stale local snapshot because live fetch failed. */
   fromCache: boolean;
+  /** Loadouts seeded from the characters list HTML (gear + looks). */
+  loadoutsReady: boolean;
   reload: () => void;
 };
 
@@ -16,6 +19,7 @@ const STORAGE_KEY = "al-characters-list-v1";
 const STORAGE_TTL_MS = 30 * 60 * 1000;
 
 let cached: ListedCharacter[] | null = null;
+let loadoutsReady = false;
 let inflight: Promise<ListedCharacter[]> | null = null;
 
 function readPersisted(): ListedCharacter[] | null {
@@ -40,18 +44,20 @@ function writePersisted(characters: ListedCharacter[]) {
 }
 
 async function loadCharacters(force = false): Promise<ListedCharacter[]> {
-  if (!force && cached) return cached;
+  if (!force && cached && loadoutsReady) return cached;
   if (!force && inflight) return inflight;
 
   inflight = (async () => {
     const html = await getCharactersHtml();
-    const parsed = parseCharactersHtml(html);
-    if (parsed.length === 0) {
+    const parsed = parseCharactersPage(html);
+    if (parsed.characters.length === 0) {
       throw new Error("No characters found in the adventure.land characters page.");
     }
-    cached = parsed;
-    writePersisted(parsed);
-    return parsed;
+    seedLoadoutsFromCharactersPage(parsed.loadouts);
+    loadoutsReady = true;
+    cached = parsed.characters;
+    writePersisted(parsed.characters);
+    return parsed.characters;
   })();
 
   try {
@@ -68,22 +74,24 @@ if (!cached) {
 /** Shared adventure.land/characters list (memory + localStorage across Characters routes). */
 export function useCharactersList(): CharactersListState {
   const [characters, setCharacters] = useState<ListedCharacter[]>(cached ?? []);
-  const [loading, setLoading] = useState(!cached);
+  const [loading, setLoading] = useState(!cached || !loadoutsReady);
   const [error, setError] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
+  const [ready, setReady] = useState(loadoutsReady);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     const run = async () => {
-      setLoading(!cached);
+      setLoading(!cached || !loadoutsReady);
       setError(null);
       setFromCache(false);
       try {
         const list = await loadCharacters(tick > 0);
         if (cancelled) return;
         setCharacters(list);
+        setReady(true);
       } catch (err) {
         if (cancelled) return;
         console.error("Error fetching characters:", err);
@@ -119,8 +127,11 @@ export function useCharactersList(): CharactersListState {
     loading,
     error,
     fromCache,
+    loadoutsReady: ready,
     reload: () => {
       cached = null;
+      loadoutsReady = false;
+      setReady(false);
       setTick((n) => n + 1);
     },
   };

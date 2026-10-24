@@ -67,7 +67,11 @@ export function CharacterPlayerPage() {
         {playerName}
       </Typography>
       <Typography sx={{ mb: 2 }} color="text.secondary">
-        Public characters on this adventure.land player page.{" "}
+        Fallback for accounts or characters not on the public top-characters list. Prefer searching{" "}
+        <Link component={RouterLink} to="/characters" underline="hover">
+          Characters
+        </Link>{" "}
+        first.{" "}
         <Link
           href={`https://adventure.land/player/${encodeURIComponent(playerName)}`}
           target="_blank"

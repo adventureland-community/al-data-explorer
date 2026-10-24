@@ -120,12 +120,12 @@ export function CharactersBrowse() {
         Characters
       </Typography>
       <Typography sx={{ marginBottom: 2 }} color="text.secondary">
-        Live characters from adventure.land. Search, filter by class, open a class leaderboard, or
-        click a name for equipped gear.{" "}
+        Top characters from adventure.land/characters (gear included in that one page). Search,
+        filter by class, or click a name.{" "}
         <Link component={RouterLink} to="/characters/compare" underline="hover">
-          Compare two characters
+          Compare
         </Link>
-        .
+        . Use &quot;Lookup missing&quot; only for someone not on this public list.
       </Typography>
 
       {loading && characters.length === 0 && (
@@ -159,24 +159,38 @@ export function CharactersBrowse() {
                 <TextField
                   fullWidth
                   size="small"
-                  label="Player"
-                  placeholder="Account name"
+                  label="Lookup missing"
+                  placeholder="Player or character"
                   value={playerDraft}
                   onChange={(e) => setPlayerDraft(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && playerDraft.trim()) {
-                      navigate(`/characters/player/${encodeURIComponent(playerDraft.trim())}`);
+                      const q = playerDraft.trim();
+                      const onList = characters.some(
+                        (c) => c.name.toLowerCase() === q.toLowerCase(),
+                      );
+                      navigate(
+                        onList
+                          ? `/characters/${encodeURIComponent(q)}`
+                          : `/characters/player/${encodeURIComponent(q)}`,
+                      );
                     }
                   }}
                 />
                 <Button
                   variant="outlined"
                   disabled={!playerDraft.trim()}
-                  onClick={() =>
-                    navigate(`/characters/player/${encodeURIComponent(playerDraft.trim())}`)
-                  }
+                  onClick={() => {
+                    const q = playerDraft.trim();
+                    const onList = characters.some((c) => c.name.toLowerCase() === q.toLowerCase());
+                    navigate(
+                      onList
+                        ? `/characters/${encodeURIComponent(q)}`
+                        : `/characters/player/${encodeURIComponent(q)}`,
+                    );
+                  }}
                 >
-                  Open
+                  Go
                 </Button>
               </Box>
             </Grid>

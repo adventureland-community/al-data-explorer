@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -20,14 +20,13 @@ import { Link as RouterLink, useParams } from "react-router-dom";
 import { CLASS_COLOR } from "../constants";
 import { isClassKey, titleCaseKey } from "../gameData/classSkills";
 import { ItemInstance } from "../Shared/ItemInstance";
+import { CharacterLook } from "../Shared/CharacterLook";
 import { classKeyToName } from "./characterClasses";
 import { CharacterNameLink } from "./CharacterNameLink";
-import { CharacterLook } from "../Shared/CharacterLook";
 import {
   CharacterLoadout,
   getAllCachedLoadouts,
   getCachedCharacterLoadout,
-  prefetchCharacterLoadouts,
 } from "./fetchCharacterLoadout";
 import { gearFrequencyFromLoadouts } from "./gearFrequency";
 import { charactersForClass } from "./parseCharacters";
@@ -40,11 +39,8 @@ export function CharacterClassPage() {
   const classKey = classKeyParam && isClassKey(classKeyParam) ? classKeyParam : undefined;
   const className = classKey ? classKeyToName(classKey) : undefined;
 
-  const { characters, loading, error, reload } = useCharactersList();
+  const { characters, loading, error, reload, loadoutsReady } = useCharactersList();
   const [onlineOnly, setOnlineOnly] = useState(false);
-  const [loadouts, setLoadouts] = useState<CharacterLoadout[]>([]);
-  const [gearLoading, setGearLoading] = useState(false);
-  const [gearError, setGearError] = useState<string | null>(null);
 
   const ranked = useMemo(() => {
     if (!className) return [];
@@ -52,52 +48,20 @@ export function CharacterClassPage() {
     return onlineOnly ? list.filter((c) => c.online) : list;
   }, [characters, className, onlineOnly]);
 
-  const sampleNames = useMemo(
-    () =>
-      ranked
-        .slice(0, TOP_GEAR_SAMPLE)
-        .map((c) => c.name)
-        .join("|"),
-    [ranked],
-  );
+  // Gear comes from the bulk `/characters` HTML parse (var slots…), not per-character fetches.
+  const loadouts = useMemo(() => {
+    if (!loadoutsReady) return [] as CharacterLoadout[];
+    return ranked
+      .slice(0, TOP_GEAR_SAMPLE)
+      .map((c) => getCachedCharacterLoadout(c.name))
+      .filter((v): v is CharacterLoadout => Boolean(v));
+  }, [ranked, loadoutsReady]);
 
-  useEffect(() => {
-    if (!className || !sampleNames) {
-      setLoadouts([]);
-      return undefined;
-    }
-
-    let cancelled = false;
-    const names = sampleNames.split("|");
-
-    const run = async () => {
-      setGearLoading(true);
-      setGearError(null);
-      const primed = names
-        .map((n) => getCachedCharacterLoadout(n))
-        .filter((v): v is CharacterLoadout => Boolean(v));
-      if (primed.length) setLoadouts(primed);
-
-      const results = await prefetchCharacterLoadouts(names, 3, (partial) => {
-        if (!cancelled) setLoadouts(partial);
-      });
-      if (cancelled) return;
-      setLoadouts(results);
-      setGearLoading(false);
-      if (results.length === 0) {
-        setGearError("Could not load gear samples for this class.");
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [className, sampleNames]);
+  const allCached = useMemo(() => (loadoutsReady ? getAllCachedLoadouts() : []), [loadoutsReady]);
 
   const frequency = useMemo(
-    () => gearFrequencyFromLoadouts(loadouts, getAllCachedLoadouts()).slice(0, 24),
-    [loadouts],
+    () => gearFrequencyFromLoadouts(loadouts, allCached).slice(0, 24),
+    [loadouts, allCached],
   );
 
   if (!classKey || !className) {
@@ -131,8 +95,9 @@ export function CharacterClassPage() {
       </Typography>
 
       <Typography sx={{ mb: 2 }} color="text.secondary">
-        Level rankings from adventure.land, plus items commonly equipped by the top{" "}
-        {TOP_GEAR_SAMPLE} {className.toLowerCase()}s. Game data for this class:{" "}
+        Level rankings and equipped gear from the live adventure.land/characters page (one fetch for
+        all 500). Common gear uses every cached loadout for cross-class &quot;also used by&quot;.
+        Game data:{" "}
         <Link component={RouterLink} to={`/classes/${classKey}`} underline="hover">
           {titleCaseKey(classKey)} class page
         </Link>
@@ -204,11 +169,12 @@ export function CharacterClassPage() {
         <Grid item xs={12} md={7}>
           <Typography variant="h6" component="h2" gutterBottom>
             Common gear among top {Math.min(TOP_GEAR_SAMPLE, ranked.length)}
+            {allCached.length > 0 ? ` · meta from ${allCached.length} loadouts` : ""}
           </Typography>
-          {gearLoading && loadouts.length === 0 && <CircularProgress size={28} />}
-          {gearError && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              {gearError}
+          {!loadoutsReady && <CircularProgress size={28} />}
+          {loadoutsReady && loadouts.length === 0 && (
+            <Alert severity="warning">
+              No gear found in the characters list parse for this class.
             </Alert>
           )}
           {frequency.length > 0 && (
@@ -258,11 +224,6 @@ export function CharacterClassPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
-          {gearLoading && loadouts.length > 0 && (
-            <Typography variant="caption" color="text.secondary">
-              Loading more samples… ({loadouts.length}/{Math.min(TOP_GEAR_SAMPLE, ranked.length)})
-            </Typography>
           )}
         </Grid>
       </Grid>

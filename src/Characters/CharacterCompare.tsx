@@ -10,25 +10,36 @@ import {
   Typography,
 } from "@mui/material";
 import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
+import { StatType } from "typed-adventureland";
 
 import { CLASS_COLOR } from "../constants";
 import { classLooks } from "../gameData/characterLook";
 import { titleCaseKey } from "../gameData/classSkills";
+import { computeLoadoutStats } from "../gameData/loadoutStats";
 import { GDataContext } from "../GDataContext";
 import { GearPaperDoll } from "../GearPlanner/GearPaperDoll";
 import { SelectedCharacterClass } from "../GearPlanner/types";
 import { StatsPanel } from "../GearPlanner/StatsPanel";
 import { CharacterLook } from "../Shared/CharacterLook";
-import { CharacterLoadout, fetchCharacterLoadout } from "./fetchCharacterLoadout";
+import {
+  CharacterLoadout,
+  fetchCharacterLoadout,
+  getCachedCharacterLoadout,
+} from "./fetchCharacterLoadout";
+import { useCharactersList } from "./useCharactersList";
 
 function CompareColumn({
   loadout,
   loading,
   error,
+  compareStats,
+  compareSide,
 }: {
   loadout: CharacterLoadout | null;
   loading: boolean;
   error: string | null;
+  compareStats?: { [T in StatType]?: number };
+  compareSide?: "left" | "right";
 }) {
   const G = useContext(GDataContext);
   const selectedClass = useMemo(() => {
@@ -85,15 +96,19 @@ function CompareColumn({
           selectedCharacterClass={selectedClass}
           level={loadout.level}
           gear={loadout.gear}
+          compareStats={compareStats}
+          compareSide={compareSide}
         />
       </Box>
     </Box>
   );
 }
 
-function useLoadout(name: string) {
-  const [loadout, setLoadout] = useState<CharacterLoadout | null>(null);
-  const [loading, setLoading] = useState(false);
+function useLoadout(name: string, listReady: boolean) {
+  const [loadout, setLoadout] = useState<CharacterLoadout | null>(() =>
+    name ? getCachedCharacterLoadout(name) ?? null : null,
+  );
+  const [loading, setLoading] = useState(Boolean(name) && !getCachedCharacterLoadout(name));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -103,10 +118,24 @@ function useLoadout(name: string) {
       setLoading(false);
       return undefined;
     }
+
+    const cached = getCachedCharacterLoadout(name);
+    if (cached) {
+      setLoadout(cached);
+      setLoading(false);
+      setError(null);
+      return undefined;
+    }
+
+    if (!listReady) {
+      setLoading(true);
+      return undefined;
+    }
+
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetchCharacterLoadout(name)
+    fetchCharacterLoadout(name, { force: true })
       .then((data) => {
         if (!cancelled) setLoadout(data);
       })
@@ -122,13 +151,15 @@ function useLoadout(name: string) {
     return () => {
       cancelled = true;
     };
-  }, [name]);
+  }, [name, listReady]);
 
   return { loadout, loading, error };
 }
 
 export function CharacterCompare() {
+  const G = useContext(GDataContext);
   const navigate = useNavigate();
+  const { loadoutsReady } = useCharactersList();
   const [searchParams, setSearchParams] = useSearchParams();
   const a = searchParams.get("a") ?? "";
   const b = searchParams.get("b") ?? "";
@@ -140,8 +171,36 @@ export function CharacterCompare() {
     setDraftB(b);
   }, [a, b]);
 
-  const left = useLoadout(a);
-  const right = useLoadout(b);
+  const left = useLoadout(a, loadoutsReady);
+  const right = useLoadout(b, loadoutsReady);
+
+  const leftStats = useMemo(() => {
+    if (!G || !left.loadout) return undefined;
+    const gClass = left.loadout.classKey ? G.classes?.[left.loadout.classKey] : undefined;
+    const selectedClass = gClass
+      ? ({ className: left.loadout.classKey, ...gClass } as SelectedCharacterClass)
+      : undefined;
+    return computeLoadoutStats({
+      characterClass: selectedClass,
+      level: left.loadout.level,
+      gear: left.loadout.gear,
+      G,
+    });
+  }, [G, left.loadout]);
+
+  const rightStats = useMemo(() => {
+    if (!G || !right.loadout) return undefined;
+    const gClass = right.loadout.classKey ? G.classes?.[right.loadout.classKey] : undefined;
+    const selectedClass = gClass
+      ? ({ className: right.loadout.classKey, ...gClass } as SelectedCharacterClass)
+      : undefined;
+    return computeLoadoutStats({
+      characterClass: selectedClass,
+      level: right.loadout.level,
+      gear: right.loadout.gear,
+      G,
+    });
+  }, [G, right.loadout]);
 
   const apply = () => {
     const next = new URLSearchParams();
@@ -162,7 +221,8 @@ export function CharacterCompare() {
         Compare characters
       </Typography>
       <Typography sx={{ mb: 2 }} color="text.secondary">
-        Side-by-side gear and stats. Open from a character page or type two names.
+        Side-by-side gear and stats (green = higher, red = lower). Names on the public characters
+        list load instantly from that page&apos;s embedded gear.
       </Typography>
 
       <Grid container spacing={2} sx={{ mb: 3 }} alignItems="center">
@@ -193,10 +253,18 @@ export function CharacterCompare() {
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <CompareColumn {...left} />
+          <CompareColumn
+            {...left}
+            compareStats={rightStats}
+            compareSide={left.loadout && right.loadout ? "left" : undefined}
+          />
         </Grid>
         <Grid item xs={12} md={6}>
-          <CompareColumn {...right} />
+          <CompareColumn
+            {...right}
+            compareStats={leftStats}
+            compareSide={left.loadout && right.loadout ? "right" : undefined}
+          />
         </Grid>
       </Grid>
 

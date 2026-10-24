@@ -99,14 +99,30 @@ function AbilityLines({ gear, G }: { gear: { [slot in SlotType]?: ItemInfo }; G:
   );
 }
 
+function statCellColor(
+  value: number | undefined,
+  other: number | undefined,
+  side: "left" | "right" | undefined,
+): string | undefined {
+  if (!side || value == null || other == null || value === other) return undefined;
+  const better = value > other;
+  if (side === "left") return better ? "success.main" : "error.main";
+  return better ? "success.main" : "error.main";
+}
+
 export function StatsPanel({
   selectedCharacterClass,
   level,
   gear,
+  compareStats,
+  compareSide,
 }: {
   selectedCharacterClass?: SelectedCharacterClass;
   level: number;
   gear: { [slot in SlotType]?: ItemInfo };
+  /** When set with compareSide, highlight higher/lower vs the other loadout. */
+  compareStats?: { [T in StatType]?: number };
+  compareSide?: "left" | "right";
 }) {
   const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
   const G = useContext(GDataContext);
@@ -182,6 +198,11 @@ export function StatsPanel({
     setTargetMonster(event.target.value as MonsterKey);
   };
 
+  const valueSx = (key: StatType | MainStatType) => ({
+    color: statCellColor(stats[key], compareStats?.[key], compareSide),
+    fontWeight: compareStats && stats[key] !== compareStats[key] ? 700 : undefined,
+  });
+
   return (
     <Grid container>
       <Grid item xs={3}>
@@ -190,13 +211,13 @@ export function StatsPanel({
           <TableBody>
             <TableRow>
               <TableCell title={getStatsDescription("hp")}>hp</TableCell>
-              <TableCell align="right" title={stats.hp?.toString() ?? ""}>
+              <TableCell align="right" title={stats.hp?.toString() ?? ""} sx={valueSx("hp")}>
                 {Math.round(stats.hp ?? 0)}
               </TableCell>
             </TableRow>
             <TableRow>
               <TableCell title={getStatsDescription("mp")}>mp</TableCell>
-              <TableCell align="right" title={stats.mp?.toString() ?? ""}>
+              <TableCell align="right" title={stats.mp?.toString() ?? ""} sx={valueSx("mp")}>
                 {Math.round(stats.mp ?? 0)}
               </TableCell>
             </TableRow>
@@ -210,7 +231,7 @@ export function StatsPanel({
                 >
                   {stat}
                 </TableCell>
-                <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
+                <TableCell align="right" title={stats[stat]?.toString() ?? ""} sx={valueSx(stat)}>
                   {Math.round(stats[stat] ?? 0)}
                 </TableCell>
               </TableRow>
@@ -225,7 +246,7 @@ export function StatsPanel({
             {offenseStatTypes.map((stat) => (
               <TableRow key={`stat_${stat}`}>
                 <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
+                <TableCell align="right" title={stats[stat]?.toString() ?? ""} sx={valueSx(stat)}>
                   {formatCharacterStatValue(stat, stats[stat] ?? 0)}
                 </TableCell>
               </TableRow>
@@ -240,7 +261,7 @@ export function StatsPanel({
             {defenseStatTypes.map((stat) => (
               <TableRow key={`stat_${stat}`}>
                 <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
+                <TableCell align="right" title={stats[stat]?.toString() ?? ""} sx={valueSx(stat)}>
                   {formatCharacterStatValue(stat, stats[stat] ?? 0)}
                 </TableCell>
               </TableRow>
@@ -257,7 +278,7 @@ export function StatsPanel({
               .map((stat) => (
                 <TableRow key={`stat_${stat}`}>
                   <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                  <TableCell align="right" title={stats[stat]?.toString() ?? ""}>
+                  <TableCell align="right" title={stats[stat]?.toString() ?? ""} sx={valueSx(stat)}>
                     {formatCharacterStatValue(stat, stats[stat] ?? 0)}
                   </TableCell>
                 </TableRow>

@@ -1,5 +1,7 @@
-import { ClassKey } from "typed-adventureland";
+import { ClassKey, ItemInfo, SlotType } from "typed-adventureland";
 
+import { ClassLook, CharacterCx } from "../gameData/characterLook";
+import { CharacterLoadout } from "./fetchCharacterLoadout";
 import { classNameToKey, sortClassNames } from "./characterClasses";
 
 export type ListedCharacter = {
@@ -10,17 +12,70 @@ export type ListedCharacter = {
   online: boolean;
 };
 
+export type ParsedCharactersPage = {
+  characters: ListedCharacter[];
+  loadouts: CharacterLoadout[];
+};
+
 function fieldValue(cardText: string, label: string): string | undefined {
   const match = cardText.match(new RegExp(`${label}:</span>\\s*([^<\\n]+)`, "i"));
   return match?.[1]?.trim();
 }
 
-/** Parse adventure.land/characters HTML into character rows. */
-export function parseCharactersHtml(html: string): ListedCharacter[] {
+function parseLookFromCard(card: Element): ClassLook | undefined {
+  const el = card.querySelector(".cskin[data-skin]");
+  if (!el) return undefined;
+  const skin = el.getAttribute("data-skin")?.trim();
+  if (!skin) return undefined;
+  let cx: CharacterCx = {};
+  const cxRaw = el.getAttribute("data-cx");
+  if (cxRaw) {
+    try {
+      const parsed = JSON.parse(cxRaw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        cx = parsed as CharacterCx;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return { skin, cx };
+}
+
+/**
+ * Extract every `var slots{id}={...};` map from the characters list page.
+ * Keys are lowercase ids (matches `.slots[data-name]`).
+ */
+export function parseSlotsMapsFromHtml(
+  html: string,
+): Map<string, { [slot in SlotType]?: ItemInfo }> {
+  const maps = new Map<string, { [slot in SlotType]?: ItemInfo }>();
+  const re = /var slots([a-zA-Z0-9_]+)=(\{[\s\S]*?\});/g;
+  let match = re.exec(html);
+  while (match !== null) {
+    const id = match[1].toLowerCase();
+    try {
+      maps.set(id, JSON.parse(match[2]) as { [slot in SlotType]?: ItemInfo });
+    } catch {
+      // skip malformed block
+    }
+    match = re.exec(html);
+  }
+  return maps;
+}
+
+/**
+ * Parse adventure.land/characters HTML.
+ * Cards include name/class/level/online/look; gear lives in sibling `var slots…` scripts.
+ */
+export function parseCharactersPage(html: string): ParsedCharactersPage {
+  const slotsById = parseSlotsMapsFromHtml(html);
   const doc = new DOMParser().parseFromString(html, "text/html");
   const cards = Array.from(doc.querySelectorAll('div[style*="border: 5px solid gray"]'));
 
   const characters: ListedCharacter[] = [];
+  const loadouts: CharacterLoadout[] = [];
+
   for (const card of cards) {
     const text = card.innerHTML;
     const name = fieldValue(text, "Name");
@@ -34,15 +89,35 @@ export function parseCharactersHtml(html: string): ListedCharacter[] {
       continue;
     }
     const online = /color:\s*green[^>]*>\s*Online/i.test(text);
-    characters.push({
+    const classKey = classNameToKey(className);
+    const listed: ListedCharacter = {
       name,
       className,
-      classKey: classNameToKey(className),
+      classKey,
       level,
       online,
+    };
+    characters.push(listed);
+
+    const slotId =
+      card.querySelector(".slots[data-name]")?.getAttribute("data-name")?.toLowerCase() ??
+      name.toLowerCase();
+    const gear = slotsById.get(slotId) ?? {};
+    loadouts.push({
+      name,
+      classKey,
+      level,
+      gear,
+      look: parseLookFromCard(card),
     });
   }
-  return characters;
+
+  return { characters, loadouts };
+}
+
+/** @deprecated Prefer parseCharactersPage — kept for callers that only need the list. */
+export function parseCharactersHtml(html: string): ListedCharacter[] {
+  return parseCharactersPage(html).characters;
 }
 
 export function compareByLevelDesc(a: ListedCharacter, b: ListedCharacter): number {

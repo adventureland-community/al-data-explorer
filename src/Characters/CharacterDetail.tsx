@@ -13,7 +13,11 @@ import { StatsPanel } from "../GearPlanner/StatsPanel";
 import { SelectedCharacterClass } from "../GearPlanner/types";
 import { CharacterLook } from "../Shared/CharacterLook";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { CharacterLoadout, fetchCharacterLoadout } from "./fetchCharacterLoadout";
+import {
+  CharacterLoadout,
+  fetchCharacterLoadout,
+  getCachedCharacterLoadout,
+} from "./fetchCharacterLoadout";
 import { stashLoadoutForGearPlanner } from "./pendingGearPlannerLoadout";
 import { useCharactersList } from "./useCharactersList";
 
@@ -41,32 +45,55 @@ export function CharacterDetail() {
   const navigate = useNavigate();
   const { name: nameParam } = useParams();
   const name = nameParam ? decodeURIComponent(nameParam) : "";
-  const { characters } = useCharactersList();
+  const { characters, loadoutsReady, loading: listLoading } = useCharactersList();
   const listed = useMemo(
     () => characters.find((c) => c.name.toLowerCase() === name.toLowerCase()),
     [characters, name],
   );
 
-  const [loadout, setLoadout] = useState<CharacterLoadout | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadout, setLoadout] = useState<CharacterLoadout | null>(() =>
+    name ? getCachedCharacterLoadout(name) ?? null : null,
+  );
+  const [loading, setLoading] = useState(!getCachedCharacterLoadout(name));
   const [error, setError] = useState<string | null>(null);
+  const [fromListCache, setFromListCache] = useState(Boolean(getCachedCharacterLoadout(name)));
 
   useEffect(() => {
     if (!name) return undefined;
     let cancelled = false;
 
     const run = async () => {
+      const cached = getCachedCharacterLoadout(name);
+      if (cached) {
+        setLoadout(cached);
+        setFromListCache(true);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+
+      // Wait for the bulk /characters parse before falling back to /character/:name.
+      if (listLoading || !loadoutsReady) {
+        setLoading(true);
+        return;
+      }
+
       setLoading(true);
       setError(null);
-      setLoadout(null);
+      setFromListCache(false);
       try {
-        const data = await fetchCharacterLoadout(name);
+        // Not on the public top list — individual character page fallback.
+        const data = await fetchCharacterLoadout(name, { force: true });
         if (cancelled) return;
         setLoadout(data);
       } catch (err) {
         if (cancelled) return;
         console.error(err);
-        setError(err instanceof Error ? err.message : "Failed to load character.");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Character not on the public list and individual page failed to load.",
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -76,7 +103,7 @@ export function CharacterDetail() {
     return () => {
       cancelled = true;
     };
-  }, [name]);
+  }, [name, loadoutsReady, listLoading]);
 
   const equipped = useMemo(() => {
     if (!loadout) return [];
@@ -150,6 +177,7 @@ export function CharacterDetail() {
             {classKey ? titleCaseKey(classKey) : listed?.className ?? "Unknown class"}
             {level != null ? ` · Level ${level}` : ""}
             {online ? " · online" : listed ? " · offline" : ""}
+            {fromListCache ? " · from characters list" : " · individual page"}
             {" · "}
             <Link
               href={`https://adventure.land/character/${encodeURIComponent(name)}`}
