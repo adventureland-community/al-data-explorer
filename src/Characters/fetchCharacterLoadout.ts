@@ -83,6 +83,24 @@ export function getCachedCharacterLoadout(name: string): CharacterLoadout | unde
   return entry.value;
 }
 
+/** All non-expired cached loadouts (for cross-class item meta). */
+export function getAllCachedLoadouts(): CharacterLoadout[] {
+  const now = Date.now();
+  const values: CharacterLoadout[] = [];
+  for (const [key, entry] of Array.from(loadoutCache.entries())) {
+    if (now - entry.at > CACHE_TTL_MS) {
+      loadoutCache.delete(key);
+      continue;
+    }
+    values.push(entry.value);
+  }
+  return values;
+}
+
+export function putCachedCharacterLoadout(value: CharacterLoadout): void {
+  loadoutCache.set(cacheKey(value.name), { at: Date.now(), value });
+}
+
 /** Fetch and parse a character page. Results are cached briefly across Characters routes. */
 export async function fetchCharacterLoadout(
   name: string,

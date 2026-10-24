@@ -34,6 +34,7 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import { ItemInfo, SlotType } from "typed-adventureland";
 import React, { useContext, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
 import { LoadoutPickerShell } from "./LoadoutPickerShell";
 import { SavedLoadout, SelectedCharacterClass } from "./types";
@@ -41,10 +42,12 @@ import { ItemInstance } from "../Shared/ItemInstance";
 import { SaveLinkButton } from "./SaveLinkButton";
 import { LoadLinkButton } from "./LoadLinkButton";
 import { ImportLinkButton } from "./ImportLinkButton";
+import { ShareLinkButton } from "./ShareLinkButton";
 import { StatsPanel } from "./StatsPanel";
 import { getFullItemName } from "../Shared/iteminfo-util";
 import { cloneLoadoutGear } from "../gameData/loadoutStats";
 import { takePendingGearPlannerLoadout } from "../Characters/pendingGearPlannerLoadout";
+import { decodeGearShareState, shareStateToSavedLoadout } from "./gearShareState";
 
 function Info() {
   return (
@@ -75,6 +78,7 @@ function Info() {
 export { GearSlot } from "./GearSlot";
 export function GearPlanner() {
   const G = useContext(GDataContext);
+  const [searchParams] = useSearchParams();
 
   const [gear, setGear] = useState<{ [slot in SlotType]?: ItemInfo }>({});
   const [selectedClass, setSelectedClass] = useState<SelectedCharacterClass>();
@@ -83,16 +87,30 @@ export function GearPlanner() {
 
   useEffect(() => {
     if (!G || appliedPending.current) return;
-    const pending = takePendingGearPlannerLoadout();
-    if (!pending) return;
-    appliedPending.current = true;
+
     const classList = Object.entries(G.classes ?? []).map(
       ([className, item]) => ({ className, ...item } as SelectedCharacterClass),
     );
-    setLevel(pending.data.level);
-    setGear(cloneLoadoutGear(pending.data.gear));
-    setSelectedClass(classList.find((c) => c.className === pending.data.classKey));
-  }, [G]);
+
+    const apply = (data: SavedLoadout) => {
+      appliedPending.current = true;
+      setLevel(data.level);
+      setGear(cloneLoadoutGear(data.gear));
+      setSelectedClass(classList.find((c) => c.className === data.classKey));
+    };
+
+    const fromUrl = searchParams.get("gear");
+    if (fromUrl) {
+      const decoded = decodeGearShareState(fromUrl);
+      if (decoded) {
+        apply(shareStateToSavedLoadout(decoded));
+        return;
+      }
+    }
+
+    const pending = takePendingGearPlannerLoadout();
+    if (pending) apply(pending.data);
+  }, [G, searchParams]);
 
   if (!G) {
     return <>WAITING!</>;
@@ -139,6 +157,7 @@ export function GearPlanner() {
           <SaveLinkButton gear={gear} characterClass={selectedClass} level={level} />
           <LoadLinkButton load={onLoadSavedLoadout} />
           <ImportLinkButton load={onLoadSavedLoadout} />
+          <ShareLinkButton gear={gear} characterClass={selectedClass} level={level} />
         </Grid>
         <Grid item xs={4}>
           <LoadoutPickerShell

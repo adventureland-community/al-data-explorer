@@ -20,7 +20,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
 
 import { CLASS_COLOR } from "../constants";
 import { classNameToKey, sortClassNames } from "./characterClasses";
@@ -63,8 +63,10 @@ function DebouncedSearchField({
 }
 
 export function CharactersBrowse() {
-  const { characters, loading, error, reload } = useCharactersList();
+  const navigate = useNavigate();
+  const { characters, loading, error, fromCache, reload } = useCharactersList();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [playerDraft, setPlayerDraft] = useState("");
 
   const search = searchParams.get("q") ?? "";
   const onlineOnly = searchParams.get("online") === "1";
@@ -119,7 +121,11 @@ export function CharactersBrowse() {
       </Typography>
       <Typography sx={{ marginBottom: 2 }} color="text.secondary">
         Live characters from adventure.land. Search, filter by class, open a class leaderboard, or
-        click a name for equipped gear.
+        click a name for equipped gear.{" "}
+        <Link component={RouterLink} to="/characters/compare" underline="hover">
+          Compare two characters
+        </Link>
+        .
       </Typography>
 
       {loading && characters.length === 0 && (
@@ -130,7 +136,7 @@ export function CharactersBrowse() {
 
       {error && (
         <Alert
-          severity="error"
+          severity={fromCache ? "warning" : "error"}
           sx={{ marginBottom: 2 }}
           action={
             <Button color="inherit" size="small" onClick={reload}>
@@ -145,10 +151,36 @@ export function CharactersBrowse() {
       {characters.length > 0 && (
         <>
           <Grid container spacing={2} sx={{ marginBottom: 2 }} alignItems="center">
-            <Grid item xs={12} md={5}>
+            <Grid item xs={12} md={4}>
               <DebouncedSearchField value={search} onCommit={(q) => setParam("q", q || null)} />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Player"
+                  placeholder="Account name"
+                  value={playerDraft}
+                  onChange={(e) => setPlayerDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && playerDraft.trim()) {
+                      navigate(`/characters/player/${encodeURIComponent(playerDraft.trim())}`);
+                    }
+                  }}
+                />
+                <Button
+                  variant="outlined"
+                  disabled={!playerDraft.trim()}
+                  onClick={() =>
+                    navigate(`/characters/player/${encodeURIComponent(playerDraft.trim())}`)
+                  }
+                >
+                  Open
+                </Button>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={3}>
               <FormControlLabel
                 control={
                   <Switch
@@ -159,7 +191,7 @@ export function CharactersBrowse() {
                 label="Online only"
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={2}>
               <Typography variant="body2" color="text.secondary" textAlign={{ md: "right" }}>
                 {filtered.length} of {characters.length} characters
               </Typography>

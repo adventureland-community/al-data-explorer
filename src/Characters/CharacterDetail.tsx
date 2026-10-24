@@ -7,7 +7,10 @@ import { CLASS_COLOR } from "../constants";
 import { classLooks } from "../gameData/characterLook";
 import { titleCaseKey } from "../gameData/classSkills";
 import { GDataContext } from "../GDataContext";
+import { encodeGearShareState, savedLoadoutToShareState } from "../GearPlanner/gearShareState";
 import { GearPaperDoll } from "../GearPlanner/GearPaperDoll";
+import { StatsPanel } from "../GearPlanner/StatsPanel";
+import { SelectedCharacterClass } from "../GearPlanner/types";
 import { CharacterLook } from "../Shared/CharacterLook";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { CharacterLoadout, fetchCharacterLoadout } from "./fetchCharacterLoadout";
@@ -87,6 +90,13 @@ export function CharacterDetail() {
   const level = loadout?.level ?? listed?.level;
   const online = listed?.online;
 
+  const selectedClass = useMemo(() => {
+    if (!G || !classKey) return undefined;
+    const gClass = G.classes?.[classKey];
+    if (!gClass) return undefined;
+    return { className: classKey, ...gClass } as SelectedCharacterClass;
+  }, [G, classKey]);
+
   const look = useMemo(() => {
     if (loadout?.look) return loadout.look;
     if (!G || !classKey) return undefined;
@@ -97,12 +107,14 @@ export function CharacterDetail() {
 
   const openInGearPlanner = () => {
     if (!loadout) return;
-    stashLoadoutForGearPlanner(loadout.name, {
+    const data = {
       gear: loadout.gear,
       classKey: loadout.classKey,
       level: loadout.level,
-    });
-    navigate("/gear");
+    };
+    stashLoadoutForGearPlanner(loadout.name, data);
+    const encoded = encodeGearShareState(savedLoadoutToShareState(data));
+    navigate(`/gear?gear=${encoded}`);
   };
 
   return (
@@ -172,49 +184,65 @@ export function CharacterDetail() {
       )}
 
       {loadout && (
-        <Grid container spacing={3} sx={{ mt: 1 }}>
-          <Grid item xs={12} md={5}>
-            <Typography variant="h6" component="h2" gutterBottom>
-              Equipment
-            </Typography>
-            <GearPaperDoll gear={loadout.gear} onSlotClick={() => undefined} dhConflict={false} />
+        <>
+          <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
+            <Button variant="contained" size="small" onClick={openInGearPlanner}>
+              Load in Gear Planner
+            </Button>
+            <Button
+              component={RouterLink}
+              to={`/characters/compare?a=${encodeURIComponent(loadout.name)}`}
+              variant="outlined"
+              size="small"
+            >
+              Compare
+            </Button>
+          </Box>
+
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={4}>
+              <Typography variant="h6" component="h2" gutterBottom>
+                Equipment
+              </Typography>
+              <GearPaperDoll gear={loadout.gear} onSlotClick={() => undefined} dhConflict={false} />
+              <Typography variant="subtitle2" sx={{ mt: 2 }} gutterBottom>
+                Items
+              </Typography>
+              {equipped.length === 0 ? (
+                <Typography color="text.secondary">No items equipped.</Typography>
+              ) : (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                  {equipped.map(({ slot, item }) => (
+                    <Box
+                      key={slot}
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        width: 64,
+                      }}
+                    >
+                      <ItemInstance itemInfo={item} size={36} linkToDetail />
+                      <Typography variant="caption" color="text.secondary">
+                        {slot}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Grid>
+            <Grid item xs={12} md={8}>
+              <Typography variant="h6" component="h2" gutterBottom>
+                Stats
+              </Typography>
+              <StatsPanel
+                selectedCharacterClass={selectedClass}
+                level={loadout.level}
+                gear={loadout.gear}
+              />
+            </Grid>
           </Grid>
-          <Grid item xs={12} md={7}>
-            <Typography variant="h6" component="h2" gutterBottom>
-              Items
-            </Typography>
-            {equipped.length === 0 ? (
-              <Typography color="text.secondary">No items equipped (or slots empty).</Typography>
-            ) : (
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
-                {equipped.map(({ slot, item }) => (
-                  <Box
-                    key={slot}
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      width: 72,
-                    }}
-                  >
-                    <ItemInstance itemInfo={item} size={40} linkToDetail />
-                    <Typography variant="caption" color="text.secondary">
-                      {slot}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            )}
-            <Box sx={{ display: "flex", gap: 1, mt: 2, flexWrap: "wrap" }}>
-              <Button variant="contained" size="small" onClick={openInGearPlanner}>
-                Load in Gear Planner
-              </Button>
-              <Button component={RouterLink} to="/gear" variant="outlined" size="small">
-                Open Gear Planner
-              </Button>
-            </Box>
-          </Grid>
-        </Grid>
+        </>
       )}
     </Box>
   );

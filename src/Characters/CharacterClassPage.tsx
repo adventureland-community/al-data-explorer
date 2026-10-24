@@ -25,6 +25,7 @@ import { CharacterNameLink } from "./CharacterNameLink";
 import { CharacterLook } from "../Shared/CharacterLook";
 import {
   CharacterLoadout,
+  getAllCachedLoadouts,
   getCachedCharacterLoadout,
   prefetchCharacterLoadouts,
 } from "./fetchCharacterLoadout";
@@ -94,7 +95,10 @@ export function CharacterClassPage() {
     };
   }, [className, sampleNames]);
 
-  const frequency = useMemo(() => gearFrequencyFromLoadouts(loadouts).slice(0, 24), [loadouts]);
+  const frequency = useMemo(
+    () => gearFrequencyFromLoadouts(loadouts, getAllCachedLoadouts()).slice(0, 24),
+    [loadouts],
+  );
 
   if (!classKey || !className) {
     return (
@@ -214,6 +218,7 @@ export function CharacterClassPage() {
                   <TableCell>Item</TableCell>
                   <TableCell align="right">Players</TableCell>
                   <TableCell align="right">Max +</TableCell>
+                  <TableCell>Also used by</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -232,6 +237,22 @@ export function CharacterClassPage() {
                     </TableCell>
                     <TableCell align="right">
                       {row.maxLevel > 0 ? `+${row.maxLevel}` : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {row.alsoUsedBy.length === 0
+                        ? "-"
+                        : row.alsoUsedBy.map((key, i) => (
+                            <span key={key}>
+                              {i > 0 ? ", " : null}
+                              <Link
+                                component={RouterLink}
+                                to={`/characters/class/${key}`}
+                                underline="hover"
+                              >
+                                {titleCaseKey(key)}
+                              </Link>
+                            </span>
+                          ))}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -7,11 +7,37 @@ type CharactersListState = {
   characters: ListedCharacter[];
   loading: boolean;
   error: string | null;
+  /** True when showing a stale local snapshot because live fetch failed. */
+  fromCache: boolean;
   reload: () => void;
 };
 
+const STORAGE_KEY = "al-characters-list-v1";
+const STORAGE_TTL_MS = 30 * 60 * 1000;
+
 let cached: ListedCharacter[] | null = null;
 let inflight: Promise<ListedCharacter[]> | null = null;
+
+function readPersisted(): ListedCharacter[] | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { at: number; characters: ListedCharacter[] };
+    if (!parsed?.characters?.length) return null;
+    if (Date.now() - parsed.at > STORAGE_TTL_MS) return null;
+    return parsed.characters;
+  } catch {
+    return null;
+  }
+}
+
+function writePersisted(characters: ListedCharacter[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ at: Date.now(), characters }));
+  } catch {
+    // ignore quota / private mode
+  }
+}
 
 async function loadCharacters(force = false): Promise<ListedCharacter[]> {
   if (!force && cached) return cached;
@@ -24,6 +50,7 @@ async function loadCharacters(force = false): Promise<ListedCharacter[]> {
       throw new Error("No characters found in the adventure.land characters page.");
     }
     cached = parsed;
+    writePersisted(parsed);
     return parsed;
   })();
 
@@ -34,11 +61,16 @@ async function loadCharacters(force = false): Promise<ListedCharacter[]> {
   }
 }
 
-/** Shared adventure.land/characters list (module cache across Characters routes). */
+if (!cached) {
+  cached = readPersisted();
+}
+
+/** Shared adventure.land/characters list (memory + localStorage across Characters routes). */
 export function useCharactersList(): CharactersListState {
   const [characters, setCharacters] = useState<ListedCharacter[]>(cached ?? []);
   const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
+  const [fromCache, setFromCache] = useState(false);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -47,6 +79,7 @@ export function useCharactersList(): CharactersListState {
     const run = async () => {
       setLoading(!cached);
       setError(null);
+      setFromCache(false);
       try {
         const list = await loadCharacters(tick > 0);
         if (cancelled) return;
@@ -54,12 +87,22 @@ export function useCharactersList(): CharactersListState {
       } catch (err) {
         if (cancelled) return;
         console.error("Error fetching characters:", err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Could not load adventure.land/characters via the AL proxy.",
-        );
-        if (!cached) setCharacters([]);
+        const persisted = cached ?? readPersisted();
+        if (persisted?.length) {
+          cached = persisted;
+          setCharacters(persisted);
+          setFromCache(true);
+          setError(
+            "Live characters list unavailable. Showing a recent local snapshot (up to 30 minutes old).",
+          );
+        } else {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Could not load adventure.land/characters via the AL proxy.",
+          );
+          setCharacters([]);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -75,6 +118,7 @@ export function useCharactersList(): CharactersListState {
     characters,
     loading,
     error,
+    fromCache,
     reload: () => {
       cached = null;
       setTick((n) => n + 1);

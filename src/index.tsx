@@ -22,7 +22,9 @@ import { NpcsBrowse } from "./Npc/NpcsBrowse";
 import { NpcDetail } from "./Npc/NpcDetail";
 import { CharactersBrowse } from "./Characters/CharactersBrowse";
 import { CharacterClassPage } from "./Characters/CharacterClassPage";
+import { CharacterCompare } from "./Characters/CharacterCompare";
 import { CharacterDetail } from "./Characters/CharacterDetail";
+import { CharacterPlayerPage } from "./Characters/CharacterPlayerPage";
 
 // TODO: https://reactrouter.com/en/main/start/tutorial#handling-not-found-errors
 
@@ -93,6 +95,14 @@ const router = createBrowserRouter([
           {
             path: "characters",
             element: <CharactersBrowse />,
+          },
+          {
+            path: "characters/compare",
+            element: <CharacterCompare />,
+          },
+          {
+            path: "characters/player/:name",
+            element: <CharacterPlayerPage />,
           },
           {
             path: "characters/class/:classKey",
