@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
+import GitHubIcon from "@mui/icons-material/GitHub";
 import {
   Box,
   Button,
@@ -23,6 +24,7 @@ import { buildGameDataIndexes } from "./gameData/indexes";
 import { LoadingState } from "./Shared/LoadingState";
 
 const THEME_STORAGE_KEY = "al-data-explorer-color-mode";
+const GITHUB_REPO_URL = "https://github.com/adventureland-community/al-data-explorer";
 
 type ColorMode = "light" | "dark";
 
@@ -170,6 +172,16 @@ function Menu({ compact = false }: { compact?: boolean }) {
           component={RouterLink}
         />
       </Tabs>
+      <IconButton
+        aria-label="Open AL Data Explorer on GitHub"
+        href={GITHUB_REPO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        size="small"
+        sx={{ flexShrink: 0 }}
+      >
+        <GitHubIcon />
+      </IconButton>
       <IconButton
         aria-label={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         onClick={toggleMode}
