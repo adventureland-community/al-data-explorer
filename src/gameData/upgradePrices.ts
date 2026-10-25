@@ -112,6 +112,61 @@ export function defaultPriceTable(items: GItems, baseItemKey?: ItemKey): PriceTa
   return prices;
 }
 
+/**
+ * Cheapest player-merchant *sell* listing for an untitled item at `level`
+ * (what you pay to buy from them). Returns undefined when none.
+ */
+export function marketSellMinPrice(
+  market: {
+    [name: string]:
+      | {
+          [title: string]:
+            | Array<
+                | {
+                    selling?: { minPrice?: { price?: number } };
+                  }
+                | undefined
+              >
+            | undefined;
+        }
+      | undefined;
+  },
+  itemKey: string,
+  level = 0,
+): number | undefined {
+  const byTitle = market[itemKey];
+  if (!byTitle) return undefined;
+  const untitled = byTitle[""] ?? byTitle["undefined" as never];
+  const atLevel = untitled?.[level];
+  const price = atLevel?.selling?.minPrice?.price;
+  if (typeof price === "number" && Number.isFinite(price) && price > 0) return price;
+  return undefined;
+}
+
+/**
+ * Fill missing `prices` keys from market sell mins, then vendor `.g`.
+ * Does not overwrite keys already present (caller applies overrides last).
+ */
+export function seedMissingPrices(args: {
+  prices: PriceTable;
+  keys: string[];
+  items: GItems;
+  market?: Parameters<typeof marketSellMinPrice>[0];
+}): PriceTable {
+  const out: PriceTable = { ...args.prices };
+  for (const key of args.keys) {
+    if (typeof out[key] === "number" && Number.isFinite(out[key])) continue;
+    const market = args.market ? marketSellMinPrice(args.market, key) : undefined;
+    if (market != null) {
+      out[key] = market;
+      continue;
+    }
+    const g = args.items[key as ItemKey]?.g;
+    if (typeof g === "number" && g > 0) out[key] = g;
+  }
+  return out;
+}
+
 export function unitPrice(prices: PriceTable, key: string | null): number {
   if (key == null) return 0;
   const n = prices[key];

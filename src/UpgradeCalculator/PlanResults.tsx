@@ -87,6 +87,26 @@ function CostShareBar({
 }
 
 function MatIcon({ itemKey }: { itemKey: string }) {
+  if (itemKey === "_craft_fee") {
+    return (
+      <Box
+        sx={{
+          width: 28,
+          height: 28,
+          borderRadius: 0.5,
+          bgcolor: "action.hover",
+          display: "grid",
+          placeItems: "center",
+          flexShrink: 0,
+          fontSize: 11,
+          fontWeight: 700,
+          color: "text.secondary",
+        }}
+      >
+        g
+      </Box>
+    );
+  }
   if (itemKey === "_stacks") {
     return (
       <Box
@@ -923,7 +943,7 @@ function formatMaterialsClipboard(
 ): string {
   const lines: string[] = ["Shopping list (ceil of expected):"];
   for (const m of ranked) {
-    if (m.itemKey === "_stacks") {
+    if (m.itemKey === "_stacks" || m.itemKey === "_craft_fee") {
       lines.push(`${materialLabel(m.itemKey)}: ${formatGold(m.total)}`);
     } else {
       lines.push(
@@ -1173,12 +1193,14 @@ export function MaterialsPanel({
               ? Math.round((m.total / materialsSum) * 100)
               : null;
           const isStacks = m.itemKey === "_stacks";
-          const buy = isStacks ? null : buyQty(m.expectedQty);
-          const secondary = isStacks
-            ? ofMats != null
-              ? `${ofMats}%`
-              : null
-            : `~${m.expectedQty.toFixed(1)}${ofMats != null ? ` · ${ofMats}%` : ""}`;
+          const isCraftFee = m.itemKey === "_craft_fee";
+          const buy = isStacks || isCraftFee ? null : buyQty(m.expectedQty);
+          const secondary =
+            isStacks || isCraftFee
+              ? ofMats != null
+                ? `${ofMats}%`
+                : null
+              : `~${m.expectedQty.toFixed(1)}${ofMats != null ? ` · ${ofMats}%` : ""}`;
           return (
             <Stack
               key={m.itemKey}
@@ -1196,7 +1218,9 @@ export function MaterialsPanel({
                   alignItems="baseline"
                 >
                   <Typography variant="body2" noWrap>
-                    {isStacks ? materialLabel(m.itemKey) : `${materialLabel(m.itemKey)} × ${buy}`}
+                    {isStacks || isCraftFee
+                      ? materialLabel(m.itemKey)
+                      : `${materialLabel(m.itemKey)} × ${buy}`}
                   </Typography>
                   <Typography
                     variant="body2"

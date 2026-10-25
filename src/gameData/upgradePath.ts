@@ -1440,24 +1440,49 @@ export function foldExpectedBaseCopies(args: {
   steps: PlanSummaryStep[];
   materials: MaterialLine[];
   itemKey: string;
+  /** Replacement / destroy accounting unit (planner itemValue). */
   itemValue: number;
   planEv: number;
+  /**
+   * Gold charged per expected copy on the Acquire row.
+   * Defaults to `itemValue`. Use `0` for Owned (bases already held).
+   */
+  acquireChargePerCopy?: number;
+  /**
+   * Per-output craft shopping lines (qty for one craft). Scaled by expected copies.
+   * When set and charging Acquire, replaces the finished-item material line.
+   */
+  craftMaterialLines?: MaterialLine[] | null;
 }): number {
   const { steps, materials, itemKey, itemValue, planEv } = args;
   const acquire = steps.find((s) => s.kind === "acquire");
-  if (!acquire || !(itemValue > 0) || !Number.isFinite(planEv)) return 1;
+  const chargeRaw = args.acquireChargePerCopy;
+  const charge =
+    chargeRaw != null && Number.isFinite(chargeRaw) && chargeRaw >= 0 ? chargeRaw : itemValue;
+  const owned = args.acquireChargePerCopy === 0;
+  if (!acquire || !Number.isFinite(planEv)) return 1;
+  if (!(itemValue > 0) && !owned) return 1;
 
-  const copies = expectedBaseCopies({ itemKey, itemValue, planEv, materials, steps });
-  const baseGold = Math.min(copies * itemValue, planEv);
+  const copies = expectedBaseCopies({
+    itemKey,
+    itemValue: itemValue > 0 ? itemValue : 1,
+    planEv,
+    materials,
+    steps,
+  });
+  const replacementGold =
+    itemValue > 0 && Number.isFinite(itemValue) ? Math.min(copies * itemValue, planEv) : 0;
+  const baseGold = charge > 0 ? Math.min(copies * charge, planEv) : 0;
 
   const recipe = steps.filter((s) => s.kind !== "acquire" && s.kind !== "shiny");
   let recipeSum = 0;
   for (const s of recipe) {
     if (Number.isFinite(s.stepSpend) && s.stepSpend > 0) recipeSum += s.stepSpend;
   }
-  const targetRecipe = Math.max(0, planEv - baseGold);
-  if (recipeSum > 0 && Number.isFinite(targetRecipe)) {
-    const scale = targetRecipe / recipeSum;
+  // Strip replacement gold from recipe rows; Owned also drops Acquire charge.
+  const recipeTarget = Math.max(0, planEv - replacementGold);
+  if (recipeSum > 0 && Number.isFinite(recipeTarget)) {
+    const scale = recipeTarget / recipeSum;
     for (const s of recipe) {
       if (!(Number.isFinite(s.stepSpend) && s.stepSpend > 0)) continue;
       s.stepSpend *= scale;
@@ -1470,16 +1495,30 @@ export function foldExpectedBaseCopies(args: {
   acquire.baseChance = 1;
   acquire.chanceCap = 1;
 
-  const line = materials.find((m) => m.itemKey === itemKey);
-  if (line) {
-    line.expectedQty = copies;
-    line.unitPrice = itemValue;
-    line.total = baseGold;
-  } else {
+  for (let i = materials.length - 1; i >= 0; i--) {
+    const k = materials[i]?.itemKey;
+    if (k === itemKey || k === "_craft_fee") materials.splice(i, 1);
+  }
+
+  if (args.craftMaterialLines?.length && charge > 0) {
+    for (const src of args.craftMaterialLines) {
+      const expectedQty = src.expectedQty * copies;
+      const total =
+        Number.isFinite(src.unitPrice) && Number.isFinite(expectedQty)
+          ? src.unitPrice * expectedQty
+          : Infinity;
+      materials.push({
+        itemKey: src.itemKey,
+        expectedQty,
+        unitPrice: src.unitPrice,
+        total,
+      });
+    }
+  } else if (charge > 0) {
     materials.push({
       itemKey,
       expectedQty: copies,
-      unitPrice: itemValue,
+      unitPrice: charge,
       total: baseGold,
     });
   }
@@ -1497,7 +1536,17 @@ export function summarizeUpgradePlan(
   plan: UpgradePathPlan,
   prices: PriceTable,
   mode: "upgrade" | "compound",
-  opts?: { igrade?: number; itemKey?: string; itemValue?: number },
+  opts?: {
+    igrade?: number;
+    itemKey?: string;
+    itemValue?: number;
+    /** When true, always insert Acquire (e.g. Owned at 0 gold). */
+    forceAcquire?: boolean;
+    /** Gold per copy on Acquire; defaults to itemValue. Pass 0 for Owned. */
+    acquireChargePerCopy?: number;
+    /** Per-output craft leaves (Craft acquire shopping list). */
+    craftMaterialLines?: MaterialLine[] | null;
+  },
 ): { steps: PlanSummaryStep[]; materials: MaterialLine[]; totalExpectedCost: number } {
   const qty = new Map<string, number>();
   const steps: PlanSummaryStep[] = [];
@@ -1511,9 +1560,9 @@ export function summarizeUpgradePlan(
     opts?.itemKey && opts.itemValue != null && Number.isFinite(opts.itemValue) && opts.itemValue > 0
       ? opts.itemValue
       : 0;
-  if (opts?.itemKey && acquireValue > 0) {
+  if (opts?.itemKey && (acquireValue > 0 || opts.forceAcquire)) {
     running = acquireValue;
-    addQty(qty, opts.itemKey, 1);
+    if (acquireValue > 0) addQty(qty, opts.itemKey, 1);
     steps.push({
       fromLevel: acquireLevel,
       toLevel: acquireLevel,
@@ -1631,23 +1680,42 @@ export function summarizeUpgradePlan(
   }
 
   const planEv = plan.totalExpectedCost;
-  if (opts?.itemKey && acquireValue > 0 && Number.isFinite(planEv)) {
+  if (opts?.itemKey && (acquireValue > 0 || opts.forceAcquire) && Number.isFinite(planEv)) {
     foldExpectedBaseCopies({
       steps,
       materials,
       itemKey: opts.itemKey,
-      itemValue: acquireValue,
+      itemValue: acquireValue > 0 ? acquireValue : opts.itemValue ?? 0,
       planEv,
+      acquireChargePerCopy: opts.acquireChargePerCopy,
+      craftMaterialLines: opts.craftMaterialLines,
     });
   }
 
-  return { steps, materials, totalExpectedCost: planEv };
+  // Owned: displayed EV excludes base replacement already paid/held.
+  let totalExpectedCost = planEv;
+  if (opts?.acquireChargePerCopy === 0 && opts.itemKey) {
+    let sum = 0;
+    for (const s of steps) {
+      if (Number.isFinite(s.stepSpend)) sum += s.stepSpend;
+    }
+    totalExpectedCost = sum;
+  }
+
+  return { steps, materials, totalExpectedCost };
 }
 
 export function summarizeCompoundPlan(
   plan: CompoundPathPlan,
   prices: PriceTable,
-  opts?: { igrade?: number; itemKey?: string; itemValue?: number },
+  opts?: {
+    igrade?: number;
+    itemKey?: string;
+    itemValue?: number;
+    forceAcquire?: boolean;
+    acquireChargePerCopy?: number;
+    craftMaterialLines?: MaterialLine[] | null;
+  },
 ): { steps: PlanSummaryStep[]; materials: MaterialLine[]; totalExpectedCost: number } {
   const asUpgrade: UpgradePathPlan = {
     steps: plan.path.map((s) => ({

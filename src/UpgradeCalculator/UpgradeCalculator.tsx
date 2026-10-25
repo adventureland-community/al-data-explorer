@@ -25,7 +25,7 @@ import {
   Typography,
 } from "@mui/material";
 import { ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ItemKey } from "typed-adventureland";
+import { GCraft, ItemKey } from "typed-adventureland";
 
 import { itemAcceptsStatScroll } from "../gameData/itemAffixes";
 import { getItemGrade } from "../gameData/playerItemDisplay";
@@ -48,12 +48,14 @@ import {
   UpgradeStepOverride,
   upgradeStepOverrideKey,
 } from "../gameData/upgradePath";
+import { craftExpectedCost, itemHasCraftRecipe } from "../gameData/craftCost";
 import {
   COMPOUND_SCROLL_KEYS,
   defaultPriceTable,
   OFFERING_KEYS,
   POLISH_MATERIAL_KEYS,
   PriceTable,
+  seedMissingPrices,
   STAT_SCROLL_PROXY_KEY,
   scrollKeyForUpgrade,
   UPGRADE_SCROLL_KEYS,
@@ -89,7 +91,7 @@ import {
   StrategyCard,
 } from "./PlanResults";
 import { buildStarterPicks, sampleKeys, STARTER_SECTION_LIMIT } from "./starterPicks";
-import { CalcMode, CalcStrategy, useUpgradeCalcParams } from "./useUpgradeCalcParams";
+import { AcquireMode, CalcMode, CalcStrategy, useUpgradeCalcParams } from "./useUpgradeCalcParams";
 
 const TARGET_UPGRADE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const TARGET_COMPOUND = [1, 2, 3, 4, 5];
@@ -656,6 +658,7 @@ function EmptyPickState({
 export function UpgradeCalculator() {
   const G = useContext(GDataContext);
   const { params, patch } = useUpgradeCalcParams();
+  const { items: marketItems } = useMerchants();
   const [priceOverrides, setPriceOverrides] = useState<PriceTable>({});
   const [stepOverrides, setStepOverrides] = useState<Record<string, UpgradeStepOverride>>({});
   const [recentItems, setRecentItems] = useState<ItemKey[]>(() => readRecentItems());
@@ -666,6 +669,8 @@ export function UpgradeCalculator() {
 
   const itemKey = (params.item || "") as ItemKey;
   const gItem = G?.items?.[itemKey];
+  const craftMap = G?.craft as Record<string, GCraft> | undefined;
+  const canCraft = Boolean(itemKey && itemHasCraftRecipe(craftMap, itemKey));
 
   const selectItem = (key: ItemKey | "") => {
     if (key) setRecentItems(pushRecentItem(key));
@@ -678,18 +683,47 @@ export function UpgradeCalculator() {
       patch({ item: key, from, greedScroll: minScroll });
       return;
     }
-    patch({ item: key });
+    const next: { item: ItemKey | ""; acquire?: AcquireMode } = { item: key };
+    if (key && params.acquire === "craft" && !itemHasCraftRecipe(craftMap, key)) {
+      next.acquire = "buy";
+    }
+    patch(next);
   };
 
   const basePrices = useMemo(() => {
     if (!G?.items) return {};
-    return defaultPriceTable(G.items, itemKey || undefined);
-  }, [G, itemKey]);
+    const defaults = defaultPriceTable(G.items, itemKey || undefined);
+    return seedMissingPrices({
+      prices: defaults,
+      keys: [...Object.keys(defaults), ...(itemKey ? [itemKey] : [])],
+      items: G.items,
+      market: marketItems,
+    });
+  }, [G, itemKey, marketItems]);
 
-  const prices = useMemo(
-    () => ({ ...basePrices, ...priceOverrides }),
-    [basePrices, priceOverrides],
-  );
+  const prices = useMemo(() => {
+    if (!G?.items) return { ...basePrices, ...priceOverrides };
+    let merged: PriceTable = { ...basePrices, ...priceOverrides };
+    if (itemKey && itemHasCraftRecipe(craftMap, itemKey)) {
+      // Probe once for unresolved leaves, seed market/vendor, keep overrides on top.
+      const probe = craftExpectedCost({ itemKey, prices: merged, craft: craftMap });
+      if (!probe.ok && probe.unresolved.length) {
+        merged = seedMissingPrices({
+          prices: merged,
+          keys: probe.unresolved,
+          items: G.items,
+          market: marketItems,
+        });
+        merged = { ...merged, ...priceOverrides };
+      }
+    }
+    return merged;
+  }, [G, basePrices, priceOverrides, itemKey, craftMap, marketItems]);
+
+  const craftCost = useMemo(() => {
+    if (!itemKey || !canCraft) return null;
+    return craftExpectedCost({ itemKey, prices, craft: craftMap });
+  }, [itemKey, canCraft, prices, craftMap]);
 
   const tables: ChanceTables | undefined = useMemo(() => {
     if (!G) return undefined;
@@ -716,7 +750,52 @@ export function UpgradeCalculator() {
     };
   }, [G, prices, tables, params]);
 
-  const itemValue = prices[itemKey] ?? gItem?.g ?? 0;
+  const buyUnit =
+    typeof prices[itemKey] === "number" && Number.isFinite(prices[itemKey])
+      ? prices[itemKey]
+      : typeof gItem?.g === "number" && gItem.g > 0
+      ? gItem.g
+      : 0;
+
+  const craftIncomplete =
+    params.acquire === "craft" && canCraft && craftCost != null && !craftCost.ok;
+
+  /** Replacement / destroy accounting unit for the path planner. */
+  const itemValue = (() => {
+    if (params.acquire === "craft" && craftCost?.ok) return craftCost.cost;
+    if (params.acquire === "craft" && craftIncomplete) return buyUnit > 0 ? buyUnit : 0;
+    return buyUnit;
+  })();
+
+  /** Gold charged per expected copy on the Acquire row. */
+  const acquireChargePerCopy =
+    params.acquire === "owned"
+      ? 0
+      : params.acquire === "craft" && craftCost?.ok
+      ? craftCost.cost
+      : buyUnit;
+
+  const craftMaterialLines: MaterialLine[] | null =
+    params.acquire === "craft" && craftCost?.ok
+      ? [
+          ...craftCost.leaves.map((l) => ({
+            itemKey: l.itemKey,
+            expectedQty: l.quantity,
+            unitPrice: l.unitPrice,
+            total: l.total,
+          })),
+          ...(craftCost.fee > 0
+            ? [
+                {
+                  itemKey: "_craft_fee",
+                  expectedQty: 1,
+                  unitPrice: craftCost.fee,
+                  total: craftCost.fee,
+                },
+              ]
+            : []),
+        ]
+      : null;
 
   /** Pareto cheapest only supports +0 starts; mid-path falls back to max-chance. */
   const midPathStart = params.mode === "upgrade" && params.from > 0;
@@ -796,6 +875,15 @@ export function UpgradeCalculator() {
 
   const itemIgrade = gItem ? getItemGrade(gItem, 0) : 0;
 
+  const summarizeOpts = {
+    igrade: itemIgrade,
+    itemKey,
+    itemValue,
+    forceAcquire: params.acquire === "owned" || itemValue > 0 || acquireChargePerCopy > 0,
+    acquireChargePerCopy,
+    craftMaterialLines,
+  };
+
   const shinyPolish = useMemo(() => {
     if (!params.wantShiny || params.mode !== "upgrade" || !gItem?.upgrade) return null;
     return pickShinyPolish({
@@ -841,7 +929,6 @@ export function UpgradeCalculator() {
 
   const cheapestSummary = useMemo((): PlanSummary | null => {
     if (!cheapest) return null;
-    const summarizeOpts = { igrade: itemIgrade, itemKey, itemValue };
     let base: PlanSummary | null = null;
     if (params.mode === "compound" && "path" in cheapest) {
       base = summarizeCompoundPlan(cheapest, prices, summarizeOpts);
@@ -853,7 +940,7 @@ export function UpgradeCalculator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- helpers close over shinyPolish / overrides
   }, [
     cheapest,
-    itemIgrade,
+    summarizeOpts,
     params.mode,
     params.target,
     params.luckySlot,
@@ -867,7 +954,6 @@ export function UpgradeCalculator() {
 
   const fewestSummary = useMemo((): PlanSummary | null => {
     if (!fewest) return null;
-    const summarizeOpts = { igrade: itemIgrade, itemKey, itemValue };
     let base: PlanSummary | null = null;
     if (params.mode === "compound" && "path" in fewest) {
       base = summarizeCompoundPlan(fewest, prices, summarizeOpts);
@@ -879,7 +965,7 @@ export function UpgradeCalculator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- helpers close over shinyPolish / overrides
   }, [
     fewest,
-    itemIgrade,
+    summarizeOpts,
     params.mode,
     params.target,
     params.luckySlot,
@@ -1059,6 +1145,7 @@ export function UpgradeCalculator() {
 
   const materialLabel = (key: string) => {
     if (key === "_stacks") return "Stack farms (fail/prime)";
+    if (key === "_craft_fee") return "Craft fee";
     return G?.items?.[key as ItemKey]?.name ?? key;
   };
 
@@ -1198,10 +1285,66 @@ export function UpgradeCalculator() {
               onPick={(key) => selectItem(key)}
             />
 
+            {params.mode !== "greed" ? (
+              <SidebarSection title="Acquire">
+                <ToggleButtonGroup
+                  exclusive
+                  size="small"
+                  fullWidth
+                  value={params.acquire}
+                  onChange={(_, v: AcquireMode | null) => {
+                    if (!v) return;
+                    if (v === "craft" && !canCraft) return;
+                    patch({ acquire: v });
+                  }}
+                >
+                  <ToggleButton value="buy">Buy</ToggleButton>
+                  <ToggleButton value="craft" disabled={!canCraft}>
+                    Craft
+                  </ToggleButton>
+                  <ToggleButton value="owned">Owned</ToggleButton>
+                </ToggleButtonGroup>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  sx={{ mt: 0.75 }}
+                >
+                  {params.acquire === "buy"
+                    ? "Charge market/vendor unit price per expected base copy."
+                    : params.acquire === "craft"
+                    ? "Explode the craft recipe; set missing material prices below."
+                    : "Acquire gold = 0; destroy risk still uses replacement value."}
+                </Typography>
+                {params.acquire === "craft" && craftIncomplete && craftCost && !craftCost.ok ? (
+                  <Alert severity="warning" sx={{ py: 0.5, mt: 1 }}>
+                    Set prices for: {craftCost.unresolved.map((k) => materialLabel(k)).join(", ")}
+                  </Alert>
+                ) : null}
+                {params.acquire === "craft" && craftCost?.ok ? (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                    sx={{ mt: 0.75, fontVariantNumeric: "tabular-nums" }}
+                  >
+                    Craft EV {formatGold(craftCost.cost)}
+                    {craftCost.fee > 0 ? ` · fee ${formatGold(craftCost.fee)}` : ""}
+                  </Typography>
+                ) : null}
+              </SidebarSection>
+            ) : null}
+
             <Stack direction="row" alignItems="center" spacing={1}>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography variant="body2" color="text.secondary">
-                  {params.mode === "greed" ? "Item unit price" : "Base item cost"}
+                  {params.mode === "greed"
+                    ? "Item unit price"
+                    : params.acquire === "craft"
+                    ? "Buy price (fallback)"
+                    : params.acquire === "owned"
+                    ? "Replacement value"
+                    : "Base item cost"}
                 </Typography>
                 {itemKey && priceOverrides[itemKey] != null ? (
                   <Typography variant="caption" color="primary.main">
@@ -1211,14 +1354,31 @@ export function UpgradeCalculator() {
                   <Typography variant="caption" color="text.secondary">
                     vendor / market / event
                   </Typography>
-                ) : null}
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    override · else market · else vendor .g
+                  </Typography>
+                )}
               </Box>
               <PriceField
-                value={itemValue}
+                value={buyUnit}
                 onChange={(n) => itemKey && setPrice(itemKey, n)}
                 width={128}
               />
             </Stack>
+
+            {params.acquire === "craft" && craftCost && !craftCost.ok
+              ? craftCost.unresolved.map((key) => (
+                  <MaterialPriceRow
+                    key={`craft-leaf-${key}`}
+                    itemKey={key}
+                    label={materialLabel(key)}
+                    price={prices[key] ?? 0}
+                    onPriceChange={(n) => setPrice(key, n)}
+                    overridden={priceOverrides[key] != null}
+                  />
+                ))
+              : null}
 
             {params.mode === "greed" ? (
               <>
