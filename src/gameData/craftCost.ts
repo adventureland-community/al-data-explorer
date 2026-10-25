@@ -191,3 +191,10 @@ export function craftMaterialsForCopies(args: {
   }
   return lines;
 }
+
+/** Per-output craft shopping lines (qty for one craft) for Acquire fold. */
+export function craftCostToMaterialLines(
+  craft: CraftCostOk,
+): { itemKey: string; expectedQty: number; unitPrice: number; total: number }[] {
+  return craftMaterialsForCopies({ craft, copies: 1 });
+}

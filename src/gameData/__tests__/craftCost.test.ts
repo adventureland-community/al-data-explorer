@@ -1,6 +1,7 @@
 import type { GCraft } from "typed-adventureland";
 
 import {
+  craftCostToMaterialLines,
   craftExpectedCost,
   craftMaterialsForCopies,
   listUnresolvedCraftLeaves,
@@ -107,5 +108,25 @@ describe("craftMaterialsForCopies", () => {
     const mats = craftMaterialsForCopies({ craft: result, copies: 3 });
     expect(mats.find((m) => m.itemKey === "metal")?.expectedQty).toBe(6);
     expect(mats.find((m) => m.itemKey === "_craft_fee")?.total).toBe(300);
+  });
+});
+
+describe("craftCostToMaterialLines", () => {
+  it("returns per-craft lines (unscaled) for Acquire fold", () => {
+    const result = craftExpectedCost({
+      itemKey: "blade",
+      prices: { metal: 10, wood: 5 },
+      craft,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const lines = craftCostToMaterialLines(result);
+    expect(lines.find((m) => m.itemKey === "metal")).toStrictEqual({
+      itemKey: "metal",
+      expectedQty: 2,
+      unitPrice: 10,
+      total: 20,
+    });
+    expect(lines.find((m) => m.itemKey === "_craft_fee")?.expectedQty).toBe(1);
   });
 });

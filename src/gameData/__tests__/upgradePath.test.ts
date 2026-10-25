@@ -303,6 +303,35 @@ describe("upgradePath", () => {
     expect(last.runningTotal).toBeCloseTo(summary.totalExpectedCost, 0);
   });
 
+  it("summarizeUpgradePlan craft acquire replaces finished item with leaf mats", () => {
+    const craftEv = 125; // fee 25 + metal 2×40 + wood 20
+    const plan = planUpgradePathBestOdds(ctx(), "blade", craftEv, 2);
+    expect(plan).not.toBeNull();
+    const summary = summarizeUpgradePlan(plan!, PRICES, "upgrade", {
+      itemKey: "blade",
+      itemValue: craftEv,
+      acquireChargePerCopy: craftEv,
+      acquireMode: "craft",
+      craftMaterialLines: [
+        { itemKey: "metal", expectedQty: 2, unitPrice: 40, total: 80 },
+        { itemKey: "wood", expectedQty: 1, unitPrice: 20, total: 20 },
+        { itemKey: "_craft_fee", expectedQty: 1, unitPrice: 25, total: 25 },
+      ],
+    });
+    const acquire = summary.steps[0];
+    expect(acquire.kind).toBe("acquire");
+    expect(acquire.acquireMode).toBe("craft");
+    expect(acquire.acquireLeafKeys).toStrictEqual(["metal", "wood"]);
+    expect(summary.materials.find((m) => m.itemKey === "blade")).toBeUndefined();
+    const metal = summary.materials.find((m) => m.itemKey === "metal");
+    expect(metal?.expectedQty).toBeCloseTo(2 * acquire.attempts, 6);
+    expect(metal?.total).toBeCloseTo(40 * 2 * acquire.attempts, 4);
+    const fee = summary.materials.find((m) => m.itemKey === "_craft_fee");
+    expect(fee?.total).toBeCloseTo(25 * acquire.attempts, 4);
+    const last = summary.steps[summary.steps.length - 1];
+    expect(last.runningTotal).toBeCloseTo(summary.totalExpectedCost, 0);
+  });
+
   it("recomputeUpgradePlan applies scroll override and cascades EV", () => {
     const base = planUpgradePathBestOdds(ctx(), "fireblade", 160_000, 3);
     expect(base).not.toBeNull();

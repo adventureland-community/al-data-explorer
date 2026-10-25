@@ -243,6 +243,12 @@ function normalizePatch(
     next.target = Math.min(cap, next.from + 1);
   }
 
+  // Server polish only applies at item level 0.
+  if (next.from > 0) {
+    next.wantShiny = false;
+    next.polish = "";
+  }
+
   return next;
 }
 

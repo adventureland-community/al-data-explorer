@@ -48,7 +48,11 @@ import {
   UpgradeStepOverride,
   upgradeStepOverrideKey,
 } from "../gameData/upgradePath";
-import { craftExpectedCost, itemHasCraftRecipe } from "../gameData/craftCost";
+import {
+  craftCostToMaterialLines,
+  craftExpectedCost,
+  itemHasCraftRecipe,
+} from "../gameData/craftCost";
 import {
   COMPOUND_SCROLL_KEYS,
   defaultPriceTable,
@@ -890,11 +894,13 @@ export function UpgradeCalculator() {
 
   const craftIncomplete =
     params.acquire === "craft" && canCraft && craftCost != null && !craftCost.ok;
+  /** Craft mode with missing leaf prices — do not silently plan as Buy. */
+  const craftBlocksPlan = craftIncomplete;
 
   /** Replacement / destroy accounting unit for the path planner. */
   const itemValue = (() => {
+    if (craftBlocksPlan) return 0;
     if (params.acquire === "craft" && craftCost?.ok) return craftCost.cost;
-    if (params.acquire === "craft" && craftIncomplete) return buyUnit > 0 ? buyUnit : 0;
     return buyUnit;
   })();
 
@@ -903,26 +909,7 @@ export function UpgradeCalculator() {
     params.acquire === "craft" && craftCost?.ok ? craftCost.cost : buyUnit;
 
   const craftMaterialLines: MaterialLine[] | null =
-    params.acquire === "craft" && craftCost?.ok
-      ? [
-          ...craftCost.leaves.map((l) => ({
-            itemKey: l.itemKey,
-            expectedQty: l.quantity,
-            unitPrice: l.unitPrice,
-            total: l.total,
-          })),
-          ...(craftCost.fee > 0
-            ? [
-                {
-                  itemKey: "_craft_fee",
-                  expectedQty: 1,
-                  unitPrice: craftCost.fee,
-                  total: craftCost.fee,
-                },
-              ]
-            : []),
-        ]
-      : null;
+    params.acquire === "craft" && craftCost?.ok ? craftCostToMaterialLines(craftCost) : null;
 
   /** Pareto cheapest only supports +0 starts; mid-path falls back to max-chance. */
   const midPathStart = params.mode === "upgrade" && params.from > 0;
@@ -935,6 +922,8 @@ export function UpgradeCalculator() {
     params.from,
     params.target,
     params.strategy,
+    params.acquire,
+    itemValue,
     params.luckySlot,
     params.serverUgrace,
     params.statScrollGrace,
@@ -949,8 +938,16 @@ export function UpgradeCalculator() {
     setStepOverrides({});
   }, [stepPlanIdentity]);
 
+  // Shared links may set acquire=craft on non-craftable items — normalize to buy.
+  useEffect(() => {
+    if (params.acquire === "craft" && itemKey && !canCraft) {
+      patch({ acquire: "buy" }, { replace: true });
+    }
+  }, [params.acquire, itemKey, canCraft, patch]);
+
   const cheapest = useMemo(() => {
-    if (!ctx || !gItem || !itemKey || params.mode === "greed") return null;
+    if (craftBlocksPlan || !ctx || !gItem || !itemKey || params.mode === "greed") return null;
+    if (midPathStart) return null;
     if (params.mode === "compound") {
       return planCompoundPath(ctx, itemKey, itemValue, params.target, "costOptimal");
     }
@@ -958,10 +955,10 @@ export function UpgradeCalculator() {
       luckySlot: params.luckySlot,
       startLevel: params.from,
     });
-  }, [ctx, gItem, itemKey, itemValue, params]);
+  }, [craftBlocksPlan, midPathStart, ctx, gItem, itemKey, itemValue, params]);
 
   const fewest = useMemo(() => {
-    if (!ctx || !gItem || !itemKey || params.mode === "greed") return null;
+    if (craftBlocksPlan || !ctx || !gItem || !itemKey || params.mode === "greed") return null;
     if (params.mode === "compound") {
       return planCompoundPath(ctx, itemKey, itemValue, params.target, "bestOdds");
     }
@@ -969,7 +966,7 @@ export function UpgradeCalculator() {
       luckySlot: params.luckySlot,
       startLevel: params.from,
     });
-  }, [ctx, gItem, itemKey, itemValue, params]);
+  }, [craftBlocksPlan, ctx, gItem, itemKey, itemValue, params]);
 
   const greedFarm = useMemo(() => {
     if (params.mode !== "greed" || !gItem?.upgrade || !itemKey) return null;
@@ -1002,25 +999,30 @@ export function UpgradeCalculator() {
 
   const itemIgrade = gItem ? getItemGrade(gItem, 0) : 0;
 
-  const summarizeOpts = {
-    igrade: itemIgrade,
-    itemKey,
-    itemValue,
-    forceAcquire: itemValue > 0 || acquireChargePerCopy > 0,
-    acquireChargePerCopy,
-    craftMaterialLines,
-    acquireMode: params.acquire,
-  };
+  const summarizeOpts = useMemo(
+    () => ({
+      igrade: itemIgrade,
+      itemKey,
+      itemValue,
+      forceAcquire: itemValue > 0 || acquireChargePerCopy > 0,
+      acquireChargePerCopy,
+      craftMaterialLines,
+      acquireMode: params.acquire,
+    }),
+    [itemIgrade, itemKey, itemValue, acquireChargePerCopy, craftMaterialLines, params.acquire],
+  );
 
   const shinyPolish = useMemo(() => {
-    if (!params.wantShiny || params.mode !== "upgrade" || !gItem?.upgrade) return null;
+    if (!params.wantShiny || params.from > 0 || params.mode !== "upgrade" || !gItem?.upgrade) {
+      return null;
+    }
     return pickShinyPolish({
       gItem,
       itemValue,
       prices,
       preferredKey: params.polish || null,
     });
-  }, [params.wantShiny, params.mode, params.polish, gItem, itemValue, prices]);
+  }, [params.wantShiny, params.from, params.mode, params.polish, gItem, itemValue, prices]);
 
   const shinyPolishOptions = useMemo(() => {
     if (params.mode !== "upgrade" || !gItem?.upgrade) return [];
@@ -1645,12 +1647,19 @@ export function UpgradeCalculator() {
                       label="Stat scroll grace"
                     />
                   </Tooltip>
-                  <Tooltip title="Polish the +0 copy with an ingot/nugget for Shiny (server allows polish only at level 0; fail keeps the item)">
+                  <Tooltip
+                    title={
+                      params.from > 0
+                        ? "Shiny polish is only valid at +0 — set From to +0 to enable"
+                        : "Polish the +0 copy with an ingot/nugget for Shiny (server allows polish only at level 0; fail keeps the item)"
+                    }
+                  >
                     <FormControlLabel
                       control={
                         <Switch
                           size="small"
                           checked={params.wantShiny}
+                          disabled={params.from > 0}
                           onChange={(e) => patch({ wantShiny: e.target.checked })}
                         />
                       }
@@ -1913,7 +1922,12 @@ export function UpgradeCalculator() {
                 </>
               ) : null}
 
-              {!summary ? (
+              {craftBlocksPlan ? (
+                <Alert severity="warning">
+                  Craft Acquire needs a unit price for every recipe material in the sidebar before
+                  the upgrade plan can run.
+                </Alert>
+              ) : !summary ? (
                 <Paper sx={{ p: 3 }} variant="outlined">
                   <Typography color="text.secondary">
                     No valid path with the current toolkit. Enable more offerings or scrolls in
@@ -1961,6 +1975,7 @@ export function UpgradeCalculator() {
                     }
                     shinyAvailable={
                       params.mode === "upgrade" &&
+                      params.from === 0 &&
                       Boolean(gItem?.upgrade) &&
                       shinyPolishOptions.some((o) => !o.invalid)
                     }
