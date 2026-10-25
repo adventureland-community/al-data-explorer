@@ -33,13 +33,13 @@ describe("itemMeta", () => {
     expect(labels).toStrictEqual(expect.arrayContaining(["Event", "Exclusive", "Exchangeable"]));
   });
 
-  it("builds opens fact with world link when map exists", () => {
+  it("builds opens fact with map detail link when map exists", () => {
     const facts = getItemFacts({ name: "Crypt Key", type: "key", opens: "crypt" } as never, {
       maps: { crypt: { name: "The Crypt" } },
     });
     const opens = facts.find((f) => f.key === "opens");
     expect(opens?.value).toBe("The Crypt");
-    expect(opens?.href).toContain("map=crypt");
+    expect(opens?.href).toBe("/maps/crypt");
   });
 
   it("matches class filter including unrestricted gear", () => {

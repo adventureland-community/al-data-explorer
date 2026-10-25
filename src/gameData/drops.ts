@@ -1,5 +1,7 @@
 import {
   buildDropsByItem,
+  collectOpenTableOpeners,
+  collectOpenTableTargets,
   parseDropEntry,
   parseMonsterDropTable,
   resolveDisplayChance,
@@ -12,12 +14,15 @@ import { DropSource } from "./types";
 export type { DropChanceKind };
 export {
   buildDropsByItem,
+  collectOpenTableOpeners,
+  collectOpenTableTargets,
   parseDropEntry,
   parseMonsterDropTable,
   resolveDisplayChance,
   tableTotalWeight,
   toAcquisitionDropSources,
 };
+export type { OpenTableOpener } from "./dropTable";
 
 /** @deprecated Prefer toAcquisitionDropSources — same Drop Table acquisition projection. */
 export function extractDropRates(drops: Record<string, unknown>): DropSource[] {
@@ -124,6 +129,11 @@ export function formatMonsterDropsDisplay(drops: unknown): string {
     .join(", ");
 }
 
+/** Drop Simulator deep link for a named loot / exchange table. */
+export function dropsTableDeepLink(tableKey: string): string {
+  return `/drops?mode=exchange&table=${encodeURIComponent(tableKey)}`;
+}
+
 export function getDropSourceLink(
   drop: DropSource,
   items?: Record<string, unknown>,
@@ -132,10 +142,13 @@ export function getDropSourceLink(
     return `/monsters?monster=${encodeURIComponent(drop.sourceKey)}`;
   }
   if (drop.sourceType === "map") {
-    return `/world#map=${encodeURIComponent(drop.sourceKey)}`;
+    return `/maps/${encodeURIComponent(drop.sourceKey)}`;
   }
-  if (drop.sourceType === "table" && items?.[drop.sourceKey]) {
-    return `/items/${encodeURIComponent(drop.sourceKey)}`;
+  if (drop.sourceType === "table") {
+    if (items?.[drop.sourceKey]) {
+      return `/items/${encodeURIComponent(drop.sourceKey)}`;
+    }
+    return dropsTableDeepLink(drop.sourceKey);
   }
   return undefined;
 }

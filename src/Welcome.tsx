@@ -18,6 +18,11 @@ const sections = [
     description: "Browse monsters, drops, achievements, and search or sort the list.",
   },
   {
+    title: "Maps",
+    path: "/maps",
+    description: "Map details: NPCs, monsters, doors, travel, and map drop tables.",
+  },
+  {
     title: "Classes",
     path: "/classes",
     description: "Explore character classes, base stats, weapon bonuses, and every G skill.",
