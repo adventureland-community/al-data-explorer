@@ -30,6 +30,7 @@ import {
   MaterialLine,
   PlanSummaryStep,
 } from "../gameData/upgradePath";
+import { SideEffectSummary } from "../gameData/upgradeSideEffects";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { CalcStrategy } from "./useUpgradeCalcParams";
@@ -1191,6 +1192,261 @@ function formatMaterialsClipboard(
   if (destroyGap > 0) lines.push(`Destroy / base risk: ${formatGold(destroyGap)}`);
   lines.push(`Plan EV: ${formatGold(planEv)}`);
   return lines.join("\n");
+}
+
+function formatTinyExpect(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return "0";
+  if (n >= 0.01) return n.toFixed(3).replace(/\.?0+$/, "");
+  if (n >= 0.0001) return n.toFixed(5).replace(/\.?0+$/, "");
+  return n.toExponential(2);
+}
+
+function SideEffectMetric({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  const body = (
+    <Box>
+      <Typography variant="caption" color="text.secondary" display="block">
+        {label}
+      </Typography>
+      <Typography variant="body1" fontWeight={600} sx={{ fontVariantNumeric: "tabular-nums" }}>
+        {value}
+      </Typography>
+    </Box>
+  );
+  return hint ? <Tooltip title={hint}>{body}</Tooltip> : body;
+}
+
+/** Expected Lucky / Greed / Shiny / Dark Tri-Stone / booster extras for the plan. */
+export function SideEffectsPanel({
+  summary,
+  mode,
+  luckySlot,
+}: {
+  summary: SideEffectSummary;
+  mode: "upgrade" | "compound";
+  luckySlot: boolean;
+}) {
+  const G = useContext(GDataContext);
+  const eligibleSteps = summary.steps.filter(
+    (s) => s.eligibleLucky || s.eligibleGreed || s.expectedBoosterExtras > 0,
+  );
+  const shinyOptions = summary.shinyOptions?.filter((o) => !o.invalid) ?? [];
+  const cheapestShiny = shinyOptions.reduce<typeof shinyOptions[number] | null>((best, o) => {
+    if (!Number.isFinite(o.expectedCost)) return best;
+    if (!best || o.expectedCost < best.expectedCost) return o;
+    return best;
+  }, null);
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Typography variant="subtitle1">Side effects</Typography>
+      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.25 }}>
+        Live server outcomes outside plan EV: chance-edge Lucky / Greed, bonus grace, Shiny polish,
+        Dark Tri-Stone, and booster extras.
+        {luckySlot
+          ? " Lucky Slot remaps rolls — edge odds use the plan chance and are approximate."
+          : null}
+      </Typography>
+
+      <Stack
+        direction="row"
+        spacing={{ xs: 2, sm: 3 }}
+        flexWrap="wrap"
+        sx={{ gap: 2, mb: 1.5, "& > *": { minWidth: 96 } }}
+      >
+        <SideEffectMetric
+          label="Exp. Lucky titles"
+          value={formatTinyExpect(summary.expectedLucky)}
+        />
+        {mode === "upgrade" ? (
+          <SideEffectMetric
+            label="Exp. Essence of Greed"
+            value={formatTinyExpect(summary.expectedGreed)}
+          />
+        ) : null}
+        {mode === "upgrade" ? (
+          <SideEffectMetric
+            label="Exp. bonus +1 grace"
+            value={formatTinyExpect(summary.expectedBonusGrace)}
+            hint="2.5% per upgrade click"
+          />
+        ) : null}
+        {summary.darkTristone ? (
+          <SideEffectMetric
+            label="Exp. Dark Tri-Stone"
+            value={formatTinyExpect(summary.darkTristone.expected)}
+            hint={`${(summary.darkTristone.chance * 100).toFixed(1)}% when +0→+1 compound succeeds`}
+          />
+        ) : null}
+        {summary.isBooster ? (
+          <SideEffectMetric
+            label="Exp. booster extras"
+            value={formatTinyExpect(summary.expectedBoosterExtras)}
+            hint="Cascading 12%/6%/… extra levels when compounding with an offering (success is ~100%)"
+          />
+        ) : null}
+        {cheapestShiny ? (
+          <SideEffectMetric
+            label="Cheapest Shiny EV"
+            value={formatGold(cheapestShiny.expectedCost)}
+            hint={`${G?.items?.[cheapestShiny.key]?.name ?? cheapestShiny.key} · ${formatChancePct(
+              cheapestShiny.chance,
+            )} · fail keeps the item`}
+          />
+        ) : null}
+      </Stack>
+
+      {!summary.anyEligible && mode === "upgrade" ? (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Lucky and Essence of Greed only roll once the item is High grade or above (grade ≥ 1).
+          Lower steps still get the 2.5% bonus-grace proc.
+        </Typography>
+      ) : null}
+
+      {summary.darkTristone ? (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Compounding Tri-Stone +0→+1 has a {(summary.darkTristone.chance * 100).toFixed(1)}% chance
+          to become Dark Tri-Stone on success.
+        </Typography>
+      ) : null}
+
+      {summary.isBooster ? (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Boosters always succeed when compounding (~100%). With an offering, each success can
+          cascade extra levels (12%, then half that, …). Enable offerings in the toolkit to see
+          extras above.
+        </Typography>
+      ) : null}
+
+      {shinyOptions.length > 0 ? (
+        <Accordion
+          disableGutters
+          elevation={0}
+          defaultExpanded
+          sx={{ bgcolor: "transparent", "&:before": { display: "none" } }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 36 }}>
+            <Typography variant="body2" color="text.secondary">
+              Shiny polish (no scroll)
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ px: 0, pt: 0 }}>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+              Use an ingot/nugget alone at the upgrade NPC. Fail consumes the material but keeps the
+              item. Prices come from Toolkit & prices.
+            </Typography>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Material</TableCell>
+                    <TableCell align="right">Chance</TableCell>
+                    <TableCell align="right">Exp. tries</TableCell>
+                    <TableCell align="right">EV gold</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {shinyOptions.map((o) => (
+                    <TableRow
+                      key={o.key}
+                      sx={
+                        cheapestShiny?.key === o.key
+                          ? {
+                              bgcolor: (t) =>
+                                t.palette.mode === "dark"
+                                  ? "rgba(255,255,255,0.04)"
+                                  : "rgba(0,0,0,0.03)",
+                            }
+                          : undefined
+                      }
+                    >
+                      <TableCell>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <ItemInstance itemInfo={{ name: o.key as ItemKey }} size={ICON} tooltip />
+                          <Typography variant="body2">
+                            {G?.items?.[o.key]?.name ?? o.key}
+                          </Typography>
+                        </Stack>
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {formatChancePct(o.chance)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {formatAttempts(o.chance)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {formatGold(o.expectedCost)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </AccordionDetails>
+        </Accordion>
+      ) : null}
+
+      {eligibleSteps.length > 0 ? (
+        <Accordion
+          disableGutters
+          elevation={0}
+          sx={{ bgcolor: "transparent", "&:before": { display: "none" } }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 36 }}>
+            <Typography variant="body2" color="text.secondary">
+              Per-step odds ({eligibleSteps.length})
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ px: 0, pt: 0 }}>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Step</TableCell>
+                    <TableCell align="right">Lucky</TableCell>
+                    {mode === "upgrade" ? <TableCell align="right">Greed</TableCell> : null}
+                    {summary.isBooster ? <TableCell align="right">Extras</TableCell> : null}
+                    <TableCell align="right">Chance</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {eligibleSteps.map((s) => (
+                    <TableRow key={`${s.fromLevel}-${s.toLevel}`}>
+                      <TableCell>
+                        +{s.fromLevel}→+{s.toLevel}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {s.eligibleLucky ? formatTinyExpect(s.expectedLucky) : "—"}
+                      </TableCell>
+                      {mode === "upgrade" ? (
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                          {s.eligibleGreed ? formatTinyExpect(s.expectedGreed) : "—"}
+                        </TableCell>
+                      ) : null}
+                      {summary.isBooster ? (
+                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                          {formatTinyExpect(s.expectedBoosterExtras)}
+                        </TableCell>
+                      ) : null}
+                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {formatChancePct(s.chance)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </AccordionDetails>
+        </Accordion>
+      ) : null}
+
+      {summary.inactiveTitles.length > 0 ? (
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+          Inactive on live server: {summary.inactiveTitles.map((t) => t.label).join(" / ")} titles
+          still exist in data but are not assigned (assignment code commented out).
+        </Typography>
+      ) : null}
+    </Paper>
+  );
 }
 
 export function MaterialsPanel({

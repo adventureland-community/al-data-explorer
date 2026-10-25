@@ -99,4 +99,22 @@ describe("upgradeChance", () => {
     expect(chanceCap).toBeGreaterThan(0);
     expect(chance).toBeLessThanOrEqual(chanceCap + 1e-12);
   });
+
+  it("forces booster compounds to near-certain success", () => {
+    ITEMS.xpbooster = {
+      compound: true,
+      type: "booster",
+      g: 1e7,
+      // grades[0]=0 → getItemGrade(level 0) is High (1); need scroll ≥ 1
+      grades: [0, 10, 6, 7],
+    } as unknown as GItem;
+    const { chance, chanceCap } = getCompoundChance(
+      lookup,
+      { name: "xpbooster" as ItemKey, level: 0, grace: 0 },
+      1,
+      1,
+    );
+    expect(chance).toBeGreaterThan(0.999);
+    expect(chanceCap).toBe(1);
+  });
 });

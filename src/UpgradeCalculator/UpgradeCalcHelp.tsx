@@ -65,6 +65,33 @@ function HelpBody() {
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
+        <strong>Side effects</strong> (under the shopping list, not in plan EV):
+      </Typography>
+      <Typography variant="body2" color="text.secondary" component="div">
+        <ul style={{ margin: 0, paddingLeft: 18 }}>
+          <li>
+            Chance-edge bucket (1/10000): <em>Lucky</em> on success (upgrade High grade+; compound
+            any), <em>Essence of Greed</em> on fail (upgrade High grade+)
+          </li>
+          <li>Bonus +1 grace at 2.5% per upgrade click</li>
+          <li>
+            <em>Shiny</em> polish: ingot/nugget alone (no scroll); fail keeps the item — EV table in
+            Side effects
+          </li>
+          <li>
+            Tri-Stone +0→+1 compound: 1.2% chance to become <em>Dark Tri-Stone</em>
+          </li>
+          <li>
+            Boosters: compound always succeeds; with an offering, cascading 12%/6%/… extra levels
+          </li>
+          <li>
+            Fast / Super Fast titles exist in data but are inactive (server assignment commented
+            out)
+          </li>
+        </ul>
+      </Typography>
+
+      <Typography variant="body2" color="text.secondary">
         Credit: Cheapest path search, stack farm costs, craft time, and grace math follow{" "}
         <Link href={PASTEBIN_CALC} target="_blank" rel="noreferrer">
           Kora Dereva&apos;s pastebin calculator

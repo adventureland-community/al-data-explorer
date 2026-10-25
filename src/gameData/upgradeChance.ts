@@ -10,6 +10,9 @@ import { GItem, ItemKey } from "typed-adventureland";
 
 import { getItemGrade } from "./playerItemDisplay";
 
+/** Server forces booster compounds to this success chance (ignore compound table). */
+const BOOSTER_COMPOUND_CHANCE = 0.9999999999999;
+
 /** From design/upgrades.js — fallback when G.upgrades is missing. */
 export const UPGRADE_BASE_CHANCES: Record<number, Record<number, number>> = {
   0: {
@@ -272,11 +275,15 @@ export function getCompoundChance(
   const grade = getItemGrade(def, item.level ?? 0);
   if (grade > scrollGrade) return { chance: 0, graceAfter: 0, chanceCap: 0 };
 
+  const isBooster = (def as GItem & { type?: string }).type === "booster";
+
   const newLevel = (item.level ?? 0) + 1;
   const igrade = compoundIgrade(lookup, item);
   let probability = tableChance(tables?.compounds, COMPOUND_BASE_CHANCES, igrade, newLevel);
   const oprobability = probability;
-  if (!probability) return { chance: 0, graceAfter: 0, chanceCap: 0 };
+  // Boosters ignore the compound table (server forces ~1); don't early-out on missing rows.
+  if (!probability && !isBooster) return { chance: 0, graceAfter: 0, chanceCap: 0 };
+  if (isBooster && !probability) probability = BOOSTER_COMPOUND_CHANCE;
 
   let high: number | boolean = false;
   let graceBonus = 0;
@@ -323,6 +330,16 @@ export function getCompoundChance(
   }
 
   newGrace = newGrace / 6.4 + graceBonus;
+
+  // Server: boosters ignore the compound table and always succeed (~1).
+  if (isBooster) {
+    return {
+      chance: BOOSTER_COMPOUND_CHANCE,
+      graceAfter: newGrace,
+      chanceCap: 1,
+    };
+  }
+
   const chanceCap = Math.min(
     oprobability * (3 + (high ? (high as number) * 0.6 : 0)),
     oprobability + 0.2 + (high ? (high as number) * 0.05 : 0),

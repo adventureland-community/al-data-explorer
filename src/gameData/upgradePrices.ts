@@ -8,6 +8,14 @@ export type PriceTable = Record<string, number>;
 export const UPGRADE_SCROLL_KEYS = ["scroll0", "scroll1", "scroll2", "scroll3", "scroll4"] as const;
 export const COMPOUND_SCROLL_KEYS = ["cscroll0", "cscroll1", "cscroll2", "cscroll3"] as const;
 export const OFFERING_KEYS = [null, "offeringp", "offering", "offeringx"] as const;
+/** Ingot/nugget polish materials for Shiny (keep in sync with `POLISH_MATERIALS`). */
+export const POLISH_MATERIAL_KEYS = [
+  "goldnugget",
+  "bronzeingot",
+  "platinumnugget",
+  "goldingot",
+  "platinumingot",
+] as const;
 /**
  * Proxy pscroll for grace-technique costing (all catalog pscrolls share `.g`).
  * Server consumes `needed[itemGrade]` of any compatible property scroll.
@@ -26,6 +34,7 @@ const DEFAULT_MATERIAL_KEYS: ItemKey[] = [
   "offeringx",
   STAT_SCROLL_PROXY_KEY,
   "helmet",
+  ...POLISH_MATERIAL_KEYS,
 ];
 
 /** Property-scroll qty required for an item of the given upgrade grade. */

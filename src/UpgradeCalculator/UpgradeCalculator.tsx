@@ -46,6 +46,7 @@ import {
   COMPOUND_SCROLL_KEYS,
   defaultPriceTable,
   OFFERING_KEYS,
+  POLISH_MATERIAL_KEYS,
   PriceTable,
   STAT_SCROLL_PROXY_KEY,
   UPGRADE_SCROLL_KEYS,
@@ -55,6 +56,7 @@ import { SimEntityAutocomplete } from "../DropSimulator/SimEntityAutocomplete";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { useMerchants } from "../Market/useMerchants";
 import { UpgradeCalcHelpButton } from "./UpgradeCalcHelp";
+import { summarizeUpgradeSideEffects } from "../gameData/upgradeSideEffects";
 import {
   CopyPlanLinkButton,
   EvDeltaBanner,
@@ -65,6 +67,7 @@ import {
   pathStepKey,
   PlanHero,
   PlanModifiersChips,
+  SideEffectsPanel,
   StepPlanTable,
   StrategyCard,
 } from "./PlanResults";
@@ -739,6 +742,18 @@ export function UpgradeCalculator() {
 
   const summary = midPathStart || params.strategy === "fewest" ? fewestSummary : cheapestSummary;
 
+  const sideEffects = useMemo(() => {
+    if (!summary) return null;
+    return summarizeUpgradeSideEffects({
+      steps: summary.steps,
+      gItem,
+      itemKey: itemKey ?? undefined,
+      itemValue,
+      prices,
+      mode: params.mode,
+    });
+  }, [summary, gItem, itemKey, itemValue, prices, params.mode]);
+
   const totalAttempts = summary ? sumAttempts(summary.steps) : 0;
   const oneshotPct = summary ? oneshotPercent(summary.steps) : null;
   const bottleneck = summary ? heaviestStep(summary.steps) : null;
@@ -1168,6 +1183,23 @@ export function UpgradeCalculator() {
                       ) : null}
                     </Stack>
                   </SidebarSection>
+
+                  {params.mode === "upgrade" ? (
+                    <SidebarSection title="Shiny polish">
+                      <Stack spacing={1.25}>
+                        {POLISH_MATERIAL_KEYS.map((key) => (
+                          <MaterialPriceRow
+                            key={key}
+                            itemKey={key}
+                            label={materialLabel(key)}
+                            price={prices[key] ?? 0}
+                            onPriceChange={(n) => setPrice(key, n)}
+                            overridden={priceOverrides[key] != null}
+                          />
+                        ))}
+                      </Stack>
+                    </SidebarSection>
+                  ) : null}
                 </Stack>
               </AccordionDetails>
             </Accordion>
@@ -1325,6 +1357,13 @@ export function UpgradeCalculator() {
                     materialLabel={materialLabel}
                     planEv={summary.totalExpectedCost}
                   />
+                  {sideEffects ? (
+                    <SideEffectsPanel
+                      summary={sideEffects}
+                      mode={params.mode}
+                      luckySlot={params.luckySlot}
+                    />
+                  ) : null}
                   <StepPlanTable steps={summary.steps} />
                 </>
               )}
