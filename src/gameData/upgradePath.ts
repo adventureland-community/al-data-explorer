@@ -101,9 +101,18 @@ export type UpgradePathStep = {
   ograceCost: number;
   /** Raw table chance for this level (no scroll/offering/stack buffs). */
   baseChance?: number;
-  /** Cap after high scroll/offering (pre- or post-lucky, matches stored chance). */
+  /** Cap after high scroll/offering (game-visible; not lucky-adjusted). */
   chanceCap?: number;
+  /**
+   * Game-visible success chance (matches the in-game upgrade UI).
+   * Lucky Slot does not change this — it only affects `successRate` / EV.
+   */
   chance: number;
+  /**
+   * Expected success rate for EV and attempts. When Lucky Slot is on, this is
+   * the 60/40 blend; otherwise equals `chance`.
+   */
+  successRate?: number;
   graceAfter: number;
   stepExpectedCost: number;
 };
@@ -403,13 +412,11 @@ function upgradeCalcPareto(
               });
               if (!raw.chance) continue;
 
-              let { chance } = raw;
-              let { chanceCap } = raw;
-              if (options.luckySlot) {
-                chance = applyLuckySlotChance(chance);
-                chanceCap = applyLuckySlotChance(chanceCap);
-              }
-              if (!(chance > 0)) continue;
+              // Store game-visible chance; Lucky Slot only changes EV success rate.
+              const { chance } = raw;
+              const { chanceCap } = raw;
+              const successRate = options.luckySlot ? applyLuckySlotChance(chance) : chance;
+              if (!(successRate > 0)) continue;
 
               const { cost, fixedCost, attemptCost } = calculateUpgradeStepCost({
                 parentCost: parent.cost,
@@ -419,7 +426,7 @@ function upgradeCalcPareto(
                 failstackCost: fsCost,
                 ograceCost: psCost,
                 scrollGrade,
-                chance,
+                chance: successRate,
               });
 
               const graceAfter = Math.min(raw.graceAfter, itemGraceCap);
@@ -447,7 +454,8 @@ function upgradeCalcPareto(
                 cost,
               }));
 
-              const lowerBound = fixedCost + attemptCost / chanceCap;
+              const successCap = options.luckySlot ? applyLuckySlotChance(chanceCap) : chanceCap;
+              const lowerBound = fixedCost + attemptCost / successCap;
               if (lowerBound >= best.cost) break;
               if (chance >= chanceCap) break;
             }
@@ -464,7 +472,11 @@ function upgradeCalcPareto(
   return last;
 }
 
-function reconstructUpgradePlan(best: ParetoState, itemValue: number): UpgradePathPlan {
+function reconstructUpgradePlan(
+  best: ParetoState,
+  itemValue: number,
+  options: { luckySlot?: boolean } = {},
+): UpgradePathPlan {
   const chain: ParetoState[] = [];
   let current: ParetoState | null | undefined = best;
   while (current) {
@@ -480,6 +492,8 @@ function reconstructUpgradePlan(best: ParetoState, itemValue: number): UpgradePa
     const fromLevel = (node.level_to ?? 1) - 1;
     const primstacking = node.primstacking ?? 0;
     const statScrollGrace = node.statScrollGrace ?? 0;
+    const chance = node.chance ?? 0;
+    const successRate = options.luckySlot ? applyLuckySlotChance(chance) : chance;
     steps.push({
       fromLevel,
       toLevel: fromLevel + 1,
@@ -496,7 +510,9 @@ function reconstructUpgradePlan(best: ParetoState, itemValue: number): UpgradePa
       ograce: node.ograce ?? 0,
       failstackCost: node.failstackCost ?? 0,
       ograceCost: node.ograceCost ?? 0,
-      chance: node.chance ?? 0,
+      chanceCap: node.chance_cap,
+      chance,
+      successRate,
       graceAfter: node.graceAfter ?? node.item_grace,
       stepExpectedCost: node.cost - prevCost,
     });
@@ -722,7 +738,7 @@ function enumerateUpgradeRoutes(
             chance,
             luckyChance,
             materialCost,
-            expectedCost: expectedUpgradeCost(materialCost, itemValue, chance),
+            expectedCost: expectedUpgradeCost(materialCost, itemValue, luckyChance),
           });
         }
       }
@@ -776,16 +792,19 @@ export function planUpgradePathBestOdds(
   targetLevel: number,
   options: { luckySlot?: boolean; startLevel?: number; startGrace?: number } = {},
 ): UpgradePathPlan | null {
-  if (!ctx.lookup(itemName)) return null;
+  const def0 = ctx.lookup(itemName);
+  if (!def0) return null;
   const startLevel = options.startLevel ?? 0;
   const steps: UpgradePathStep[] = [];
-  let grace = options.startGrace ?? 0;
-  let cumCost = 0;
+  // Mid-path (+from): unknown banked grace on a bought/found copy → start at 0.
+  // +0 starts: match Cheapest / pastebin seed (intrinsic igrace on the item state).
+  let grace = options.startGrace ?? (startLevel > 0 ? 0 : itemIgraceFromDef(def0));
+  // Asset EV of the current item (includes base). Step spend is the incremental EV.
   let curValue = itemValue;
 
   for (let lvl = startLevel; lvl < targetLevel; lvl++) {
     const rec = recommendUpgradeStepMaxChance(ctx, itemName, lvl, grace, curValue, options);
-    if (!rec) return steps.length ? { steps, totalExpectedCost: cumCost } : null;
+    if (!rec) return steps.length ? { steps, totalExpectedCost: curValue } : null;
 
     const item = {
       name: itemName,
@@ -795,17 +814,16 @@ export function planUpgradePathBestOdds(
         grace + rec.primstacking * PRIMSTACK_GRACE + rec.statScrollGrace,
       ),
     };
-    const { chance, graceAfter } = getUpgradeChance(
+    const { chance, graceAfter, chanceCap } = getUpgradeChance(
       ctx.lookup,
       item,
       rec.scrollGrade,
       rec.offering,
       ctx.tables,
     );
-    const finalChance = options.luckySlot ? applyLuckySlotChance(chance) : chance;
-    const stepEv = expectedUpgradeCost(rec.materialCost, curValue, chance);
-    cumCost += stepEv;
-    curValue = stepEv;
+    const successRate = options.luckySlot ? applyLuckySlotChance(chance) : chance;
+    const stepEv = expectedUpgradeCost(rec.materialCost, curValue, successRate);
+    curValue += stepEv;
     grace = graceAfter;
     const def = ctx.lookup(itemName);
     const itemGrade = def ? getItemGrade(def, lvl) : 0;
@@ -825,13 +843,15 @@ export function planUpgradePathBestOdds(
       ograce: 0,
       failstackCost: 0,
       ograceCost: 0,
-      chance: finalChance,
+      chanceCap,
+      chance,
+      successRate,
       graceAfter,
       stepExpectedCost: stepEv,
     });
   }
 
-  return { steps, totalExpectedCost: cumCost };
+  return { steps, totalExpectedCost: curValue };
 }
 
 /** Manual recipe knobs for one upgrade step (planner defaults + user overrides). */
@@ -904,7 +924,6 @@ export function recomputeUpgradePlan(args: {
   let grace = args.startGrace ?? itemIgraceFromDef(def);
   let parentCost = itemValue;
   let curValue = itemValue;
-  let cumFewest = 0;
   const out: UpgradePathStep[] = [];
 
   for (const recipe of args.steps) {
@@ -969,8 +988,7 @@ export function recomputeUpgradePlan(args: {
     );
     const { chance, graceAfter, chanceCap } = rawChance;
     if (!(chance > 0)) return null;
-    const finalChance = args.luckySlot ? applyLuckySlotChance(chance) : chance;
-    const finalCap = args.luckySlot ? applyLuckySlotChance(chanceCap) : chanceCap;
+    const successRate = args.luckySlot ? applyLuckySlotChance(chance) : chance;
 
     const scrollKey = scrollKeyForUpgrade(scrollGrade);
     if (!scrollKey) return null;
@@ -993,10 +1011,9 @@ export function recomputeUpgradePlan(args: {
     let stepEv: number;
     if (costModel === "fewest") {
       const materialCost = sCost + oCost + pCost + ssCost;
-      // Match planUpgradePathBestOdds: EV uses pre-lucky chance; stored chance is lucky.
-      stepEv = expectedUpgradeCost(materialCost, curValue, chance);
-      cumFewest += stepEv;
-      curValue = stepEv;
+      // Incremental EV; curValue is asset EV (includes base). successRate includes Lucky Slot.
+      stepEv = expectedUpgradeCost(materialCost, curValue, successRate);
+      curValue += stepEv;
     } else {
       failstackCost = stacks ? failstackUnitCost(stacks, fromLevel + 1, failstack) : 0;
       ograceCostVal = stacks ? ograceUnitCost(stacks, ograce) : 0;
@@ -1010,7 +1027,7 @@ export function recomputeUpgradePlan(args: {
         failstackCost,
         ograceCost: ograceCostVal,
         scrollGrade,
-        chance: finalChance,
+        chance: successRate,
       });
       stepEv = priced.cost - parentCost;
       parentCost = priced.cost;
@@ -1033,8 +1050,9 @@ export function recomputeUpgradePlan(args: {
       failstackCost,
       ograceCost: ograceCostVal,
       baseChance,
-      chanceCap: finalCap,
-      chance: finalChance,
+      chanceCap,
+      chance,
+      successRate,
       graceAfter,
       stepExpectedCost: stepEv,
     });
@@ -1043,7 +1061,7 @@ export function recomputeUpgradePlan(args: {
 
   return {
     steps: out,
-    totalExpectedCost: costModel === "fewest" ? cumFewest : parentCost,
+    totalExpectedCost: costModel === "fewest" ? curValue : parentCost,
   };
 }
 
@@ -1094,7 +1112,7 @@ export function planUpgradePath(
     allowOgrace: options.allowOgrace,
   });
   if (!frontier?.length) return null;
-  return reconstructUpgradePlan(frontier[0], itemValue);
+  return reconstructUpgradePlan(frontier[0], itemValue, { luckySlot: options.luckySlot });
 }
 
 type CompoundRouteCandidate = {
@@ -1277,7 +1295,7 @@ export function planCompoundPath(
   const offerings = offeringChoices(ctx.toolkit);
   const path: CompoundPathStep[] = [];
   let item = { name: itemName, level: 0, grace: 0 };
-  let cumCost = 0;
+  // Absolute EV of the current compound product (includes base); step spend is the delta.
   let curCost = itemValue;
 
   for (let lvl = 0; lvl < targetLevel; lvl++) {
@@ -1308,7 +1326,7 @@ export function planCompoundPath(
 
     const best = pickCompoundRoute(candidates, strategy);
     if (!best) break;
-    cumCost += best.expCost;
+    const stepEv = best.expCost - curCost;
     path.push({
       fromLevel: lvl,
       toLevel: lvl + 1,
@@ -1318,13 +1336,13 @@ export function planCompoundPath(
       ograceCost: best.ograceCost,
       chance: best.chance,
       graceAfter: best.grace,
-      stepExpectedCost: best.expCost,
+      stepExpectedCost: stepEv,
     });
     item = { name: itemName, level: lvl + 1, grace: best.grace };
     curCost = best.expCost;
   }
 
-  return { path, totalExpectedCost: cumCost };
+  return { path, totalExpectedCost: curCost };
 }
 
 export type { MaterialLine, PlanSummaryStep } from "./upgradePathSummary";

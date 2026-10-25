@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { GreedScrollKey, OfferingChoice, UPGRADE_SCROLL_KEYS } from "../calculators";
+import { GreedScrollKey, OfferingChoice, PriceTable, UPGRADE_SCROLL_KEYS } from "../calculators";
 
 export type CalcMode = "upgrade" | "compound" | "greed";
 export type CalcStrategy = "cheapest" | "fewest";
@@ -141,6 +141,39 @@ function greedOfferingParam(offering: OfferingChoice): string | null {
   return "offeringx";
 }
 
+const PRICE_OVERRIDES_PARAM = "px";
+const PRICE_KEY_RE = /^[a-zA-Z0-9_]+$/;
+
+/** Parse `px=item:3e9,scroll0:100` price overrides from the share URL. */
+export function parsePriceOverrides(searchParams: URLSearchParams): PriceTable {
+  const raw = searchParams.get(PRICE_OVERRIDES_PARAM);
+  if (!raw) return {};
+  const out: PriceTable = {};
+  for (const part of raw.split(",")) {
+    const colon = part.indexOf(":");
+    if (colon <= 0) continue;
+    const key = part.slice(0, colon).trim();
+    if (!PRICE_KEY_RE.test(key)) continue;
+    const n = Number(part.slice(colon + 1));
+    if (!Number.isFinite(n) || n < 0) continue;
+    out[key] = n;
+  }
+  return out;
+}
+
+function appendPriceOverrides(sp: URLSearchParams, overrides: PriceTable): void {
+  const keys = Object.keys(overrides).sort();
+  if (!keys.length) return;
+  const parts: string[] = [];
+  for (const key of keys) {
+    if (!PRICE_KEY_RE.test(key)) continue;
+    const n = overrides[key];
+    if (typeof n !== "number" || !Number.isFinite(n) || n < 0) continue;
+    parts.push(`${key}:${n}`);
+  }
+  if (parts.length) sp.set(PRICE_OVERRIDES_PARAM, parts.join(","));
+}
+
 export function parseUpgradeCalcParams(searchParams: URLSearchParams): UpgradeCalcParams {
   const mode = parseMode(searchParams.get("mode"));
   const target = parseTarget(searchParams.get("target"), mode);
@@ -167,7 +200,7 @@ export function parseUpgradeCalcParams(searchParams: URLSearchParams): UpgradeCa
   };
 }
 
-function writeParams(params: UpgradeCalcParams): URLSearchParams {
+function writeParams(params: UpgradeCalcParams, priceOverrides: PriceTable = {}): URLSearchParams {
   const sp = new URLSearchParams();
   if (params.mode !== DEFAULTS.mode) sp.set("mode", params.mode);
   if (params.item) sp.set("item", params.item);
@@ -178,6 +211,7 @@ function writeParams(params: UpgradeCalcParams): URLSearchParams {
     if (go) sp.set("goffer", go);
     if (params.greedTarget !== DEFAULTS.greedTarget) sp.set("n", String(params.greedTarget));
     if (params.luckySlot) sp.set("lucky", "1");
+    appendPriceOverrides(sp, priceOverrides);
     return sp;
   }
   if (params.from > 0 && params.mode === "upgrade") sp.set("from", String(params.from));
@@ -196,6 +230,7 @@ function writeParams(params: UpgradeCalcParams): URLSearchParams {
   if (!params.offeringp) sp.set("op", "0");
   if (!params.offering) sp.set("o", "0");
   if (!params.offeringx) sp.set("ox", "0");
+  appendPriceOverrides(sp, priceOverrides);
   return sp;
 }
 
@@ -253,14 +288,34 @@ function normalizePatch(
 export function useUpgradeCalcParams() {
   const [searchParams, setSearchParams] = useSearchParams();
   const params = useMemo(() => parseUpgradeCalcParams(searchParams), [searchParams]);
+  const priceOverrides = useMemo(() => parsePriceOverrides(searchParams), [searchParams]);
 
   const patch = useCallback(
     (partial: Partial<UpgradeCalcParams>, opts?: { replace?: boolean }) => {
       const next = normalizePatch(params, partial);
-      setSearchParams(writeParams(next), { replace: opts?.replace ?? false });
+      let overrides = priceOverrides;
+      // Drop the previous base-item override when switching items (stale px=fallen:… on helmet).
+      if (
+        partial.item != null &&
+        partial.item !== params.item &&
+        params.item &&
+        priceOverrides[params.item] != null
+      ) {
+        overrides = { ...priceOverrides };
+        delete overrides[params.item];
+      }
+      setSearchParams(writeParams(next, overrides), { replace: opts?.replace ?? false });
     },
-    [params, setSearchParams],
+    [params, priceOverrides, setSearchParams],
   );
 
-  return { params, patch };
+  const setPriceOverrides = useCallback(
+    (next: PriceTable | ((prev: PriceTable) => PriceTable), opts?: { replace?: boolean }) => {
+      const resolved = typeof next === "function" ? next(priceOverrides) : next;
+      setSearchParams(writeParams(params, resolved), { replace: opts?.replace ?? true });
+    },
+    [params, priceOverrides, setSearchParams],
+  );
+
+  return { params, patch, priceOverrides, setPriceOverrides };
 }

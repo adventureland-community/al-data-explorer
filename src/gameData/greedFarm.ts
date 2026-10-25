@@ -61,7 +61,13 @@ export type GreedFarmResult = {
   eligible: boolean;
   /** Lowest level where grade ≥ 1 for this item. */
   minEligibleLevel: number;
+  /** Game-visible upgrade chance (matches in-game UI). */
   chance: number;
+  /**
+   * Expected success rate when Lucky Slot is on (EV); otherwise equals `chance`.
+   * Essence edge buckets still use `chance` (server equality on the table rate).
+   */
+  successRate: number;
   greedPerAttempt: number;
   luckyPerAttempt: number;
   scrollKey: GreedScrollKey;
@@ -129,9 +135,10 @@ export function planGreedFarm(input: GreedFarmInput): GreedFarmResult {
       input.tables,
     );
     chance = raw.chance;
-    if (input.luckySlot) chance = applyLuckySlotChance(chance);
   }
+  const successRate = input.luckySlot ? applyLuckySlotChance(chance) : chance;
 
+  // Greed/Lucky title edge buckets key off the game-visible chance string.
   const edge = edgeBucketOdds(chance);
   const eligible = grade >= 1 && chance > 0 && chance < 1;
   const greedPerAttempt = eligible ? edge.greedPerAttempt : 0;
@@ -160,6 +167,7 @@ export function planGreedFarm(input: GreedFarmInput): GreedFarmResult {
     eligible,
     minEligibleLevel,
     chance,
+    successRate,
     greedPerAttempt,
     luckyPerAttempt,
     scrollKey,

@@ -382,8 +382,16 @@ export function summarizeUpgradeSideEffects(args: {
     const eligibleGreed = mode === "upgrade" && grade >= 1;
     if (eligibleLucky || eligibleGreed) anyEligible = true;
 
-    const attempts = step.chance > 0 && Number.isFinite(step.chance) ? 1 / step.chance : Infinity;
-    const edge = expectedEdgeOutcomes(step.chance);
+    // Prefer plan attempts (EV rate, includes Lucky Slot) over game-visible chance.
+    const attempts =
+      Number.isFinite(step.attempts) && step.attempts > 0
+        ? step.attempts
+        : step.chance > 0 && Number.isFinite(step.chance)
+        ? 1 / step.chance
+        : Infinity;
+    const successRate =
+      Number.isFinite(attempts) && attempts > 0 ? 1 / attempts : step.chance > 0 ? step.chance : 0;
+    const edge = expectedEdgeOutcomes(successRate);
     const lucky = eligibleLucky ? edge.lucky : 0;
     const greed = eligibleGreed ? edge.greed : 0;
     const bonusGrace =

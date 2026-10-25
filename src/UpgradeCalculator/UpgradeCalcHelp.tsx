@@ -81,7 +81,8 @@ const GLOSSARY: GlossaryRow[] = [
   {
     technique: "Lucky Slot",
     server: "player.p.item_num",
-    blurb: "~60% boosted rolls on the lucky inventory slot.",
+    blurb:
+      "~60% boosted rolls on the lucky inventory slot (EV only — Chance column stays game-accurate).",
   },
   {
     technique: "Item grace",
@@ -225,13 +226,17 @@ function HelpBody() {
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
-        Toggle materials and prices in the sidebar; Lucky Slot and Server <code>ugrace</code> (
-        <code>S.ugrace</code>) fold into the chance formula when on. On items with a{" "}
-        <code>stat</code> pool, Cheapest may fold property scrolls into primstacking when one
-        Primling + scrolls is cheaper than two Primlings. The Stat scroll grace toggle is a separate
-        path: property scroll + offering for +1 item grace. Shrine time assumes Mass Production++ on
-        every click (indicative). Stack columns appear only when the plan uses them. Use Copy link
-        to share the current item, levels, and toolkit.
+        Toggle materials and prices in the sidebar. Chance / Cap match the in-game upgrade UI; Lucky
+        Slot does not change those numbers — it only improves expected tries and gold EV (about 60%
+        of rolls get a boosted check). The Chance by level chart peels techniques on in order (kit →
+        prim → stat grace → failstack → ograce → server ugrace → plan → lucky EV); toggle series in
+        the legend. Server <code>ugrace</code> (<code>S.ugrace</code>) folds into the chance formula
+        when on. On items with a <code>stat</code> pool, Cheapest may fold property scrolls into
+        primstacking when one Primling + scrolls is cheaper than two Primlings. The Stat scroll
+        grace toggle is a separate path: property scroll + offering for +1 item grace. Shrine time
+        assumes Mass Production++ on every click (indicative). Stack columns appear only when the
+        plan uses them (Cheapest may failstack helmets even though Fewest never does). Use Copy link
+        to share the current item, levels, toolkit, and price overrides.
       </Typography>
 
       <Typography variant="body2" color="text.secondary">

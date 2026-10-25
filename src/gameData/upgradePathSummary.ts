@@ -23,8 +23,9 @@ export type PlanSummaryStep = {
   ograce: number;
   /** Table chance for this level when known. */
   baseChance?: number;
-  /** Chance cap when known. */
+  /** Chance cap when known (game-visible; not lucky-adjusted). */
   chanceCap?: number;
+  /** Game-visible success chance (matches in-game upgrade UI). */
   chance: number;
   attempts: number;
   stepSpend: number;
@@ -95,12 +96,14 @@ export function expectedBaseCopies(args: {
       if (s.kind === "acquire" || s.kind === "shiny") continue;
       // scroll4: fail keeps the item — no new +0.
       if (s.scrollKey === "scroll4") continue;
-      if (!(s.chance > 0) || !Number.isFinite(s.chance)) {
+      // Prefer attempts (EV success rate, includes Lucky Slot) over displayed chance.
+      const p = Number.isFinite(s.attempts) && s.attempts > 0 ? 1 / s.attempts : s.chance;
+      if (!(p > 0) || !Number.isFinite(p)) {
         survive = 0;
         break;
       }
       sawDestroyStep = true;
-      survive *= s.chance;
+      survive *= p;
     }
     if (sawDestroyStep && survive > 0 && Number.isFinite(survive)) {
       const n = 1 / survive;
@@ -288,7 +291,9 @@ export function summarizeUpgradePlan(
         ? scrollKeyForUpgrade(step.scrollGrade) ?? `scroll${step.scrollGrade}`
         : scrollKeyForCompound(step.scrollGrade) ?? `cscroll${step.scrollGrade}`;
     const offeringKey = offeringKeyFromGrade(step.offering);
-    const attempts = step.chance > 0 ? 1 / step.chance : Infinity;
+    const successRate =
+      step.successRate != null && step.successRate > 0 ? step.successRate : step.chance;
+    const attempts = successRate > 0 ? 1 / successRate : Infinity;
     const primstacking = step.primstacking ?? 0;
     const primstackingStatClicks = step.primstackingStatClicks ?? 0;
     const primstackingNormal = step.primstackingNormal ?? primstacking;

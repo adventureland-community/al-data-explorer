@@ -46,6 +46,33 @@ describe("greedFarm", () => {
     expect(result.goldPerGreed).toBe(Infinity);
   });
 
+  it("Lucky Slot raises successRate but keeps game-visible chance for edge buckets", () => {
+    const gItem = fakeItem({ grades: [0, 4, 10, 12], g: 48000 });
+    const off = planGreedFarm({
+      gItem,
+      itemKey: "sword" as ItemKey,
+      level: 0,
+      scrollKey: "scroll1",
+      offering: null,
+      itemUnit: 48000,
+      prices,
+      luckySlot: false,
+    });
+    const on = planGreedFarm({
+      gItem,
+      itemKey: "sword" as ItemKey,
+      level: 0,
+      scrollKey: "scroll1",
+      offering: null,
+      itemUnit: 48000,
+      prices,
+      luckySlot: true,
+    });
+    expect(on.chance).toBeCloseTo(off.chance, 10);
+    expect(on.successRate).toBeGreaterThan(on.chance);
+    expect(on.greedPerAttempt).toBeCloseTo(off.greedPerAttempt, 10);
+  });
+
   it("prices gold per greed from attempt cost / P(greed)", () => {
     // grades[0]=0 → High at +0, so scroll grade must be ≥ 1
     const gItem = fakeItem({ grades: [0, 4, 10, 12], g: 48000 });

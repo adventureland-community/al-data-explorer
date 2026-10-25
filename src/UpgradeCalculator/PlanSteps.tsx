@@ -379,7 +379,11 @@ export function StepPlanCards({
                   ? `${formatExpectedCopies(s.attempts)} expected`
                   : s.kind === "shiny"
                   ? `${formatChancePct(s.chance)} · ${formatExpectedCopies(s.attempts)} tries`
-                  : `${formatAttempts(s.chance)} tries`}
+                  : `${
+                      Number.isFinite(s.attempts)
+                        ? formatExpectedCopies(s.attempts)
+                        : formatAttempts(s.chance)
+                    } tries`}
               </Typography>
             </Stack>
             {stepEdit && isRecipeStep(s) ? (
@@ -741,6 +745,8 @@ export function StepPlanTable({
                   ) : null}
                   <TableCell sx={numSx} align="right">
                     {s.kind === "acquire" || s.kind === "shiny"
+                      ? formatExpectedCopies(s.attempts)
+                      : Number.isFinite(s.attempts)
                       ? formatExpectedCopies(s.attempts)
                       : formatAttempts(s.chance)}
                   </TableCell>
