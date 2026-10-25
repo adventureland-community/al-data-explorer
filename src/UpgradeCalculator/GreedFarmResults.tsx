@@ -112,11 +112,13 @@ export function GreedFarmResults(props: {
 
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={3} flexWrap="wrap">
-          <Metric
-            label={result.targetCount > 1 ? `Gold / ${result.targetCount} greed` : "Gold / greed"}
-            value={formatGold(result.targetCount > 1 ? result.goldForTarget : result.goldPerGreed)}
-          />
           <Metric label="Gold / greed" value={formatGold(result.goldPerGreed)} />
+          {result.targetCount > 1 ? (
+            <Metric
+              label={`Gold for ${result.targetCount}`}
+              value={formatGold(result.goldForTarget)}
+            />
+          ) : null}
           <Metric
             label="Attempts / greed"
             value={formatAttempts(result.attemptsPerGreed)}
