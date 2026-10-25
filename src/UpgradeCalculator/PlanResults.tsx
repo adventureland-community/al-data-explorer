@@ -19,8 +19,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  ToggleButton,
-  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -39,7 +37,7 @@ import {
   UpgradeStepOverride,
   upgradeStepOverrideKey,
 } from "../gameData/upgradePath";
-import { offeringGradeFromKey, scrollKeyForUpgrade } from "../gameData/upgradePrices";
+import { offeringGradeFromKey } from "../gameData/upgradePrices";
 import { SideEffectSummary } from "../gameData/upgradeSideEffects";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
@@ -52,29 +50,6 @@ function chanceTone(chance: number): "success.main" | "warning.main" | "error.ma
   if (pct >= 70) return "success.main";
   if (pct >= 35) return "warning.main";
   return "error.main";
-}
-
-function ChanceBar({ chance }: { chance: number }) {
-  const pct = Math.max(0, Math.min(100, chance * 100));
-  return (
-    <Box sx={{ minWidth: 72 }}>
-      <Typography variant="body2" sx={{ fontVariantNumeric: "tabular-nums" }}>
-        {formatChancePct(chance)}
-      </Typography>
-      <Box
-        sx={{
-          mt: 0.35,
-          height: 5,
-          borderRadius: 0.5,
-          bgcolor: (theme) =>
-            theme.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-          overflow: "hidden",
-        }}
-      >
-        <Box sx={{ height: "100%", width: `${pct}%`, bgcolor: chanceTone(chance) }} />
-      </Box>
-    </Box>
-  );
 }
 
 function CostShareBar({ share, color = "primary.main" }: { share: number; color?: string }) {
@@ -359,7 +334,8 @@ export function formatRecipeClipboard(
   return lines.join("\n");
 }
 
-export type PathLadderStepEdit = {
+/** Per-step recipe editors (pastebin-style table / cards). */
+export type StepRecipeEdit = {
   costModel: "cheapest" | "fewest";
   itemGradeAt: (level: number) => number;
   allowScroll4: boolean;
@@ -372,193 +348,22 @@ export type PathLadderStepEdit = {
   onResetAll: () => void;
 };
 
+/** @deprecated Use StepRecipeEdit */
+export type PathLadderStepEdit = StepRecipeEdit;
+
 const UPGRADE_SCROLL_KEYS_SAFE = ["scroll0", "scroll1", "scroll2", "scroll3", "scroll4"];
-
-function CompactStepper({
-  label,
-  value,
-  min,
-  max,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  onChange: (n: number) => void;
-}) {
-  return (
-    <Stack direction="row" alignItems="center" spacing={0.5}>
-      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 64 }}>
-        {label}
-      </Typography>
-      <IconButton
-        size="small"
-        aria-label={`Decrease ${label}`}
-        disabled={value <= min}
-        onClick={() => onChange(Math.max(min, value - 1))}
-      >
-        <RemoveIcon fontSize="small" />
-      </IconButton>
-      <Typography
-        variant="body2"
-        fontWeight={600}
-        sx={{ minWidth: 28, textAlign: "center", fontVariantNumeric: "tabular-nums" }}
-      >
-        {value}
-      </Typography>
-      <IconButton
-        size="small"
-        aria-label={`Increase ${label}`}
-        disabled={value >= max}
-        onClick={() => onChange(Math.min(max, value + 1))}
-      >
-        <AddIcon fontSize="small" />
-      </IconButton>
-    </Stack>
-  );
-}
-
-function StepRecipeEditor({
-  step,
-  edit,
-  overridden,
-}: {
-  step: PlanSummaryStep;
-  edit: PathLadderStepEdit;
-  overridden: boolean;
-}) {
-  const itemGrade = edit.itemGradeAt(step.fromLevel);
-  const scrollGrades = allowedUpgradeScrollGrades(itemGrade, edit.costModel, edit.allowScroll4);
-  const currentScroll =
-    UPGRADE_SCROLL_KEYS_SAFE.indexOf(step.scrollKey) >= 0
-      ? UPGRADE_SCROLL_KEYS_SAFE.indexOf(step.scrollKey)
-      : itemGrade;
-  const currentOffering = offeringGradeFromKey(step.offeringKey);
-
-  return (
-    <Stack spacing={1.25} sx={{ mt: 1.5, pt: 1.5, borderTop: 1, borderColor: "divider" }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-        <Typography variant="caption" color="text.secondary">
-          Edit this step — later steps recompute from grace / destroy EV
-        </Typography>
-        {overridden ? (
-          <Button
-            size="small"
-            onClick={() => edit.onReset(step.fromLevel, step.toLevel)}
-            sx={{ flexShrink: 0 }}
-          >
-            Reset step
-          </Button>
-        ) : null}
-      </Stack>
-
-      <Stack spacing={0.5}>
-        <Typography variant="caption" color="text.secondary">
-          Scroll
-        </Typography>
-        <ToggleButtonGroup
-          exclusive
-          size="small"
-          value={currentScroll}
-          onChange={(_, v: number | null) => {
-            if (v == null) return;
-            edit.onPatch(step.fromLevel, step.toLevel, { scrollGrade: v });
-          }}
-        >
-          {scrollGrades.map((g) => (
-            <ToggleButton key={g} value={g} sx={{ px: 1.25, fontSize: 12 }}>
-              {scrollKeyForUpgrade(g)?.replace("scroll", "s") ?? `s${g}`}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-      </Stack>
-
-      <Stack spacing={0.5}>
-        <Typography variant="caption" color="text.secondary">
-          Offering
-        </Typography>
-        <ToggleButtonGroup
-          exclusive
-          size="small"
-          value={currentOffering == null ? "none" : String(currentOffering)}
-          onChange={(_, v: string | null) => {
-            if (v == null) return;
-            const offering: OfferingChoice = v === "none" ? null : (Number(v) as 0 | 1 | 2);
-            if (offering !== null && !edit.offerings.includes(offering)) return;
-            edit.onPatch(step.fromLevel, step.toLevel, { offering });
-          }}
-        >
-          {edit.offerings.map((o) => (
-            <ToggleButton
-              key={o == null ? "none" : String(o)}
-              value={o == null ? "none" : String(o)}
-              sx={{ px: 1, fontSize: 11 }}
-            >
-              {o == null ? "None" : o === 0 ? "Primling" : o === 1 ? "Primordial" : "Prim X"}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-      </Stack>
-
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} flexWrap="wrap">
-        {edit.allowPrimlings ? (
-          <CompactStepper
-            label="Primling"
-            value={step.primstacks}
-            min={0}
-            max={26}
-            onChange={(primstacks) => edit.onPatch(step.fromLevel, step.toLevel, { primstacks })}
-          />
-        ) : null}
-        {edit.allowStatScrollGrace ? (
-          <CompactStepper
-            label="Stat grace"
-            value={step.statScrollGrace}
-            min={0}
-            max={13}
-            onChange={(statScrollGrace) =>
-              edit.onPatch(step.fromLevel, step.toLevel, { statScrollGrace })
-            }
-          />
-        ) : null}
-        {edit.costModel === "cheapest" ? (
-          <>
-            <CompactStepper
-              label="Failstack"
-              value={step.failstack}
-              min={0}
-              max={18}
-              onChange={(failstack) => edit.onPatch(step.fromLevel, step.toLevel, { failstack })}
-            />
-            <CompactStepper
-              label="Primestack"
-              value={step.primestack}
-              min={0}
-              max={30}
-              onChange={(primestack) => edit.onPatch(step.fromLevel, step.toLevel, { primestack })}
-            />
-          </>
-        ) : null}
-      </Stack>
-    </Stack>
-  );
-}
 
 /** Interactive recipe trail — click a step for scroll/stack detail. */
 export function PathLadder({
   steps,
   focusStep,
   recipeClipboard,
-  stepEdit,
 }: {
   steps: PlanSummaryStep[];
-  /** Bump `token` to select + scroll that step (bottleneck jump). */
+  /** Bump \`token\` to select + scroll that step (bottleneck jump). */
   focusStep?: { key: string; token: number } | null;
   /** When set, shows Copy recipe using this text. */
   recipeClipboard?: string | null;
-  /** Upgrade-mode per-step recipe editors (ignored for shiny/compound). */
-  stepEdit?: PathLadderStepEdit | null;
 }) {
   const G = useContext(GDataContext);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -625,17 +430,10 @@ export function PathLadder({
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="subtitle2">Recipe path</Typography>
           <Typography variant="caption" color="text.secondary">
-            {stepEdit
-              ? "Click a step to edit scroll / offering / stacks · EV updates live"
-              : "Click a step · green ≥70% / amber ≥35%"}
+            Click a step · green ≥70% / amber ≥35%
           </Typography>
         </Box>
         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
-          {stepEdit && Object.keys(stepEdit.overrides).length > 0 ? (
-            <Button size="small" variant="text" onClick={() => stepEdit.onResetAll()}>
-              Reset edits
-            </Button>
-          ) : null}
           {recipeClipboard ? (
             <Button
               size="small"
@@ -681,7 +479,6 @@ export function PathLadder({
             : "No offering";
           const bits = stackBitsFor(s);
           const stepKey = pathStepKey(s);
-          const isOverridden = Boolean(stepEdit?.overrides[stepKey]);
 
           return (
             <Tooltip
@@ -692,7 +489,7 @@ export function PathLadder({
                   : `${tipScroll}${s.offeringKey ? ` + ${tipOffering}` : ""}`
               } · ${formatChancePct(s.chance)} · ${formatAttempts(s.chance)} tries · ${formatGold(
                 s.stepSpend,
-              )}${bits.length ? ` · ${bits.join(", ")}` : ""}${isOverridden ? " · edited" : ""}`}
+              )}${bits.length ? ` · ${bits.join(", ")}` : ""}`}
             >
               <Box
                 component="button"
@@ -704,9 +501,6 @@ export function PathLadder({
                 sx={{
                   flex: "0 0 auto",
                   width: 92,
-                  outline: isOverridden ? "1px dashed" : undefined,
-                  outlineColor: isOverridden ? "secondary.main" : undefined,
-                  outlineOffset: isOverridden ? 2 : undefined,
                   p: 1,
                   borderRadius: 1,
                   border: 1,
@@ -968,16 +762,6 @@ export function PathLadder({
               ) : null}
             </Stack>
           </Stack>
-
-          {stepEdit && selected.kind !== "shiny" ? (
-            <StepRecipeEditor
-              step={selected}
-              edit={stepEdit}
-              overridden={Boolean(
-                stepEdit.overrides[upgradeStepOverrideKey(selected.fromLevel, selected.toLevel)],
-              )}
-            />
-          ) : null}
         </Box>
       ) : null}
     </Paper>
@@ -1795,13 +1579,187 @@ export function MaterialsPanel({
   );
 }
 
+function cycleScrollGrade(step: PlanSummaryStep, edit: StepRecipeEdit): void {
+  if (step.kind === "shiny") return;
+  const itemGrade = edit.itemGradeAt(step.fromLevel);
+  const grades = allowedUpgradeScrollGrades(itemGrade, edit.costModel, edit.allowScroll4);
+  if (!grades.length) return;
+  const cur = UPGRADE_SCROLL_KEYS_SAFE.indexOf(step.scrollKey);
+  const idx = grades.indexOf(cur >= 0 ? cur : itemGrade);
+  const next = grades[(idx + 1) % grades.length] ?? grades[0];
+  edit.onPatch(step.fromLevel, step.toLevel, { scrollGrade: next });
+}
+
+function cycleOffering(step: PlanSummaryStep, edit: StepRecipeEdit): void {
+  if (step.kind === "shiny") return;
+  const list = edit.offerings;
+  if (!list.length) return;
+  const cur = offeringGradeFromKey(step.offeringKey);
+  const idx = list.findIndex((o) => o === cur);
+  const next = list[(idx + 1) % list.length] ?? null;
+  edit.onPatch(step.fromLevel, step.toLevel, { offering: next });
+}
+
+function ClickableMat({
+  itemKey,
+  title,
+  onCycle,
+  editable,
+}: {
+  itemKey: string | null;
+  title: string;
+  onCycle?: () => void;
+  editable?: boolean;
+}) {
+  const inner = (
+    <Box
+      component={editable && onCycle ? "button" : "span"}
+      type={editable && onCycle ? "button" : undefined}
+      onClick={editable ? onCycle : undefined}
+      title={editable ? `${title} — click to cycle` : title}
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        p: 0,
+        m: 0,
+        border: editable ? 1 : 0,
+        borderColor: "divider",
+        borderRadius: 0.75,
+        bgcolor: "transparent",
+        cursor: editable ? "pointer" : "default",
+        font: "inherit",
+        color: "inherit",
+        minWidth: 36,
+        minHeight: 36,
+        "&:hover": editable ? { borderColor: "primary.main", bgcolor: "action.hover" } : undefined,
+      }}
+    >
+      {scrollOrOfferingCell(itemKey)}
+    </Box>
+  );
+  return <Tooltip title={title}>{inner}</Tooltip>;
+}
+
+function TinyNum({
+  value,
+  min,
+  max,
+  onChange,
+  label,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onChange: (n: number) => void;
+  label: string;
+}) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={0} sx={{ justifyContent: "center" }}>
+      <IconButton
+        size="small"
+        aria-label={`Decrease ${label}`}
+        disabled={value <= min}
+        onClick={() => onChange(Math.max(min, value - 1))}
+        sx={{ p: 0.25 }}
+      >
+        <RemoveIcon sx={{ fontSize: 14 }} />
+      </IconButton>
+      <Typography
+        variant="body2"
+        sx={{
+          minWidth: 22,
+          textAlign: "center",
+          fontVariantNumeric: "tabular-nums",
+          fontWeight: 600,
+        }}
+      >
+        {value}
+      </Typography>
+      <IconButton
+        size="small"
+        aria-label={`Increase ${label}`}
+        disabled={value >= max}
+        onClick={() => onChange(Math.min(max, value + 1))}
+        sx={{ p: 0.25 }}
+      >
+        <AddIcon sx={{ fontSize: 14 }} />
+      </IconButton>
+    </Stack>
+  );
+}
+
+function formatChancePlain(chance: number | undefined): string {
+  if (chance == null || !Number.isFinite(chance)) return "—";
+  const pct = chance * 100;
+  if (pct >= 99.95) return "100%";
+  if (pct >= 10) return `${pct.toFixed(1)}%`;
+  if (pct >= 1) return `${pct.toFixed(2)}%`;
+  return `${pct.toFixed(3)}%`;
+}
+
+function StepSpendBars({ steps }: { steps: PlanSummaryStep[] }) {
+  const planEv =
+    steps.length && Number.isFinite(steps[steps.length - 1].runningTotal)
+      ? steps[steps.length - 1].runningTotal
+      : 0;
+  if (!(planEv > 0)) return null;
+  return (
+    <Stack spacing={0.75} sx={{ mt: 2 }}>
+      <Typography variant="overline" color="text.secondary">
+        Spend share
+      </Typography>
+      {steps.map((s) => {
+        const share = Number.isFinite(s.stepSpend) ? s.stepSpend / planEv : 0;
+        if (share <= 0.001) return null;
+        const heavy = share >= 0.25;
+        return (
+          <Stack key={pathStepKey(s)} direction="row" alignItems="center" spacing={1}>
+            <Typography
+              variant="caption"
+              sx={{ width: 72, flexShrink: 0, fontVariantNumeric: "tabular-nums" }}
+            >
+              {stepRangeLabel(s)}
+            </Typography>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <CostShareBar
+                share={Math.min(1, share)}
+                color={heavy ? "warning.main" : "primary.main"}
+              />
+            </Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                width: 88,
+                textAlign: "right",
+                fontVariantNumeric: "tabular-nums",
+                flexShrink: 0,
+              }}
+            >
+              {formatGold(s.stepSpend)} · {(share * 100).toFixed(1)}%
+            </Typography>
+          </Stack>
+        );
+      })}
+    </Stack>
+  );
+}
+
 /** Card list for narrow viewports; keeps scroll/offering icons readable. */
-export function StepPlanCards({ steps }: { steps: PlanSummaryStep[] }) {
+export function StepPlanCards({
+  steps,
+  stepEdit,
+}: {
+  steps: PlanSummaryStep[];
+  stepEdit?: StepRecipeEdit | null;
+}) {
   const G = useContext(GDataContext);
   const maxStepSpend = Math.max(
     0,
     ...steps.map((s) => (Number.isFinite(s.stepSpend) ? s.stepSpend : 0)),
   );
+  const editable = Boolean(stepEdit);
 
   return (
     <Stack spacing={1} sx={{ display: { xs: "flex", md: "none" } }}>
@@ -1809,12 +1767,17 @@ export function StepPlanCards({ steps }: { steps: PlanSummaryStep[] }) {
         const share =
           maxStepSpend > 0 && Number.isFinite(s.stepSpend) ? s.stepSpend / maxStepSpend : 0;
         const heavy = share >= 0.85 && steps.length > 1;
+        const overridden = Boolean(
+          stepEdit?.overrides[upgradeStepOverrideKey(s.fromLevel, s.toLevel)],
+        );
         return (
           <Paper
             key={pathStepKey(s)}
             variant="outlined"
             sx={{
               p: 1.5,
+              outline: overridden ? "1px dashed" : undefined,
+              outlineColor: overridden ? "secondary.main" : undefined,
               bgcolor: heavy
                 ? (theme) =>
                     theme.palette.mode === "dark"
@@ -1834,24 +1797,82 @@ export function StepPlanCards({ steps }: { steps: PlanSummaryStep[] }) {
                 {formatGold(s.stepSpend)}
               </Typography>
             </Stack>
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
-              <ChanceBar chance={s.chance} />
-              <Tooltip title={G?.items?.[s.scrollKey as ItemKey]?.name ?? s.scrollKey}>
-                <Box component="span" sx={{ display: "inline-flex" }}>
-                  {scrollOrOfferingCell(s.scrollKey)}
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{ mb: 1, flexWrap: "wrap" }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                {formatChancePlain(s.baseChance)} / {formatChancePlain(s.chanceCap)} /{" "}
+                <Box component="span" sx={{ color: chanceTone(s.chance), fontWeight: 700 }}>
+                  {formatChancePct(s.chance)}
                 </Box>
-              </Tooltip>
-              {s.offeringKey ? (
-                <Tooltip title={G?.items?.[s.offeringKey as ItemKey]?.name ?? s.offeringKey}>
-                  <Box component="span" sx={{ display: "inline-flex" }}>
-                    {scrollOrOfferingCell(s.offeringKey)}
-                  </Box>
-                </Tooltip>
+              </Typography>
+              {s.kind !== "shiny" ? (
+                <ClickableMat
+                  itemKey={s.scrollKey}
+                  title={G?.items?.[s.scrollKey as ItemKey]?.name ?? s.scrollKey}
+                  editable={editable}
+                  onCycle={stepEdit ? () => cycleScrollGrade(s, stepEdit) : undefined}
+                />
               ) : null}
+              <ClickableMat
+                itemKey={s.offeringKey}
+                title={
+                  s.kind === "shiny"
+                    ? "Shiny polish"
+                    : G?.items?.[s.offeringKey as ItemKey]?.name ?? "No offering"
+                }
+                editable={editable && s.kind !== "shiny"}
+                onCycle={stepEdit ? () => cycleOffering(s, stepEdit) : undefined}
+              />
               <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }}>
-                {formatAttempts(s.chance)} tries · total {formatGold(s.runningTotal)}
+                {formatAttempts(s.chance)} tries
               </Typography>
             </Stack>
+            {stepEdit && s.kind !== "shiny" ? (
+              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 1, gap: 1 }}>
+                {stepEdit.allowPrimlings ? (
+                  <TinyNum
+                    label="Primling"
+                    value={s.primstacks}
+                    min={0}
+                    max={26}
+                    onChange={(primstacks) =>
+                      stepEdit.onPatch(s.fromLevel, s.toLevel, { primstacks })
+                    }
+                  />
+                ) : null}
+                {stepEdit.costModel === "cheapest" ? (
+                  <>
+                    <TinyNum
+                      label="Failstack"
+                      value={s.failstack}
+                      min={0}
+                      max={18}
+                      onChange={(failstack) =>
+                        stepEdit.onPatch(s.fromLevel, s.toLevel, { failstack })
+                      }
+                    />
+                    <TinyNum
+                      label="Primestack"
+                      value={s.primestack}
+                      min={0}
+                      max={30}
+                      onChange={(primestack) =>
+                        stepEdit.onPatch(s.fromLevel, s.toLevel, { primestack })
+                      }
+                    />
+                  </>
+                ) : null}
+                {overridden ? (
+                  <Button size="small" onClick={() => stepEdit.onReset(s.fromLevel, s.toLevel)}>
+                    Reset
+                  </Button>
+                ) : null}
+              </Stack>
+            ) : null}
             <CostShareBar share={share} color={heavy ? "warning.main" : "primary.main"} />
           </Paper>
         );
@@ -1860,39 +1881,305 @@ export function StepPlanCards({ steps }: { steps: PlanSummaryStep[] }) {
   );
 }
 
-export function StepPlanTable({ steps }: { steps: PlanSummaryStep[] }) {
+/** Pastebin-style step table — inline scroll/offering/stack edits when `stepEdit` is set. */
+export function StepPlanTable({
+  steps,
+  stepEdit,
+}: {
+  steps: PlanSummaryStep[];
+  stepEdit?: StepRecipeEdit | null;
+}) {
   const G = useContext(GDataContext);
-  const maxStepSpend = Math.max(
-    0,
-    ...steps.map((s) => (Number.isFinite(s.stepSpend) ? s.stepSpend : 0)),
-  );
-  const showPrim = steps.some((s) => s.priming || s.primstacks);
-  const showStatScroll = steps.some((s) => s.statScrollGrace);
-  const showFail = steps.some((s) => s.failstack);
-  const showPrimeStk = steps.some((s) => s.primestack);
-  const usesStacks = showPrim || showStatScroll || showFail || showPrimeStk;
+  const planEv =
+    steps.length && Number.isFinite(steps[steps.length - 1].runningTotal)
+      ? steps[steps.length - 1].runningTotal
+      : 0;
+  const editable = Boolean(stepEdit);
+  const showPrim = editable
+    ? Boolean(stepEdit?.allowPrimlings)
+    : steps.some((s) => s.priming || s.primstacks);
+  const showStatScroll = editable
+    ? Boolean(stepEdit?.allowStatScrollGrace)
+    : steps.some((s) => s.statScrollGrace);
+  const showFail = editable ? stepEdit?.costModel === "cheapest" : steps.some((s) => s.failstack);
+  const showPrimeStk = editable
+    ? stepEdit?.costModel === "cheapest"
+    : steps.some((s) => s.primestack);
+  const hasOverrides = Boolean(stepEdit && Object.keys(stepEdit.overrides).length);
 
   const headSx = {
     fontWeight: 600,
-    fontSize: "0.75rem",
+    fontSize: "0.7rem",
     color: "text.secondary",
     whiteSpace: "nowrap",
     py: 1,
-    px: 1,
+    px: 0.75,
   } as const;
   const cellSx = {
-    py: 0.85,
-    px: 1,
+    py: 0.65,
+    px: 0.75,
     verticalAlign: "middle",
     fontSize: "0.8125rem",
   } as const;
   const numSx = { ...cellSx, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" } as const;
 
+  const body = (
+    <>
+      <StepPlanCards steps={steps} stepEdit={stepEdit} />
+
+      <TableContainer sx={{ overflowX: "auto", display: { xs: "none", md: "block" } }}>
+        <Table size="small" sx={{ minWidth: editable ? 820 : 640 }}>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={headSx}>Step</TableCell>
+              <TableCell sx={headSx} align="right">
+                Base
+              </TableCell>
+              <TableCell sx={headSx} align="right">
+                Max
+              </TableCell>
+              <TableCell sx={headSx} align="right">
+                Plan
+              </TableCell>
+              <TableCell sx={headSx}>Scroll</TableCell>
+              <TableCell sx={headSx}>Offering</TableCell>
+              {showPrim ? (
+                <TableCell sx={headSx} align="center">
+                  <Tooltip title="Primling priming count">
+                    <span>Grace</span>
+                  </Tooltip>
+                </TableCell>
+              ) : null}
+              {showStatScroll ? (
+                <TableCell sx={headSx} align="center">
+                  <Tooltip title="Property scroll + offering (+1 grace each)">
+                    <span>Stat</span>
+                  </Tooltip>
+                </TableCell>
+              ) : null}
+              {showFail ? (
+                <TableCell sx={headSx} align="center">
+                  <Tooltip title="Failstack (helmet-proxy ugrace farm)">
+                    <span>Fail</span>
+                  </Tooltip>
+                </TableCell>
+              ) : null}
+              {showPrimeStk ? (
+                <TableCell sx={headSx} align="center">
+                  <Tooltip title="Primestack (helmet-proxy ograce farm)">
+                    <span>Prime</span>
+                  </Tooltip>
+                </TableCell>
+              ) : null}
+              <TableCell sx={headSx} align="right">
+                Attempts
+              </TableCell>
+              <TableCell sx={headSx} align="right">
+                Step spend
+              </TableCell>
+              <TableCell sx={headSx} align="right">
+                Running
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {steps.map((s) => {
+              const share = planEv > 0 && Number.isFinite(s.stepSpend) ? s.stepSpend / planEv : 0;
+              const heavy = share >= 0.25 && steps.length > 1;
+              const overridden = Boolean(
+                stepEdit?.overrides[upgradeStepOverrideKey(s.fromLevel, s.toLevel)],
+              );
+              const scrollName = s.scrollKey
+                ? G?.items?.[s.scrollKey as ItemKey]?.name ?? s.scrollKey
+                : null;
+              const offeringName = s.offeringKey
+                ? G?.items?.[s.offeringKey as ItemKey]?.name ?? s.offeringKey
+                : null;
+              return (
+                <TableRow
+                  key={pathStepKey(s)}
+                  sx={{
+                    bgcolor: heavy
+                      ? (theme) =>
+                          theme.palette.mode === "dark"
+                            ? "rgba(255, 167, 38, 0.08)"
+                            : "rgba(255, 167, 38, 0.1)"
+                      : undefined,
+                    outline: overridden ? "1px dashed" : undefined,
+                    outlineColor: overridden ? "secondary.main" : undefined,
+                    outlineOffset: overridden ? -1 : undefined,
+                  }}
+                >
+                  <TableCell sx={{ ...cellSx, fontWeight: 600, whiteSpace: "nowrap" }}>
+                    {stepRangeLabel(s)}
+                    {overridden && stepEdit ? (
+                      <Button
+                        size="small"
+                        onClick={() => stepEdit.onReset(s.fromLevel, s.toLevel)}
+                        sx={{ ml: 0.5, minWidth: 0, px: 0.5, fontSize: 10 }}
+                      >
+                        reset
+                      </Button>
+                    ) : null}
+                  </TableCell>
+                  <TableCell sx={numSx} align="right">
+                    {formatChancePlain(s.baseChance)}
+                  </TableCell>
+                  <TableCell sx={numSx} align="right">
+                    {formatChancePlain(s.chanceCap)}
+                  </TableCell>
+                  <TableCell
+                    sx={{ ...numSx, color: chanceTone(s.chance), fontWeight: 700 }}
+                    align="right"
+                  >
+                    {formatChancePct(s.chance)}
+                  </TableCell>
+                  <TableCell sx={cellSx}>
+                    {s.kind === "shiny" ? (
+                      <Typography variant="caption" color="text.secondary">
+                        —
+                      </Typography>
+                    ) : (
+                      <ClickableMat
+                        itemKey={s.scrollKey}
+                        title={scrollName ?? ""}
+                        editable={editable}
+                        onCycle={stepEdit ? () => cycleScrollGrade(s, stepEdit) : undefined}
+                      />
+                    )}
+                  </TableCell>
+                  <TableCell sx={cellSx}>
+                    <ClickableMat
+                      itemKey={s.offeringKey}
+                      title={
+                        s.kind === "shiny"
+                          ? `${offeringName ?? "polish"} (fail keeps item)`
+                          : offeringName ?? "No offering"
+                      }
+                      editable={editable && s.kind !== "shiny"}
+                      onCycle={stepEdit ? () => cycleOffering(s, stepEdit) : undefined}
+                    />
+                  </TableCell>
+                  {showPrim ? (
+                    <TableCell sx={numSx} align="center">
+                      {editable && stepEdit && s.kind !== "shiny" ? (
+                        <TinyNum
+                          label="Primling"
+                          value={s.primstacks}
+                          min={0}
+                          max={26}
+                          onChange={(primstacks) =>
+                            stepEdit.onPatch(s.fromLevel, s.toLevel, { primstacks })
+                          }
+                        />
+                      ) : (
+                        stackCell(s.priming || s.primstacks)
+                      )}
+                    </TableCell>
+                  ) : null}
+                  {showStatScroll ? (
+                    <TableCell sx={numSx} align="center">
+                      {editable && stepEdit && s.kind !== "shiny" ? (
+                        <TinyNum
+                          label="Stat grace"
+                          value={s.statScrollGrace}
+                          min={0}
+                          max={13}
+                          onChange={(statScrollGrace) =>
+                            stepEdit.onPatch(s.fromLevel, s.toLevel, { statScrollGrace })
+                          }
+                        />
+                      ) : (
+                        stackCell(s.statScrollGrace)
+                      )}
+                    </TableCell>
+                  ) : null}
+                  {showFail ? (
+                    <TableCell sx={numSx} align="center">
+                      {editable && stepEdit && s.kind !== "shiny" ? (
+                        <TinyNum
+                          label="Failstack"
+                          value={s.failstack}
+                          min={0}
+                          max={18}
+                          onChange={(failstack) =>
+                            stepEdit.onPatch(s.fromLevel, s.toLevel, { failstack })
+                          }
+                        />
+                      ) : (
+                        stackCell(s.failstack)
+                      )}
+                    </TableCell>
+                  ) : null}
+                  {showPrimeStk ? (
+                    <TableCell sx={numSx} align="center">
+                      {editable && stepEdit && s.kind !== "shiny" ? (
+                        <TinyNum
+                          label="Primestack"
+                          value={s.primestack}
+                          min={0}
+                          max={30}
+                          onChange={(primestack) =>
+                            stepEdit.onPatch(s.fromLevel, s.toLevel, { primestack })
+                          }
+                        />
+                      ) : (
+                        stackCell(s.primestack)
+                      )}
+                    </TableCell>
+                  ) : null}
+                  <TableCell sx={numSx} align="right">
+                    {formatAttempts(s.chance)}
+                  </TableCell>
+                  <TableCell sx={numSx} align="right">
+                    {formatGold(s.stepSpend)}
+                  </TableCell>
+                  <TableCell sx={numSx} align="right">
+                    {formatGold(s.runningTotal)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <StepSpendBars steps={steps} />
+    </>
+  );
+
+  if (editable) {
+    return (
+      <Paper id="upgrade-step-table" variant="outlined" sx={{ p: 1.5, scrollMarginTop: 16 }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          spacing={1}
+          sx={{ mb: 1.25 }}
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle2">Plan steps</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Click scroll/offering icons to cycle · adjust stacks inline · EV updates live
+            </Typography>
+          </Box>
+          {hasOverrides && stepEdit ? (
+            <Button size="small" variant="text" onClick={() => stepEdit.onResetAll()}>
+              Reset edits
+            </Button>
+          ) : null}
+        </Stack>
+        {body}
+      </Paper>
+    );
+  }
+
   return (
     <Accordion
       disableGutters
       elevation={0}
-      defaultExpanded={usesStacks}
+      defaultExpanded={showPrim || showStatScroll || showFail || showPrimeStk}
       sx={{
         border: 1,
         borderColor: "divider",
@@ -1910,147 +2197,10 @@ export function StepPlanTable({ steps }: { steps: PlanSummaryStep[] }) {
           <Typography variant="subtitle1">Step details</Typography>
           <Typography variant="caption" color="text.secondary">
             Full table with attempts, running totals
-            {usesStacks ? ", and stack columns" : ""}
           </Typography>
         </Box>
       </AccordionSummary>
-      <AccordionDetails sx={{ px: 2, pt: 0, pb: 2 }}>
-        <StepPlanCards steps={steps} />
-
-        <TableContainer sx={{ overflowX: "auto", display: { xs: "none", md: "block" } }}>
-          <Table size="small" sx={{ minWidth: 640 }}>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={headSx}>Level</TableCell>
-                <TableCell sx={headSx}>Chance</TableCell>
-                <TableCell sx={headSx}>Scroll</TableCell>
-                <TableCell sx={headSx}>Offering</TableCell>
-                {showPrim ? (
-                  <TableCell sx={headSx}>
-                    <Tooltip title="Primling priming count">
-                      <span>Prim</span>
-                    </Tooltip>
-                  </TableCell>
-                ) : null}
-                {showStatScroll ? (
-                  <TableCell sx={headSx}>
-                    <Tooltip title="Property scroll + offering (+1 grace each)">
-                      <span>Stat</span>
-                    </Tooltip>
-                  </TableCell>
-                ) : null}
-                {showFail ? (
-                  <TableCell sx={headSx}>
-                    <Tooltip title="Failstack (helmet-proxy ugrace farm)">
-                      <span>Fail</span>
-                    </Tooltip>
-                  </TableCell>
-                ) : null}
-                {showPrimeStk ? (
-                  <TableCell sx={headSx}>
-                    <Tooltip title="Primestack (helmet-proxy ograce farm)">
-                      <span>PrimeStk</span>
-                    </Tooltip>
-                  </TableCell>
-                ) : null}
-                <TableCell sx={headSx} align="right">
-                  Attempts
-                </TableCell>
-                <TableCell sx={headSx} align="right">
-                  Step
-                </TableCell>
-                <TableCell sx={headSx} align="right">
-                  Total
-                </TableCell>
-                <TableCell sx={{ ...headSx, minWidth: 72 }}>Share</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {steps.map((s) => {
-                const share =
-                  maxStepSpend > 0 && Number.isFinite(s.stepSpend) ? s.stepSpend / maxStepSpend : 0;
-                const heavy = share >= 0.85 && steps.length > 1;
-                const scrollName = s.scrollKey
-                  ? G?.items?.[s.scrollKey as ItemKey]?.name ?? s.scrollKey
-                  : null;
-                const offeringName = s.offeringKey
-                  ? G?.items?.[s.offeringKey as ItemKey]?.name ?? s.offeringKey
-                  : null;
-                return (
-                  <TableRow
-                    key={pathStepKey(s)}
-                    sx={
-                      heavy
-                        ? {
-                            bgcolor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255, 167, 38, 0.08)"
-                                : "rgba(255, 167, 38, 0.1)",
-                          }
-                        : undefined
-                    }
-                  >
-                    <TableCell sx={{ ...cellSx, fontWeight: 500, whiteSpace: "nowrap" }}>
-                      {stepRangeLabel(s)}
-                    </TableCell>
-                    <TableCell sx={cellSx}>
-                      <ChanceBar chance={s.chance} />
-                    </TableCell>
-                    <TableCell sx={cellSx}>
-                      {s.kind === "shiny" ? (
-                        <Typography variant="caption" color="text.secondary">
-                          —
-                        </Typography>
-                      ) : (
-                        <Tooltip title={scrollName ?? ""}>
-                          <Box component="span" sx={{ display: "inline-flex" }}>
-                            {scrollOrOfferingCell(s.scrollKey)}
-                          </Box>
-                        </Tooltip>
-                      )}
-                    </TableCell>
-                    <TableCell sx={cellSx}>
-                      <Tooltip
-                        title={
-                          s.kind === "shiny"
-                            ? `${offeringName ?? "polish"} (fail keeps item)`
-                            : offeringName ?? "No offering"
-                        }
-                      >
-                        <Box component="span" sx={{ display: "inline-flex" }}>
-                          {scrollOrOfferingCell(s.offeringKey)}
-                        </Box>
-                      </Tooltip>
-                    </TableCell>
-                    {showPrim ? (
-                      <TableCell sx={numSx}>{stackCell(s.priming || s.primstacks)}</TableCell>
-                    ) : null}
-                    {showStatScroll ? (
-                      <TableCell sx={numSx}>{stackCell(s.statScrollGrace)}</TableCell>
-                    ) : null}
-                    {showFail ? <TableCell sx={numSx}>{stackCell(s.failstack)}</TableCell> : null}
-                    {showPrimeStk ? (
-                      <TableCell sx={numSx}>{stackCell(s.primestack)}</TableCell>
-                    ) : null}
-                    <TableCell sx={numSx} align="right">
-                      {formatAttempts(s.chance)}
-                    </TableCell>
-                    <TableCell sx={numSx} align="right">
-                      {formatGold(s.stepSpend)}
-                    </TableCell>
-                    <TableCell sx={numSx} align="right">
-                      {formatGold(s.runningTotal)}
-                    </TableCell>
-                    <TableCell sx={cellSx}>
-                      <CostShareBar share={share} color={heavy ? "warning.main" : "primary.main"} />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </AccordionDetails>
+      <AccordionDetails sx={{ px: 2, pt: 0, pb: 2 }}>{body}</AccordionDetails>
     </Accordion>
   );
 }

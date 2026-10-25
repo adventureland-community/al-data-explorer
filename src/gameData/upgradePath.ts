@@ -19,6 +19,7 @@ import {
   ItemLookup,
   OfferingChoice,
   OFFERING_GRADES,
+  UPGRADE_BASE_CHANCES,
 } from "./upgradeChance";
 import { itemAcceptsStatScroll } from "./itemAffixes";
 import {
@@ -96,6 +97,10 @@ export type UpgradePathStep = {
   primestack: number;
   failstackCost: number;
   primestackCost: number;
+  /** Raw table chance for this level (no scroll/offering/stack buffs). */
+  baseChance?: number;
+  /** Cap after high scroll/offering (pre- or post-lucky, matches stored chance). */
+  chanceCap?: number;
   chance: number;
   graceAfter: number;
   stepExpectedCost: number;
@@ -899,7 +904,9 @@ export function recomputeUpgradePlan(args: {
     const primestack =
       costModel === "cheapest" ? Math.max(0, Math.min(recipe.primestack, MAX_PRIMESTACK)) : 0;
 
-    const { chance, graceAfter } = getUpgradeChance(
+    const zeroGrade = getItemGrade(def, 0);
+    const baseChance = UPGRADE_BASE_CHANCES[zeroGrade]?.[fromLevel + 1] ?? 0;
+    const rawChance = getUpgradeChance(
       ctx.lookup,
       { name: itemName, level: fromLevel, grace: graceInto },
       scrollGrade,
@@ -913,8 +920,10 @@ export function recomputeUpgradePlan(args: {
           }
         : undefined,
     );
+    const { chance, graceAfter, chanceCap } = rawChance;
     if (!(chance > 0)) return null;
     const finalChance = args.luckySlot ? applyLuckySlotChance(chance) : chance;
+    const finalCap = args.luckySlot ? applyLuckySlotChance(chanceCap) : chanceCap;
 
     const scrollKey = scrollKeyForUpgrade(scrollGrade);
     if (!scrollKey) return null;
@@ -977,6 +986,8 @@ export function recomputeUpgradePlan(args: {
       primestack,
       failstackCost,
       primestackCost: primestackCostVal,
+      baseChance,
+      chanceCap: finalCap,
       chance: finalChance,
       graceAfter,
       stepExpectedCost: stepEv,
@@ -1270,6 +1281,10 @@ export type PlanSummaryStep = {
   statScrollGrace: number;
   failstack: number;
   primestack: number;
+  /** Table chance for this level when known. */
+  baseChance?: number;
+  /** Chance cap when known. */
+  chanceCap?: number;
   chance: number;
   attempts: number;
   stepSpend: number;
@@ -1445,6 +1460,8 @@ export function summarizeUpgradePlan(
       statScrollGrace,
       failstack: step.failstack ?? 0,
       primestack: step.primestack ?? 0,
+      baseChance: step.baseChance,
+      chanceCap: step.chanceCap,
       chance: step.chance,
       attempts,
       stepSpend,

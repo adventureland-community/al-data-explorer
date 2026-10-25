@@ -65,9 +65,9 @@ function HelpBody() {
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
-        On an Upgrade path, click any recipe step to change its scroll, offering, priming, or
-        stacks. The rest of the plan recomputes (grace and EV cascade forward). Reset step / Reset
-        edits restores the planner defaults.
+        On an Upgrade path, the plan-steps table is editable: click scroll/offering icons to cycle,
+        nudge grace/fail/prime stacks inline. Base / Max / Plan chances update with the rest of the
+        EV. Reset restores planner defaults.
       </Typography>
 
       <Typography variant="body2" color="text.secondary">

@@ -820,11 +820,12 @@ export function UpgradeCalculator() {
     });
   };
 
+  /** Always recompute so BASE/MAX chance and override edits stay consistent. */
   const withUpgradeOverrides = (
     plan: { steps: UpgradePathStep[]; totalExpectedCost: number },
     costModel: "cheapest" | "fewest",
   ) => {
-    if (!ctx || !itemKey || !Object.keys(stepOverrides).length) return plan;
+    if (!ctx || !itemKey) return plan;
     const merged = mergeUpgradeStepOverrides(plan.steps, stepOverrides);
     return (
       recomputeUpgradePlan({
@@ -1681,23 +1682,6 @@ export function UpgradeCalculator() {
                         : "Cheapest",
                       planEv: summary.totalExpectedCost,
                     })}
-                    stepEdit={
-                      pathMode === "upgrade" && gItem
-                        ? {
-                            costModel: upgradeCostModel,
-                            itemGradeAt: (level) => getItemGrade(gItem, level),
-                            allowScroll4: params.scroll4,
-                            offerings: offeringList(params),
-                            allowPrimlings: params.primlings,
-                            allowStatScrollGrace:
-                              params.statScrollGrace && itemAcceptsStatScroll(gItem),
-                            overrides: stepOverrides,
-                            onPatch: patchStepOverride,
-                            onReset: clearStepOverride,
-                            onResetAll: () => setStepOverrides({}),
-                          }
-                        : null
-                    }
                   />
                   <PlanHero
                     itemKey={itemKey}
@@ -1728,7 +1712,7 @@ export function UpgradeCalculator() {
                           token: (prev?.token ?? 0) + 1,
                         }));
                       }
-                      document.getElementById("upgrade-recipe-path")?.scrollIntoView({
+                      document.getElementById("upgrade-step-table")?.scrollIntoView({
                         behavior: "smooth",
                         block: "nearest",
                       });
@@ -1762,6 +1746,26 @@ export function UpgradeCalculator() {
                       check prices in Toolkit.
                     </Alert>
                   ) : null}
+                  <StepPlanTable
+                    steps={summary.steps}
+                    stepEdit={
+                      pathMode === "upgrade" && gItem
+                        ? {
+                            costModel: upgradeCostModel,
+                            itemGradeAt: (level) => getItemGrade(gItem, level),
+                            allowScroll4: params.scroll4,
+                            offerings: offeringList(params),
+                            allowPrimlings: params.primlings,
+                            allowStatScrollGrace:
+                              params.statScrollGrace && itemAcceptsStatScroll(gItem),
+                            overrides: stepOverrides,
+                            onPatch: patchStepOverride,
+                            onReset: clearStepOverride,
+                            onResetAll: () => setStepOverrides({}),
+                          }
+                        : null
+                    }
+                  />
                   <Box
                     sx={{
                       display: "grid",
@@ -1786,7 +1790,6 @@ export function UpgradeCalculator() {
                       />
                     ) : null}
                   </Box>
-                  <StepPlanTable steps={summary.steps} />
                 </>
               )}
             </>
