@@ -56,6 +56,43 @@ function SectionLabel({ children }: { children: ReactNode }) {
 }
 
 export function DropSourceRow({ drop }: { drop: AcquisitionDropView }) {
+  const secondary = (
+    <>
+      {drop.secondary ? (
+        <Typography variant="caption" color="text.secondary" component="span" display="block">
+          {drop.secondary}
+        </Typography>
+      ) : null}
+      {drop.mapLinks && drop.mapLinks.length > 0 ? (
+        <Typography variant="caption" color="text.secondary" component="span" display="block">
+          Maps:{" "}
+          {drop.mapLinks.map((map, index) => (
+            <span key={map.mapKey}>
+              {index > 0 ? ", " : null}
+              <Link component={RouterLink} to={map.href} variant="caption">
+                {map.label}
+              </Link>
+            </span>
+          ))}
+        </Typography>
+      ) : null}
+      {drop.openerLinks && drop.openerLinks.length > 0 ? (
+        <Typography variant="caption" color="text.secondary" component="span" display="block">
+          Opened from:{" "}
+          {drop.openerLinks.map((opener, index) => (
+            <span key={`${opener.sourceType}-${opener.sourceKey}`}>
+              {index > 0 ? ", " : null}
+              <Link component={RouterLink} to={opener.href} variant="caption">
+                {opener.label}
+              </Link>
+              {opener.openChanceLabel ? ` (${opener.openChanceLabel})` : null}
+            </span>
+          ))}
+        </Typography>
+      ) : null}
+    </>
+  );
+
   return (
     <ListItem
       disableGutters
@@ -77,9 +114,9 @@ export function DropSourceRow({ drop }: { drop: AcquisitionDropView }) {
             </Typography>
           )
         }
-        secondary={drop.secondary}
+        secondary={secondary}
         primaryTypographyProps={{ variant: "body2" }}
-        secondaryTypographyProps={{ variant: "caption" }}
+        secondaryTypographyProps={{ component: "div" }}
         sx={{ my: 0 }}
       />
       <Typography variant="body2" sx={{ flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>

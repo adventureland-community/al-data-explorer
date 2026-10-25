@@ -17,6 +17,7 @@ import { useContext, useMemo } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { GDataContext, type CustomGData } from "../GDataContext";
+import { mapDetailHref } from "../gameData/mapCatalog";
 import { getNpcDetail, mapDisplayLabel, type NpcDetailView } from "../gameData/npcCatalog";
 import { worldFocusHref } from "../gameData/mapTravel";
 import { ItemInstance } from "../Shared/ItemInstance";
@@ -44,7 +45,11 @@ function LocationCard({ detail, G }: { detail: NpcDetailView; G: CustomGData }) 
             flexWrap="wrap"
             sx={{ mb: 1.25, gap: 0.75 }}
           >
-            <Typography variant="subtitle2">{mapDisplayLabel(loc)}</Typography>
+            <Typography variant="subtitle2">
+              <Link component={RouterLink} to={mapDetailHref(loc.mapKey)} underline="hover">
+                {mapDisplayLabel(loc)}
+              </Link>
+            </Typography>
             <Typography variant="caption" color="text.secondary">
               {loc.mapKey}
               {loc.posX != null && loc.posY != null

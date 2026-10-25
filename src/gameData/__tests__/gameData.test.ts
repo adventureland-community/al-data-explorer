@@ -101,11 +101,41 @@ describe("drops", () => {
         [1, "helmet"],
       ],
     });
-    const seashell = rows.find((r) => r.itemKey === "seashell");
-    expect(seashell).toMatchObject({
+    const fromMonster = rows.find((r) => r.itemKey === "seashell" && r.sourceType === "monster");
+    expect(fromMonster).toMatchObject({
       sourceType: "monster",
       sourceKey: "goo",
       probability: 0.25,
+    });
+    // Nested table still listed (within-table weight) so UI can explain auto-open.
+    const fromTable = rows.find((r) => r.itemKey === "seashell" && r.sourceType === "table");
+    expect(fromTable).toMatchObject({
+      sourceType: "table",
+      sourceKey: "shells",
+      probability: 0.5,
+    });
+  });
+
+  it("keeps open loot tables like statbelt alongside expanded map odds", () => {
+    const rows = extractDropRates({
+      maps: {
+        spookytown: [[0.0007, "open", "statbelt"]],
+      },
+      statbelt: [
+        [1, "intbelt"],
+        [1, "strbelt"],
+        [1, "dexbelt"],
+      ],
+    });
+    const dexbelt = rows.filter((r) => r.itemKey === "dexbelt");
+    expect(dexbelt).toHaveLength(2);
+    expect(dexbelt.find((r) => r.sourceType === "map")).toMatchObject({
+      sourceKey: "spookytown",
+      probability: 0.0007 / 3,
+    });
+    expect(dexbelt.find((r) => r.sourceType === "table")).toMatchObject({
+      sourceKey: "statbelt",
+      probability: 1 / 3,
     });
   });
 

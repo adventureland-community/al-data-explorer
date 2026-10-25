@@ -256,7 +256,7 @@ export function dropSourceDeepLink(source: CosmeticAcquireSource): string | unde
     return `/monsters?monster=${encodeURIComponent(source.dropSourceKey)}`;
   }
   if (source.dropSourceType === "map") {
-    return `/world#map=${encodeURIComponent(source.dropSourceKey)}`;
+    return `/maps/${encodeURIComponent(source.dropSourceKey)}`;
   }
   if (source.dropSourceType === "table") {
     return dropsDeepLink(source.dropSourceKey);

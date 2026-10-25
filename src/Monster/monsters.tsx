@@ -12,6 +12,7 @@
 
 import {
   Box,
+  Link,
   Paper,
   Stack,
   Table,
@@ -25,9 +26,10 @@ import {
 } from "@mui/material";
 import { GMonster, MonsterKey } from "typed-adventureland";
 import { useState, useContext, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
 import { formatMonsterDropsDisplay } from "../gameData/drops";
+import { mapDetailHref } from "../gameData/mapCatalog";
 import { MonsterImage } from "../Shared/SpriteSkin";
 import { QuerySearchBar } from "../Shared/QuerySearchBar";
 import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
@@ -527,6 +529,9 @@ export function Monsters() {
                         .join(", ")
                     : "None";
 
+                  // GMonster.spawns is a different field; browse rows carry map keys as string[].
+                  const spawnMaps = row.spawns as unknown as string[];
+
                   return (
                     <TableRow key={monsterKey} hover>
                       <TableCell>
@@ -556,7 +561,22 @@ export function Monsters() {
                       <TableCell>{row.evasion}</TableCell>
                       <TableCell>{row.reflection}</TableCell>
                       <TableCell>{row.drops}</TableCell>
-                      <TableCell>{row.spawns.join(", ")}</TableCell>
+                      <TableCell>
+                        {spawnMaps.length === 0
+                          ? "—"
+                          : spawnMaps.map((spawnMapKey, index) => (
+                              <span key={spawnMapKey}>
+                                {index > 0 ? ", " : null}
+                                <Link
+                                  component={RouterLink}
+                                  to={mapDetailHref(spawnMapKey)}
+                                  variant="body2"
+                                >
+                                  {spawnMapKey}
+                                </Link>
+                              </span>
+                            ))}
+                      </TableCell>
                       <TableCell>{achievementsList}</TableCell>
                     </TableRow>
                   );

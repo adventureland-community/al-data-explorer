@@ -138,6 +138,50 @@ export function expandOpenForAcquisition(
   return rows;
 }
 
+/** Who rolls `[chance, "open", table]` on a map or monster drop list. */
+export type OpenTableOpener = {
+  sourceType: "map" | "monster";
+  sourceKey: string;
+  /** Absolute chance to open the nested table from this source. */
+  openChance: number | null;
+};
+
+/**
+ * Named tables referenced via `[chance, "open", table]` on maps/monsters.
+ * Used to explain auto-opened loot tables (e.g. `statbelt`) in acquisition UI.
+ */
+export function collectOpenTableOpeners(
+  drops: Record<string, unknown>,
+): Map<string, OpenTableOpener[]> {
+  const byTable = new Map<string, OpenTableOpener[]>();
+  const scan = (bucket: Record<string, unknown[]> | undefined, sourceType: "map" | "monster") => {
+    if (!bucket) return;
+    for (const [sourceKey, entries] of Object.entries(bucket)) {
+      if (!Array.isArray(entries)) continue;
+      for (const entry of entries) {
+        for (const row of parseDropEntry(sourceType, sourceKey, entry, "absolute")) {
+          if (!row.nestedTable) continue;
+          const list = byTable.get(row.nestedTable) ?? [];
+          list.push({
+            sourceType,
+            sourceKey,
+            openChance: row.probability,
+          });
+          byTable.set(row.nestedTable, list);
+        }
+      }
+    }
+  };
+  scan(drops.maps as Record<string, unknown[]> | undefined, "map");
+  scan(drops.monsters as Record<string, unknown[]> | undefined, "monster");
+  return byTable;
+}
+
+/** @deprecated Prefer collectOpenTableOpeners — same open targets as keys. */
+export function collectOpenTableTargets(drops: Record<string, unknown>): Set<string> {
+  return new Set(collectOpenTableOpeners(drops).keys());
+}
+
 /** Item Acquisition view of all Drop Tables (opens expanded to leaves). */
 export function toAcquisitionDropSources(drops: Record<string, unknown>): DropSource[] {
   const rows: DropSource[] = [];

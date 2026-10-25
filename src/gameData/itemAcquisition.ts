@@ -2,16 +2,33 @@ import { ItemKey } from "typed-adventureland";
 
 import { CustomGData } from "../GDataContext";
 import {
+  collectOpenTableOpeners,
   formatDropProbability,
   getDropSourceLink,
   getMapDisplayName,
   prepareDropSourcesForDisplay,
 } from "./drops";
+import { mapDetailHref } from "./mapCatalog";
 import { npcHref } from "./npcCatalog";
 import { DropSourceType, GItems, NpcShopSource, TokenOfferSource } from "./types";
 import { normalizeTokenShopOffer } from "./tokenShopOffer";
 
 export type DropIconKind = "monster" | "table-item" | "map-text" | "key-fallback" | "none";
+
+export type AcquisitionMapLink = {
+  mapKey: string;
+  label: string;
+  href: string;
+};
+
+/** Map/monster that auto-opens a nested loot table (`[chance, "open", table]`). */
+export type AcquisitionOpenerLink = {
+  sourceType: "map" | "monster";
+  sourceKey: string;
+  label: string;
+  href: string;
+  openChanceLabel?: string;
+};
 
 /** Display-ready drop row for browse (compact) and detail (list). */
 export type AcquisitionDropView = {
@@ -20,6 +37,10 @@ export type AcquisitionDropView = {
   sourceKey: string;
   label: string;
   secondary?: string;
+  /** Monster spawn maps — rendered as links in the source row. */
+  mapLinks?: AcquisitionMapLink[];
+  /** For auto-opened loot tables — who rolls `open` into this table. */
+  openerLinks?: AcquisitionOpenerLink[];
   oddsLabel: string;
   linkTo?: string;
   icon: { kind: DropIconKind; key: string };
@@ -102,6 +123,11 @@ function dropIcon(
   return { kind: "none", key: sourceKey };
 }
 
+function openerHref(sourceType: "map" | "monster", sourceKey: string): string {
+  if (sourceType === "map") return mapDetailHref(sourceKey);
+  return `/monsters?monster=${encodeURIComponent(sourceKey)}`;
+}
+
 function toDropAndExchangeViews(
   itemKey: ItemKey,
   lookups: AcquisitionLookups,
@@ -110,11 +136,12 @@ function toDropAndExchangeViews(
   const raw = G.indexes.dropsByItem.get(itemKey) ?? [];
   const prepared = prepareDropSourcesForDisplay(raw);
   const { items, monsters, maps, spawnsByMonster } = lookups;
+  const openersByTable = collectOpenTableOpeners(G.drops ?? {});
   const drops: AcquisitionDropView[] = [];
   const exchanges: AcquisitionExchangeView[] = [];
 
   for (const drop of prepared) {
-    const oddsLabel =
+    let oddsLabel =
       drop.oddsLabel || (drop.probability != null ? formatDropProbability(drop.probability) : "—");
 
     if (drop.sourceType === "table" && isExchangeInput(items, drop.sourceKey)) {
@@ -145,27 +172,56 @@ function toDropAndExchangeViews(
 
     let label: string;
     let secondary: string | undefined;
+    let mapLinks: AcquisitionMapLink[] | undefined;
+    let openerLinks: AcquisitionOpenerLink[] | undefined;
     switch (drop.sourceType) {
       case "monster": {
         label = monsterName ?? drop.sourceKey;
-        const parts = [
-          monsterName && monsterName !== drop.sourceKey ? drop.sourceKey : null,
-          (() => {
-            const spawnMaps = spawnsByMonster?.get(drop.sourceKey);
-            return spawnMaps && spawnMaps.length > 0 ? `Maps: ${spawnMaps.join(", ")}` : null;
-          })(),
-        ].filter(Boolean);
-        secondary = parts.length > 0 ? parts.join(" · ") : undefined;
+        const spawnMaps = spawnsByMonster?.get(drop.sourceKey) ?? [];
+        if (spawnMaps.length > 0) {
+          mapLinks = spawnMaps.map((mapKey) => ({
+            mapKey,
+            label: getMapDisplayName(mapKey, maps),
+            href: mapDetailHref(mapKey),
+          }));
+        }
+        secondary = monsterName && monsterName !== drop.sourceKey ? drop.sourceKey : undefined;
         break;
       }
       case "map":
         label = mapName ?? drop.sourceKey;
         secondary = mapName && mapName !== drop.sourceKey ? drop.sourceKey : undefined;
         break;
-      case "table":
+      case "table": {
+        const openers = openersByTable.get(drop.sourceKey) ?? [];
+        const isAutoOpened = openers.length > 0 && !tableItemName;
         label = tableItemName ?? drop.sourceKey;
-        secondary = tableItemName ? drop.sourceKey : undefined;
+        if (isAutoOpened) {
+          secondary = "Loot table · auto-opened from map/monster drops";
+          if (oddsLabel !== "—") {
+            oddsLabel = `${oddsLabel} when opened`;
+          }
+          openerLinks = openers.map((opener) => {
+            const openerLabel =
+              opener.sourceType === "map"
+                ? getMapDisplayName(opener.sourceKey, maps)
+                : monsters?.[opener.sourceKey]?.name ?? opener.sourceKey;
+            return {
+              sourceType: opener.sourceType,
+              sourceKey: opener.sourceKey,
+              label: openerLabel,
+              href: openerHref(opener.sourceType, opener.sourceKey),
+              openChanceLabel:
+                opener.openChance != null ? formatDropProbability(opener.openChance) : undefined,
+            };
+          });
+        } else if (tableItemName) {
+          secondary = drop.sourceKey;
+        } else {
+          secondary = "Loot table";
+        }
         break;
+      }
       case "gold":
         label = `Gold drop: ${drop.sourceKey}`;
         break;
@@ -181,6 +237,8 @@ function toDropAndExchangeViews(
       sourceKey: drop.sourceKey,
       label,
       secondary,
+      mapLinks,
+      openerLinks,
       oddsLabel,
       linkTo: getDropSourceLink(drop, items),
       icon: dropIcon(drop.sourceType, drop.sourceKey, items),

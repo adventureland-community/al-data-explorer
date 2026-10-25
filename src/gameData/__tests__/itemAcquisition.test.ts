@@ -145,4 +145,62 @@ describe("getItemAcquisition", () => {
     expect(acq.exchanges[0]?.oddsLabel).toBe("50.00%");
     expect(acq.drops).toHaveLength(0);
   });
+
+  it("explains auto-opened loot tables with opener links and when-opened odds", () => {
+    const G = stubG({
+      items: {
+        dexbelt: { name: "Belt of Dexterity", type: "belt" },
+      } as unknown as CustomGData["items"],
+      maps: {
+        spookytown: { name: "Spooky Town" },
+      } as unknown as CustomGData["maps"],
+      drops: {
+        maps: {
+          spookytown: [[0.0007, "open", "statbelt"]],
+        },
+        monsters: {},
+        statbelt: [
+          [1, "intbelt"],
+          [1, "strbelt"],
+          [1, "dexbelt"],
+        ],
+      },
+    });
+
+    const acq = getItemAcquisition("dexbelt" as ItemKey, G);
+    const mapDrop = acq.drops.find((d) => d.sourceKey === "spookytown");
+    const tableDrop = acq.drops.find((d) => d.sourceKey === "statbelt");
+    expect(mapDrop?.label).toBe("Spooky Town");
+    expect(mapDrop?.linkTo).toBe("/maps/spookytown");
+    expect(tableDrop?.secondary).toContain("auto-opened");
+    expect(tableDrop?.oddsLabel).toBe("33.33% when opened");
+    expect(tableDrop?.linkTo).toBe("/drops?mode=exchange&table=statbelt");
+    expect(tableDrop?.openerLinks).toStrictEqual([
+      {
+        sourceType: "map",
+        sourceKey: "spookytown",
+        label: "Spooky Town",
+        href: "/maps/spookytown",
+        openChanceLabel: "0.0700%",
+      },
+    ]);
+  });
+
+  it("links monster spawn maps to map detail pages", () => {
+    const G = stubG({
+      items: {
+        leather: { name: "Leather", type: "material" },
+      } as unknown as CustomGData["items"],
+      maps: {
+        main: { name: "Mainland", monsters: [{ type: "goo", count: 5 }] },
+        goobrawl: { name: "Goo Brawl", monsters: [{ type: "goo", count: 1 }] },
+      } as unknown as CustomGData["maps"],
+    });
+
+    const acq = getItemAcquisition("leather" as ItemKey, G);
+    expect(acq.drops[0]?.mapLinks?.map((m) => m.href)).toStrictEqual([
+      "/maps/main",
+      "/maps/goobrawl",
+    ]);
+  });
 });

@@ -25,6 +25,8 @@ import { CharacterClassPage } from "./Characters/CharacterClassPage";
 import { CharacterCompare } from "./Characters/CharacterCompare";
 import { CharacterDetail } from "./Characters/CharacterDetail";
 import { CharacterPlayerPage } from "./Characters/CharacterPlayerPage";
+import { MapsBrowse } from "./Maps/MapsBrowse";
+import { MapDetail } from "./Maps/MapDetail";
 
 // TODO: https://reactrouter.com/en/main/start/tutorial#handling-not-found-errors
 
@@ -43,6 +45,14 @@ const router = createBrowserRouter([
           {
             path: "monsters",
             element: <Monsters />,
+          },
+          {
+            path: "maps",
+            element: <MapsBrowse />,
+          },
+          {
+            path: "maps/:mapKey",
+            element: <MapDetail />,
           },
           {
             path: "npcs",

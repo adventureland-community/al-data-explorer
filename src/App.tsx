@@ -65,6 +65,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
     "/market",
     "/gear",
     "/monsters",
+    "/maps",
     "/npcs",
     "/bank",
     "/world",
@@ -82,6 +83,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
     pathname.startsWith("/skills/");
   const cosmeticsSelected = pathname === "/cosmetics" || pathname.startsWith("/cosmetics/");
   const npcsSelected = pathname === "/npcs" || pathname.startsWith("/npcs/");
+  const mapsSelected = pathname === "/maps" || pathname.startsWith("/maps/");
   const charactersSelected = pathname === "/characters" || pathname.startsWith("/characters/");
   const currentTab = itemsSelected
     ? "/items"
@@ -91,6 +93,8 @@ function Menu({ compact = false }: { compact?: boolean }) {
     ? "/cosmetics"
     : npcsSelected
     ? "/npcs"
+    : mapsSelected
+    ? "/maps"
     : charactersSelected
     ? "/characters"
     : routeMatch?.pattern?.path ?? false;
@@ -136,6 +140,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
           component={RouterLink}
         />
         <Tab label="Monsters" value="/monsters" to="/monsters" component={RouterLink} />
+        <Tab label="Maps" value="/maps" to="/maps" component={RouterLink} />
         <Tab label="NPCs" value="/npcs" to="/npcs" component={RouterLink} />
         <Tab label="Classes" value="/classes" to="/classes" component={RouterLink} />
         <Tab

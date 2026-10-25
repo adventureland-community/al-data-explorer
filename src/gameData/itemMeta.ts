@@ -266,7 +266,7 @@ export function getItemFacts(gItem: GItem, lookups?: ItemMetaLookups): ItemFact[
       key: "opens",
       label: "Opens",
       value: mapName,
-      href: mapExists ? `/world#map=${encodeURIComponent(item.opens)}&mode=map` : undefined,
+      href: mapExists ? `/maps/${encodeURIComponent(item.opens)}` : undefined,
     });
   }
   if (item.unlocks) {
@@ -276,7 +276,7 @@ export function getItemFacts(gItem: GItem, lookups?: ItemMetaLookups): ItemFact[
       key: "unlocks",
       label: "Unlocks",
       value: mapName,
-      href: mapExists ? `/world#map=${encodeURIComponent(item.unlocks)}&mode=map` : undefined,
+      href: mapExists ? `/maps/${encodeURIComponent(item.unlocks)}` : undefined,
     });
   }
 
@@ -308,7 +308,7 @@ export function getItemFacts(gItem: GItem, lookups?: ItemMetaLookups): ItemFact[
         key: `map-bonus-${mapKey}`,
         label: `${mapDef.name ?? mapKey} only`,
         value: parts.join(", "),
-        href: `/world#map=${encodeURIComponent(mapKey)}&mode=map`,
+        href: `/maps/${encodeURIComponent(mapKey)}`,
       });
     }
   }
