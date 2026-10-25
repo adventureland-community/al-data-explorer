@@ -1,6 +1,6 @@
 import { GItem } from "typed-adventureland";
 
-import { PlanSummaryStep } from "../upgradePath";
+import { PlanSummaryStep } from "../upgradePathSummary";
 import {
   applyShinyPolishToSummary,
   BONUS_GRACE_CHANCE,
@@ -20,14 +20,13 @@ function step(
     toLevel: partial.fromLevel + 1,
     scrollKey: "scroll0",
     offeringKey: null,
-    primstacks: 0,
-    priming: 0,
-    primingStatClicks: 0,
-    primingNormalPrimes: 0,
-    primingStatScrollEach: 0,
+    primstacking: 0,
+    primstackingStatClicks: 0,
+    primstackingNormal: 0,
+    primstackingStatScrollEach: 0,
     statScrollGrace: 0,
     failstack: 0,
-    primestack: 0,
+    ograce: 0,
     attempts: 1 / partial.chance,
     stepSpend: 0,
     runningTotal: 0,

@@ -46,13 +46,17 @@ import {
 
 function stackBitsFor(s: PlanSummaryStep): string[] {
   const bits: string[] = [];
-  if (s.priming || s.primstacks) {
-    const prim = s.priming || s.primstacks;
-    bits.push(s.primingStatClicks ? `prim ${prim} (${s.primingStatClicks}×dex)` : `prim ${prim}`);
+  if (s.primstacking) {
+    const n = s.primstacking;
+    bits.push(
+      s.primstackingStatClicks
+        ? `primstack ${n} (${s.primstackingStatClicks}×dex)`
+        : `primstack ${n}`,
+    );
   }
   if (s.statScrollGrace) bits.push(`stat ${s.statScrollGrace}`);
-  if (s.failstack) bits.push(`fail ${s.failstack}`);
-  if (s.primestack) bits.push(`prime ${s.primestack}`);
+  if (s.failstack) bits.push(`failstack ${s.failstack}`);
+  if (s.ograce) bits.push(`ograce ${s.ograce}`);
   return bits;
 }
 
@@ -121,7 +125,7 @@ export type StepRecipeEdit = {
   itemGradeAt: (level: number) => number;
   allowScroll4: boolean;
   offerings: OfferingChoice[];
-  allowPrimlings: boolean;
+  allowPrimstacking: boolean;
   allowStatScrollGrace: boolean;
   overrides: Record<string, UpgradeStepOverride>;
   onPatch: (fromLevel: number, toLevel: number, patch: UpgradeStepOverride) => void;
@@ -380,14 +384,14 @@ export function StepPlanCards({
             </Stack>
             {stepEdit && isRecipeStep(s) ? (
               <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 1, gap: 1 }}>
-                {stepEdit.allowPrimlings ? (
+                {stepEdit.allowPrimstacking ? (
                   <TinyNum
-                    label="Primling"
-                    value={s.primstacks}
+                    label="Primstacking"
+                    value={s.primstacking}
                     min={0}
                     max={26}
-                    onChange={(primstacks) =>
-                      stepEdit.onPatch(s.fromLevel, s.toLevel, { primstacks })
+                    onChange={(primstacking) =>
+                      stepEdit.onPatch(s.fromLevel, s.toLevel, { primstacking })
                     }
                   />
                 ) : null}
@@ -403,13 +407,11 @@ export function StepPlanCards({
                       }
                     />
                     <TinyNum
-                      label="Primestack"
-                      value={s.primestack}
+                      label="Ograce"
+                      value={s.ograce}
                       min={0}
                       max={30}
-                      onChange={(primestack) =>
-                        stepEdit.onPatch(s.fromLevel, s.toLevel, { primestack })
-                      }
+                      onChange={(ograce) => stepEdit.onPatch(s.fromLevel, s.toLevel, { ograce })}
                     />
                   </>
                 ) : null}
@@ -446,15 +448,13 @@ export function StepPlanTable({
       : 0;
   const editable = Boolean(stepEdit);
   const showPrim = editable
-    ? Boolean(stepEdit?.allowPrimlings)
-    : steps.some((s) => s.priming || s.primstacks);
+    ? Boolean(stepEdit?.allowPrimstacking)
+    : steps.some((s) => s.primstacking);
   const showStatScroll = editable
     ? Boolean(stepEdit?.allowStatScrollGrace)
     : steps.some((s) => s.statScrollGrace);
   const showFail = editable ? stepEdit?.costModel === "cheapest" : steps.some((s) => s.failstack);
-  const showPrimeStk = editable
-    ? stepEdit?.costModel === "cheapest"
-    : steps.some((s) => s.primestack);
+  const showPrimeStk = editable ? stepEdit?.costModel === "cheapest" : steps.some((s) => s.ograce);
   const hasOverrides = Boolean(stepEdit && Object.keys(stepEdit.overrides).length);
 
   const headSx = {
@@ -521,9 +521,9 @@ export function StepPlanTable({
               {showPrim ? (
                 <TableCell sx={headSx} align="center">
                   <ColumnHead
-                    label="Grace stacks"
+                    label="Primstacking"
                     icons={["offeringp"]}
-                    tip="Primling priming count (+0.5 grace each)"
+                    tip="Primlings on this item (+0.5 item grace each)"
                   />
                 </TableCell>
               ) : null}
@@ -532,25 +532,25 @@ export function StepPlanTable({
                   <ColumnHead
                     label="Stat"
                     icons={["strscroll"]}
-                    tip="Property scroll + offering (+1 grace each)"
+                    tip="Property scroll + offering (+1 item grace each)"
                   />
                 </TableCell>
               ) : null}
               {showFail ? (
                 <TableCell sx={headSx} align="center">
                   <ColumnHead
-                    label="Fail"
+                    label="Failstack"
                     icons={["helmet"]}
-                    tip="Failstack (helmet-proxy ugrace farm)"
+                    tip="Fail vendor helmets to bank ugrace (variants costed via helmet proxy)"
                   />
                 </TableCell>
               ) : null}
               {showPrimeStk ? (
                 <TableCell sx={headSx} align="center">
                   <ColumnHead
-                    label="Primstacks"
+                    label="Ograce"
                     icons={["helmet", "offeringp"]}
-                    tip="Primestack (helmet-proxy ograce farm)"
+                    tip="Banked player.p.ograce from offering fails (no common community name; costed via helmet+offering fails)"
                   />
                 </TableCell>
               ) : null}
@@ -675,16 +675,16 @@ export function StepPlanTable({
                     <TableCell sx={numSx} align="center">
                       {editable && stepEdit && isRecipeStep(s) ? (
                         <TinyNum
-                          label="Primling"
-                          value={s.primstacks}
+                          label="Primstacking"
+                          value={s.primstacking}
                           min={0}
                           max={26}
-                          onChange={(primstacks) =>
-                            stepEdit.onPatch(s.fromLevel, s.toLevel, { primstacks })
+                          onChange={(primstacking) =>
+                            stepEdit.onPatch(s.fromLevel, s.toLevel, { primstacking })
                           }
                         />
                       ) : (
-                        stackCell(s.priming || s.primstacks)
+                        stackCell(s.primstacking)
                       )}
                     </TableCell>
                   ) : null}
@@ -726,16 +726,16 @@ export function StepPlanTable({
                     <TableCell sx={numSx} align="center">
                       {editable && stepEdit && isRecipeStep(s) ? (
                         <TinyNum
-                          label="Primestack"
-                          value={s.primestack}
+                          label="Ograce"
+                          value={s.ograce}
                           min={0}
                           max={30}
-                          onChange={(primestack) =>
-                            stepEdit.onPatch(s.fromLevel, s.toLevel, { primestack })
+                          onChange={(ograce) =>
+                            stepEdit.onPatch(s.fromLevel, s.toLevel, { ograce })
                           }
                         />
                       ) : (
-                        stackCell(s.primestack)
+                        stackCell(s.ograce)
                       )}
                     </TableCell>
                   ) : null}

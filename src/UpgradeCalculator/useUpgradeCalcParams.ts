@@ -25,7 +25,7 @@ export type UpgradeCalcParams = {
   wantShiny: boolean;
   /** Polish material key; empty = cheapest valid EV. */
   polish: string;
-  primlings: boolean;
+  primstacking: boolean;
   scroll4: boolean;
   offeringp: boolean;
   offering: boolean;
@@ -50,7 +50,7 @@ const DEFAULTS: UpgradeCalcParams = {
   statScrollGrace: false,
   wantShiny: false,
   polish: "",
-  primlings: true,
+  primstacking: true,
   scroll4: false,
   offeringp: true,
   offering: true,
@@ -156,7 +156,7 @@ export function parseUpgradeCalcParams(searchParams: URLSearchParams): UpgradeCa
     statScrollGrace: parseBool(searchParams.get("ssgrace"), DEFAULTS.statScrollGrace),
     wantShiny: parseBool(searchParams.get("shiny"), DEFAULTS.wantShiny),
     polish: searchParams.get("polish") ?? DEFAULTS.polish,
-    primlings: parseBool(searchParams.get("prim"), DEFAULTS.primlings),
+    primstacking: parseBool(searchParams.get("prim"), DEFAULTS.primstacking),
     scroll4: parseBool(searchParams.get("s4"), DEFAULTS.scroll4),
     offeringp: parseBool(searchParams.get("op"), DEFAULTS.offeringp),
     offering: parseBool(searchParams.get("o"), DEFAULTS.offering),
@@ -191,7 +191,7 @@ function writeParams(params: UpgradeCalcParams): URLSearchParams {
   if (params.statScrollGrace) sp.set("ssgrace", "1");
   if (params.wantShiny) sp.set("shiny", "1");
   if (params.wantShiny && params.polish) sp.set("polish", params.polish);
-  if (!params.primlings) sp.set("prim", "0");
+  if (!params.primstacking) sp.set("prim", "0");
   if (params.scroll4) sp.set("s4", "1");
   if (!params.offeringp) sp.set("op", "0");
   if (!params.offering) sp.set("o", "0");

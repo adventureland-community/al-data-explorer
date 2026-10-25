@@ -309,7 +309,7 @@ export function PlanModifiersChips({
   shinyLabel = "Polish Shiny",
   shinyAvailable = true,
   statScrollAvailable = true,
-  primlings,
+  primstacking,
   scroll4,
   offeringp,
   offering,
@@ -325,7 +325,7 @@ export function PlanModifiersChips({
   shinyAvailable?: boolean;
   /** False when the selected item has no `stat` pool. */
   statScrollAvailable?: boolean;
-  primlings: boolean;
+  primstacking: boolean;
   scroll4: boolean;
   offeringp: boolean;
   offering: boolean;
@@ -337,7 +337,7 @@ export function PlanModifiersChips({
       | "serverUgrace"
       | "statScrollGrace"
       | "wantShiny"
-      | "primlings"
+      | "primstacking"
       | "scroll4"
       | "offeringp"
       | "offering"
@@ -350,7 +350,7 @@ export function PlanModifiersChips({
       | "serverUgrace"
       | "statScrollGrace"
       | "wantShiny"
-      | "primlings"
+      | "primstacking"
       | "scroll4"
       | "offeringp"
       | "offering"
@@ -378,9 +378,9 @@ export function PlanModifiersChips({
     },
     { key: "offeringp", label: "Primling", on: offeringp, show: true },
     {
-      key: "primlings",
-      label: "Prim stacks",
-      on: primlings,
+      key: "primstacking",
+      label: "Primstacking",
+      on: primstacking,
       show: mode === "upgrade" && offeringp,
     },
     { key: "offering", label: "Offering", on: offering, show: true },

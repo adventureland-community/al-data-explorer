@@ -44,11 +44,11 @@ export function pscrollQtyForGrade(grade: number): number {
 }
 
 /**
- * Pastebin `primingSpend`: one stat-scroll click is +1 grace (same as two +0.5
- * primes) and spends one Primling plus `pscrollQtyForGrade` property scrolls.
- * Used when that pair is no more expensive than two normal primes.
+ * Pastebin primstacking spend: one stat-scroll click is +1 grace (same as two +0.5
+ * Primlings) and spends one Primling plus `pscrollQtyForGrade` property scrolls.
+ * Used when that pair is no more expensive than two normal Primlings.
  */
-export type PrimingSpend = {
+export type PrimstackingSpend = {
   statClicks: number;
   normalPrimes: number;
   /** Property scrolls per stat click (0 when unused). */
@@ -56,15 +56,15 @@ export type PrimingSpend = {
   cost: number;
 };
 
-export function primingSpend(args: {
+export function primstackingSpend(args: {
   units: number;
   itemGrade: number;
-  primingUnit: number;
+  primlingUnit: number;
   statScrollUnit: number;
   canStat: boolean;
-}): PrimingSpend {
+}): PrimstackingSpend {
   const units = args.units || 0;
-  const single = args.primingUnit;
+  const single = args.primlingUnit;
   let statClicks = 0;
   let normal = units;
   let each = 0;

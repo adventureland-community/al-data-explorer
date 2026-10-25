@@ -10,7 +10,7 @@ export { getItemGrade } from "../gameData/itemGrade";
 export { itemAcceptsStatScroll } from "../gameData/statScroll";
 
 // --- Prices ---
-export type { OfferingKeyName, PriceTable, PrimingSpend } from "../gameData/upgradePrices";
+export type { OfferingKeyName, PriceTable, PrimstackingSpend } from "../gameData/upgradePrices";
 export {
   COMPOUND_SCROLL_KEYS,
   defaultPriceTable,
@@ -19,7 +19,7 @@ export {
   offeringGradeFromKey,
   offeringKeyFromGrade,
   POLISH_MATERIAL_KEYS,
-  primingSpend,
+  primstackingSpend,
   pscrollQtyForGrade,
   PSCROLL_QTY_BY_GRADE,
   scrollKeyForCompound,
@@ -53,8 +53,8 @@ export {
 export type {
   FailstackEntry,
   FailstackTable,
-  PrimestackEntry,
-  PrimestackTable,
+  OgraceEntry,
+  OgraceTable,
   StackCostRow,
   StackTables,
 } from "../gameData/upgradeStacks";
@@ -64,9 +64,9 @@ export {
   HELMET_BASE_COST_FALLBACK,
   HELMET_GRADES,
   MAX_FAILSTACK,
-  MAX_PRIMESTACK,
-  primingUnitCost,
-  primestackUnitCost,
+  MAX_OGRACE_STEPS,
+  primlingUnitCost,
+  ograceUnitCost,
 } from "../gameData/upgradeStacks";
 
 // --- Upgrade / compound path ---

@@ -14,14 +14,13 @@ export type PlanSummaryStep = {
   toLevel: number;
   scrollKey: string;
   offeringKey: string | null;
-  primstacks: number;
-  priming: number;
-  primingStatClicks: number;
-  primingNormalPrimes: number;
-  primingStatScrollEach: number;
+  primstacking: number;
+  primstackingStatClicks: number;
+  primstackingNormal: number;
+  primstackingStatScrollEach: number;
   statScrollGrace: number;
   failstack: number;
-  primestack: number;
+  ograce: number;
   /** Table chance for this level when known. */
   baseChance?: number;
   /** Chance cap when known. */
@@ -264,14 +263,13 @@ export function summarizeUpgradePlan(
       toLevel: acquireLevel,
       scrollKey: opts.itemKey,
       offeringKey: null,
-      primstacks: 0,
-      priming: 0,
-      primingStatClicks: 0,
-      primingNormalPrimes: 0,
-      primingStatScrollEach: 0,
+      primstacking: 0,
+      primstackingStatClicks: 0,
+      primstackingNormal: 0,
+      primstackingStatScrollEach: 0,
       statScrollGrace: 0,
       failstack: 0,
-      primestack: 0,
+      ograce: 0,
       baseChance: 1,
       chanceCap: 1,
       chance: 1,
@@ -291,12 +289,12 @@ export function summarizeUpgradePlan(
         : scrollKeyForCompound(step.scrollGrade) ?? `cscroll${step.scrollGrade}`;
     const offeringKey = offeringKeyFromGrade(step.offering);
     const attempts = step.chance > 0 ? 1 / step.chance : Infinity;
-    const priming = step.priming ?? step.primstacks ?? 0;
-    const primingStatClicks = step.primingStatClicks ?? 0;
-    const primingNormalPrimes = step.primingNormalPrimes ?? priming;
-    const primingStatScrollEach = step.primingStatScrollEach ?? 0;
-    const primlingQty = primingStatClicks + primingNormalPrimes;
-    const primingScrollQty = primingStatClicks * primingStatScrollEach;
+    const primstacking = step.primstacking ?? 0;
+    const primstackingStatClicks = step.primstackingStatClicks ?? 0;
+    const primstackingNormal = step.primstackingNormal ?? primstacking;
+    const primstackingStatScrollEach = step.primstackingStatScrollEach ?? 0;
+    const primlingQty = primstackingStatClicks + primstackingNormal;
+    const primingScrollQty = primstackingStatClicks * primstackingStatScrollEach;
     const statScrollGrace = step.statScrollGrace ?? 0;
     const statOfferingKey = offeringKeyFromGrade(step.statScrollOffering ?? null);
     const pscrollQty = step.statScrollQty ?? 0;
@@ -308,7 +306,7 @@ export function summarizeUpgradePlan(
       (Number.isFinite(scrollUnit) ? scrollUnit : 0) +
       (offeringKey && Number.isFinite(offeringUnit) ? offeringUnit : 0);
     const ssUnit = unitPrice(prices, STAT_SCROLL_PROXY_KEY);
-    const primingCost =
+    const primstackingCost =
       primlingQty * (Number.isFinite(primUnit) ? primUnit : 0) +
       primingScrollQty * (Number.isFinite(ssUnit) ? ssUnit : 0);
     const ssOfferingUnit = unitPrice(prices, statOfferingKey);
@@ -317,13 +315,13 @@ export function summarizeUpgradePlan(
       (pscrollQty * (Number.isFinite(ssUnit) ? ssUnit : 0) +
         (Number.isFinite(ssOfferingUnit) ? ssOfferingUnit : 0));
     const fsCost = step.failstackCost ?? 0;
-    const psCost = step.primestackCost ?? 0;
+    const psCost = step.ograceCost ?? 0;
 
     // Prefer planner EV delta when present (includes destroy risk + stacks).
     const stepSpend = Number.isFinite(step.stepExpectedCost)
       ? step.stepExpectedCost
       : Number.isFinite(attempts)
-      ? matsPerAttempt * attempts + primingCost + ssCost + fsCost + psCost
+      ? matsPerAttempt * attempts + primstackingCost + ssCost + fsCost + psCost
       : Infinity;
     running += Number.isFinite(stepSpend) ? stepSpend : 0;
     stackGold += (Number.isFinite(fsCost) ? fsCost : 0) + (Number.isFinite(psCost) ? psCost : 0);
@@ -347,14 +345,13 @@ export function summarizeUpgradePlan(
       toLevel: step.toLevel,
       scrollKey,
       offeringKey,
-      primstacks: priming,
-      priming,
-      primingStatClicks,
-      primingNormalPrimes,
-      primingStatScrollEach,
+      primstacking,
+      primstackingStatClicks,
+      primstackingNormal,
+      primstackingStatScrollEach,
       statScrollGrace,
       failstack: step.failstack ?? 0,
-      primestack: step.primestack ?? 0,
+      ograce: step.ograce ?? 0,
       baseChance: step.baseChance,
       chanceCap: step.chanceCap,
       chance: step.chance,
@@ -411,18 +408,17 @@ export function summarizeCompoundPlan(
       toLevel: s.toLevel,
       scrollGrade: s.scrollGrade,
       offering: s.offering,
-      primstacks: 0,
-      priming: 0,
-      primingStatClicks: 0,
-      primingNormalPrimes: 0,
-      primingStatScrollEach: 0,
+      primstacking: 0,
+      primstackingStatClicks: 0,
+      primstackingNormal: 0,
+      primstackingStatScrollEach: 0,
       statScrollGrace: 0,
       statScrollOffering: null,
       statScrollQty: 0,
       failstack: 0,
-      primestack: s.primestack ?? 0,
+      ograce: s.ograce ?? 0,
       failstackCost: 0,
-      primestackCost: s.primestackCost ?? 0,
+      ograceCost: s.ograceCost ?? 0,
       chance: s.chance,
       graceAfter: s.graceAfter,
       stepExpectedCost: s.stepExpectedCost,

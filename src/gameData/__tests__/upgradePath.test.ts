@@ -14,7 +14,7 @@ import {
   summarizeUpgradePlan,
   upgradeStepOverrideKey,
 } from "../upgradePath";
-import { PriceTable, primingSpend } from "../upgradePrices";
+import { PriceTable, primstackingSpend } from "../upgradePrices";
 import { buildStackTables, type StackTables } from "../upgradeStacks";
 
 const ITEMS: Record<string, GItem> = {
@@ -113,8 +113,8 @@ describe("upgradePath", () => {
       grace: 0,
       scroll: 0,
       offering: null as null,
-      primestack: 0,
-      primestackCost: 0,
+      ograce: 0,
+      ograceCost: 0,
     };
     const nearOffering = {
       expCost: 1_150_000,
@@ -122,8 +122,8 @@ describe("upgradePath", () => {
       grace: 0,
       scroll: 0,
       offering: 0 as const,
-      primestack: 0,
-      primestackCost: 0,
+      ograce: 0,
+      ograceCost: 0,
     };
     const expensiveBestOdds = {
       expCost: 2_000_000,
@@ -131,8 +131,8 @@ describe("upgradePath", () => {
       grace: 0,
       scroll: 1,
       offering: 0 as const,
-      primestack: 0,
-      primestackCost: 0,
+      ograce: 0,
+      ograceCost: 0,
     };
     const candidates = [cheapScroll, nearOffering, expensiveBestOdds];
 
@@ -186,7 +186,7 @@ describe("upgradePath", () => {
   });
 
   it("stat scroll grace can appear when enabled on a stat-pool item", () => {
-    // Cheap offering + free pscroll; disable primlings so +1 grace must use pscroll.
+    // Cheap offering + free pscroll; disable primstacking so +1 grace must use pscroll.
     // Needs higher target than +5 — grace apps show up on mid/high helmet steps.
     // Seed stacks + no fail/prime search — assertion is about grace apps, not stack EV.
     const prices: PriceTable = {
@@ -195,11 +195,11 @@ describe("upgradePath", () => {
       strscroll: 1,
     };
     const stacks = buildStackTables(prices);
-    const slim = { stacks, allowFailstack: false, allowPrimestack: false } as const;
+    const slim = { stacks, allowFailstack: false, allowOgrace: false } as const;
     const on = planUpgradePath(
       {
         ...ctx(undefined, prices),
-        toolkit: { allowStatScrollGrace: true, allowPrimlings: false },
+        toolkit: { allowStatScrollGrace: true, allowPrimstacking: false },
       },
       "helmet" as ItemKey,
       3200,
@@ -209,7 +209,7 @@ describe("upgradePath", () => {
     const off = planUpgradePath(
       {
         ...ctx(undefined, prices),
-        toolkit: { allowStatScrollGrace: false, allowPrimlings: false },
+        toolkit: { allowStatScrollGrace: false, allowPrimstacking: false },
       },
       "helmet" as ItemKey,
       3200,
@@ -238,11 +238,11 @@ describe("upgradePath", () => {
     expect(plan!.steps.every((s) => (s.statScrollGrace ?? 0) === 0)).toBe(true);
   });
 
-  it("primingSpend folds dex scrolls when cheaper than two primes", () => {
-    const cheap = primingSpend({
+  it("primstackingSpend folds dex scrolls when cheaper than two primes", () => {
+    const cheap = primstackingSpend({
       units: 4,
       itemGrade: 0,
-      primingUnit: 100,
+      primlingUnit: 100,
       statScrollUnit: 1,
       canStat: true,
     });
@@ -251,10 +251,10 @@ describe("upgradePath", () => {
     expect(cheap.statScrollEach).toBe(1);
     expect(cheap.cost).toBe(2 * (100 + 1));
 
-    const expensive = primingSpend({
+    const expensive = primstackingSpend({
       units: 4,
       itemGrade: 0,
-      primingUnit: 100,
+      primlingUnit: 100,
       statScrollUnit: 200,
       canStat: true,
     });
@@ -266,14 +266,14 @@ describe("upgradePath", () => {
   it("cheap dex scrolls never raise Cheapest EV on stat-pool items", () => {
     // strscroll is not a stack-farm input — reuse defaultStacks.
     const cheap = planUpgradePath(
-      { ...ctx(undefined, { ...PRICES, strscroll: 1 }), toolkit: { allowPrimlings: true } },
+      { ...ctx(undefined, { ...PRICES, strscroll: 1 }), toolkit: { allowPrimstacking: true } },
       "helmet" as ItemKey,
       3200,
       5,
       { stacks: defaultStacks },
     );
     const dear = planUpgradePath(
-      { ...ctx(undefined, { ...PRICES, strscroll: 1e12 }), toolkit: { allowPrimlings: true } },
+      { ...ctx(undefined, { ...PRICES, strscroll: 1e12 }), toolkit: { allowPrimstacking: true } },
       "helmet" as ItemKey,
       3200,
       5,

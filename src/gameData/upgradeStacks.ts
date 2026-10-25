@@ -1,6 +1,8 @@
 /**
- * Helmet-proxy failstack / primestack farm costs (Kora Dereva pastebin CALC_VERSION 8,
- * https://pastebin.com/jBMKeLfd). Pure functions — no localStorage cache.
+ * Helmet-proxy costs for banking `ugrace` (failstack) and `ograce` (offering fails).
+ * Search/algorithm from Kora Dereva pastebin CALC_VERSION 8 (https://pastebin.com/jBMKeLfd);
+ * community names: failstack = helmet fails; primstacking = Primlings on the item (elsewhere);
+ * ograce bank has no common community name (legacy pastebin table keys: ograce_*).
  */
 
 import { GItem, ItemKey } from "typed-adventureland";
@@ -12,7 +14,7 @@ import { PriceTable, unitPrice } from "./upgradePrices";
 export const HELMET_GRADES = [7, 9, 10, 12] as const;
 export const HELMET_BASE_COST_FALLBACK = 3200;
 export const MAX_FAILSTACK = 18;
-export const MAX_PRIMESTACK = 30;
+export const MAX_OGRACE_STEPS = 30;
 
 export type FailstackEntry = {
   level: number | null;
@@ -22,7 +24,7 @@ export type FailstackEntry = {
   farms: { level: number; gain: number; failures: number; attempts: number }[];
 };
 
-export type PrimestackEntry = {
+export type OgraceEntry = {
   ograce: number;
   level: number | null;
   attempts: number;
@@ -31,20 +33,20 @@ export type PrimestackEntry = {
 
 /** failstack[levelTo][ugrace] — levelTo is 1-indexed upgrade destination. */
 export type FailstackTable = FailstackEntry[][];
-/** primestack[i] for ograce = i * 0.6 */
-export type PrimestackTable = PrimestackEntry[];
+/** ograce table index i → player ograce i × 0.6 */
+export type OgraceTable = OgraceEntry[];
 
 export type StackTables = {
   failstack: FailstackTable;
-  primestack: PrimestackTable;
+  ograce: OgraceTable;
 };
 
 export type StackCostRow = {
   lucky_cost: number;
   failstack_chance?: number;
   failstack_cost?: number;
-  primestack_chance?: number;
-  primestack_attempt_cost?: number;
+  ograce_chance?: number;
+  ograce_attempt_cost?: number;
 };
 
 function helmetDef(): GItem {
@@ -80,7 +82,7 @@ export function offeringCostsFromPrices(prices: PriceTable): number[] {
   ];
 }
 
-export function primingUnitCost(prices: PriceTable): number {
+export function primlingUnitCost(prices: PriceTable): number {
   return unitPrice(prices, "offeringp");
 }
 
@@ -260,10 +262,10 @@ export function stackingFailstack(
   return results;
 }
 
-export function stackingPrimestack(
+export function stackingOgrace(
   stackCosts: StackCostRow[],
-  maxOGrace = MAX_PRIMESTACK,
-): PrimestackTable {
+  maxOGrace = MAX_OGRACE_STEPS,
+): OgraceTable {
   const step = 0.6;
 
   type Action = { level: number; chance: number; attemptCost: number };
@@ -271,8 +273,8 @@ export function stackingPrimestack(
   for (let level = 0; level < stackCosts.length; level++) {
     const x = stackCosts[level];
     if (!x) continue;
-    const chance = x.primestack_chance ?? 1;
-    const attemptCost = x.primestack_attempt_cost ?? Infinity;
+    const chance = x.ograce_chance ?? 1;
+    const attemptCost = x.ograce_attempt_cost ?? Infinity;
     if (chance < 1 && Number.isFinite(attemptCost)) {
       actions.push({ level, chance, attemptCost });
     }
@@ -324,11 +326,11 @@ export function stackingPrimestack(
   }
 
   const count = Math.floor(maxOGrace / step);
-  const result: PrimestackTable = [{ ograce: 0, level: null, attempts: 0, cost: 0 }];
+  const result: OgraceTable = [{ ograce: 0, level: null, attempts: 0, cost: 0 }];
 
   for (let i = 1; i <= count; i++) {
     const ograce = i * step;
-    let best: PrimestackEntry | null = null;
+    let best: OgraceEntry | null = null;
     for (const action of actions) {
       const attempts = expectedAttempts(ograce, action.chance);
       const cost = attempts * action.attemptCost;
@@ -375,7 +377,7 @@ export function stackingPrecalculate(prices: PriceTable, tables?: ChanceTables):
       prev.lucky_cost + (Number.isFinite(scrolls[itemGrade]) ? scrolls[itemGrade] : Infinity);
 
     const primeClick = getUpgradeChance(lookup, item, itemGrade, 0, tables);
-    const primestackAttemptCost =
+    const ograceAttemptCost =
       prev.lucky_cost +
       (Number.isFinite(scrolls[itemGrade]) ? scrolls[itemGrade] : Infinity) +
       (Number.isFinite(offerings[1]) ? offerings[1] : Infinity);
@@ -384,8 +386,8 @@ export function stackingPrecalculate(prices: PriceTable, tables?: ChanceTables):
       lucky_cost: luckyCost,
       failstack_chance: unlucky.chance,
       failstack_cost: failstackAttemptCost,
-      primestack_chance: primeClick.chance,
-      primestack_attempt_cost: primestackAttemptCost,
+      ograce_chance: primeClick.chance,
+      ograce_attempt_cost: ograceAttemptCost,
     });
   }
 
@@ -393,7 +395,7 @@ export function stackingPrecalculate(prices: PriceTable, tables?: ChanceTables):
 }
 
 /**
- * Build failstack/primestack tables from prices.
+ * Build failstack/ograce tables from prices.
  * Optional `luckyCostsByLevel` (index = destination level) replaces seed lucky_cost
  * after a helmet Pareto refine, matching pastebin `stacks_calculate`.
  */
@@ -413,13 +415,13 @@ export function buildStackTables(
         const offeringp = unitPrice(prices, "offeringp");
         stackCosts[i].lucky_cost = plan;
         stackCosts[i].failstack_cost = copy + scroll;
-        stackCosts[i].primestack_attempt_cost = copy + scroll + offeringp;
+        stackCosts[i].ograce_attempt_cost = copy + scroll + offeringp;
       }
     }
   }
   return {
     failstack: stackingFailstack(stackCosts),
-    primestack: stackingPrimestack(stackCosts),
+    ograce: stackingOgrace(stackCosts),
   };
 }
 
@@ -429,8 +431,8 @@ export function failstackUnitCost(tables: StackTables, levelTo: number, failstac
   return row?.cost ?? Infinity;
 }
 
-export function primestackUnitCost(tables: StackTables, primestack: number): number {
-  if (!primestack) return 0;
-  const row = tables.primestack[primestack];
+export function ograceUnitCost(tables: StackTables, ograceSteps: number): number {
+  if (!ograceSteps) return 0;
+  const row = tables.ograce[ograceSteps];
   return row?.cost ?? Infinity;
 }

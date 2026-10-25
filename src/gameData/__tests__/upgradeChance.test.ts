@@ -71,7 +71,7 @@ describe("upgradeChance", () => {
     expect(withServer).toBeGreaterThan(personal);
   });
 
-  it("primestack increases compound chance", () => {
+  it("ograce increases compound chance", () => {
     const base = getCompoundChance(
       lookup,
       { name: "hpamulet", level: 2, grace: 0 },
@@ -84,7 +84,7 @@ describe("upgradeChance", () => {
       0,
       null,
       undefined,
-      { primestack: 10 },
+      { ograce: 10 },
     ).chance;
     expect(stacked).toBeGreaterThan(base);
   });

@@ -194,7 +194,7 @@ export function UpgradeCalculator() {
       tables,
       useServerUgrace: params.serverUgrace,
       toolkit: {
-        allowPrimlings: params.primlings,
+        allowPrimstacking: params.primstacking,
         allowScroll4: params.scroll4,
         allowStatScrollGrace: params.statScrollGrace,
         offerings: offeringList(params),
@@ -244,7 +244,7 @@ export function UpgradeCalculator() {
     params.luckySlot,
     params.serverUgrace,
     params.statScrollGrace,
-    params.primlings,
+    params.primstacking,
     params.scroll4,
     params.offeringp,
     params.offering,
@@ -591,7 +591,7 @@ export function UpgradeCalculator() {
   };
 
   const materialLabel = (key: string) => {
-    if (key === "_stacks") return "Stack farms (fail/prime)";
+    if (key === "_stacks") return "Stack farms (failstack / ograce)";
     if (key === "_craft_fee") return "Craft fee";
     return G?.items?.[key as ItemKey]?.name ?? key;
   };
@@ -1012,7 +1012,9 @@ export function UpgradeCalculator() {
                       ? "Scroll & offering unit prices"
                       : `${enabledOfferingCount}/${offeringKeys.length} offerings${
                           params.scroll4 ? " · scroll4 on" : ""
-                        }${params.mode === "upgrade" && params.primlings ? " · primlings" : ""}`}
+                        }${
+                          params.mode === "upgrade" && params.primstacking ? " · primstacking" : ""
+                        }`}
                   </Typography>
                 </Box>
               </AccordionSummary>
@@ -1047,13 +1049,13 @@ export function UpgradeCalculator() {
                                 control={
                                   <Switch
                                     size="small"
-                                    checked={params.primlings}
-                                    onChange={(e) => patch({ primlings: e.target.checked })}
+                                    checked={params.primstacking}
+                                    onChange={(e) => patch({ primstacking: e.target.checked })}
                                   />
                                 }
                                 label={
                                   <Typography variant="caption" color="text.secondary">
-                                    Primling stacks
+                                    Allow primstacking
                                   </Typography>
                                 }
                               />
@@ -1297,7 +1299,7 @@ export function UpgradeCalculator() {
                       shinyPolishOptions.some((o) => !o.invalid)
                     }
                     statScrollAvailable={!gItem || itemAcceptsStatScroll(gItem)}
-                    primlings={params.primlings}
+                    primstacking={params.primstacking}
                     scroll4={params.scroll4}
                     offeringp={params.offeringp}
                     offering={params.offering}
@@ -1335,7 +1337,7 @@ export function UpgradeCalculator() {
                             itemGradeAt: (level) => getItemGrade(gItem, level),
                             allowScroll4: params.scroll4,
                             offerings: offeringList(params),
-                            allowPrimlings: params.primlings,
+                            allowPrimstacking: params.primstacking,
                             allowStatScrollGrace:
                               params.statScrollGrace && itemAcceptsStatScroll(gItem),
                             overrides: stepOverrides,

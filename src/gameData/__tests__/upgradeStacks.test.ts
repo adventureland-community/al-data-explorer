@@ -1,4 +1,4 @@
-import { buildStackTables, failstackUnitCost, primestackUnitCost } from "../upgradeStacks";
+import { buildStackTables, failstackUnitCost, ograceUnitCost } from "../upgradeStacks";
 import { PriceTable } from "../upgradePrices";
 
 const PRICES: PriceTable = {
@@ -17,7 +17,7 @@ describe("upgradeStacks", () => {
   it("zero stacks cost zero", () => {
     const tables = buildStackTables(PRICES);
     expect(failstackUnitCost(tables, 8, 0)).toBe(0);
-    expect(primestackUnitCost(tables, 0)).toBe(0);
+    expect(ograceUnitCost(tables, 0)).toBe(0);
   });
 
   it("failstack ugrace 1..N has finite costs for mid levels", () => {
@@ -29,10 +29,10 @@ describe("upgradeStacks", () => {
     }
   });
 
-  it("primestack steps have finite increasing costs", () => {
+  it("ograce steps have finite increasing costs", () => {
     const tables = buildStackTables(PRICES);
-    const c1 = primestackUnitCost(tables, 1);
-    const c5 = primestackUnitCost(tables, 5);
+    const c1 = ograceUnitCost(tables, 1);
+    const c5 = ograceUnitCost(tables, 5);
     expect(Number.isFinite(c1)).toBe(true);
     expect(Number.isFinite(c5)).toBe(true);
     expect(c5).toBeGreaterThanOrEqual(c1);

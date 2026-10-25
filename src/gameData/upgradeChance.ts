@@ -1,7 +1,7 @@
 /**
  * Upgrade/compound success chance — mirrors server uscroll/cscroll paths.
  *
- * Failstack / primestack / server ugrace follow Kora Dereva's pastebin calculator
+ * Failstack / ograce bank / server ugrace follow Kora Dereva's pastebin calculator
  * (CALC_VERSION 8, https://pastebin.com/jBMKeLfd). Zero-stack calls stay aligned
  * with the TypeScript bot module.
  */
@@ -108,8 +108,8 @@ export type ChanceResult = { chance: number; graceAfter: number; chanceCap: numb
 export type ChanceStackOpts = {
   /** Personal ugrace proxy: failstack count from helmet farming. */
   failstack?: number;
-  /** Ograce proxy: primestack count from offering-helmet farming. */
-  primestack?: number;
+  /** Ograce proxy: ograce bank step count from offering-helmet farming. */
+  ograce?: number;
   /** When true, also apply server ugrace from the same failstack count. */
   useServerUgrace?: boolean;
 };
@@ -175,11 +175,11 @@ function stackGraceBonus(opts?: ChanceStackOpts): {
   rawOgrace: number;
 } {
   const failstack = opts?.failstack ?? 0;
-  const primestack = opts?.primestack ?? 0;
+  const ograceSteps = opts?.ograce ?? 0;
   return {
     rawUgrace: Math.min(3, failstack / 4.5),
     rawServerUgrace: opts?.useServerUgrace ? Math.min(6, failstack / 3) : 0,
-    rawOgrace: (primestack * 0.6) / 3.2,
+    rawOgrace: (ograceSteps * 0.6) / 3.2,
   };
 }
 
@@ -288,8 +288,8 @@ export function getCompoundChance(
   let high: number | boolean = false;
   let graceBonus = 0;
   let newGrace = grace;
-  const primestack = stackOpts?.primestack ?? 0;
-  const ograce = primestack * 0.6;
+  const ograceSteps = stackOpts?.ograce ?? 0;
+  const ograce = ograceSteps * 0.6;
   const graceSum = grace * 3;
 
   if (scrollGrade > grade) {
