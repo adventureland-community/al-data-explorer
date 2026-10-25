@@ -35,13 +35,18 @@ import {
   formatGold,
   formatShrineTime,
   MaterialLine,
+  mergeUpgradeStepOverrides,
   planCompoundPath,
   planUpgradePath,
   planUpgradePathBestOdds,
   PlannerContext,
   PlanSummaryStep,
+  recomputeUpgradePlan,
   summarizeCompoundPlan,
   summarizeUpgradePlan,
+  UpgradePathStep,
+  UpgradeStepOverride,
+  upgradeStepOverrideKey,
 } from "../gameData/upgradePath";
 import {
   COMPOUND_SCROLL_KEYS,
@@ -651,6 +656,7 @@ export function UpgradeCalculator() {
   const G = useContext(GDataContext);
   const { params, patch } = useUpgradeCalcParams();
   const [priceOverrides, setPriceOverrides] = useState<PriceTable>({});
+  const [stepOverrides, setStepOverrides] = useState<Record<string, UpgradeStepOverride>>({});
   const [recentItems, setRecentItems] = useState<ItemKey[]>(() => readRecentItems());
   const [evDelta, setEvDelta] = useState<number | null>(null);
   const [evDeltaVisible, setEvDeltaVisible] = useState(false);
@@ -714,6 +720,28 @@ export function UpgradeCalculator() {
 
   /** Pareto cheapest only supports +0 starts; mid-path falls back to max-chance. */
   const midPathStart = params.mode === "upgrade" && params.from > 0;
+  const upgradeCostModel: "cheapest" | "fewest" =
+    midPathStart || params.strategy === "fewest" ? "fewest" : "cheapest";
+
+  const stepPlanIdentity = [
+    itemKey,
+    params.mode,
+    params.from,
+    params.target,
+    params.strategy,
+    params.luckySlot,
+    params.serverUgrace,
+    params.statScrollGrace,
+    params.primlings,
+    params.scroll4,
+    params.offeringp,
+    params.offering,
+    params.offeringx,
+  ].join("|");
+
+  useEffect(() => {
+    setStepOverrides({});
+  }, [stepPlanIdentity]);
 
   const cheapest = useMemo(() => {
     if (!ctx || !gItem || !itemKey || params.mode === "greed") return null;
@@ -792,6 +820,24 @@ export function UpgradeCalculator() {
     });
   };
 
+  const withUpgradeOverrides = (
+    plan: { steps: UpgradePathStep[]; totalExpectedCost: number },
+    costModel: "cheapest" | "fewest",
+  ) => {
+    if (!ctx || !itemKey || !Object.keys(stepOverrides).length) return plan;
+    const merged = mergeUpgradeStepOverrides(plan.steps, stepOverrides);
+    return (
+      recomputeUpgradePlan({
+        ctx,
+        itemName: itemKey,
+        itemValue,
+        steps: merged,
+        costModel,
+        luckySlot: params.luckySlot,
+      }) ?? plan
+    );
+  };
+
   const cheapestSummary = useMemo((): PlanSummary | null => {
     if (!cheapest) return null;
     const summarizeOpts = { igrade: itemIgrade };
@@ -799,12 +845,24 @@ export function UpgradeCalculator() {
     if (params.mode === "compound" && "path" in cheapest) {
       base = summarizeCompoundPlan(cheapest, prices, summarizeOpts);
     } else if ("steps" in cheapest) {
-      base = summarizeUpgradePlan(cheapest, prices, "upgrade", summarizeOpts);
+      const plan = withUpgradeOverrides(cheapest, "cheapest");
+      base = summarizeUpgradePlan(plan, prices, "upgrade", summarizeOpts);
     }
     return withOptionalShiny(base);
-    // shinyPolish / target folded via withOptionalShiny deps below
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- withOptionalShiny closes over shinyPolish
-  }, [cheapest, itemIgrade, params.mode, params.target, prices, shinyPolish]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- helpers close over shinyPolish / overrides
+  }, [
+    cheapest,
+    itemIgrade,
+    params.mode,
+    params.target,
+    params.luckySlot,
+    prices,
+    shinyPolish,
+    stepOverrides,
+    ctx,
+    itemKey,
+    itemValue,
+  ]);
 
   const fewestSummary = useMemo((): PlanSummary | null => {
     if (!fewest) return null;
@@ -813,13 +871,48 @@ export function UpgradeCalculator() {
     if (params.mode === "compound" && "path" in fewest) {
       base = summarizeCompoundPlan(fewest, prices, summarizeOpts);
     } else if ("steps" in fewest) {
-      base = summarizeUpgradePlan(fewest, prices, "upgrade", summarizeOpts);
+      const plan = withUpgradeOverrides(fewest, "fewest");
+      base = summarizeUpgradePlan(plan, prices, "upgrade", summarizeOpts);
     }
     return withOptionalShiny(base);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- withOptionalShiny closes over shinyPolish
-  }, [fewest, itemIgrade, params.mode, params.target, prices, shinyPolish]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- helpers close over shinyPolish / overrides
+  }, [
+    fewest,
+    itemIgrade,
+    params.mode,
+    params.target,
+    params.luckySlot,
+    prices,
+    shinyPolish,
+    stepOverrides,
+    ctx,
+    itemKey,
+    itemValue,
+  ]);
 
   const summary = midPathStart || params.strategy === "fewest" ? fewestSummary : cheapestSummary;
+
+  const patchStepOverride = (
+    fromLevel: number,
+    toLevel: number,
+    stepPatch: UpgradeStepOverride,
+  ) => {
+    const key = upgradeStepOverrideKey(fromLevel, toLevel);
+    setStepOverrides((prev) => {
+      const next = { ...prev, [key]: { ...prev[key], ...stepPatch } };
+      return next;
+    });
+  };
+
+  const clearStepOverride = (fromLevel: number, toLevel: number) => {
+    const key = upgradeStepOverrideKey(fromLevel, toLevel);
+    setStepOverrides((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
 
   const sideEffects = useMemo(() => {
     if (!summary) return null;
@@ -1588,6 +1681,23 @@ export function UpgradeCalculator() {
                         : "Cheapest",
                       planEv: summary.totalExpectedCost,
                     })}
+                    stepEdit={
+                      pathMode === "upgrade" && gItem
+                        ? {
+                            costModel: upgradeCostModel,
+                            itemGradeAt: (level) => getItemGrade(gItem, level),
+                            allowScroll4: params.scroll4,
+                            offerings: offeringList(params),
+                            allowPrimlings: params.primlings,
+                            allowStatScrollGrace:
+                              params.statScrollGrace && itemAcceptsStatScroll(gItem),
+                            overrides: stepOverrides,
+                            onPatch: patchStepOverride,
+                            onReset: clearStepOverride,
+                            onResetAll: () => setStepOverrides({}),
+                          }
+                        : null
+                    }
                   />
                   <PlanHero
                     itemKey={itemKey}

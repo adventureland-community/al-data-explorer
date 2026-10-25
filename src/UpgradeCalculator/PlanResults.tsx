@@ -1,5 +1,7 @@
+import AddIcon from "@mui/icons-material/Add";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Accordion,
   AccordionDetails,
@@ -7,6 +9,7 @@ import {
   Box,
   Button,
   Chip,
+  IconButton,
   Link,
   Paper,
   Stack,
@@ -16,6 +19,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -23,13 +28,18 @@ import { useContext, useEffect, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { ItemKey } from "typed-adventureland";
 
+import { OfferingChoice } from "../gameData/upgradeChance";
 import {
+  allowedUpgradeScrollGrades,
   formatAttempts,
   formatChancePct,
   formatGold,
   MaterialLine,
   PlanSummaryStep,
+  UpgradeStepOverride,
+  upgradeStepOverrideKey,
 } from "../gameData/upgradePath";
+import { offeringGradeFromKey, scrollKeyForUpgrade } from "../gameData/upgradePrices";
 import { SideEffectSummary } from "../gameData/upgradeSideEffects";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
@@ -349,44 +359,231 @@ export function formatRecipeClipboard(
   return lines.join("\n");
 }
 
+export type PathLadderStepEdit = {
+  costModel: "cheapest" | "fewest";
+  itemGradeAt: (level: number) => number;
+  allowScroll4: boolean;
+  offerings: OfferingChoice[];
+  allowPrimlings: boolean;
+  allowStatScrollGrace: boolean;
+  overrides: Record<string, UpgradeStepOverride>;
+  onPatch: (fromLevel: number, toLevel: number, patch: UpgradeStepOverride) => void;
+  onReset: (fromLevel: number, toLevel: number) => void;
+  onResetAll: () => void;
+};
+
+const UPGRADE_SCROLL_KEYS_SAFE = ["scroll0", "scroll1", "scroll2", "scroll3", "scroll4"];
+
+function CompactStepper({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={0.5}>
+      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 64 }}>
+        {label}
+      </Typography>
+      <IconButton
+        size="small"
+        aria-label={`Decrease ${label}`}
+        disabled={value <= min}
+        onClick={() => onChange(Math.max(min, value - 1))}
+      >
+        <RemoveIcon fontSize="small" />
+      </IconButton>
+      <Typography
+        variant="body2"
+        fontWeight={600}
+        sx={{ minWidth: 28, textAlign: "center", fontVariantNumeric: "tabular-nums" }}
+      >
+        {value}
+      </Typography>
+      <IconButton
+        size="small"
+        aria-label={`Increase ${label}`}
+        disabled={value >= max}
+        onClick={() => onChange(Math.min(max, value + 1))}
+      >
+        <AddIcon fontSize="small" />
+      </IconButton>
+    </Stack>
+  );
+}
+
+function StepRecipeEditor({
+  step,
+  edit,
+  overridden,
+}: {
+  step: PlanSummaryStep;
+  edit: PathLadderStepEdit;
+  overridden: boolean;
+}) {
+  const itemGrade = edit.itemGradeAt(step.fromLevel);
+  const scrollGrades = allowedUpgradeScrollGrades(itemGrade, edit.costModel, edit.allowScroll4);
+  const currentScroll =
+    UPGRADE_SCROLL_KEYS_SAFE.indexOf(step.scrollKey) >= 0
+      ? UPGRADE_SCROLL_KEYS_SAFE.indexOf(step.scrollKey)
+      : itemGrade;
+  const currentOffering = offeringGradeFromKey(step.offeringKey);
+
+  return (
+    <Stack spacing={1.25} sx={{ mt: 1.5, pt: 1.5, borderTop: 1, borderColor: "divider" }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+        <Typography variant="caption" color="text.secondary">
+          Edit this step — later steps recompute from grace / destroy EV
+        </Typography>
+        {overridden ? (
+          <Button
+            size="small"
+            onClick={() => edit.onReset(step.fromLevel, step.toLevel)}
+            sx={{ flexShrink: 0 }}
+          >
+            Reset step
+          </Button>
+        ) : null}
+      </Stack>
+
+      <Stack spacing={0.5}>
+        <Typography variant="caption" color="text.secondary">
+          Scroll
+        </Typography>
+        <ToggleButtonGroup
+          exclusive
+          size="small"
+          value={currentScroll}
+          onChange={(_, v: number | null) => {
+            if (v == null) return;
+            edit.onPatch(step.fromLevel, step.toLevel, { scrollGrade: v });
+          }}
+        >
+          {scrollGrades.map((g) => (
+            <ToggleButton key={g} value={g} sx={{ px: 1.25, fontSize: 12 }}>
+              {scrollKeyForUpgrade(g)?.replace("scroll", "s") ?? `s${g}`}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Stack>
+
+      <Stack spacing={0.5}>
+        <Typography variant="caption" color="text.secondary">
+          Offering
+        </Typography>
+        <ToggleButtonGroup
+          exclusive
+          size="small"
+          value={currentOffering == null ? "none" : String(currentOffering)}
+          onChange={(_, v: string | null) => {
+            if (v == null) return;
+            const offering: OfferingChoice = v === "none" ? null : (Number(v) as 0 | 1 | 2);
+            if (offering !== null && !edit.offerings.includes(offering)) return;
+            edit.onPatch(step.fromLevel, step.toLevel, { offering });
+          }}
+        >
+          {edit.offerings.map((o) => (
+            <ToggleButton
+              key={o == null ? "none" : String(o)}
+              value={o == null ? "none" : String(o)}
+              sx={{ px: 1, fontSize: 11 }}
+            >
+              {o == null ? "None" : o === 0 ? "Primling" : o === 1 ? "Primordial" : "Prim X"}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Stack>
+
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} flexWrap="wrap">
+        {edit.allowPrimlings ? (
+          <CompactStepper
+            label="Primling"
+            value={step.primstacks}
+            min={0}
+            max={26}
+            onChange={(primstacks) => edit.onPatch(step.fromLevel, step.toLevel, { primstacks })}
+          />
+        ) : null}
+        {edit.allowStatScrollGrace ? (
+          <CompactStepper
+            label="Stat grace"
+            value={step.statScrollGrace}
+            min={0}
+            max={13}
+            onChange={(statScrollGrace) =>
+              edit.onPatch(step.fromLevel, step.toLevel, { statScrollGrace })
+            }
+          />
+        ) : null}
+        {edit.costModel === "cheapest" ? (
+          <>
+            <CompactStepper
+              label="Failstack"
+              value={step.failstack}
+              min={0}
+              max={18}
+              onChange={(failstack) => edit.onPatch(step.fromLevel, step.toLevel, { failstack })}
+            />
+            <CompactStepper
+              label="Primestack"
+              value={step.primestack}
+              min={0}
+              max={30}
+              onChange={(primestack) => edit.onPatch(step.fromLevel, step.toLevel, { primestack })}
+            />
+          </>
+        ) : null}
+      </Stack>
+    </Stack>
+  );
+}
+
 /** Interactive recipe trail — click a step for scroll/stack detail. */
 export function PathLadder({
   steps,
   focusStep,
   recipeClipboard,
+  stepEdit,
 }: {
   steps: PlanSummaryStep[];
   /** Bump `token` to select + scroll that step (bottleneck jump). */
   focusStep?: { key: string; token: number } | null;
   /** When set, shows Copy recipe using this text. */
   recipeClipboard?: string | null;
+  /** Upgrade-mode per-step recipe editors (ignored for shiny/compound). */
+  stepEdit?: PathLadderStepEdit | null;
 }) {
   const G = useContext(GDataContext);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const planSig = steps
-    .map(
-      (s) =>
-        `${s.fromLevel}:${s.toLevel}:${s.scrollKey}:${s.offeringKey}:${s.chance}:${s.stepSpend}`,
-    )
-    .join("|");
+  /** Level structure only — recipe edits must not reset the selected step. */
+  const structureSig = steps.map((s) => `${s.fromLevel}:${s.toLevel}:${s.kind ?? ""}`).join("|");
 
   useEffect(() => {
     if (!steps.length) {
       setSelectedKey(null);
       return;
     }
-    const maxSpend = Math.max(
-      0,
-      ...steps.map((s) => (Number.isFinite(s.stepSpend) ? s.stepSpend : 0)),
-    );
-    const bottleneck = steps.find(
-      (s) => maxSpend > 0 && Number.isFinite(s.stepSpend) && s.stepSpend / maxSpend >= 0.85,
-    );
-    setSelectedKey(pathStepKey(bottleneck ?? steps[steps.length - 1]));
-    // Reseed only when the plan itself changes, not on referential array churn.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- planSig captures step identity
-  }, [planSig]);
+    setSelectedKey((prev) => {
+      if (prev && steps.some((s) => pathStepKey(s) === prev)) return prev;
+      const maxSpend = Math.max(
+        0,
+        ...steps.map((s) => (Number.isFinite(s.stepSpend) ? s.stepSpend : 0)),
+      );
+      const bottleneck = steps.find(
+        (s) => maxSpend > 0 && Number.isFinite(s.stepSpend) && s.stepSpend / maxSpend >= 0.85,
+      );
+      return pathStepKey(bottleneck ?? steps[steps.length - 1]);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- structureSig captures level layout
+  }, [structureSig]);
 
   useEffect(() => {
     if (!focusStep?.key || !focusStep.token) return;
@@ -428,25 +625,33 @@ export function PathLadder({
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="subtitle2">Recipe path</Typography>
           <Typography variant="caption" color="text.secondary">
-            Click a step · green ≥70% / amber ≥35%
+            {stepEdit
+              ? "Click a step to edit scroll / offering / stacks · EV updates live"
+              : "Click a step · green ≥70% / amber ≥35%"}
           </Typography>
         </Box>
-        {recipeClipboard ? (
-          <Button
-            size="small"
-            variant="text"
-            startIcon={<ContentCopyIcon fontSize="small" />}
-            onClick={() => {
-              navigator.clipboard.writeText(recipeClipboard).then(() => {
-                setCopied(true);
-                window.setTimeout(() => setCopied(false), 1500);
-              });
-            }}
-            sx={{ flexShrink: 0 }}
-          >
-            {copied ? "Copied" : "Copy recipe"}
-          </Button>
-        ) : null}
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+          {stepEdit && Object.keys(stepEdit.overrides).length > 0 ? (
+            <Button size="small" variant="text" onClick={() => stepEdit.onResetAll()}>
+              Reset edits
+            </Button>
+          ) : null}
+          {recipeClipboard ? (
+            <Button
+              size="small"
+              variant="text"
+              startIcon={<ContentCopyIcon fontSize="small" />}
+              onClick={() => {
+                navigator.clipboard.writeText(recipeClipboard).then(() => {
+                  setCopied(true);
+                  window.setTimeout(() => setCopied(false), 1500);
+                });
+              }}
+            >
+              {copied ? "Copied" : "Copy recipe"}
+            </Button>
+          ) : null}
+        </Stack>
       </Stack>
       <Box
         sx={{
@@ -475,28 +680,33 @@ export function PathLadder({
             ? G?.items?.[s.offeringKey as ItemKey]?.name ?? s.offeringKey
             : "No offering";
           const bits = stackBitsFor(s);
+          const stepKey = pathStepKey(s);
+          const isOverridden = Boolean(stepEdit?.overrides[stepKey]);
 
           return (
             <Tooltip
-              key={pathStepKey(s)}
+              key={stepKey}
               title={`${
                 s.kind === "shiny"
                   ? tipOffering
                   : `${tipScroll}${s.offeringKey ? ` + ${tipOffering}` : ""}`
               } · ${formatChancePct(s.chance)} · ${formatAttempts(s.chance)} tries · ${formatGold(
                 s.stepSpend,
-              )}${bits.length ? ` · ${bits.join(", ")}` : ""}`}
+              )}${bits.length ? ` · ${bits.join(", ")}` : ""}${isOverridden ? " · edited" : ""}`}
             >
               <Box
                 component="button"
                 type="button"
-                id={`upgrade-step-${pathStepKey(s)}`}
+                id={`upgrade-step-${stepKey}`}
                 role="option"
                 aria-selected={isSelected}
-                onClick={() => setSelectedKey(pathStepKey(s))}
+                onClick={() => setSelectedKey(stepKey)}
                 sx={{
                   flex: "0 0 auto",
                   width: 92,
+                  outline: isOverridden ? "1px dashed" : undefined,
+                  outlineColor: isOverridden ? "secondary.main" : undefined,
+                  outlineOffset: isOverridden ? 2 : undefined,
                   p: 1,
                   borderRadius: 1,
                   border: 1,
@@ -758,6 +968,16 @@ export function PathLadder({
               ) : null}
             </Stack>
           </Stack>
+
+          {stepEdit && selected.kind !== "shiny" ? (
+            <StepRecipeEditor
+              step={selected}
+              edit={stepEdit}
+              overridden={Boolean(
+                stepEdit.overrides[upgradeStepOverrideKey(selected.fromLevel, selected.toLevel)],
+              )}
+            />
+          ) : null}
         </Box>
       ) : null}
     </Paper>

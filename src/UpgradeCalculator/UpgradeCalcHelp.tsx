@@ -65,6 +65,12 @@ function HelpBody() {
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
+        On an Upgrade path, click any recipe step to change its scroll, offering, priming, or
+        stacks. The rest of the plan recomputes (grace and EV cascade forward). Reset step / Reset
+        edits restores the planner defaults.
+      </Typography>
+
+      <Typography variant="body2" color="text.secondary">
         <strong>Greed</strong> mode farms <em>Essence of Greed</em>: pick any upgradeable item, set
         its unit price (vendor catalog default, or market/event estimate), farm at a High-grade+
         level, and choose scroll/offering. Expected gold is attempt cost ÷ edge-fail chance

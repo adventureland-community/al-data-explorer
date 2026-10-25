@@ -3,12 +3,15 @@ import { GItem, ItemKey } from "typed-adventureland";
 import {
   expectedPlanShrineMs,
   formatShrineTime,
+  mergeUpgradeStepOverrides,
   pickCompoundRoute,
   planCompoundPath,
   planUpgradePath,
   planUpgradePathBestOdds,
   PlannerContext,
+  recomputeUpgradePlan,
   shrineClickMs,
+  upgradeStepOverrideKey,
 } from "../upgradePath";
 import { PriceTable, primingSpend } from "../upgradePrices";
 
@@ -277,5 +280,30 @@ describe("upgradePath", () => {
     );
     expect(survive[1]).toBeCloseTo(click1 * 2);
     expect(formatShrineTime(survive[1])).toMatch(/s$/);
+  });
+
+  it("recomputeUpgradePlan applies scroll override and cascades EV", () => {
+    const base = planUpgradePathBestOdds(ctx(), "fireblade", 160_000, 3);
+    expect(base).not.toBeNull();
+    const step0 = base!.steps[0];
+    const key = upgradeStepOverrideKey(step0.fromLevel, step0.toLevel);
+    const grades = [step0.scrollGrade, step0.scrollGrade + 1].filter((g) => g <= 3);
+    const altGrade = grades.find((g) => g !== step0.scrollGrade) ?? step0.scrollGrade;
+    const merged = mergeUpgradeStepOverrides(base!.steps, {
+      [key]: { scrollGrade: altGrade },
+    });
+    const recomputed = recomputeUpgradePlan({
+      ctx: ctx(),
+      itemName: "fireblade",
+      itemValue: 160_000,
+      steps: merged,
+      costModel: "fewest",
+    });
+    expect(recomputed).not.toBeNull();
+    expect(recomputed!.steps[0].scrollGrade).toBe(altGrade);
+    expect(Number.isFinite(recomputed!.totalExpectedCost)).toBe(true);
+    expect(altGrade === step0.scrollGrade || recomputed!.steps[0].chance !== step0.chance).toBe(
+      true,
+    );
   });
 });

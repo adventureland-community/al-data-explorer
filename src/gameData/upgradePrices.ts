@@ -140,6 +140,15 @@ export function offeringKeyFromGrade(offering: number | null): typeof OFFERING_K
   return "offeringx";
 }
 
+/** Inverse of `offeringKeyFromGrade` (unknown keys → null). */
+export function offeringGradeFromKey(key: string | null | undefined): number | null {
+  if (key == null || key === "" || key === "none") return null;
+  if (key === "offeringp") return 0;
+  if (key === "offering") return 1;
+  if (key === "offeringx") return 2;
+  return null;
+}
+
 export function scrollKeyForUpgrade(grade: number): typeof UPGRADE_SCROLL_KEYS[number] | null {
   return UPGRADE_SCROLL_KEYS[grade] ?? null;
 }

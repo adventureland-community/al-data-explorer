@@ -25,6 +25,7 @@ Domain language for al-data-explorer (Items Explorer focus).
 | **Stat scroll grace**      | Server technique: upgrade with a `pscroll` + any offering grants +1 `item.grace` (qty `needed[grade]` of the property scroll). Toggleable in the calculator; costs use a proxy pscroll price (`strscroll`). Only items with a non-zero `stat` pool accept property scrolls.                                                                                                                                          |
 | **Upgrade side effects**   | Live RNG outside plan EV: chance-edge **Lucky** / **Essence of Greed**; 2.5% bonus grace; **Dark Tri-Stone** (1.2% on ctristone 0→1); booster extras. **Polish Shiny** is a plan toggle that appends an ingot/nugget polish step (fail keeps item). Fast/Super Fast titles are inactive. |
 | **Greed farm**             | Calculator mode for Essence of Greed: spam one High-grade+ upgrade step. Any upgradeable item (vendor, drop, event) with an editable unit price; scroll/offering kit; target essence count. EV = attempt cost / P(edge fail). |
+| **Step recipe edit**       | On Upgrade paths, click a recipe step to change scroll / offering / priming / stacks; `recomputeUpgradePlan` walks grace and EV forward so the whole plan updates. |
 
 ## Related (not yet deepened)
 

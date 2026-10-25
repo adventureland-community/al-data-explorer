@@ -783,6 +783,228 @@ export function planUpgradePathBestOdds(
   return { steps, totalExpectedCost: cumCost };
 }
 
+/** Manual recipe knobs for one upgrade step (planner defaults + user overrides). */
+export type UpgradeStepOverride = {
+  scrollGrade?: number;
+  offering?: OfferingChoice;
+  primstacks?: number;
+  statScrollGrace?: number;
+  failstack?: number;
+  primestack?: number;
+};
+
+export function upgradeStepOverrideKey(fromLevel: number, toLevel: number): string {
+  return `${fromLevel}-${toLevel}`;
+}
+
+/** Apply sparse per-step overrides onto a planner path (recipe fields only). */
+export function mergeUpgradeStepOverrides(
+  steps: UpgradePathStep[],
+  overrides: Record<string, UpgradeStepOverride>,
+): UpgradePathStep[] {
+  if (!Object.keys(overrides).length) return steps;
+  return steps.map((s) => {
+    const o = overrides[upgradeStepOverrideKey(s.fromLevel, s.toLevel)];
+    if (!o) return s;
+    const primstacks = o.primstacks ?? s.primstacks;
+    return {
+      ...s,
+      scrollGrade: o.scrollGrade ?? s.scrollGrade,
+      offering: o.offering !== undefined ? o.offering : s.offering,
+      primstacks,
+      priming: primstacks,
+      statScrollGrace: o.statScrollGrace ?? s.statScrollGrace,
+      failstack: o.failstack ?? s.failstack,
+      primestack: o.primestack ?? s.primestack,
+    };
+  });
+}
+
+/**
+ * Recompute chance / grace / step EV from recipe choices (after overrides).
+ * Walks forward so grace and destroy-value cascade to later steps.
+ */
+export function recomputeUpgradePlan(args: {
+  ctx: PlannerContext;
+  itemName: ItemKey;
+  itemValue: number;
+  steps: UpgradePathStep[];
+  /** Cheapest uses stack farm costs + parent EV; fewest uses material+destroy EV. */
+  costModel: "cheapest" | "fewest";
+  luckySlot?: boolean;
+  startGrace?: number;
+}): UpgradePathPlan | null {
+  const { ctx, itemName, itemValue, costModel } = args;
+  const def = ctx.lookup(itemName);
+  if (!def || !args.steps.length) return null;
+
+  const stacks = costModel === "cheapest" ? computeStacksForPlanner(ctx) : null;
+  const allowPrims = ctx.toolkit?.allowPrimlings !== false;
+  const primingUnit =
+    costModel === "fewest" ? primstackCost(ctx.prices) : primingUnitCost(ctx.prices);
+  const canStatPrime = itemAcceptsStatScroll(def);
+  const dexScrollUnit = unitPrice(ctx.prices, STAT_SCROLL_PROXY_KEY);
+  const graceOffering =
+    ctx.toolkit?.allowStatScrollGrace && canStatPrime
+      ? cheapestOfferingForGrace(ctx.prices, ctx.toolkit)
+      : null;
+
+  let grace = args.startGrace ?? itemIgraceFromDef(def);
+  let parentCost = itemValue;
+  let curValue = itemValue;
+  let cumFewest = 0;
+  const out: UpgradePathStep[] = [];
+
+  for (const recipe of args.steps) {
+    const { fromLevel } = recipe;
+    const itemGrade = getItemGrade(def, fromLevel);
+    const maxScroll =
+      costModel === "cheapest"
+        ? maxScrollForCheapest(itemGrade, ctx.toolkit?.allowScroll4 === true)
+        : maxToolkitScrollGrade(itemGrade);
+    const scrollGrade = Math.min(Math.max(itemGrade, recipe.scrollGrade), maxScroll);
+    const offerings = offeringChoices(ctx.toolkit);
+    const offering = offerings.includes(recipe.offering) ? recipe.offering : null;
+
+    const room = Math.max(0, MAX_ITEM_GRACE - grace);
+    let primstacks = allowPrims ? Math.max(0, recipe.primstacks) : 0;
+    primstacks = Math.min(primstacks, Math.ceil(room / PRIMSTACK_GRACE));
+    const spend = canStatPrime
+      ? primingSpend({
+          units: primstacks,
+          itemGrade,
+          primingUnit,
+          statScrollUnit: dexScrollUnit,
+          canStat: true,
+        })
+      : emptyPrimingSpend(primstacks, primingUnit);
+
+    const graceUnit = graceOffering
+      ? statScrollGraceUnitCost(ctx.prices, itemGrade, graceOffering.unit)
+      : Infinity;
+    const maxStat = graceOffering && Number.isFinite(graceUnit) ? Math.max(0, Math.ceil(room)) : 0;
+    let statScrollGrace = Math.max(0, Math.min(recipe.statScrollGrace, maxStat));
+    // Leave room for priming grace when both are set.
+    const primingGrace = primstacks * PRIMSTACK_GRACE;
+    if (primingGrace + statScrollGrace > room) {
+      statScrollGrace = Math.max(0, Math.floor(room - primingGrace));
+    }
+
+    const graceInto = Math.min(
+      MAX_ITEM_GRACE,
+      grace + primstacks * PRIMSTACK_GRACE + statScrollGrace,
+    );
+    const failstack =
+      costModel === "cheapest" ? Math.max(0, Math.min(recipe.failstack, MAX_FAILSTACK)) : 0;
+    const primestack =
+      costModel === "cheapest" ? Math.max(0, Math.min(recipe.primestack, MAX_PRIMESTACK)) : 0;
+
+    const { chance, graceAfter } = getUpgradeChance(
+      ctx.lookup,
+      { name: itemName, level: fromLevel, grace: graceInto },
+      scrollGrade,
+      offering,
+      ctx.tables,
+      costModel === "cheapest"
+        ? {
+            failstack,
+            primestack,
+            useServerUgrace: ctx.useServerUgrace,
+          }
+        : undefined,
+    );
+    if (!(chance > 0)) return null;
+    const finalChance = args.luckySlot ? applyLuckySlotChance(chance) : chance;
+
+    const scrollKey = scrollKeyForUpgrade(scrollGrade);
+    if (!scrollKey) return null;
+    const sCost = unitPrice(ctx.prices, scrollKey);
+    const oCost = offeringCost(ctx.prices, offering);
+    const pCost = spend.cost;
+    const ssCost =
+      statScrollGrace > 0 && Number.isFinite(graceUnit) ? statScrollGrace * graceUnit : 0;
+    if (
+      !Number.isFinite(sCost) ||
+      !Number.isFinite(oCost) ||
+      !Number.isFinite(pCost) ||
+      !Number.isFinite(ssCost)
+    ) {
+      return null;
+    }
+
+    let failstackCost = 0;
+    let primestackCostVal = 0;
+    let stepEv: number;
+    if (costModel === "fewest") {
+      const materialCost = sCost + oCost + pCost + ssCost;
+      // Match planUpgradePathBestOdds: EV uses pre-lucky chance; stored chance is lucky.
+      stepEv = expectedUpgradeCost(materialCost, curValue, chance);
+      cumFewest += stepEv;
+      curValue = stepEv;
+    } else {
+      failstackCost = stacks ? failstackUnitCost(stacks, fromLevel + 1, failstack) : 0;
+      primestackCostVal = stacks ? primestackUnitCost(stacks, primestack) : 0;
+      if (!Number.isFinite(failstackCost) || !Number.isFinite(primestackCostVal)) return null;
+      const prepCost = pCost + ssCost;
+      const priced = calculateUpgradeStepCost({
+        parentCost,
+        prepCost,
+        scrollCost: sCost,
+        offeringCost: oCost,
+        failstackCost,
+        primestackCost: primestackCostVal,
+        scrollGrade,
+        chance: finalChance,
+      });
+      stepEv = priced.cost - parentCost;
+      parentCost = priced.cost;
+    }
+
+    out.push({
+      fromLevel,
+      toLevel: fromLevel + 1,
+      scrollGrade,
+      offering,
+      primstacks,
+      priming: primstacks,
+      primingStatClicks: spend.statClicks,
+      primingNormalPrimes: spend.normalPrimes,
+      primingStatScrollEach: spend.statScrollEach,
+      statScrollGrace,
+      statScrollOffering: statScrollGrace > 0 ? graceOffering?.offering ?? null : null,
+      statScrollQty: statScrollGrace > 0 ? pscrollQtyForGrade(itemGrade) : 0,
+      failstack,
+      primestack,
+      failstackCost,
+      primestackCost: primestackCostVal,
+      chance: finalChance,
+      graceAfter,
+      stepExpectedCost: stepEv,
+    });
+    grace = graceAfter;
+  }
+
+  return {
+    steps: out,
+    totalExpectedCost: costModel === "fewest" ? cumFewest : parentCost,
+  };
+}
+
+/** Scroll grades the user may pick for a step given toolkit + item grade. */
+export function allowedUpgradeScrollGrades(
+  itemGrade: number,
+  costModel: "cheapest" | "fewest",
+  allowScroll4: boolean,
+): number[] {
+  const max =
+    costModel === "cheapest"
+      ? maxScrollForCheapest(itemGrade, allowScroll4)
+      : maxToolkitScrollGrade(itemGrade);
+  const grades: number[] = [];
+  for (let g = itemGrade; g <= max; g++) grades.push(g);
+  return grades;
+}
+
 /** Cheapest upgrade path (Pareto + stack farm costs). */
 export function planUpgradePath(
   ctx: PlannerContext,
