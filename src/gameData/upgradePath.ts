@@ -1054,6 +1054,8 @@ export type PlanSummaryStep = {
   runningTotal: number;
   /** Expected shrine wait for this step alone (Mass Production++). */
   shrineMs: number;
+  /** Ingot/nugget polish for the Shiny title (no scroll; fail keeps the item). */
+  kind?: "shiny";
 };
 
 export type MaterialLine = {

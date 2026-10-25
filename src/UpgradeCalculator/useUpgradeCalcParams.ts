@@ -15,6 +15,10 @@ export type UpgradeCalcParams = {
   serverUgrace: boolean;
   /** Property scroll + offering for +1 item grace (items with a `stat` pool). */
   statScrollGrace: boolean;
+  /** Append an ingot/nugget polish step for the Shiny title after the path. */
+  wantShiny: boolean;
+  /** Polish material key; empty = cheapest valid EV. */
+  polish: string;
   primlings: boolean;
   scroll4: boolean;
   offeringp: boolean;
@@ -31,6 +35,8 @@ const DEFAULTS: UpgradeCalcParams = {
   luckySlot: false,
   serverUgrace: false,
   statScrollGrace: false,
+  wantShiny: false,
+  polish: "",
   primlings: true,
   scroll4: false,
   offeringp: true,
@@ -89,6 +95,8 @@ export function parseUpgradeCalcParams(searchParams: URLSearchParams): UpgradeCa
     luckySlot: parseBool(searchParams.get("lucky"), DEFAULTS.luckySlot),
     serverUgrace: parseBool(searchParams.get("sugrace"), DEFAULTS.serverUgrace),
     statScrollGrace: parseBool(searchParams.get("ssgrace"), DEFAULTS.statScrollGrace),
+    wantShiny: parseBool(searchParams.get("shiny"), DEFAULTS.wantShiny),
+    polish: searchParams.get("polish") ?? DEFAULTS.polish,
     primlings: parseBool(searchParams.get("prim"), DEFAULTS.primlings),
     scroll4: parseBool(searchParams.get("s4"), DEFAULTS.scroll4),
     offeringp: parseBool(searchParams.get("op"), DEFAULTS.offeringp),
@@ -109,6 +117,8 @@ function writeParams(params: UpgradeCalcParams): URLSearchParams {
   if (params.luckySlot) sp.set("lucky", "1");
   if (params.serverUgrace) sp.set("sugrace", "1");
   if (params.statScrollGrace) sp.set("ssgrace", "1");
+  if (params.wantShiny) sp.set("shiny", "1");
+  if (params.wantShiny && params.polish) sp.set("polish", params.polish);
   if (!params.primlings) sp.set("prim", "0");
   if (params.scroll4) sp.set("s4", "1");
   if (!params.offeringp) sp.set("op", "0");
@@ -129,6 +139,11 @@ function normalizePatch(
   if (partial.mode === "compound" || (next.mode === "compound" && partial.from == null)) {
     next.from = 0;
   }
+  if (next.mode === "compound") {
+    next.wantShiny = false;
+    next.polish = "";
+  }
+  if (!next.wantShiny) next.polish = "";
 
   const cap = maxTarget(next.mode);
   next.target = Math.min(Math.max(1, next.target), cap);

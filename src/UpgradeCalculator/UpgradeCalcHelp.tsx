@@ -75,8 +75,8 @@ function HelpBody() {
           </li>
           <li>Bonus +1 grace at 2.5% per upgrade click</li>
           <li>
-            <em>Shiny</em> polish: ingot/nugget alone (no scroll); fail keeps the item — EV table in
-            Side effects
+            <em>Polish Shiny</em> (toggle): appends an ingot/nugget polish step after the path —
+            materials and EV fold into the plan; fail keeps the item
           </li>
           <li>
             Tri-Stone +0→+1 compound: 1.2% chance to become <em>Dark Tri-Stone</em>

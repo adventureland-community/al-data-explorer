@@ -2,11 +2,13 @@ import { GItem } from "typed-adventureland";
 
 import { PlanSummaryStep } from "../upgradePath";
 import {
+  applyShinyPolishToSummary,
   BONUS_GRACE_CHANCE,
   DARK_TRISTONE_CHANCE,
   edgeBucketOdds,
   expectedBoosterExtras,
   expectedEdgeOutcomes,
+  pickShinyPolish,
   shinyPolishChance,
   summarizeUpgradeSideEffects,
 } from "../upgradeSideEffects";
@@ -114,24 +116,32 @@ describe("upgradeSideEffects", () => {
     );
   });
 
-  it("lists shiny options on upgrade items", () => {
+  it("picks cheapest shiny polish and appends a plan step", () => {
     const blade = {
       upgrade: true,
       g: 1000,
       grades: [9, 10, 11, 12],
     } as unknown as GItem;
-    const summary = summarizeUpgradeSideEffects({
-      steps: [step({ fromLevel: 0, chance: 0.9 })],
-      gItem: blade,
-      itemValue: 1000,
-      prices: { goldnugget: 120_000, bronzeingot: 40_000 },
-      mode: "upgrade",
+    const prices = { goldnugget: 120_000, bronzeingot: 40_000, goldingot: 2_000_000 };
+    const polish = pickShinyPolish({ gItem: blade, itemValue: 1000, prices });
+    expect(polish).not.toBeNull();
+    expect(polish!.key).toBe("bronzeingot");
+
+    const base = {
+      steps: [step({ fromLevel: 0, chance: 0.9, stepSpend: 1000, runningTotal: 1000 })],
+      materials: [] as { itemKey: string; expectedQty: number; unitPrice: number; total: number }[],
+      totalExpectedCost: 1000,
+    };
+    const withShiny = applyShinyPolishToSummary({
+      summary: base,
+      polish: polish!,
+      targetLevel: 7,
     });
-    expect(summary.shinyOptions).not.toBeNull();
-    const gold = summary.shinyOptions!.find((o) => o.key === "goldnugget");
-    expect(gold?.invalid).toBe(false);
-    expect(gold?.chance).toBeGreaterThan(0);
-    expect(gold?.expectedCost).toBeCloseTo((1 / gold!.chance) * 120_000, 4);
+    expect(withShiny.steps).toHaveLength(2);
+    expect(withShiny.steps[1].kind).toBe("shiny");
+    expect(withShiny.steps[1].offeringKey).toBe("bronzeingot");
+    expect(withShiny.totalExpectedCost).toBeCloseTo(1000 + polish!.expectedCost, 4);
+    expect(withShiny.materials.some((m) => m.itemKey === "bronzeingot")).toBe(true);
   });
 
   it("reports Dark Tri-Stone on ctristone 0→1 compound", () => {

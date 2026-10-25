@@ -31,6 +31,7 @@ import { itemAcceptsStatScroll } from "../gameData/itemAffixes";
 import { getItemGrade } from "../gameData/playerItemDisplay";
 import { ChanceTables, OfferingChoice } from "../gameData/upgradeChance";
 import {
+  formatChancePct,
   formatGold,
   formatShrineTime,
   MaterialLine,
@@ -56,7 +57,12 @@ import { SimEntityAutocomplete } from "../DropSimulator/SimEntityAutocomplete";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { useMerchants } from "../Market/useMerchants";
 import { UpgradeCalcHelpButton } from "./UpgradeCalcHelp";
-import { summarizeUpgradeSideEffects } from "../gameData/upgradeSideEffects";
+import {
+  applyShinyPolishToSummary,
+  listShinyPolishOptions,
+  pickShinyPolish,
+  summarizeUpgradeSideEffects,
+} from "../gameData/upgradeSideEffects";
 import {
   CopyPlanLinkButton,
   EvDeltaBanner,
@@ -716,29 +722,56 @@ export function UpgradeCalculator() {
 
   const itemIgrade = gItem ? getItemGrade(gItem, 0) : 0;
 
+  const shinyPolish = useMemo(() => {
+    if (!params.wantShiny || params.mode !== "upgrade" || !gItem?.upgrade) return null;
+    return pickShinyPolish({
+      gItem,
+      itemValue,
+      prices,
+      preferredKey: params.polish || null,
+    });
+  }, [params.wantShiny, params.mode, params.polish, gItem, itemValue, prices]);
+
+  const shinyPolishOptions = useMemo(() => {
+    if (params.mode !== "upgrade" || !gItem?.upgrade) return [];
+    return listShinyPolishOptions({ gItem, itemValue, prices });
+  }, [params.mode, gItem, itemValue, prices]);
+
+  const withOptionalShiny = (base: PlanSummary | null): PlanSummary | null => {
+    if (!base || !shinyPolish) return base;
+    return applyShinyPolishToSummary({
+      summary: base,
+      polish: shinyPolish,
+      targetLevel: params.target,
+    });
+  };
+
   const cheapestSummary = useMemo((): PlanSummary | null => {
     if (!cheapest) return null;
     const summarizeOpts = { igrade: itemIgrade };
+    let base: PlanSummary | null = null;
     if (params.mode === "compound" && "path" in cheapest) {
-      return summarizeCompoundPlan(cheapest, prices, summarizeOpts);
+      base = summarizeCompoundPlan(cheapest, prices, summarizeOpts);
+    } else if ("steps" in cheapest) {
+      base = summarizeUpgradePlan(cheapest, prices, "upgrade", summarizeOpts);
     }
-    if ("steps" in cheapest) {
-      return summarizeUpgradePlan(cheapest, prices, "upgrade", summarizeOpts);
-    }
-    return null;
-  }, [cheapest, itemIgrade, params.mode, prices]);
+    return withOptionalShiny(base);
+    // shinyPolish / target folded via withOptionalShiny deps below
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- withOptionalShiny closes over shinyPolish
+  }, [cheapest, itemIgrade, params.mode, params.target, prices, shinyPolish]);
 
   const fewestSummary = useMemo((): PlanSummary | null => {
     if (!fewest) return null;
     const summarizeOpts = { igrade: itemIgrade };
+    let base: PlanSummary | null = null;
     if (params.mode === "compound" && "path" in fewest) {
-      return summarizeCompoundPlan(fewest, prices, summarizeOpts);
+      base = summarizeCompoundPlan(fewest, prices, summarizeOpts);
+    } else if ("steps" in fewest) {
+      base = summarizeUpgradePlan(fewest, prices, "upgrade", summarizeOpts);
     }
-    if ("steps" in fewest) {
-      return summarizeUpgradePlan(fewest, prices, "upgrade", summarizeOpts);
-    }
-    return null;
-  }, [fewest, itemIgrade, params.mode, prices]);
+    return withOptionalShiny(base);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- withOptionalShiny closes over shinyPolish
+  }, [fewest, itemIgrade, params.mode, params.target, prices, shinyPolish]);
 
   const summary = midPathStart || params.strategy === "fewest" ? fewestSummary : cheapestSummary;
 
@@ -748,11 +781,9 @@ export function UpgradeCalculator() {
       steps: summary.steps,
       gItem,
       itemKey: itemKey ?? undefined,
-      itemValue,
-      prices,
       mode: params.mode,
     });
-  }, [summary, gItem, itemKey, itemValue, prices, params.mode]);
+  }, [summary, gItem, itemKey, params.mode]);
 
   const totalAttempts = summary ? sumAttempts(summary.steps) : 0;
   const oneshotPct = summary ? oneshotPercent(summary.steps) : null;
@@ -773,8 +804,8 @@ export function UpgradeCalculator() {
     ? materialsTotals(fewestSummary.materials, fewestSummary.totalExpectedCost)
     : null;
 
-  const cheapestTotal = planTotal(cheapest);
-  const fewestTotal = planTotal(fewest);
+  const cheapestTotal = cheapestSummary?.totalExpectedCost ?? planTotal(cheapest);
+  const fewestTotal = fewestSummary?.totalExpectedCost ?? planTotal(fewest);
   const cheapestAttempts = cheapestSummary ? sumAttempts(cheapestSummary.steps) : null;
   const fewestAttempts = fewestSummary ? sumAttempts(fewestSummary.steps) : null;
   const strategyGoldDelta =
@@ -1083,6 +1114,18 @@ export function UpgradeCalculator() {
                       label="Stat scroll grace"
                     />
                   </Tooltip>
+                  <Tooltip title="After the upgrade path, polish with an ingot/nugget for the Shiny title (fail keeps the item)">
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          size="small"
+                          checked={params.wantShiny}
+                          onChange={(e) => patch({ wantShiny: e.target.checked })}
+                        />
+                      }
+                      label="Polish Shiny"
+                    />
+                  </Tooltip>
                 </Stack>
               </SidebarSection>
             ) : null}
@@ -1187,16 +1230,64 @@ export function UpgradeCalculator() {
                   {params.mode === "upgrade" ? (
                     <SidebarSection title="Shiny polish">
                       <Stack spacing={1.25}>
-                        {POLISH_MATERIAL_KEYS.map((key) => (
-                          <MaterialPriceRow
-                            key={key}
-                            itemKey={key}
-                            label={materialLabel(key)}
-                            price={prices[key] ?? 0}
-                            onPriceChange={(n) => setPrice(key, n)}
-                            overridden={priceOverrides[key] != null}
-                          />
-                        ))}
+                        {params.wantShiny ? (
+                          <Typography variant="caption" color="text.secondary">
+                            Select a material (or leave auto for cheapest EV). Fail consumes the
+                            polish but keeps the item.
+                          </Typography>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            Enable Polish Shiny under Chance modifiers to add a polish step to the
+                            plan.
+                          </Typography>
+                        )}
+                        {POLISH_MATERIAL_KEYS.map((key) => {
+                          const opt = shinyPolishOptions.find((o) => o.key === key);
+                          const selected =
+                            params.wantShiny &&
+                            (params.polish === key || (!params.polish && shinyPolish?.key === key));
+                          const invalid = opt?.invalid ?? false;
+                          return (
+                            <Stack key={key} spacing={0.5}>
+                              <MaterialPriceRow
+                                itemKey={key}
+                                label={materialLabel(key)}
+                                price={prices[key] ?? 0}
+                                onPriceChange={(n) => setPrice(key, n)}
+                                overridden={priceOverrides[key] != null}
+                                enabled={params.wantShiny ? !invalid && selected : undefined}
+                                onEnabledChange={
+                                  params.wantShiny && !invalid
+                                    ? (on) =>
+                                        patch({
+                                          polish: on ? key : "",
+                                          wantShiny: true,
+                                        })
+                                    : undefined
+                                }
+                              />
+                              {params.wantShiny && opt && !opt.invalid ? (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{ pl: 4.5, fontVariantNumeric: "tabular-nums" }}
+                                >
+                                  {formatChancePct(opt.chance)} · EV {formatGold(opt.expectedCost)}
+                                  {selected && !params.polish ? " · auto" : ""}
+                                </Typography>
+                              ) : null}
+                              {params.wantShiny && invalid ? (
+                                <Typography
+                                  variant="caption"
+                                  color="text.disabled"
+                                  sx={{ pl: 4.5 }}
+                                >
+                                  Too low tier for this item
+                                </Typography>
+                              ) : null}
+                            </Stack>
+                          );
+                        })}
                       </Stack>
                     </SidebarSection>
                   ) : null}
@@ -1343,6 +1434,15 @@ export function UpgradeCalculator() {
                     luckySlot={params.luckySlot}
                     serverUgrace={params.serverUgrace}
                     statScrollGrace={params.statScrollGrace}
+                    wantShiny={params.wantShiny}
+                    shinyLabel={
+                      shinyPolish ? `Shiny (${materialLabel(shinyPolish.key)})` : "Polish Shiny"
+                    }
+                    shinyAvailable={
+                      params.mode === "upgrade" &&
+                      Boolean(gItem?.upgrade) &&
+                      shinyPolishOptions.some((o) => !o.invalid)
+                    }
                     statScrollAvailable={!gItem || itemAcceptsStatScroll(gItem)}
                     primlings={params.primlings}
                     scroll4={params.scroll4}
@@ -1352,6 +1452,12 @@ export function UpgradeCalculator() {
                     mode={params.mode}
                     onToggle={(key) => patch({ [key]: !params[key] })}
                   />
+                  {params.wantShiny && params.mode === "upgrade" && !shinyPolish ? (
+                    <Alert severity="warning" sx={{ py: 0.5 }}>
+                      No valid polish material for this item&apos;s grade. Raise polish tier or
+                      check prices in Toolkit.
+                    </Alert>
+                  ) : null}
                   <Box
                     sx={{
                       display: "grid",

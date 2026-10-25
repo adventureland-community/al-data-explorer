@@ -18,7 +18,7 @@
 import { GItem, ItemKey } from "typed-adventureland";
 
 import { getItemGrade } from "./playerItemDisplay";
-import { PlanSummaryStep } from "./upgradePath";
+import { MaterialLine, PlanSummaryStep } from "./upgradePath";
 import { POLISH_MATERIAL_KEYS, PriceTable, unitPrice } from "./upgradePrices";
 
 /** Width of the integer bucket used by `parseInt(x * 10000)`. */
@@ -170,6 +170,101 @@ export function listShinyPolishOptions(args: {
   });
 }
 
+/** Server polish click is 2000ms; calculator assumes Mass Production++ (/10). */
+export const SHINY_SHRINE_MS = 200;
+
+/** Prefer a named polish material, else the cheapest valid EV. */
+export function pickShinyPolish(args: {
+  gItem: GItem;
+  itemValue: number;
+  prices: PriceTable;
+  preferredKey?: string | null;
+}): ShinyPolishOption | null {
+  const valid = listShinyPolishOptions(args).filter(
+    (o) => !o.invalid && Number.isFinite(o.expectedCost) && o.expectedCost > 0,
+  );
+  if (!valid.length) return null;
+  if (args.preferredKey) {
+    const preferred = valid.find((o) => o.key === args.preferredKey);
+    if (preferred) return preferred;
+  }
+  let best = valid[0];
+  for (const o of valid) {
+    if (o.expectedCost < best.expectedCost) best = o;
+  }
+  return best;
+}
+
+export type PlanSummaryBundle = {
+  steps: PlanSummaryStep[];
+  materials: MaterialLine[];
+  totalExpectedCost: number;
+};
+
+/**
+ * Append a Shiny polish step after the upgrade/compound path.
+ * Fail keeps the item — only polish materials are consumed (geometric tries).
+ */
+export function applyShinyPolishToSummary(args: {
+  summary: PlanSummaryBundle;
+  polish: ShinyPolishOption;
+  targetLevel: number;
+}): PlanSummaryBundle {
+  const { summary, polish, targetLevel } = args;
+  const attempts = polish.expectedAttempts;
+  const stepSpend = polish.expectedCost;
+  const prevRunning =
+    summary.steps.length > 0 ? summary.steps[summary.steps.length - 1].runningTotal : 0;
+  const runningTotal =
+    (Number.isFinite(prevRunning) ? prevRunning : 0) + (Number.isFinite(stepSpend) ? stepSpend : 0);
+
+  const shinyStep: PlanSummaryStep = {
+    fromLevel: targetLevel,
+    toLevel: targetLevel,
+    scrollKey: "",
+    offeringKey: polish.key,
+    primstacks: 0,
+    priming: 0,
+    primingStatClicks: 0,
+    primingNormalPrimes: 0,
+    primingStatScrollEach: 0,
+    statScrollGrace: 0,
+    failstack: 0,
+    primestack: 0,
+    chance: polish.chance,
+    attempts,
+    stepSpend,
+    runningTotal,
+    shrineMs: Number.isFinite(attempts) ? attempts * SHINY_SHRINE_MS : Infinity,
+    kind: "shiny",
+  };
+
+  const materials = summary.materials.map((m) => ({ ...m }));
+  const existing = materials.find((m) => m.itemKey === polish.key);
+  if (existing) {
+    existing.expectedQty += attempts;
+    existing.total = Number.isFinite(existing.unitPrice)
+      ? existing.unitPrice * existing.expectedQty
+      : Infinity;
+  } else {
+    materials.push({
+      itemKey: polish.key,
+      expectedQty: attempts,
+      unitPrice: Number.isFinite(polish.unitPrice) ? polish.unitPrice : 0,
+      total: stepSpend,
+    });
+  }
+  materials.sort((a, b) => a.itemKey.localeCompare(b.itemKey));
+
+  return {
+    steps: [...summary.steps, shinyStep],
+    materials,
+    totalExpectedCost:
+      (Number.isFinite(summary.totalExpectedCost) ? summary.totalExpectedCost : 0) +
+      (Number.isFinite(stepSpend) ? stepSpend : 0),
+  };
+}
+
 /**
  * Expected extra levels from booster compound's cascading proc
  * (`proc = 0.12`, halves after each success) when an offering was used.
@@ -240,7 +335,6 @@ export type SideEffectSummary = {
   expectedBoosterExtras: number;
   /** Booster compounds always succeed (~1); extras need an offering. */
   isBooster: boolean;
-  shinyOptions: ShinyPolishOption[] | null;
   inactiveTitles: InactiveTitleNote[];
 };
 
@@ -248,8 +342,6 @@ export function summarizeUpgradeSideEffects(args: {
   steps: PlanSummaryStep[];
   gItem: GItem | undefined;
   itemKey?: ItemKey | string;
-  itemValue?: number;
-  prices?: PriceTable;
   mode: "upgrade" | "compound";
 }): SideEffectSummary {
   const { steps, gItem, mode } = args;
@@ -262,6 +354,7 @@ export function summarizeUpgradeSideEffects(args: {
   const booster = isBoosterItem(gItem);
 
   for (const step of steps) {
+    if (step.kind === "shiny") continue;
     const grade = gItem ? getItemGrade(gItem, step.fromLevel) : 0;
     const eligibleLucky = mode === "compound" || grade >= 1;
     const eligibleGreed = mode === "upgrade" && grade >= 1;
@@ -298,7 +391,7 @@ export function summarizeUpgradeSideEffects(args: {
 
   let darkTristone: DarkTristoneEffect | null = null;
   if (mode === "compound" && args.itemKey === "ctristone") {
-    const step = steps.find((s) => s.fromLevel === 0 && s.toLevel === 1);
+    const step = steps.find((s) => s.fromLevel === 0 && s.toLevel === 1 && s.kind !== "shiny");
     if (step) {
       darkTristone = {
         chance: DARK_TRISTONE_CHANCE,
@@ -308,15 +401,6 @@ export function summarizeUpgradeSideEffects(args: {
       };
     }
   }
-
-  const shinyOptions =
-    mode === "upgrade" && gItem?.upgrade
-      ? listShinyPolishOptions({
-          gItem,
-          itemValue: args.itemValue ?? (typeof gItem.g === "number" ? gItem.g : 0),
-          prices: args.prices ?? {},
-        })
-      : null;
 
   const inactiveTitles: InactiveTitleNote[] = [];
   if (mode === "upgrade" && isWeaponItem(gItem)) {
@@ -343,7 +427,6 @@ export function summarizeUpgradeSideEffects(args: {
     darkTristone,
     expectedBoosterExtras: expectedBoosterExtrasTotal,
     isBooster: booster,
-    shinyOptions,
     inactiveTitles,
   };
 }

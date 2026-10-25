@@ -310,7 +310,13 @@ function stackBitsFor(s: PlanSummaryStep): string[] {
 }
 
 export function pathStepKey(s: PlanSummaryStep): string {
+  if (s.kind === "shiny") return `shiny-${s.toLevel}-${s.offeringKey ?? ""}`;
   return `${s.fromLevel}-${s.toLevel}`;
+}
+
+function stepRangeLabel(s: PlanSummaryStep): string {
+  if (s.kind === "shiny") return "Shiny";
+  return `+${s.fromLevel}→+${s.toLevel}`;
 }
 
 function materialName(
@@ -329,9 +335,12 @@ export function formatRecipeClipboard(
   const lines = [`${opts.itemName} · ${opts.rangeLabel} · ${opts.strategyLabel}`];
   for (const s of steps) {
     const bits = stackBitsFor(s);
-    const mats = [s.scrollKey, s.offeringKey].filter(Boolean).join(" + ");
+    const mats =
+      s.kind === "shiny"
+        ? s.offeringKey ?? "polish"
+        : [s.scrollKey, s.offeringKey].filter(Boolean).join(" + ");
     lines.push(
-      `+${s.fromLevel}→+${s.toLevel}: ${mats || "—"} · ${formatChancePct(s.chance)} · ${formatGold(
+      `${stepRangeLabel(s)}: ${mats || "—"} · ${formatChancePct(s.chance)} · ${formatGold(
         s.stepSpend,
       )}${bits.length ? ` · ${bits.join(", ")}` : ""}`,
     );
@@ -456,9 +465,12 @@ export function PathLadder({
           const share = maxSpend > 0 && Number.isFinite(s.stepSpend) ? s.stepSpend / maxSpend : 0;
           const heavy = share >= 0.85 && steps.length > 1;
           const isSelected = pathStepKey(s) === selectedKey;
-          const tipScroll = s.scrollKey
-            ? G?.items?.[s.scrollKey as ItemKey]?.name ?? s.scrollKey
-            : "—";
+          const tipScroll =
+            s.kind === "shiny"
+              ? "Shiny polish"
+              : s.scrollKey
+              ? G?.items?.[s.scrollKey as ItemKey]?.name ?? s.scrollKey
+              : "—";
           const tipOffering = s.offeringKey
             ? G?.items?.[s.offeringKey as ItemKey]?.name ?? s.offeringKey
             : "No offering";
@@ -467,11 +479,13 @@ export function PathLadder({
           return (
             <Tooltip
               key={pathStepKey(s)}
-              title={`${tipScroll}${s.offeringKey ? ` + ${tipOffering}` : ""} · ${formatChancePct(
-                s.chance,
-              )} · ${formatAttempts(s.chance)} tries · ${formatGold(s.stepSpend)}${
-                bits.length ? ` · ${bits.join(", ")}` : ""
-              }`}
+              title={`${
+                s.kind === "shiny"
+                  ? tipOffering
+                  : `${tipScroll}${s.offeringKey ? ` + ${tipOffering}` : ""}`
+              } · ${formatChancePct(s.chance)} · ${formatAttempts(s.chance)} tries · ${formatGold(
+                s.stepSpend,
+              )}${bits.length ? ` · ${bits.join(", ")}` : ""}`}
             >
               <Box
                 component="button"
@@ -513,7 +527,7 @@ export function PathLadder({
                   display="block"
                   sx={{ mb: 0.75, fontVariantNumeric: "tabular-nums" }}
                 >
-                  +{s.fromLevel}→+{s.toLevel}
+                  {stepRangeLabel(s)}
                 </Typography>
                 <Stack
                   direction="row"
@@ -521,8 +535,16 @@ export function PathLadder({
                   alignItems="center"
                   sx={{ mb: 0.75, minHeight: 24 }}
                 >
-                  {scrollOrOfferingCell(s.scrollKey)}
-                  {s.offeringKey ? scrollOrOfferingCell(s.offeringKey) : null}
+                  {s.kind === "shiny" ? (
+                    s.offeringKey ? (
+                      scrollOrOfferingCell(s.offeringKey)
+                    ) : null
+                  ) : (
+                    <>
+                      {scrollOrOfferingCell(s.scrollKey)}
+                      {s.offeringKey ? scrollOrOfferingCell(s.offeringKey) : null}
+                    </>
+                  )}
                 </Stack>
                 <Typography
                   variant="caption"
@@ -615,7 +637,7 @@ export function PathLadder({
                     opacity: isSelected ? 1 : 0.55 + (i / Math.max(steps.length - 1, 1)) * 0.35,
                     cursor: "pointer",
                   }}
-                  title={`+${s.fromLevel}→+${s.toLevel}: ${formatGold(s.stepSpend)}`}
+                  title={`${stepRangeLabel(s)}: ${formatGold(s.stepSpend)}`}
                   onClick={() => setSelectedKey(pathStepKey(s))}
                 />
               );
@@ -641,27 +663,38 @@ export function PathLadder({
           >
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
               <Typography variant="subtitle2" sx={{ fontVariantNumeric: "tabular-nums" }}>
-                +{selected.fromLevel}→+{selected.toLevel}
+                {stepRangeLabel(selected)}
               </Typography>
               <Stack direction="row" spacing={0.75} alignItems="center">
-                {scrollOrOfferingCell(selected.scrollKey)}
-                <Typography variant="body2" noWrap>
-                  {scrollName ?? "—"}
-                </Typography>
-                {selected.offeringKey ? (
+                {selected.kind === "shiny" ? (
                   <>
-                    <Typography variant="body2" color="text.secondary">
-                      +
-                    </Typography>
-                    {scrollOrOfferingCell(selected.offeringKey)}
+                    {selected.offeringKey ? scrollOrOfferingCell(selected.offeringKey) : null}
                     <Typography variant="body2" noWrap>
-                      {offeringName}
+                      {offeringName ?? "polish"} · fail keeps item
                     </Typography>
                   </>
                 ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    · no offering
-                  </Typography>
+                  <>
+                    {scrollOrOfferingCell(selected.scrollKey)}
+                    <Typography variant="body2" noWrap>
+                      {scrollName ?? "—"}
+                    </Typography>
+                    {selected.offeringKey ? (
+                      <>
+                        <Typography variant="body2" color="text.secondary">
+                          +
+                        </Typography>
+                        {scrollOrOfferingCell(selected.offeringKey)}
+                        <Typography variant="body2" noWrap>
+                          {offeringName}
+                        </Typography>
+                      </>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        · no offering
+                      </Typography>
+                    )}
+                  </>
                 )}
               </Stack>
             </Stack>
@@ -1067,6 +1100,9 @@ export function PlanModifiersChips({
   luckySlot,
   serverUgrace,
   statScrollGrace,
+  wantShiny = false,
+  shinyLabel = "Polish Shiny",
+  shinyAvailable = true,
   statScrollAvailable = true,
   primlings,
   scroll4,
@@ -1079,6 +1115,9 @@ export function PlanModifiersChips({
   luckySlot: boolean;
   serverUgrace: boolean;
   statScrollGrace: boolean;
+  wantShiny?: boolean;
+  shinyLabel?: string;
+  shinyAvailable?: boolean;
   /** False when the selected item has no `stat` pool. */
   statScrollAvailable?: boolean;
   primlings: boolean;
@@ -1092,6 +1131,7 @@ export function PlanModifiersChips({
       | "luckySlot"
       | "serverUgrace"
       | "statScrollGrace"
+      | "wantShiny"
       | "primlings"
       | "scroll4"
       | "offeringp"
@@ -1104,6 +1144,7 @@ export function PlanModifiersChips({
       | "luckySlot"
       | "serverUgrace"
       | "statScrollGrace"
+      | "wantShiny"
       | "primlings"
       | "scroll4"
       | "offeringp"
@@ -1122,6 +1163,13 @@ export function PlanModifiersChips({
       on: statScrollGrace,
       show: mode === "upgrade",
       disabled: !statScrollAvailable,
+    },
+    {
+      key: "wantShiny",
+      label: shinyLabel,
+      on: wantShiny,
+      show: mode === "upgrade",
+      disabled: !shinyAvailable,
     },
     { key: "offeringp", label: "Primling", on: offeringp, show: true },
     {
@@ -1232,17 +1280,9 @@ export function SideEffectsPanel({
   mode: "upgrade" | "compound";
   luckySlot: boolean;
 }) {
-  const G = useContext(GDataContext);
   const eligibleSteps = summary.steps.filter(
     (s) => s.eligibleLucky || s.eligibleGreed || s.expectedBoosterExtras > 0,
   );
-  const shinyOptions = summary.shinyOptions?.filter((o) => !o.invalid) ?? [];
-  const cheapestShiny = shinyOptions.reduce<typeof shinyOptions[number] | null>((best, o) => {
-    if (!Number.isFinite(o.expectedCost)) return best;
-    if (!best || o.expectedCost < best.expectedCost) return o;
-    return best;
-  }, null);
-
   const chips: { label: string; value: string; hint?: string }[] = [
     { label: "Lucky", value: formatTinyExpect(summary.expectedLucky) },
   ];
@@ -1268,18 +1308,9 @@ export function SideEffectsPanel({
       hint: "Cascading 12%/6%/… extra levels with an offering (~100% compound success)",
     });
   }
-  if (cheapestShiny) {
-    chips.push({
-      label: "Shiny EV",
-      value: formatGold(cheapestShiny.expectedCost),
-      hint: `${G?.items?.[cheapestShiny.key]?.name ?? cheapestShiny.key} · ${formatChancePct(
-        cheapestShiny.chance,
-      )} · fail keeps the item`,
-    });
-  }
 
   const tipParts = [
-    "Outside plan EV",
+    "Outside plan EV — enable Polish Shiny to add a polish step to the path",
     luckySlot ? "Lucky Slot remaps rolls — edge odds approximate" : null,
     !summary.anyEligible && mode === "upgrade" ? "Lucky/Greed need High grade+" : null,
     summary.inactiveTitles.length
@@ -1309,74 +1340,6 @@ export function SideEffectsPanel({
           <SideEffectChip key={c.label} label={c.label} value={c.value} hint={c.hint} />
         ))}
       </Box>
-
-      {shinyOptions.length > 0 ? (
-        <Accordion
-          disableGutters
-          elevation={0}
-          sx={{ bgcolor: "transparent", "&:before": { display: "none" }, mt: 0.5 }}
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 32 }}>
-            <Typography variant="caption" color="text.secondary">
-              Shiny polish
-              {cheapestShiny
-                ? ` · best ${G?.items?.[cheapestShiny.key]?.name ?? cheapestShiny.key} ${formatGold(
-                    cheapestShiny.expectedCost,
-                  )}`
-                : ""}
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails sx={{ px: 0, pt: 0 }}>
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ py: 0.5 }}>Material</TableCell>
-                    <TableCell align="right" sx={{ py: 0.5 }}>
-                      Chance
-                    </TableCell>
-                    <TableCell align="right" sx={{ py: 0.5 }}>
-                      EV
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {shinyOptions.map((o) => (
-                    <TableRow
-                      key={o.key}
-                      sx={
-                        cheapestShiny?.key === o.key
-                          ? {
-                              bgcolor: (t) =>
-                                t.palette.mode === "dark"
-                                  ? "rgba(255,255,255,0.04)"
-                                  : "rgba(0,0,0,0.03)",
-                            }
-                          : undefined
-                      }
-                    >
-                      <TableCell sx={{ py: 0.5 }}>
-                        <Stack direction="row" spacing={0.75} alignItems="center">
-                          <ItemInstance itemInfo={{ name: o.key as ItemKey }} size={22} tooltip />
-                          <Typography variant="body2">
-                            {G?.items?.[o.key]?.name ?? o.key}
-                          </Typography>
-                        </Stack>
-                      </TableCell>
-                      <TableCell align="right" sx={{ py: 0.5, fontVariantNumeric: "tabular-nums" }}>
-                        {formatChancePct(o.chance)}
-                      </TableCell>
-                      <TableCell align="right" sx={{ py: 0.5, fontVariantNumeric: "tabular-nums" }}>
-                        {formatGold(o.expectedCost)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </AccordionDetails>
-        </Accordion>
-      ) : null}
 
       {eligibleSteps.length > 0 ? (
         <Accordion
@@ -1628,7 +1591,7 @@ export function StepPlanCards({ steps }: { steps: PlanSummaryStep[] }) {
         const heavy = share >= 0.85 && steps.length > 1;
         return (
           <Paper
-            key={`${s.fromLevel}-${s.toLevel}`}
+            key={pathStepKey(s)}
             variant="outlined"
             sx={{
               p: 1.5,
@@ -1646,9 +1609,7 @@ export function StepPlanCards({ steps }: { steps: PlanSummaryStep[] }) {
               alignItems="center"
               sx={{ mb: 1 }}
             >
-              <Typography fontWeight={600}>
-                +{s.fromLevel}→+{s.toLevel}
-              </Typography>
+              <Typography fontWeight={600}>{stepRangeLabel(s)}</Typography>
               <Typography fontWeight={700} sx={{ fontVariantNumeric: "tabular-nums" }}>
                 {formatGold(s.stepSpend)}
               </Typography>
@@ -1797,7 +1758,7 @@ export function StepPlanTable({ steps }: { steps: PlanSummaryStep[] }) {
                   : null;
                 return (
                   <TableRow
-                    key={`${s.fromLevel}-${s.toLevel}`}
+                    key={pathStepKey(s)}
                     sx={
                       heavy
                         ? {
@@ -1810,20 +1771,32 @@ export function StepPlanTable({ steps }: { steps: PlanSummaryStep[] }) {
                     }
                   >
                     <TableCell sx={{ ...cellSx, fontWeight: 500, whiteSpace: "nowrap" }}>
-                      +{s.fromLevel}→+{s.toLevel}
+                      {stepRangeLabel(s)}
                     </TableCell>
                     <TableCell sx={cellSx}>
                       <ChanceBar chance={s.chance} />
                     </TableCell>
                     <TableCell sx={cellSx}>
-                      <Tooltip title={scrollName ?? ""}>
-                        <Box component="span" sx={{ display: "inline-flex" }}>
-                          {scrollOrOfferingCell(s.scrollKey)}
-                        </Box>
-                      </Tooltip>
+                      {s.kind === "shiny" ? (
+                        <Typography variant="caption" color="text.secondary">
+                          —
+                        </Typography>
+                      ) : (
+                        <Tooltip title={scrollName ?? ""}>
+                          <Box component="span" sx={{ display: "inline-flex" }}>
+                            {scrollOrOfferingCell(s.scrollKey)}
+                          </Box>
+                        </Tooltip>
+                      )}
                     </TableCell>
                     <TableCell sx={cellSx}>
-                      <Tooltip title={offeringName ?? "No offering"}>
+                      <Tooltip
+                        title={
+                          s.kind === "shiny"
+                            ? `${offeringName ?? "polish"} (fail keeps item)`
+                            : offeringName ?? "No offering"
+                        }
+                      >
                         <Box component="span" sx={{ display: "inline-flex" }}>
                           {scrollOrOfferingCell(s.offeringKey)}
                         </Box>
