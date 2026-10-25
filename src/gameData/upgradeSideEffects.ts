@@ -202,25 +202,37 @@ export type PlanSummaryBundle = {
 };
 
 /**
- * Append a Shiny polish step after the upgrade/compound path.
- * Fail keeps the item — only polish materials are consumed (geometric tries).
+ * Insert a Shiny polish step at +0 (after Acquire when present).
+ *
+ * Server (`upgrade`): ingot/nugget offerings are only valid when
+ * `!(item.level > 0)`. Fail keeps the item; success sets `item.p = "shiny"`.
+ * Upgrading the same object keeps the title. Craft/loot can also roll shiny
+ * (1/500 on upgradeables) — not modeled here.
+ *
+ * Each expected base copy needs its own polish campaign before climbing
+ * (`copies`, default from Acquire.attempts when present).
  */
 export function applyShinyPolishToSummary(args: {
   summary: PlanSummaryBundle;
   polish: ShinyPolishOption;
-  targetLevel: number;
+  /** Unused — polish is always applied at level 0 (server rule). */
+  targetLevel?: number;
+  /** Expected +0 copies that each need polish. Defaults to Acquire.attempts or 1. */
+  copies?: number;
 }): PlanSummaryBundle {
-  const { summary, polish, targetLevel } = args;
-  const attempts = polish.expectedAttempts;
-  const stepSpend = polish.expectedCost;
-  const prevRunning =
-    summary.steps.length > 0 ? summary.steps[summary.steps.length - 1].runningTotal : 0;
-  const runningTotal =
-    (Number.isFinite(prevRunning) ? prevRunning : 0) + (Number.isFinite(stepSpend) ? stepSpend : 0);
+  const { summary, polish } = args;
+  const acquire = summary.steps.find((s) => s.kind === "acquire");
+  const copiesRaw = args.copies ?? acquire?.attempts ?? 1;
+  const copies = Number.isFinite(copiesRaw) && copiesRaw > 0 ? Math.max(copiesRaw, 1) : 1;
+
+  const attemptsPerCopy = polish.expectedAttempts;
+  const costPerCopy = polish.expectedCost;
+  const attempts = attemptsPerCopy * copies;
+  const stepSpend = costPerCopy * copies;
 
   const shinyStep: PlanSummaryStep = {
-    fromLevel: targetLevel,
-    toLevel: targetLevel,
+    fromLevel: 0,
+    toLevel: 0,
     scrollKey: "",
     offeringKey: polish.key,
     primstacks: 0,
@@ -234,10 +246,21 @@ export function applyShinyPolishToSummary(args: {
     chance: polish.chance,
     attempts,
     stepSpend,
-    runningTotal,
+    runningTotal: 0,
     shrineMs: Number.isFinite(attempts) ? attempts * SHINY_SHRINE_MS : Infinity,
     kind: "shiny",
   };
+
+  const acquireIdx = summary.steps.findIndex((s) => s.kind === "acquire");
+  const insertAt = acquireIdx >= 0 ? acquireIdx + 1 : 0;
+  const steps = [...summary.steps];
+  steps.splice(insertAt, 0, shinyStep);
+
+  let running = 0;
+  for (const s of steps) {
+    running += Number.isFinite(s.stepSpend) ? s.stepSpend : 0;
+    s.runningTotal = running;
+  }
 
   const materials = summary.materials.map((m) => ({ ...m }));
   const existing = materials.find((m) => m.itemKey === polish.key);
@@ -257,7 +280,7 @@ export function applyShinyPolishToSummary(args: {
   materials.sort((a, b) => a.itemKey.localeCompare(b.itemKey));
 
   return {
-    steps: [...summary.steps, shinyStep],
+    steps,
     materials,
     totalExpectedCost:
       (Number.isFinite(summary.totalExpectedCost) ? summary.totalExpectedCost : 0) +
@@ -354,7 +377,7 @@ export function summarizeUpgradeSideEffects(args: {
   const booster = isBoosterItem(gItem);
 
   for (const step of steps) {
-    if (step.kind === "shiny") continue;
+    if (step.kind === "shiny" || step.kind === "acquire") continue;
     const grade = gItem ? getItemGrade(gItem, step.fromLevel) : 0;
     const eligibleLucky = mode === "compound" || grade >= 1;
     const eligibleGreed = mode === "upgrade" && grade >= 1;

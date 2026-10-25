@@ -19,7 +19,7 @@ export type UpgradeCalcParams = {
   serverUgrace: boolean;
   /** Property scroll + offering for +1 item grace (items with a `stat` pool). */
   statScrollGrace: boolean;
-  /** Append an ingot/nugget polish step for the Shiny title after the path. */
+  /** Polish the +0 copy with an ingot/nugget for Shiny (server: level must be 0). */
   wantShiny: boolean;
   /** Polish material key; empty = cheapest valid EV. */
   polish: string;

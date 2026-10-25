@@ -116,7 +116,7 @@ describe("upgradeSideEffects", () => {
     );
   });
 
-  it("picks cheapest shiny polish and appends a plan step", () => {
+  it("picks cheapest shiny polish and scales it by expected base copies", () => {
     const blade = {
       upgrade: true,
       g: 1000,
@@ -127,20 +127,46 @@ describe("upgradeSideEffects", () => {
     expect(polish).not.toBeNull();
     expect(polish!.key).toBe("bronzeingot");
 
+    const copies = 4.5;
     const base = {
-      steps: [step({ fromLevel: 0, chance: 0.9, stepSpend: 1000, runningTotal: 1000 })],
+      steps: [
+        step({
+          fromLevel: 0,
+          toLevel: 0,
+          chance: 1,
+          attempts: copies,
+          stepSpend: 1000 * copies,
+          runningTotal: 1000 * copies,
+          kind: "acquire",
+          scrollKey: "blade",
+        }),
+        step({ fromLevel: 0, chance: 0.9, stepSpend: 500, runningTotal: 1000 * copies + 500 }),
+      ],
       materials: [] as { itemKey: string; expectedQty: number; unitPrice: number; total: number }[],
-      totalExpectedCost: 1000,
+      totalExpectedCost: 1000 * copies + 500,
     };
     const withShiny = applyShinyPolishToSummary({
       summary: base,
       polish: polish!,
       targetLevel: 7,
     });
-    expect(withShiny.steps).toHaveLength(2);
+    expect(withShiny.steps).toHaveLength(3);
+    expect(withShiny.steps[0].kind).toBe("acquire");
     expect(withShiny.steps[1].kind).toBe("shiny");
+    expect(withShiny.steps[1].fromLevel).toBe(0);
     expect(withShiny.steps[1].offeringKey).toBe("bronzeingot");
-    expect(withShiny.totalExpectedCost).toBeCloseTo(1000 + polish!.expectedCost, 4);
+    expect(withShiny.steps[1].attempts).toBeCloseTo(polish!.expectedAttempts * copies, 6);
+    expect(withShiny.steps[1].stepSpend).toBeCloseTo(polish!.expectedCost * copies, 4);
+    expect(withShiny.steps[2].fromLevel).toBe(0);
+    expect(withShiny.steps[2].toLevel).toBe(1);
+    expect(withShiny.steps[1].runningTotal).toBeCloseTo(
+      1000 * copies + polish!.expectedCost * copies,
+      4,
+    );
+    expect(withShiny.totalExpectedCost).toBeCloseTo(
+      base.totalExpectedCost + polish!.expectedCost * copies,
+      4,
+    );
     expect(withShiny.materials.some((m) => m.itemKey === "bronzeingot")).toBe(true);
   });
 

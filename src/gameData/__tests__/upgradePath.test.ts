@@ -11,6 +11,7 @@ import {
   PlannerContext,
   recomputeUpgradePlan,
   shrineClickMs,
+  summarizeUpgradePlan,
   upgradeStepOverrideKey,
 } from "../upgradePath";
 import { PriceTable, primingSpend } from "../upgradePrices";
@@ -280,6 +281,26 @@ describe("upgradePath", () => {
     );
     expect(survive[1]).toBeCloseTo(click1 * 2);
     expect(formatShrineTime(survive[1])).toMatch(/s$/);
+  });
+
+  it("summarizeUpgradePlan folds expected base copies into Acquire", () => {
+    const plan = planUpgradePathBestOdds(ctx(), "fireblade", 160_000, 7);
+    expect(plan).not.toBeNull();
+    const summary = summarizeUpgradePlan(plan!, PRICES, "upgrade", {
+      itemKey: "fireblade",
+      itemValue: 160_000,
+    });
+    const acquire = summary.steps[0];
+    expect(acquire.kind).toBe("acquire");
+    expect(acquire.fromLevel).toBe(0);
+    expect(acquire.scrollKey).toBe("fireblade");
+    expect(acquire.attempts).toBeGreaterThan(1);
+    expect(acquire.stepSpend).toBeCloseTo(acquire.attempts * 160_000, 4);
+    const itemMat = summary.materials.find((m) => m.itemKey === "fireblade");
+    expect(itemMat?.expectedQty).toBeCloseTo(acquire.attempts, 6);
+    expect(itemMat?.total).toBeCloseTo(acquire.stepSpend, 4);
+    const last = summary.steps[summary.steps.length - 1];
+    expect(last.runningTotal).toBeCloseTo(summary.totalExpectedCost, 0);
   });
 
   it("recomputeUpgradePlan applies scroll override and cascades EV", () => {

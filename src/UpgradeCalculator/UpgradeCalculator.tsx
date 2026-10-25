@@ -82,8 +82,6 @@ import {
   formatRecipeClipboard,
   MaterialsPanel,
   materialsTotals,
-  PathLadder,
-  pathStepKey,
   PlanHero,
   PlanModifiersChips,
   SideEffectsPanel,
@@ -122,15 +120,17 @@ function offeringEnabled(
 function sumAttempts(steps: PlanSummaryStep[]): number {
   let sum = 0;
   for (const s of steps) {
+    if (s.kind === "acquire") continue;
     if (Number.isFinite(s.attempts)) sum += s.attempts;
   }
   return sum;
 }
 
 function oneshotPercent(steps: PlanSummaryStep[]): number | null {
-  if (!steps.length) return null;
+  const recipe = steps.filter((s) => s.kind !== "acquire");
+  if (!recipe.length) return null;
   let product = 1;
-  for (const s of steps) {
+  for (const s of recipe) {
     if (!Number.isFinite(s.chance) || s.chance <= 0) return null;
     product *= s.chance;
   }
@@ -140,6 +140,7 @@ function oneshotPercent(steps: PlanSummaryStep[]): number | null {
 function heaviestStep(steps: PlanSummaryStep[]): PlanSummaryStep | null {
   let best: PlanSummaryStep | null = null;
   for (const s of steps) {
+    if (s.kind === "acquire") continue;
     if (!Number.isFinite(s.stepSpend)) continue;
     if (!best || s.stepSpend > best.stepSpend) best = s;
   }
@@ -660,7 +661,6 @@ export function UpgradeCalculator() {
   const [recentItems, setRecentItems] = useState<ItemKey[]>(() => readRecentItems());
   const [evDelta, setEvDelta] = useState<number | null>(null);
   const [evDeltaVisible, setEvDeltaVisible] = useState(false);
-  const [focusStep, setFocusStep] = useState<{ key: string; token: number } | null>(null);
   const prevEvRef = useRef<number | null>(null);
   const evDeltaTimerRef = useRef<number | null>(null);
 
@@ -841,7 +841,7 @@ export function UpgradeCalculator() {
 
   const cheapestSummary = useMemo((): PlanSummary | null => {
     if (!cheapest) return null;
-    const summarizeOpts = { igrade: itemIgrade };
+    const summarizeOpts = { igrade: itemIgrade, itemKey, itemValue };
     let base: PlanSummary | null = null;
     if (params.mode === "compound" && "path" in cheapest) {
       base = summarizeCompoundPlan(cheapest, prices, summarizeOpts);
@@ -867,7 +867,7 @@ export function UpgradeCalculator() {
 
   const fewestSummary = useMemo((): PlanSummary | null => {
     if (!fewest) return null;
-    const summarizeOpts = { igrade: itemIgrade };
+    const summarizeOpts = { igrade: itemIgrade, itemKey, itemValue };
     let base: PlanSummary | null = null;
     if (params.mode === "compound" && "path" in fewest) {
       base = summarizeCompoundPlan(fewest, prices, summarizeOpts);
@@ -1384,7 +1384,7 @@ export function UpgradeCalculator() {
                       label="Stat scroll grace"
                     />
                   </Tooltip>
-                  <Tooltip title="After the upgrade path, polish with an ingot/nugget for the Shiny title (fail keeps the item)">
+                  <Tooltip title="Polish the +0 copy with an ingot/nugget for Shiny (server allows polish only at level 0; fail keeps the item)">
                     <FormControlLabel
                       control={
                         <Switch
@@ -1510,13 +1510,14 @@ export function UpgradeCalculator() {
                       <Stack spacing={1.25}>
                         {params.wantShiny ? (
                           <Typography variant="caption" color="text.secondary">
-                            Select a material (or leave auto for cheapest EV). Fail consumes the
-                            polish but keeps the item.
+                            Select a material (or leave auto for cheapest EV). Polish runs at +0
+                            only; fail consumes the polish but keeps the item. Title survives later
+                            upgrades.
                           </Typography>
                         ) : (
                           <Typography variant="caption" color="text.secondary">
-                            Enable Polish Shiny under Chance modifiers to add a polish step to the
-                            plan.
+                            Enable Polish Shiny under Chance modifiers to polish the +0 copy before
+                            upgrading.
                           </Typography>
                         )}
                         {POLISH_MATERIAL_KEYS.map((key) => {
@@ -1606,19 +1607,15 @@ export function UpgradeCalculator() {
             <>
               {!midPathStart ? (
                 <>
-                  <ToggleButtonGroup
-                    exclusive
-                    size="small"
-                    value={params.strategy}
-                    onChange={(_, v: CalcStrategy | null) => v && patch({ strategy: v })}
-                    sx={{ display: { xs: "flex", sm: "none" }, alignSelf: "stretch" }}
-                    fullWidth
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      gap: 1.25,
+                      width: "100%",
+                    }}
                   >
-                    <ToggleButton value="cheapest">Cheapest</ToggleButton>
-                    <ToggleButton value="fewest">Fewest</ToggleButton>
-                  </ToggleButtonGroup>
-
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                     <StrategyCard
                       title="Cheapest"
                       subtitle="Pareto min expected gold"
@@ -1651,7 +1648,7 @@ export function UpgradeCalculator() {
                       destroyGap={fewestMats?.destroyGap}
                       onSelect={() => patch({ strategy: "fewest" as CalcStrategy })}
                     />
-                  </Stack>
+                  </Box>
                 </>
               ) : null}
 
@@ -1664,25 +1661,6 @@ export function UpgradeCalculator() {
                 </Paper>
               ) : (
                 <>
-                  <PathLadder
-                    steps={summary.steps}
-                    focusStep={focusStep}
-                    recipeClipboard={formatRecipeClipboard(summary.steps, {
-                      itemName,
-                      rangeLabel:
-                        params.mode === "compound"
-                          ? `compound to +${params.target}`
-                          : params.from > 0
-                          ? `+${params.from} → +${params.target}`
-                          : `upgrade to +${params.target}`,
-                      strategyLabel: midPathStart
-                        ? "Fewest copies"
-                        : params.strategy === "fewest"
-                        ? "Fewest copies"
-                        : "Cheapest",
-                      planEv: summary.totalExpectedCost,
-                    })}
-                  />
                   <PlanHero
                     itemKey={itemKey}
                     itemName={itemName}
@@ -1706,12 +1684,6 @@ export function UpgradeCalculator() {
                     showMetrics={!showStrategyCards}
                     alternateStrategy={alternateStrategy}
                     onBottleneckClick={() => {
-                      if (bottleneck) {
-                        setFocusStep((prev) => ({
-                          key: pathStepKey(bottleneck),
-                          token: (prev?.token ?? 0) + 1,
-                        }));
-                      }
                       document.getElementById("upgrade-step-table")?.scrollIntoView({
                         behavior: "smooth",
                         block: "nearest",
@@ -1748,6 +1720,21 @@ export function UpgradeCalculator() {
                   ) : null}
                   <StepPlanTable
                     steps={summary.steps}
+                    recipeClipboard={formatRecipeClipboard(summary.steps, {
+                      itemName,
+                      rangeLabel:
+                        params.mode === "compound"
+                          ? `compound to +${params.target}`
+                          : params.from > 0
+                          ? `+${params.from} → +${params.target}`
+                          : `upgrade to +${params.target}`,
+                      strategyLabel: midPathStart
+                        ? "Fewest copies"
+                        : params.strategy === "fewest"
+                        ? "Fewest copies"
+                        : "Cheapest",
+                      planEv: summary.totalExpectedCost,
+                    })}
                     stepEdit={
                       pathMode === "upgrade" && gItem
                         ? {
@@ -1762,6 +1749,18 @@ export function UpgradeCalculator() {
                             onPatch: patchStepOverride,
                             onReset: clearStepOverride,
                             onResetAll: () => setStepOverrides({}),
+                            onCyclePolish:
+                              params.wantShiny && shinyPolishOptions.some((o) => !o.invalid)
+                                ? () => {
+                                    const valid = shinyPolishOptions.filter((o) => !o.invalid);
+                                    if (!valid.length) return;
+                                    const curKey =
+                                      params.polish || shinyPolish?.key || valid[0].key;
+                                    const idx = valid.findIndex((o) => o.key === curKey);
+                                    const next = valid[(idx + 1) % valid.length] ?? valid[0];
+                                    patch({ polish: next.key, wantShiny: true });
+                                  }
+                                : undefined,
                           }
                         : null
                     }

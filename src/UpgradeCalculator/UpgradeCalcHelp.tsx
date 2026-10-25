@@ -66,8 +66,8 @@ function HelpBody() {
 
       <Typography variant="body2" color="text.secondary">
         On an Upgrade path, the plan-steps table is editable: click scroll/offering icons to cycle,
-        nudge grace/fail/prime stacks inline. Base / Max / Plan chances update with the rest of the
-        EV. Reset restores planner defaults.
+        nudge grace/fail/prime stacks inline. Base / Cap / Chance update with the rest of the EV.
+        Reset restores planner defaults.
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
@@ -88,8 +88,8 @@ function HelpBody() {
           </li>
           <li>Bonus +1 grace at 2.5% per upgrade click</li>
           <li>
-            <em>Polish Shiny</em> (toggle): appends an ingot/nugget polish step after the path —
-            materials and EV fold into the plan; fail keeps the item
+            <em>Polish Shiny</em> (toggle): polishes the +0 copy (server rejects polish above level
+            0), then upgrades — materials and EV fold into the plan; fail keeps the item
           </li>
           <li>
             Tri-Stone +0→+1 compound: 1.2% chance to become <em>Dark Tri-Stone</em>

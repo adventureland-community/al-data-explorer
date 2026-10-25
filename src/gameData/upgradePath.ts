@@ -1291,8 +1291,11 @@ export type PlanSummaryStep = {
   runningTotal: number;
   /** Expected shrine wait for this step alone (Mass Production++). */
   shrineMs: number;
-  /** Ingot/nugget polish for the Shiny title (no scroll; fail keeps the item). */
-  kind?: "shiny";
+  /**
+   * `acquire` = buy the starting copy at `fromLevel`.
+   * `shiny` = ingot/nugget polish (no scroll; fail keeps the item).
+   */
+  kind?: "acquire" | "shiny";
 };
 
 export type MaterialLine = {
@@ -1374,12 +1377,127 @@ export function formatShrineTime(ms: number): string {
   return mins > 0 ? `${h}h ${mins}m` : `${h}h`;
 }
 
+/**
+ * Expected number of +0 purchases to finish the plan.
+ *
+ * Prefer 1 / Π(step chance) over destroy-scroll steps (scroll4 fails keep the
+ * item and do not force a new base). That matches “how many times do I start
+ * from +0?”, which is what Acquire qty and Shiny polish campaigns need.
+ *
+ * Falls back to (item gold in materials + EV gap) / unit price when chances
+ * are missing.
+ */
+export function expectedBaseCopies(args: {
+  itemKey: string;
+  itemValue: number;
+  planEv: number;
+  materials: MaterialLine[];
+  steps?: PlanSummaryStep[];
+}): number {
+  const { itemKey, itemValue, planEv, materials, steps } = args;
+
+  if (steps?.length) {
+    let survive = 1;
+    let sawDestroyStep = false;
+    for (const s of steps) {
+      if (s.kind === "acquire" || s.kind === "shiny") continue;
+      // scroll4: fail keeps the item — no new +0.
+      if (s.scrollKey === "scroll4") continue;
+      if (!(s.chance > 0) || !Number.isFinite(s.chance)) {
+        survive = 0;
+        break;
+      }
+      sawDestroyStep = true;
+      survive *= s.chance;
+    }
+    if (sawDestroyStep && survive > 0 && Number.isFinite(survive)) {
+      const n = 1 / survive;
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    if (!sawDestroyStep) return 1;
+  }
+
+  if (!(itemValue > 0) || !Number.isFinite(itemValue) || !Number.isFinite(planEv)) return 1;
+  let materialsSum = 0;
+  for (const m of materials) {
+    if (Number.isFinite(m.total)) materialsSum += m.total;
+  }
+  const destroyGap = planEv > materialsSum ? planEv - materialsSum : 0;
+  const line = materials.find((m) => m.itemKey === itemKey);
+  const listedQty = line && Number.isFinite(line.expectedQty) ? line.expectedQty : 0;
+  const listedGold = line && Number.isFinite(line.total) ? line.total : listedQty * itemValue;
+  const n = (listedGold + destroyGap) / itemValue;
+  if (!Number.isFinite(n) || n <= 0) return Math.max(listedQty, 1);
+  return Math.max(n, listedQty, 1);
+}
+
+/**
+ * Move expected base-item gold onto the Acquire row (qty × unit).
+ * Rescales recipe step spends so Acquire + recipes = planEv (works for both
+ * Cheapest deltas and Fewest full-step EV accounting).
+ */
+export function foldExpectedBaseCopies(args: {
+  steps: PlanSummaryStep[];
+  materials: MaterialLine[];
+  itemKey: string;
+  itemValue: number;
+  planEv: number;
+}): number {
+  const { steps, materials, itemKey, itemValue, planEv } = args;
+  const acquire = steps.find((s) => s.kind === "acquire");
+  if (!acquire || !(itemValue > 0) || !Number.isFinite(planEv)) return 1;
+
+  const copies = expectedBaseCopies({ itemKey, itemValue, planEv, materials, steps });
+  const baseGold = Math.min(copies * itemValue, planEv);
+
+  const recipe = steps.filter((s) => s.kind !== "acquire" && s.kind !== "shiny");
+  let recipeSum = 0;
+  for (const s of recipe) {
+    if (Number.isFinite(s.stepSpend) && s.stepSpend > 0) recipeSum += s.stepSpend;
+  }
+  const targetRecipe = Math.max(0, planEv - baseGold);
+  if (recipeSum > 0 && Number.isFinite(targetRecipe)) {
+    const scale = targetRecipe / recipeSum;
+    for (const s of recipe) {
+      if (!(Number.isFinite(s.stepSpend) && s.stepSpend > 0)) continue;
+      s.stepSpend *= scale;
+    }
+  }
+
+  acquire.attempts = copies;
+  acquire.stepSpend = baseGold;
+  acquire.chance = 1;
+  acquire.baseChance = 1;
+  acquire.chanceCap = 1;
+
+  const line = materials.find((m) => m.itemKey === itemKey);
+  if (line) {
+    line.expectedQty = copies;
+    line.unitPrice = itemValue;
+    line.total = baseGold;
+  } else {
+    materials.push({
+      itemKey,
+      expectedQty: copies,
+      unitPrice: itemValue,
+      total: baseGold,
+    });
+  }
+
+  let running = 0;
+  for (const s of steps) {
+    running += Number.isFinite(s.stepSpend) ? s.stepSpend : 0;
+    s.runningTotal = running;
+  }
+  return copies;
+}
+
 /** Expand a plan into UI rows + expected material quantities. */
 export function summarizeUpgradePlan(
   plan: UpgradePathPlan,
   prices: PriceTable,
   mode: "upgrade" | "compound",
-  opts?: { igrade?: number },
+  opts?: { igrade?: number; itemKey?: string; itemValue?: number },
 ): { steps: PlanSummaryStep[]; materials: MaterialLine[]; totalExpectedCost: number } {
   const qty = new Map<string, number>();
   const steps: PlanSummaryStep[] = [];
@@ -1387,6 +1505,38 @@ export function summarizeUpgradePlan(
   let stackGold = 0;
   const igrade = opts?.igrade ?? 0;
   const shrineTimes = expectedPlanShrineMs(plan.steps, mode, igrade);
+
+  const acquireLevel = plan.steps[0]?.fromLevel ?? 0;
+  const acquireValue =
+    opts?.itemKey && opts.itemValue != null && Number.isFinite(opts.itemValue) && opts.itemValue > 0
+      ? opts.itemValue
+      : 0;
+  if (opts?.itemKey && acquireValue > 0) {
+    running = acquireValue;
+    addQty(qty, opts.itemKey, 1);
+    steps.push({
+      fromLevel: acquireLevel,
+      toLevel: acquireLevel,
+      scrollKey: opts.itemKey,
+      offeringKey: null,
+      primstacks: 0,
+      priming: 0,
+      primingStatClicks: 0,
+      primingNormalPrimes: 0,
+      primingStatScrollEach: 0,
+      statScrollGrace: 0,
+      failstack: 0,
+      primestack: 0,
+      baseChance: 1,
+      chanceCap: 1,
+      chance: 1,
+      attempts: 1,
+      stepSpend: acquireValue,
+      runningTotal: running,
+      shrineMs: 0,
+      kind: "acquire",
+    });
+  }
 
   for (let i = 0; i < plan.steps.length; i++) {
     const step = plan.steps[i];
@@ -1479,13 +1629,25 @@ export function summarizeUpgradePlan(
       total: stackGold,
     });
   }
-  return { steps, materials, totalExpectedCost: plan.totalExpectedCost };
+
+  const planEv = plan.totalExpectedCost;
+  if (opts?.itemKey && acquireValue > 0 && Number.isFinite(planEv)) {
+    foldExpectedBaseCopies({
+      steps,
+      materials,
+      itemKey: opts.itemKey,
+      itemValue: acquireValue,
+      planEv,
+    });
+  }
+
+  return { steps, materials, totalExpectedCost: planEv };
 }
 
 export function summarizeCompoundPlan(
   plan: CompoundPathPlan,
   prices: PriceTable,
-  opts?: { igrade?: number },
+  opts?: { igrade?: number; itemKey?: string; itemValue?: number },
 ): { steps: PlanSummaryStep[]; materials: MaterialLine[]; totalExpectedCost: number } {
   const asUpgrade: UpgradePathPlan = {
     steps: plan.path.map((s) => ({
