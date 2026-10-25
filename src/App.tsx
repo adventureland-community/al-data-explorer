@@ -153,7 +153,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
           component={RouterLink}
         />
         <Tab label="Drops" value="/drops" to="/drops" component={RouterLink} />
-        <Tab label="Upgrade" value="/upgrade" to="/upgrade" component={RouterLink} />
+        <Tab label="Upgrade (WIP)" value="/upgrade" to="/upgrade" component={RouterLink} />
         <Tab
           label={scrollNav ? "Market" : "🌎 Market"}
           value="/market"

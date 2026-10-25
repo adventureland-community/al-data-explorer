@@ -1,9 +1,9 @@
 import { ItemKey } from "typed-adventureland";
 
-import { BuySellItemPrices, ItemsByNameTitleLevel } from "../../Market/merchantTypes";
+import { BuySellItemPrices, ItemPrices, ItemsByNameTitleLevel } from "../../Market/merchantTypes";
 import { buildStarterPicks, marketActivityScore, sampleKeys } from "../starterPicks";
 
-function emptySide() {
+function emptySide(): ItemPrices {
   return {
     amount: 0,
     minPrice: { price: 0 },
@@ -53,7 +53,7 @@ describe("marketActivityScore", () => {
 
 describe("sampleKeys", () => {
   it("returns a deterministic subset with a fixed rng", () => {
-    const pool = ["a", "b", "c", "d", "e"] as ItemKey[];
+    const pool = ["a", "b", "c", "d", "e"] as unknown as ItemKey[];
     let i = 0;
     const seq = [0, 0, 0, 0, 0];
     const rng = () => seq[i++] ?? 0;
@@ -61,24 +61,31 @@ describe("sampleKeys", () => {
   });
 
   it("does not mutate the pool", () => {
-    const pool = ["a", "b", "c"] as ItemKey[];
+    const pool = ["a", "b", "c"] as unknown as ItemKey[];
     sampleKeys(pool, 2, () => 0.9);
     expect(pool).toStrictEqual(["a", "b", "c"]);
   });
 });
 
 describe("buildStarterPicks", () => {
-  const available = ["helmet", "shoes", "coat", "pants", "gloves", "shield"] as ItemKey[];
+  const available = [
+    "helmet",
+    "shoes",
+    "coat",
+    "pants",
+    "gloves",
+    "shield",
+  ] as unknown as ItemKey[];
 
   it("keeps recent order and excludes them from market and random", () => {
-    const marketItems: ItemsByNameTitleLevel = {
+    const marketItems = {
       shoes: { "": [pricesWith({ sellers: ["s1"], sellAmount: 5 })] },
       coat: { "": [pricesWith({ sellers: ["s1", "s2"], sellAmount: 10 })] },
       pants: { "": [pricesWith({ buyers: ["b1"], buyAmount: 1 })] },
-    };
+    } as unknown as ItemsByNameTitleLevel;
     const picks = buildStarterPicks({
       available,
-      recent: ["shoes", "helmet", "ghost"] as ItemKey[],
+      recent: ["shoes", "helmet", "ghost"] as unknown as ItemKey[],
       marketItems,
       recentLimit: 4,
       marketLimit: 4,
@@ -106,11 +113,11 @@ describe("buildStarterPicks", () => {
   });
 
   it("ranks market by activity then key", () => {
-    const marketItems: ItemsByNameTitleLevel = {
+    const marketItems = {
       gloves: { "": [pricesWith({ sellers: ["a"], sellAmount: 1 })] },
       coat: { "": [pricesWith({ sellers: ["a", "b"], sellAmount: 2 })] },
       pants: { "": [pricesWith({ sellers: ["a", "b"], sellAmount: 2 })] },
-    };
+    } as unknown as ItemsByNameTitleLevel;
     const picks = buildStarterPicks({
       available,
       recent: [],

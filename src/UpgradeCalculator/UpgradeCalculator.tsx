@@ -10,6 +10,7 @@ import {
   Chip,
   Divider,
   FormControlLabel,
+  Link,
   Paper,
   Stack,
   Switch,
@@ -100,6 +101,9 @@ import {
 import { CraftRecipeBreakdown, MaterialPriceRow, PriceField } from "./UpgradeCalcPricing";
 import { LevelRangeControl, LevelStepper, SidebarSection } from "./UpgradeCalcControls";
 import { EmptyPickState, RecentItemsStrip } from "./UpgradeCalcPicker";
+
+const UPGRADE_ISSUES_URL =
+  "https://github.com/adventureland-community/al-data-explorer/issues/new?title=Upgrade%20Calculator%3A%20";
 
 type PlanSummary = {
   steps: PlanSummaryStep[];
@@ -624,10 +628,13 @@ export function UpgradeCalculator() {
         sx={{ mb: 2 }}
       >
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="h5" component="h1" gutterBottom>
-            Upgrade Calculator
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+            <Typography variant="h5" component="h1">
+              Upgrade Calculator
+            </Typography>
+            <Chip size="small" color="warning" label="WIP" />
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {itemKey && gItem
               ? `${gItem.name} · ${
                   params.mode === "greed"
@@ -640,6 +647,13 @@ export function UpgradeCalculator() {
                 }`
               : "Plan upgrade/compound paths, or farm Essence of Greed from any upgradeable item (set its unit price)."}
           </Typography>
+          <Alert severity="info" sx={{ py: 0.5 }}>
+            Work in progress — please{" "}
+            <Link href={UPGRADE_ISSUES_URL} target="_blank" rel="noopener noreferrer">
+              report bugs, issues, and improvement ideas
+            </Link>
+            .
+          </Alert>
         </Box>
         <Stack
           direction="row"
