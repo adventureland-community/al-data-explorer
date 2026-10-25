@@ -253,6 +253,137 @@ function MaterialPriceRow({
   );
 }
 
+/** One craft of the selected item: leaves + fee, each leaf price overridable. */
+function CraftRecipeBreakdown({
+  craftCost,
+  materialLabel,
+  prices,
+  priceOverrides,
+  onPriceChange,
+}: {
+  craftCost: NonNullable<ReturnType<typeof craftExpectedCost>>;
+  materialLabel: (key: string) => string;
+  prices: PriceTable;
+  priceOverrides: PriceTable;
+  onPriceChange: (key: string, n: number) => void;
+}) {
+  const unresolved = craftCost.ok ? [] : craftCost.unresolved;
+  const leafKeys = new Set(craftCost.leaves.map((l) => l.itemKey));
+  const missingOnly = unresolved.filter((k) => !leafKeys.has(k));
+
+  return (
+    <Stack spacing={1} sx={{ mt: 1 }}>
+      <Typography variant="caption" color="text.secondary">
+        Recipe (per craft) — edit unit prices to override market/vendor
+      </Typography>
+      {craftCost.leaves.map((leaf) => {
+        const unit =
+          typeof prices[leaf.itemKey] === "number" && Number.isFinite(prices[leaf.itemKey])
+            ? prices[leaf.itemKey]
+            : leaf.unitPrice;
+        const line = Number.isFinite(unit) ? unit * leaf.quantity : Infinity;
+        return (
+          <Stack key={leaf.itemKey} spacing={0.25}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <ItemInstance itemInfo={{ name: leaf.itemKey as ItemKey }} size={28} tooltip />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="body2" noWrap>
+                  {materialLabel(leaf.itemKey)} × {leaf.quantity}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  noWrap
+                  sx={{ display: "block", fontFamily: "monospace", fontSize: "0.65rem" }}
+                >
+                  {leaf.itemKey}
+                </Typography>
+                {priceOverrides[leaf.itemKey] != null ? (
+                  <Typography variant="caption" color="primary.main">
+                    edited
+                  </Typography>
+                ) : null}
+                {leaf.quantity > 1 && Number.isFinite(line) ? (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", fontVariantNumeric: "tabular-nums" }}
+                  >
+                    line {formatGold(line)}
+                  </Typography>
+                ) : !Number.isFinite(unit) ? (
+                  <Typography variant="caption" color="warning.main">
+                    needs price
+                  </Typography>
+                ) : null}
+              </Box>
+              <PriceField
+                value={Number.isFinite(unit) ? unit : 0}
+                onChange={(n) => onPriceChange(leaf.itemKey, n)}
+                width={104}
+              />
+            </Stack>
+          </Stack>
+        );
+      })}
+      {missingOnly.map((key) => (
+        <Stack key={`missing-${key}`} direction="row" alignItems="center" spacing={1}>
+          <ItemInstance itemInfo={{ name: key as ItemKey }} size={28} tooltip />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="body2" noWrap>
+              {materialLabel(key)}
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              noWrap
+              sx={{ display: "block", fontFamily: "monospace", fontSize: "0.65rem" }}
+            >
+              {key}
+            </Typography>
+            <Typography variant="caption" color="warning.main">
+              needs price
+            </Typography>
+          </Box>
+          <PriceField
+            value={prices[key] ?? 0}
+            onChange={(n) => onPriceChange(key, n)}
+            width={104}
+          />
+        </Stack>
+      ))}
+      {craftCost.fee > 0 ? (
+        <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+          <Typography variant="caption" color="text.secondary">
+            Craft fee
+          </Typography>
+          <Typography variant="caption" sx={{ fontVariantNumeric: "tabular-nums" }}>
+            {formatGold(craftCost.fee)}
+          </Typography>
+        </Stack>
+      ) : null}
+      <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+        <Typography variant="body2" fontWeight={600}>
+          Craft EV
+        </Typography>
+        <Typography
+          variant="body2"
+          fontWeight={700}
+          color={craftCost.ok ? "text.primary" : "warning.main"}
+          sx={{ fontVariantNumeric: "tabular-nums" }}
+        >
+          {craftCost.ok ? formatGold(craftCost.cost) : `${formatGold(craftCost.partialCost)}+`}
+        </Typography>
+      </Stack>
+      {!craftCost.ok ? (
+        <Alert severity="warning" sx={{ py: 0.5 }}>
+          Set a unit price for every material above before Craft Acquire is complete.
+        </Alert>
+      ) : null}
+    </Stack>
+  );
+}
+
 function SidebarSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Box>
@@ -769,11 +900,7 @@ export function UpgradeCalculator() {
 
   /** Gold charged per expected copy on the Acquire row. */
   const acquireChargePerCopy =
-    params.acquire === "owned"
-      ? 0
-      : params.acquire === "craft" && craftCost?.ok
-      ? craftCost.cost
-      : buyUnit;
+    params.acquire === "craft" && craftCost?.ok ? craftCost.cost : buyUnit;
 
   const craftMaterialLines: MaterialLine[] | null =
     params.acquire === "craft" && craftCost?.ok
@@ -879,9 +1006,10 @@ export function UpgradeCalculator() {
     igrade: itemIgrade,
     itemKey,
     itemValue,
-    forceAcquire: params.acquire === "owned" || itemValue > 0 || acquireChargePerCopy > 0,
+    forceAcquire: itemValue > 0 || acquireChargePerCopy > 0,
     acquireChargePerCopy,
     craftMaterialLines,
+    acquireMode: params.acquire,
   };
 
   const shinyPolish = useMemo(() => {
@@ -1302,7 +1430,6 @@ export function UpgradeCalculator() {
                   <ToggleButton value="craft" disabled={!canCraft}>
                     Craft
                   </ToggleButton>
-                  <ToggleButton value="owned">Owned</ToggleButton>
                 </ToggleButtonGroup>
                 <Typography
                   variant="caption"
@@ -1310,75 +1437,49 @@ export function UpgradeCalculator() {
                   display="block"
                   sx={{ mt: 0.75 }}
                 >
-                  {params.acquire === "buy"
-                    ? "Charge market/vendor unit price per expected base copy."
-                    : params.acquire === "craft"
-                    ? "Explode the craft recipe; set missing material prices below."
-                    : "Acquire gold = 0; destroy risk still uses replacement value."}
+                  {params.acquire === "craft"
+                    ? "Cost = craft fee + materials. Override any unit price below."
+                    : "Charge market/vendor unit price per expected base copy."}
                 </Typography>
-                {params.acquire === "craft" && craftIncomplete && craftCost && !craftCost.ok ? (
-                  <Alert severity="warning" sx={{ py: 0.5, mt: 1 }}>
-                    Set prices for: {craftCost.unresolved.map((k) => materialLabel(k)).join(", ")}
-                  </Alert>
-                ) : null}
-                {params.acquire === "craft" && craftCost?.ok ? (
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    display="block"
-                    sx={{ mt: 0.75, fontVariantNumeric: "tabular-nums" }}
-                  >
-                    Craft EV {formatGold(craftCost.cost)}
-                    {craftCost.fee > 0 ? ` · fee ${formatGold(craftCost.fee)}` : ""}
-                  </Typography>
+                {params.acquire === "craft" && craftCost ? (
+                  <CraftRecipeBreakdown
+                    craftCost={craftCost}
+                    materialLabel={materialLabel}
+                    prices={prices}
+                    priceOverrides={priceOverrides}
+                    onPriceChange={setPrice}
+                  />
                 ) : null}
               </SidebarSection>
             ) : null}
 
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="body2" color="text.secondary">
-                  {params.mode === "greed"
-                    ? "Item unit price"
-                    : params.acquire === "craft"
-                    ? "Buy price (fallback)"
-                    : params.acquire === "owned"
-                    ? "Replacement value"
-                    : "Base item cost"}
-                </Typography>
-                {itemKey && priceOverrides[itemKey] != null ? (
-                  <Typography variant="caption" color="primary.main">
-                    edited
+            {params.acquire !== "craft" ? (
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {params.mode === "greed" ? "Item unit price" : "Base item cost"}
                   </Typography>
-                ) : params.mode === "greed" ? (
-                  <Typography variant="caption" color="text.secondary">
-                    vendor / market / event
-                  </Typography>
-                ) : (
-                  <Typography variant="caption" color="text.secondary">
-                    override · else market · else vendor .g
-                  </Typography>
-                )}
-              </Box>
-              <PriceField
-                value={buyUnit}
-                onChange={(n) => itemKey && setPrice(itemKey, n)}
-                width={128}
-              />
-            </Stack>
-
-            {params.acquire === "craft" && craftCost && !craftCost.ok
-              ? craftCost.unresolved.map((key) => (
-                  <MaterialPriceRow
-                    key={`craft-leaf-${key}`}
-                    itemKey={key}
-                    label={materialLabel(key)}
-                    price={prices[key] ?? 0}
-                    onPriceChange={(n) => setPrice(key, n)}
-                    overridden={priceOverrides[key] != null}
-                  />
-                ))
-              : null}
+                  {itemKey && priceOverrides[itemKey] != null ? (
+                    <Typography variant="caption" color="primary.main">
+                      edited
+                    </Typography>
+                  ) : params.mode === "greed" ? (
+                    <Typography variant="caption" color="text.secondary">
+                      vendor / market / event
+                    </Typography>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary">
+                      override · else market · else vendor .g
+                    </Typography>
+                  )}
+                </Box>
+                <PriceField
+                  value={buyUnit}
+                  onChange={(n) => itemKey && setPrice(itemKey, n)}
+                  width={128}
+                />
+              </Stack>
+            ) : null}
 
             {params.mode === "greed" ? (
               <>
@@ -1940,6 +2041,7 @@ export function UpgradeCalculator() {
                       materials={summary.materials}
                       materialLabel={materialLabel}
                       planEv={summary.totalExpectedCost}
+                      acquireMode={params.acquire}
                     />
                     {sideEffects ? (
                       <SideEffectsPanel

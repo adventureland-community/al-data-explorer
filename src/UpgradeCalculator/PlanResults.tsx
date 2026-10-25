@@ -430,9 +430,28 @@ export function pathStepKey(s: PlanSummaryStep): string {
 }
 
 function stepRangeLabel(s: PlanSummaryStep): string {
-  if (s.kind === "acquire") return `Acquire +${s.fromLevel}`;
+  if (s.kind === "acquire") {
+    return s.acquireMode === "craft" ? `Craft +${s.fromLevel}` : `Buy +${s.fromLevel}`;
+  }
   if (s.kind === "shiny") return "Shiny";
   return `+${s.fromLevel}→+${s.toLevel}`;
+}
+
+function AcquireLeafStrip({ keys }: { keys: string[] }) {
+  const shown = keys.slice(0, 4);
+  const extra = keys.length - shown.length;
+  return (
+    <Stack direction="row" spacing={0.25} alignItems="center" justifyContent="center">
+      {shown.map((k) => (
+        <MatSlot key={k} itemKey={k} size={22} />
+      ))}
+      {extra > 0 ? (
+        <Typography variant="caption" color="text.secondary">
+          +{extra}
+        </Typography>
+      ) : null}
+    </Stack>
+  );
 }
 
 function isRecipeStep(s: PlanSummaryStep): boolean {
@@ -1131,10 +1150,12 @@ export function MaterialsPanel({
   materials,
   materialLabel,
   planEv,
+  acquireMode = "buy",
 }: {
   materials: MaterialLine[];
   materialLabel: (key: string) => string;
   planEv: number;
+  acquireMode?: "buy" | "craft";
 }) {
   const [copied, setCopied] = useState(false);
   const ranked = [...materials].sort((a, b) => {
@@ -1158,7 +1179,9 @@ export function MaterialsPanel({
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="subtitle2">Shopping list</Typography>
           <Typography variant="caption" color="text.secondary" noWrap>
-            Buy = ceil(expected) · gold is EV spend
+            {acquireMode === "craft"
+              ? "Craft leaves × expected copies · ceil to buy"
+              : "Buy = ceil(expected) · gold is EV spend"}
           </Typography>
         </Box>
         <Button
@@ -1482,7 +1505,11 @@ export function StepPlanCards({
             >
               <Typography variant="caption" color="text.secondary">
                 {s.kind === "acquire" ? (
-                  `Expected bases · ${formatExpectedCopies(s.attempts)}×`
+                  s.acquireMode === "craft" ? (
+                    `Craft × ${formatExpectedCopies(s.attempts)} expected`
+                  ) : (
+                    `Buy × ${formatExpectedCopies(s.attempts)} expected`
+                  )
                 ) : (
                   <>
                     {formatChancePlain(s.baseChance)} / {formatChancePlain(s.chanceCap)} /{" "}
@@ -1493,7 +1520,11 @@ export function StepPlanCards({
                 )}
               </Typography>
               {s.kind === "acquire" ? (
-                <MatSlot itemKey={s.scrollKey} />
+                s.acquireMode === "craft" && s.acquireLeafKeys?.length ? (
+                  <AcquireLeafStrip keys={s.acquireLeafKeys} />
+                ) : (
+                  <MatSlot itemKey={s.scrollKey} />
+                )
               ) : s.kind !== "shiny" ? (
                 <ClickableMat
                   itemKey={s.scrollKey}
@@ -1784,7 +1815,11 @@ export function StepPlanTable({
                         —
                       </Typography>
                     ) : s.kind === "acquire" ? (
-                      <MatSlot itemKey={s.scrollKey} />
+                      s.acquireMode === "craft" && s.acquireLeafKeys?.length ? (
+                        <AcquireLeafStrip keys={s.acquireLeafKeys} />
+                      ) : (
+                        <MatSlot itemKey={s.scrollKey} />
+                      )
                     ) : (
                       <ClickableMat
                         itemKey={s.scrollKey}
@@ -1796,8 +1831,8 @@ export function StepPlanTable({
                   </TableCell>
                   <TableCell sx={{ ...cellSx, textAlign: "center" }}>
                     {s.kind === "acquire" ? (
-                      <Typography variant="caption" color="text.secondary">
-                        —
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        {s.acquireMode === "craft" ? "recipe" : "market"}
                       </Typography>
                     ) : (
                       <ClickableMat
@@ -1900,6 +1935,15 @@ export function StepPlanTable({
                       <Box component="span" sx={{ fontWeight: 600 }}>
                         {formatGold(s.stepSpend)}
                       </Box>
+                      {s.kind === "acquire" && s.acquireMode === "craft" ? (
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontSize: "0.65rem", lineHeight: 1 }}
+                        >
+                          craft mats
+                        </Typography>
+                      ) : null}
                       {share > 0.001 ? (
                         <>
                           <CostShareBar

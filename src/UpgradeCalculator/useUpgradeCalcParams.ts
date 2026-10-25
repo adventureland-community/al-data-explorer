@@ -8,7 +8,7 @@ import { UPGRADE_SCROLL_KEYS } from "../gameData/upgradePrices";
 export type CalcMode = "upgrade" | "compound" | "greed";
 export type CalcStrategy = "cheapest" | "fewest";
 /** How Acquire costs the starting copy (upgrade/compound). */
-export type AcquireMode = "buy" | "craft" | "owned";
+export type AcquireMode = "buy" | "craft";
 
 export type UpgradeCalcParams = {
   mode: CalcMode;
@@ -17,7 +17,7 @@ export type UpgradeCalcParams = {
   from: number;
   target: number;
   strategy: CalcStrategy;
-  /** Buy finished item, craft from materials, or treat bases as already owned. */
+  /** Buy finished item, or craft from materials. */
   acquire: AcquireMode;
   luckySlot: boolean;
   serverUgrace: boolean;
@@ -74,7 +74,7 @@ function parseStrategy(raw: string | null): CalcStrategy {
 }
 
 function parseAcquire(raw: string | null): AcquireMode {
-  if (raw === "craft" || raw === "owned") return raw;
+  if (raw === "craft") return "craft";
   return "buy";
 }
 
@@ -219,7 +219,7 @@ function normalizePatch(
   }
   if (!next.wantShiny) next.polish = "";
   if (next.mode === "greed") next.acquire = "buy";
-  if (next.acquire !== "buy" && next.acquire !== "craft" && next.acquire !== "owned") {
+  if (next.acquire !== "buy" && next.acquire !== "craft") {
     next.acquire = "buy";
   }
 
