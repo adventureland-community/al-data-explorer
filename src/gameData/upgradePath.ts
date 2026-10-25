@@ -53,7 +53,7 @@ export const BALANCED_NEAR_BEST_EV_FRAC_COMPOUND = 0.2;
 
 export type ToolkitOptions = {
   allowPrimstacking?: boolean;
-  /** When true, Cheapest may use scroll4 (item survives failure). */
+  /** When true, Cheapest/Fewest may use scroll4 (item survives failure). */
   allowScroll4?: boolean;
   /**
    * When true (and the item has a `stat` pool), Cheapest/Fewest may apply a
@@ -180,9 +180,10 @@ function offeringChoices(toolkit?: ToolkitOptions): OfferingChoice[] {
 
 /**
  * Toolkit ceiling for Fewest Copies: grade, or grade+1 — but never open scroll3+
- * until the item is grade ≥ 3.
+ * until the item is grade ≥ 3. When `allowScroll4`, open through scroll4.
  */
-export function maxToolkitScrollGrade(grade: number): number {
+export function maxToolkitScrollGrade(grade: number, allowScroll4 = false): number {
+  if (allowScroll4) return 4;
   const capped = Math.min(grade + 1, 4);
   if (grade < 3 && capped >= 3) return grade;
   return capped;
@@ -649,7 +650,14 @@ type ScoredUpgradeRoute = {
   expectedCost: number;
 };
 
-function expectedUpgradeCost(materialCost: number, itemValue: number, chance: number): number {
+function expectedUpgradeCost(
+  materialCost: number,
+  itemValue: number,
+  chance: number,
+  scrollGrade?: number,
+): number {
+  // scroll4: item survives failure — no destroy term.
+  if (scrollGrade === 4) return materialCost / chance;
   return (materialCost + itemValue * (1 - chance)) / chance;
 }
 
@@ -699,7 +707,7 @@ function enumerateUpgradeRoutes(
         currentGrace + primstacking * PRIMSTACK_GRACE + statScrollGrace,
       );
       const item = { name: itemName, level: currentLevel, grace };
-      const maxScrollGrade = maxToolkitScrollGrade(grade);
+      const maxScrollGrade = maxToolkitScrollGrade(grade, ctx.toolkit?.allowScroll4 === true);
 
       for (let scrollGrade = grade; scrollGrade <= maxScrollGrade; scrollGrade++) {
         for (const offering of offerings) {
@@ -738,7 +746,7 @@ function enumerateUpgradeRoutes(
             chance,
             luckyChance,
             materialCost,
-            expectedCost: expectedUpgradeCost(materialCost, itemValue, luckyChance),
+            expectedCost: expectedUpgradeCost(materialCost, itemValue, luckyChance, scrollGrade),
           });
         }
       }
@@ -822,7 +830,7 @@ export function planUpgradePathBestOdds(
       ctx.tables,
     );
     const successRate = options.luckySlot ? applyLuckySlotChance(chance) : chance;
-    const stepEv = expectedUpgradeCost(rec.materialCost, curValue, successRate);
+    const stepEv = expectedUpgradeCost(rec.materialCost, curValue, successRate, rec.scrollGrade);
     curValue += stepEv;
     grace = graceAfter;
     const def = ctx.lookup(itemName);
@@ -929,10 +937,11 @@ export function recomputeUpgradePlan(args: {
   for (const recipe of args.steps) {
     const { fromLevel } = recipe;
     const itemGrade = getItemGrade(def, fromLevel);
+    const allowScroll4 = ctx.toolkit?.allowScroll4 === true;
     const maxScroll =
       costModel === "cheapest"
-        ? maxScrollForCheapest(itemGrade, ctx.toolkit?.allowScroll4 === true)
-        : maxToolkitScrollGrade(itemGrade);
+        ? maxScrollForCheapest(itemGrade, allowScroll4)
+        : maxToolkitScrollGrade(itemGrade, allowScroll4);
     const scrollGrade = Math.min(Math.max(itemGrade, recipe.scrollGrade), maxScroll);
     const offerings = offeringChoices(ctx.toolkit);
     const offering = offerings.includes(recipe.offering) ? recipe.offering : null;
@@ -1012,7 +1021,7 @@ export function recomputeUpgradePlan(args: {
     if (costModel === "fewest") {
       const materialCost = sCost + oCost + pCost + ssCost;
       // Incremental EV; curValue is asset EV (includes base). successRate includes Lucky Slot.
-      stepEv = expectedUpgradeCost(materialCost, curValue, successRate);
+      stepEv = expectedUpgradeCost(materialCost, curValue, successRate, scrollGrade);
       curValue += stepEv;
     } else {
       failstackCost = stacks ? failstackUnitCost(stacks, fromLevel + 1, failstack) : 0;
@@ -1074,7 +1083,7 @@ export function allowedUpgradeScrollGrades(
   const max =
     costModel === "cheapest"
       ? maxScrollForCheapest(itemGrade, allowScroll4)
-      : maxToolkitScrollGrade(itemGrade);
+      : maxToolkitScrollGrade(itemGrade, allowScroll4);
   const grades: number[] = [];
   for (let g = itemGrade; g <= max; g++) grades.push(g);
   return grades;
