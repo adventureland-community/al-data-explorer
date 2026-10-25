@@ -10,7 +10,7 @@
 
 import { GItem, ItemKey } from "typed-adventureland";
 
-import { getItemGrade } from "./playerItemDisplay";
+import { getItemGrade } from "./itemGrade";
 import {
   applyLuckySlotChance,
   ChanceTables,

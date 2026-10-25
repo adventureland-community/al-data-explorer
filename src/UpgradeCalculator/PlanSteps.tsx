@@ -23,17 +23,17 @@ import {
 import { useContext, useState } from "react";
 import { ItemKey } from "typed-adventureland";
 
-import { OfferingChoice } from "../gameData/upgradeChance";
 import {
   allowedUpgradeScrollGrades,
   formatAttempts,
   formatChancePct,
   formatGold,
+  OfferingChoice,
+  offeringGradeFromKey,
   PlanSummaryStep,
   UpgradeStepOverride,
   upgradeStepOverrideKey,
-} from "../gameData/upgradePath";
-import { offeringGradeFromKey } from "../gameData/upgradePrices";
+} from "../calculators";
 import { GDataContext } from "../GDataContext";
 import {
   chanceTone,

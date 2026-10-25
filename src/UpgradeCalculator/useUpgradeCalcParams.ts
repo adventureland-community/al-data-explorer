@@ -1,9 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { GreedScrollKey } from "../gameData/greedFarm";
-import { OfferingChoice } from "../gameData/upgradeChance";
-import { UPGRADE_SCROLL_KEYS } from "../gameData/upgradePrices";
+import { GreedScrollKey, OfferingChoice, UPGRADE_SCROLL_KEYS } from "../calculators";
 
 export type CalcMode = "upgrade" | "compound" | "greed";
 export type CalcStrategy = "cheapest" | "fewest";

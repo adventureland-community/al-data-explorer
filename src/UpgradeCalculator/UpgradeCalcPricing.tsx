@@ -2,9 +2,7 @@ import { Alert, Box, Stack, Switch, TextField, Tooltip, Typography } from "@mui/
 import { ReactNode, useEffect, useState } from "react";
 import { ItemKey } from "typed-adventureland";
 
-import { craftExpectedCost } from "../gameData/craftCost";
-import { formatGold } from "../gameData/upgradePath";
-import { PriceTable } from "../gameData/upgradePrices";
+import { craftExpectedCost, formatGold, PriceTable } from "../calculators";
 import { ItemInstance } from "../Shared/ItemInstance";
 
 export function PriceField({

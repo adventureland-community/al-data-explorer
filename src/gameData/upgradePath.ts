@@ -10,7 +10,8 @@
 
 import { GItem, ItemKey } from "typed-adventureland";
 
-import { getItemGrade } from "./playerItemDisplay";
+import { getItemGrade } from "./itemGrade";
+import { itemAcceptsStatScroll } from "./statScroll";
 import {
   applyLuckySlotChance,
   ChanceTables,
@@ -21,7 +22,6 @@ import {
   OFFERING_GRADES,
   UPGRADE_BASE_CHANCES,
 } from "./upgradeChance";
-import { itemAcceptsStatScroll } from "./itemAffixes";
 import {
   COMPOUND_SCROLL_KEYS,
   offeringKeyFromGrade,

@@ -17,8 +17,8 @@
 
 import { GItem, ItemKey } from "typed-adventureland";
 
-import { getItemGrade } from "./playerItemDisplay";
-import { MaterialLine, PlanSummaryStep } from "./upgradePath";
+import { getItemGrade } from "./itemGrade";
+import type { MaterialLine, PlanSummaryStep } from "./upgradePathSummary";
 import { POLISH_MATERIAL_KEYS, PriceTable, unitPrice } from "./upgradePrices";
 
 /** Width of the integer bucket used by `parseInt(x * 10000)`. */

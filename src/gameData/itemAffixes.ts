@@ -35,11 +35,7 @@ export function listStatScrollOptions(
 }
 
 /** True when the item can take a property/stat scroll (`G.items.*.stat` points). */
-export function itemAcceptsStatScroll(gItem: GItem | undefined): boolean {
-  if (!gItem) return false;
-  const { stat } = gItem as { stat?: unknown };
-  return typeof stat === "number" && stat !== 0;
-}
+export { itemAcceptsStatScroll } from "./statScroll";
 
 export type TitleOption = {
   key: string;

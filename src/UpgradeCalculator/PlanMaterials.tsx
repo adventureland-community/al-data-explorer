@@ -20,8 +20,7 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 
-import { formatGold, MaterialLine } from "../gameData/upgradePath";
-import { SideEffectSummary } from "../gameData/upgradeSideEffects";
+import { formatGold, MaterialLine, SideEffectSummary } from "../calculators";
 import { CostShareBar, MatIcon } from "./planResultsShared";
 import { CalcMode } from "./useUpgradeCalcParams";
 

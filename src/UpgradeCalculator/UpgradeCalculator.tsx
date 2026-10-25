@@ -23,60 +23,52 @@ import {
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GCraft, ItemKey } from "typed-adventureland";
 
-import { itemAcceptsStatScroll } from "../gameData/itemAffixes";
-import { getItemGrade } from "../gameData/playerItemDisplay";
-import { ChanceTables } from "../gameData/upgradeChance";
 import {
+  applyShinyPolishToSummary,
+  ChanceTables,
+  COMPOUND_SCROLL_KEYS,
+  craftCostToMaterialLines,
+  craftExpectedCost,
+  defaultPriceTable,
   formatChancePct,
   formatGold,
   formatShrineTime,
+  getItemGrade,
+  GREED_QUICK_PICKS,
+  GreedScrollKey,
+  itemAcceptsStatScroll,
+  itemHasCraftRecipe,
+  listShinyPolishOptions,
   MaterialLine,
   mergeUpgradeStepOverrides,
+  minGreedEligibleLevel,
+  OFFERING_KEYS,
+  pickShinyPolish,
   planCompoundPath,
+  planGreedFarm,
   planUpgradePath,
   planUpgradePathBestOdds,
   PlannerContext,
   PlanSummaryStep,
+  POLISH_MATERIAL_KEYS,
+  PriceTable,
   recomputeUpgradePlan,
+  scrollKeyForUpgrade,
+  seedMissingPrices,
+  STAT_SCROLL_PROXY_KEY,
   summarizeCompoundPlan,
   summarizeUpgradePlan,
+  summarizeUpgradeSideEffects,
   UpgradePathStep,
   UpgradeStepOverride,
   upgradeStepOverrideKey,
-} from "../gameData/upgradePath";
-import {
-  craftCostToMaterialLines,
-  craftExpectedCost,
-  itemHasCraftRecipe,
-} from "../gameData/craftCost";
-import {
-  COMPOUND_SCROLL_KEYS,
-  defaultPriceTable,
-  OFFERING_KEYS,
-  POLISH_MATERIAL_KEYS,
-  PriceTable,
-  seedMissingPrices,
-  STAT_SCROLL_PROXY_KEY,
-  scrollKeyForUpgrade,
   UPGRADE_SCROLL_KEYS,
-} from "../gameData/upgradePrices";
+} from "../calculators";
 import { GDataContext } from "../GDataContext";
 import { SimEntityAutocomplete } from "../DropSimulator/SimEntityAutocomplete";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { useMerchants } from "../Market/useMerchants";
 import { UpgradeCalcHelpButton } from "./UpgradeCalcHelp";
-import {
-  GREED_QUICK_PICKS,
-  GreedScrollKey,
-  minGreedEligibleLevel,
-  planGreedFarm,
-} from "../gameData/greedFarm";
-import {
-  applyShinyPolishToSummary,
-  listShinyPolishOptions,
-  pickShinyPolish,
-  summarizeUpgradeSideEffects,
-} from "../gameData/upgradeSideEffects";
 import { GreedFarmResults, greedCompareForLevel } from "./GreedFarmResults";
 import {
   CopyPlanLinkButton,

@@ -13,10 +13,16 @@ import {
 } from "@mui/material";
 import { ItemKey } from "typed-adventureland";
 
-import { compareGreedKits, GreedFarmResult, GreedScrollCompareRow } from "../gameData/greedFarm";
-import { OfferingChoice } from "../gameData/upgradeChance";
-import { formatChancePct, formatGold } from "../gameData/upgradePath";
-import { offeringKeyFromGrade, PriceTable } from "../gameData/upgradePrices";
+import {
+  compareGreedKits,
+  formatChancePct,
+  formatGold,
+  GreedFarmResult,
+  GreedScrollCompareRow,
+  OfferingChoice,
+  offeringKeyFromGrade,
+  PriceTable,
+} from "../calculators";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { CopyPlanLinkButton } from "./PlanResults";
 

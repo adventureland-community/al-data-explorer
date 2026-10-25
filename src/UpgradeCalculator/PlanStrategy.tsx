@@ -2,7 +2,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import { useState } from "react";
 
-import { formatGold } from "../gameData/upgradePath";
+import { formatGold } from "../calculators";
 
 export function CopyPlanLinkButton() {
   const [copied, setCopied] = useState(false);

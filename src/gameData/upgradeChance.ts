@@ -8,7 +8,7 @@
 
 import { GItem, ItemKey } from "typed-adventureland";
 
-import { getItemGrade } from "./playerItemDisplay";
+import { getItemGrade } from "./itemGrade";
 
 /** Server forces booster compounds to this success chance (ignore compound table). */
 const BOOSTER_COMPOUND_CHANCE = 0.9999999999999;

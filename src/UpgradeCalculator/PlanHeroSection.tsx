@@ -2,7 +2,7 @@ import { Box, Button, Chip, Link, Paper, Stack, Typography } from "@mui/material
 import { Link as RouterLink } from "react-router-dom";
 import { ItemKey } from "typed-adventureland";
 
-import { formatChancePct, formatGold, PlanSummaryStep } from "../gameData/upgradePath";
+import { formatChancePct, formatGold, PlanSummaryStep } from "../calculators";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { Metric } from "./planResultsShared";
 import { CalcMode, CalcStrategy } from "./useUpgradeCalcParams";
