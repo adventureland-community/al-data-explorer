@@ -293,7 +293,18 @@ export function useUpgradeCalcParams() {
   const patch = useCallback(
     (partial: Partial<UpgradeCalcParams>, opts?: { replace?: boolean }) => {
       const next = normalizePatch(params, partial);
-      setSearchParams(writeParams(next, priceOverrides), { replace: opts?.replace ?? false });
+      let overrides = priceOverrides;
+      // Drop the previous base-item override when switching items (stale px=fallen:… on helmet).
+      if (
+        partial.item != null &&
+        partial.item !== params.item &&
+        params.item &&
+        priceOverrides[params.item] != null
+      ) {
+        overrides = { ...priceOverrides };
+        delete overrides[params.item];
+      }
+      setSearchParams(writeParams(next, overrides), { replace: opts?.replace ?? false });
     },
     [params, priceOverrides, setSearchParams],
   );

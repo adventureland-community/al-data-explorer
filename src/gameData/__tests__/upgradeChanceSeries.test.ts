@@ -59,4 +59,24 @@ describe("upgradeChanceSeries", () => {
     expect(series).toContain("plan");
     expect(series).toContain("lucky");
   });
+
+  it("omits server ugrace series unless the plan toggle is on", () => {
+    const plan = planUpgradePathBestOdds(ctx(), "fireblade" as ItemKey, 160_000, 5);
+    expect(plan).not.toBeNull();
+    const withFailstack = plan!.steps.map((s) => ({ ...s, failstack: Math.max(1, s.failstack) }));
+    const off = buildUpgradeTechniqueChances({
+      ctx: ctx(),
+      itemName: "fireblade" as ItemKey,
+      steps: withFailstack,
+    });
+    for (const p of off) {
+      expect(p.chances.serverUgrace).toBeUndefined();
+    }
+    const on = buildUpgradeTechniqueChances({
+      ctx: { ...ctx(), useServerUgrace: true },
+      itemName: "fireblade" as ItemKey,
+      steps: withFailstack,
+    });
+    expect(on.some((p) => p.chances.serverUgrace != null)).toBe(true);
+  });
 });

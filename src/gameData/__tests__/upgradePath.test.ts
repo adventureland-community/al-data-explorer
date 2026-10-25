@@ -152,6 +152,32 @@ describe("upgradePath", () => {
     expect(plan!.totalExpectedCost).toBeCloseTo(1000 + stepSum, 6);
   });
 
+  it("mid-path fewest starts with zero banked grace (not intrinsic igrace)", () => {
+    const fromZero = planUpgradePathBestOdds(ctx(), "fireblade" as ItemKey, 160_000, 5);
+    const fromMid = planUpgradePathBestOdds(ctx(), "fireblade" as ItemKey, 160_000, 5, {
+      startLevel: 3,
+    });
+    expect(fromZero).not.toBeNull();
+    expect(fromMid).not.toBeNull();
+    expect(fromMid!.steps[0].fromLevel).toBe(3);
+    // Intrinsic igrace seed at +0 usually beats a mid-path zero-grace start at the same level.
+    const zeroAt3 = fromZero!.steps.find((s) => s.fromLevel === 3);
+    expect(zeroAt3).toBeDefined();
+    expect(fromMid!.steps[0].chance).toBeLessThanOrEqual(zeroAt3!.chance + 1e-9);
+  });
+
+  it("Cheapest with Lucky Slot sets successRate on reconstructed steps", () => {
+    const plan = planUpgradePath(ctx(), "fireblade" as ItemKey, 160_000, 5, {
+      stacks: defaultStacks,
+      luckySlot: true,
+    });
+    expect(plan).not.toBeNull();
+    const mid = plan!.steps.find((s) => s.chance < 0.999);
+    expect(mid).toBeDefined();
+    expect(mid!.successRate).toBeDefined();
+    expect(mid!.successRate!).toBeGreaterThan(mid!.chance);
+  });
+
   it("Lucky Slot does not change displayed chance; only successRate / EV", () => {
     const off = planUpgradePathBestOdds(ctx(), "fireblade" as ItemKey, 160_000, 7, {
       luckySlot: false,

@@ -16,4 +16,14 @@ describe("useUpgradeCalcParams URL codec", () => {
     const sp = new URLSearchParams("px=bad,fallen:-1,ok:1.5,x:NaN");
     expect(parsePriceOverrides(sp)).toStrictEqual({ ok: 1.5 });
   });
+
+  it("keeps material px when item changes but drops the previous item key", () => {
+    // Document intended write shape: callers strip the old item override in patch().
+    const before = parsePriceOverrides(
+      new URLSearchParams("px=fallen:3000000000,scroll0:100,offeringp:50"),
+    );
+    const after = { ...before };
+    delete after.fallen;
+    expect(after).toStrictEqual({ scroll0: 100, offeringp: 50 });
+  });
 });

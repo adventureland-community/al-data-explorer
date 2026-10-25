@@ -176,15 +176,7 @@ export function buildUpgradeTechniqueChances(args: {
       offering,
       { failstack, ograce },
     );
-    const withServer = chanceAt(
-      args.ctx,
-      args.itemName,
-      step.fromLevel,
-      prepGrace,
-      scrollGrade,
-      offering,
-      { failstack, ograce, useServerUgrace: true },
-    );
+    const useServer = args.ctx.useServerUgrace === true;
     const plan = chanceAt(
       args.ctx,
       args.itemName,
@@ -195,7 +187,7 @@ export function buildUpgradeTechniqueChances(args: {
       {
         failstack,
         ograce,
-        useServerUgrace: args.ctx.useServerUgrace === true,
+        useServerUgrace: useServer,
       },
     );
     const lucky = applyLuckySlotChance(plan);
@@ -205,8 +197,18 @@ export function buildUpgradeTechniqueChances(args: {
     if (statScrollGrace > 0) chances.statGrace = withStat;
     if (failstack > 0) chances.failstack = withFs;
     if (ograce > 0) chances.ograce = withOgrace;
-    // Server layer only when it can move the needle (needs a failstack bank).
-    if (failstack > 0) chances.serverUgrace = withServer;
+    // Only when the Server ugrace toggle is on (matches plan; no phantom “what if”).
+    if (useServer && failstack > 0) {
+      chances.serverUgrace = chanceAt(
+        args.ctx,
+        args.itemName,
+        step.fromLevel,
+        prepGrace,
+        scrollGrade,
+        offering,
+        { failstack, ograce, useServerUgrace: true },
+      );
+    }
     if (args.luckySlot) chances.lucky = lucky;
 
     points.push({

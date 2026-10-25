@@ -113,12 +113,6 @@ export type UpgradePathStep = {
    * the 60/40 blend; otherwise equals `chance`.
    */
   successRate?: number;
-  /** Same recipe with failstack forced to 0 (ograce unchanged). */
-  chanceNoFailstack?: number;
-  /** Same recipe with ograce forced to 0 (failstack unchanged). */
-  chanceNoOgrace?: number;
-  /** Same recipe with failstack and ograce both 0. */
-  chanceNoStacks?: number;
   graceAfter: number;
   stepExpectedCost: number;
 };
@@ -478,7 +472,11 @@ function upgradeCalcPareto(
   return last;
 }
 
-function reconstructUpgradePlan(best: ParetoState, itemValue: number): UpgradePathPlan {
+function reconstructUpgradePlan(
+  best: ParetoState,
+  itemValue: number,
+  options: { luckySlot?: boolean } = {},
+): UpgradePathPlan {
   const chain: ParetoState[] = [];
   let current: ParetoState | null | undefined = best;
   while (current) {
@@ -494,6 +492,8 @@ function reconstructUpgradePlan(best: ParetoState, itemValue: number): UpgradePa
     const fromLevel = (node.level_to ?? 1) - 1;
     const primstacking = node.primstacking ?? 0;
     const statScrollGrace = node.statScrollGrace ?? 0;
+    const chance = node.chance ?? 0;
+    const successRate = options.luckySlot ? applyLuckySlotChance(chance) : chance;
     steps.push({
       fromLevel,
       toLevel: fromLevel + 1,
@@ -510,7 +510,9 @@ function reconstructUpgradePlan(best: ParetoState, itemValue: number): UpgradePa
       ograce: node.ograce ?? 0,
       failstackCost: node.failstackCost ?? 0,
       ograceCost: node.ograceCost ?? 0,
-      chance: node.chance ?? 0,
+      chanceCap: node.chance_cap,
+      chance,
+      successRate,
       graceAfter: node.graceAfter ?? node.item_grace,
       stepExpectedCost: node.cost - prevCost,
     });
@@ -736,7 +738,7 @@ function enumerateUpgradeRoutes(
             chance,
             luckyChance,
             materialCost,
-            expectedCost: expectedUpgradeCost(materialCost, itemValue, chance),
+            expectedCost: expectedUpgradeCost(materialCost, itemValue, luckyChance),
           });
         }
       }
@@ -794,7 +796,9 @@ export function planUpgradePathBestOdds(
   if (!def0) return null;
   const startLevel = options.startLevel ?? 0;
   const steps: UpgradePathStep[] = [];
-  let grace = options.startGrace ?? itemIgraceFromDef(def0);
+  // Mid-path (+from): unknown banked grace on a bought/found copy → start at 0.
+  // +0 starts: match Cheapest / pastebin seed (intrinsic igrace on the item state).
+  let grace = options.startGrace ?? (startLevel > 0 ? 0 : itemIgraceFromDef(def0));
   // Asset EV of the current item (includes base). Step spend is the incremental EV.
   let curValue = itemValue;
 
@@ -985,42 +989,6 @@ export function recomputeUpgradePlan(args: {
     const { chance, graceAfter, chanceCap } = rawChance;
     if (!(chance > 0)) return null;
     const successRate = args.luckySlot ? applyLuckySlotChance(chance) : chance;
-    const stackOptsBase = {
-      useServerUgrace: ctx.useServerUgrace,
-    } as const;
-    const chanceNoFailstack =
-      costModel === "cheapest" && failstack > 0
-        ? getUpgradeChance(
-            ctx.lookup,
-            { name: itemName, level: fromLevel, grace: graceInto },
-            scrollGrade,
-            offering,
-            ctx.tables,
-            { ...stackOptsBase, failstack: 0, ograce },
-          ).chance
-        : chance;
-    const chanceNoOgrace =
-      costModel === "cheapest" && ograce > 0
-        ? getUpgradeChance(
-            ctx.lookup,
-            { name: itemName, level: fromLevel, grace: graceInto },
-            scrollGrade,
-            offering,
-            ctx.tables,
-            { ...stackOptsBase, failstack, ograce: 0 },
-          ).chance
-        : chance;
-    const chanceNoStacks =
-      costModel === "cheapest" && (failstack > 0 || ograce > 0)
-        ? getUpgradeChance(
-            ctx.lookup,
-            { name: itemName, level: fromLevel, grace: graceInto },
-            scrollGrade,
-            offering,
-            ctx.tables,
-            { ...stackOptsBase, failstack: 0, ograce: 0 },
-          ).chance
-        : chance;
 
     const scrollKey = scrollKeyForUpgrade(scrollGrade);
     if (!scrollKey) return null;
@@ -1085,9 +1053,6 @@ export function recomputeUpgradePlan(args: {
       chanceCap,
       chance,
       successRate,
-      chanceNoFailstack,
-      chanceNoOgrace,
-      chanceNoStacks,
       graceAfter,
       stepExpectedCost: stepEv,
     });
@@ -1147,7 +1112,7 @@ export function planUpgradePath(
     allowOgrace: options.allowOgrace,
   });
   if (!frontier?.length) return null;
-  return reconstructUpgradePlan(frontier[0], itemValue);
+  return reconstructUpgradePlan(frontier[0], itemValue, { luckySlot: options.luckySlot });
 }
 
 type CompoundRouteCandidate = {
