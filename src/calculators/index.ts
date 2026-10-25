@@ -49,6 +49,19 @@ export {
   UPGRADE_BASE_CHANCES,
 } from "../gameData/upgradeChance";
 
+// --- Technique chance series (plan chart) ---
+export type {
+  TechniqueChanceId,
+  TechniqueChanceMeta,
+  TechniqueChancePoint,
+} from "../gameData/upgradeChanceSeries";
+export {
+  activeTechniqueSeries,
+  buildUpgradeTechniqueChances,
+  TECHNIQUE_CHANCE_IDS,
+  TECHNIQUE_CHANCE_META,
+} from "../gameData/upgradeChanceSeries";
+
 // --- Stacks ---
 export type {
   FailstackEntry,

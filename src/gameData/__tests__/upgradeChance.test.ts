@@ -32,6 +32,11 @@ describe("upgradeChance", () => {
     expect(applyLuckySlotChance(0.99)).toBeLessThanOrEqual(1);
   });
 
+  it("maps ~88% game chance to ~90.09% expected with Lucky Slot", () => {
+    // Discord: calculator showed 90.09% while in-game UI showed ~88%.
+    expect(applyLuckySlotChance(0.88)).toBeCloseTo(0.9009230769230769, 10);
+  });
+
   it("compound chance uses igrade table", () => {
     const { chance } = getCompoundChance(lookup, { name: "hpamulet", level: 0, grace: 0 }, 0, null);
     expect(chance).toBeCloseTo(0.99, 6);

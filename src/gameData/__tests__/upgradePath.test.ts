@@ -146,6 +146,57 @@ describe("upgradePath", () => {
     expect(plan).not.toBeNull();
     expect(plan!.steps.map((s) => s.fromLevel)).toStrictEqual([0, 1, 2]);
     expect(Number.isFinite(plan!.totalExpectedCost)).toBe(true);
+    // Asset EV includes the base; step spends are incremental.
+    expect(plan!.totalExpectedCost).toBeGreaterThan(1000);
+    const stepSum = plan!.steps.reduce((s, step) => s + step.stepExpectedCost, 0);
+    expect(plan!.totalExpectedCost).toBeCloseTo(1000 + stepSum, 6);
+  });
+
+  it("Lucky Slot does not change displayed chance; only successRate / EV", () => {
+    const off = planUpgradePathBestOdds(ctx(), "fireblade" as ItemKey, 160_000, 7, {
+      luckySlot: false,
+    });
+    const on = planUpgradePathBestOdds(ctx(), "fireblade" as ItemKey, 160_000, 7, {
+      luckySlot: true,
+    });
+    expect(off).not.toBeNull();
+    expect(on).not.toBeNull();
+    for (let i = 0; i < off!.steps.length; i++) {
+      expect(on!.steps[i].chance).toBeCloseTo(off!.steps[i].chance, 10);
+      expect(off!.steps[i].successRate).toBeCloseTo(off!.steps[i].chance, 10);
+    }
+    const mid = on!.steps.find((s) => s.chance < 0.999);
+    expect(mid).toBeDefined();
+    expect(mid!.successRate!).toBeGreaterThan(mid!.chance);
+    expect(on!.totalExpectedCost).toBeLessThan(off!.totalExpectedCost);
+  });
+
+  it("Cheapest EV is at most Fewest for a high base-cost stat item", () => {
+    // Discord repro: Pants of the Fallen Master @ 3b, lucky + stat-scroll grace.
+    const fallen = {
+      upgrade: true,
+      g: 6_400_000,
+      grades: [0, 0, 8, 10],
+      stat: 1,
+      armor: 14,
+    } as unknown as GItem;
+    const base = 3_000_000_000;
+    const prices: PriceTable = { ...PRICES, fallen: base, strscroll: 8000 };
+    const stacks = buildStackTables(prices);
+    const planner = {
+      ...ctx({ fallen }, prices),
+      toolkit: { allowStatScrollGrace: true, allowPrimstacking: true },
+    };
+    const cheap = planUpgradePath(planner, "fallen" as ItemKey, base, 7, {
+      stacks,
+      luckySlot: true,
+    });
+    const fewest = planUpgradePathBestOdds(planner, "fallen" as ItemKey, base, 7, {
+      luckySlot: true,
+    });
+    expect(cheap).not.toBeNull();
+    expect(fewest).not.toBeNull();
+    expect(cheap!.totalExpectedCost).toBeLessThanOrEqual(fewest!.totalExpectedCost + 1e-3);
   });
 
   it("fireblade Cheapest to +5 returns finite ordered steps", () => {

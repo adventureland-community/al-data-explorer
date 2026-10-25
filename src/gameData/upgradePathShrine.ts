@@ -17,7 +17,7 @@ export function shrineClickMs(
  * Destroy restarts from the previous level; scroll4 does not.
  */
 export function expectedPlanShrineMs(
-  steps: { toLevel: number; chance: number; scrollGrade: number }[],
+  steps: { toLevel: number; chance: number; scrollGrade: number; successRate?: number }[],
   mode: "upgrade" | "compound",
   igrade: number,
 ): number[] {
@@ -25,7 +25,7 @@ export function expectedPlanShrineMs(
   for (let n = 0; n < steps.length; n++) {
     const step = steps[n];
     const click = shrineClickMs(mode, step.toLevel, igrade);
-    const p = step.chance;
+    const p = step.successRate != null && step.successRate > 0 ? step.successRate : step.chance;
     const prev = times[n];
     if (!(p > 0) || !Number.isFinite(p) || !Number.isFinite(click) || !Number.isFinite(prev)) {
       times.push(Infinity);

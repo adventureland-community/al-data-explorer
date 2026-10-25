@@ -1,3 +1,4 @@
+export { ChanceByLevelChart } from "./ChanceByLevelChart";
 export { CopyPlanLinkButton, EvDeltaBanner, StrategyCard } from "./PlanStrategy";
 export { PlanHero, PlanModifiersChips } from "./PlanHeroSection";
 export { materialsTotals, MaterialsPanel, SideEffectsPanel } from "./PlanMaterials";

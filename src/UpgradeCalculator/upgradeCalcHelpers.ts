@@ -39,12 +39,19 @@ export function sumAttempts(steps: PlanSummaryStep[]): number {
 }
 
 export function oneshotPercent(steps: PlanSummaryStep[]): number | null {
-  const recipe = steps.filter((s) => s.kind !== "acquire");
+  const recipe = steps.filter((s) => s.kind !== "acquire" && s.kind !== "shiny");
   if (!recipe.length) return null;
   let product = 1;
   for (const s of recipe) {
-    if (!Number.isFinite(s.chance) || s.chance <= 0) return null;
-    product *= s.chance;
+    // Prefer attempts (EV rate, includes Lucky Slot) over game-visible chance.
+    const p =
+      Number.isFinite(s.attempts) && s.attempts > 0
+        ? 1 / s.attempts
+        : Number.isFinite(s.chance) && s.chance > 0
+        ? s.chance
+        : 0;
+    if (!(p > 0)) return null;
+    product *= p;
   }
   return product * 100;
 }

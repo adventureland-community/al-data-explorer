@@ -72,6 +72,7 @@ import { useMerchants } from "../Market/useMerchants";
 import { UpgradeCalcHelpButton } from "./UpgradeCalcHelp";
 import { GreedFarmResults, greedCompareForLevel } from "./GreedFarmResults";
 import {
+  ChanceByLevelChart,
   CopyPlanLinkButton,
   EvDeltaBanner,
   formatRecipeClipboard,
@@ -113,9 +114,8 @@ type PlanSummary = {
 
 export function UpgradeCalculator() {
   const G = useContext(GDataContext);
-  const { params, patch } = useUpgradeCalcParams();
+  const { params, patch, priceOverrides, setPriceOverrides } = useUpgradeCalcParams();
   const { items: marketItems } = useMerchants();
-  const [priceOverrides, setPriceOverrides] = useState<PriceTable>({});
   const [stepOverrides, setStepOverrides] = useState<Record<string, UpgradeStepOverride>>({});
   const [recentItems, setRecentItems] = useState<ItemKey[]>(() => readRecentItems());
   const [evDelta, setEvDelta] = useState<number | null>(null);
@@ -430,6 +430,29 @@ export function UpgradeCalculator() {
 
   const summary = midPathStart || params.strategy === "fewest" ? fewestSummary : cheapestSummary;
 
+  /** Recomputed upgrade recipe (for chance chart + step edits). */
+  const activeUpgradePlan = useMemo(() => {
+    if (craftBlocksPlan || !ctx || !gItem || !itemKey || params.mode !== "upgrade") return null;
+    const raw = midPathStart || params.strategy === "fewest" ? fewest : cheapest;
+    if (!raw || !("steps" in raw)) return null;
+    return withUpgradeOverrides(raw, upgradeCostModel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- withUpgradeOverrides closes over overrides
+  }, [
+    craftBlocksPlan,
+    ctx,
+    gItem,
+    itemKey,
+    params.mode,
+    params.strategy,
+    midPathStart,
+    fewest,
+    cheapest,
+    upgradeCostModel,
+    stepOverrides,
+    params.luckySlot,
+    itemValue,
+  ]);
+
   const patchStepOverride = (
     fromLevel: number,
     toLevel: number,
@@ -591,7 +614,7 @@ export function UpgradeCalculator() {
   const enabledOfferingCount = offeringKeys.filter((k) => offeringEnabled(k, params)).length;
 
   const setPrice = (key: string, n: number) => {
-    setPriceOverrides((prev) => ({ ...prev, [key]: n }));
+    setPriceOverrides((prev) => ({ ...prev, [key]: n }), { replace: true });
   };
 
   const materialLabel = (key: string) => {
@@ -667,7 +690,7 @@ export function UpgradeCalculator() {
               size="small"
               variant="text"
               startIcon={<RestartAltIcon fontSize="small" />}
-              onClick={() => setPriceOverrides({})}
+              onClick={() => setPriceOverrides({}, { replace: true })}
             >
               Reset prices
             </Button>
@@ -1006,7 +1029,7 @@ export function UpgradeCalculator() {
             <Accordion
               disableGutters
               elevation={0}
-              defaultExpanded={false}
+              defaultExpanded
               sx={{
                 bgcolor: "transparent",
                 "&:before": { display: "none" },
@@ -1321,6 +1344,14 @@ export function UpgradeCalculator() {
                     mode={pathMode}
                     onToggle={(key) => patch({ [key]: !params[key] })}
                   />
+                  {pathMode === "upgrade" && ctx && itemKey && activeUpgradePlan?.steps.length ? (
+                    <ChanceByLevelChart
+                      ctx={ctx}
+                      itemKey={itemKey}
+                      steps={activeUpgradePlan.steps}
+                      luckySlot={params.luckySlot}
+                    />
+                  ) : null}
                   {params.wantShiny && pathMode === "upgrade" && !shinyPolish ? (
                     <Alert severity="warning" sx={{ py: 0.5 }}>
                       No valid polish material for this item&apos;s grade. Raise polish tier or
