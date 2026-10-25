@@ -1352,18 +1352,30 @@ export function UpgradeCalculator() {
                     mode={params.mode}
                     onToggle={(key) => patch({ [key]: !params[key] })}
                   />
-                  <MaterialsPanel
-                    materials={summary.materials}
-                    materialLabel={materialLabel}
-                    planEv={summary.totalExpectedCost}
-                  />
-                  {sideEffects ? (
-                    <SideEffectsPanel
-                      summary={sideEffects}
-                      mode={params.mode}
-                      luckySlot={params.luckySlot}
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gap: 2,
+                      gridTemplateColumns: {
+                        xs: "1fr",
+                        md: sideEffects ? "minmax(0, 1.15fr) minmax(0, 1fr)" : "1fr",
+                      },
+                      alignItems: "stretch",
+                    }}
+                  >
+                    <MaterialsPanel
+                      materials={summary.materials}
+                      materialLabel={materialLabel}
+                      planEv={summary.totalExpectedCost}
                     />
-                  ) : null}
+                    {sideEffects ? (
+                      <SideEffectsPanel
+                        summary={sideEffects}
+                        mode={params.mode}
+                        luckySlot={params.luckySlot}
+                      />
+                    ) : null}
+                  </Box>
                   <StepPlanTable steps={summary.steps} />
                 </>
               )}

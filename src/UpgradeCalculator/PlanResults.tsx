@@ -1201,18 +1201,25 @@ function formatTinyExpect(n: number): string {
   return n.toExponential(2);
 }
 
-function SideEffectMetric({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  const body = (
-    <Box>
-      <Typography variant="caption" color="text.secondary" display="block">
-        {label}
-      </Typography>
-      <Typography variant="body1" fontWeight={600} sx={{ fontVariantNumeric: "tabular-nums" }}>
-        {value}
-      </Typography>
-    </Box>
+function SideEffectChip({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  const chip = (
+    <Chip
+      size="small"
+      variant="outlined"
+      label={
+        <Box component="span" sx={{ display: "inline-flex", gap: 0.75, alignItems: "baseline" }}>
+          <Box component="span" sx={{ color: "text.secondary", fontWeight: 400 }}>
+            {label}
+          </Box>
+          <Box component="span" sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+            {value}
+          </Box>
+        </Box>
+      }
+      sx={{ height: 28, "& .MuiChip-label": { px: 1 } }}
+    />
   );
-  return hint ? <Tooltip title={hint}>{body}</Tooltip> : body;
+  return hint ? <Tooltip title={hint}>{chip}</Tooltip> : chip;
 }
 
 /** Expected Lucky / Greed / Shiny / Dark Tri-Stone / booster extras for the plan. */
@@ -1236,112 +1243,101 @@ export function SideEffectsPanel({
     return best;
   }, null);
 
-  return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
-      <Typography variant="subtitle1">Side effects</Typography>
-      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.25 }}>
-        Live server outcomes outside plan EV: chance-edge Lucky / Greed, bonus grace, Shiny polish,
-        Dark Tri-Stone, and booster extras.
-        {luckySlot
-          ? " Lucky Slot remaps rolls — edge odds use the plan chance and are approximate."
-          : null}
-      </Typography>
+  const chips: { label: string; value: string; hint?: string }[] = [
+    { label: "Lucky", value: formatTinyExpect(summary.expectedLucky) },
+  ];
+  if (mode === "upgrade") {
+    chips.push({ label: "Greed", value: formatTinyExpect(summary.expectedGreed) });
+    chips.push({
+      label: "Bonus grace",
+      value: formatTinyExpect(summary.expectedBonusGrace),
+      hint: "2.5% per upgrade click",
+    });
+  }
+  if (summary.darkTristone) {
+    chips.push({
+      label: "Dark Tri-Stone",
+      value: formatTinyExpect(summary.darkTristone.expected),
+      hint: `${(summary.darkTristone.chance * 100).toFixed(1)}% on +0→+1 compound success`,
+    });
+  }
+  if (summary.isBooster) {
+    chips.push({
+      label: "Booster extras",
+      value: formatTinyExpect(summary.expectedBoosterExtras),
+      hint: "Cascading 12%/6%/… extra levels with an offering (~100% compound success)",
+    });
+  }
+  if (cheapestShiny) {
+    chips.push({
+      label: "Shiny EV",
+      value: formatGold(cheapestShiny.expectedCost),
+      hint: `${G?.items?.[cheapestShiny.key]?.name ?? cheapestShiny.key} · ${formatChancePct(
+        cheapestShiny.chance,
+      )} · fail keeps the item`,
+    });
+  }
 
+  const tipParts = [
+    "Outside plan EV",
+    luckySlot ? "Lucky Slot remaps rolls — edge odds approximate" : null,
+    !summary.anyEligible && mode === "upgrade" ? "Lucky/Greed need High grade+" : null,
+    summary.inactiveTitles.length
+      ? `${summary.inactiveTitles.map((t) => t.label).join("/")} inactive on live`
+      : null,
+  ].filter(Boolean);
+
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, height: "100%" }}>
       <Stack
         direction="row"
-        spacing={{ xs: 2, sm: 3 }}
-        flexWrap="wrap"
-        sx={{ gap: 2, mb: 1.5, "& > *": { minWidth: 96 } }}
+        alignItems="center"
+        justifyContent="space-between"
+        spacing={1}
+        sx={{ mb: 1 }}
       >
-        <SideEffectMetric
-          label="Exp. Lucky titles"
-          value={formatTinyExpect(summary.expectedLucky)}
-        />
-        {mode === "upgrade" ? (
-          <SideEffectMetric
-            label="Exp. Essence of Greed"
-            value={formatTinyExpect(summary.expectedGreed)}
-          />
-        ) : null}
-        {mode === "upgrade" ? (
-          <SideEffectMetric
-            label="Exp. bonus +1 grace"
-            value={formatTinyExpect(summary.expectedBonusGrace)}
-            hint="2.5% per upgrade click"
-          />
-        ) : null}
-        {summary.darkTristone ? (
-          <SideEffectMetric
-            label="Exp. Dark Tri-Stone"
-            value={formatTinyExpect(summary.darkTristone.expected)}
-            hint={`${(summary.darkTristone.chance * 100).toFixed(1)}% when +0→+1 compound succeeds`}
-          />
-        ) : null}
-        {summary.isBooster ? (
-          <SideEffectMetric
-            label="Exp. booster extras"
-            value={formatTinyExpect(summary.expectedBoosterExtras)}
-            hint="Cascading 12%/6%/… extra levels when compounding with an offering (success is ~100%)"
-          />
-        ) : null}
-        {cheapestShiny ? (
-          <SideEffectMetric
-            label="Cheapest Shiny EV"
-            value={formatGold(cheapestShiny.expectedCost)}
-            hint={`${G?.items?.[cheapestShiny.key]?.name ?? cheapestShiny.key} · ${formatChancePct(
-              cheapestShiny.chance,
-            )} · fail keeps the item`}
-          />
-        ) : null}
+        <Typography variant="subtitle2">Side effects</Typography>
+        <Tooltip title={tipParts.join(" · ")}>
+          <Typography variant="caption" color="text.secondary" sx={{ cursor: "help" }}>
+            not in EV
+          </Typography>
+        </Tooltip>
       </Stack>
 
-      {!summary.anyEligible && mode === "upgrade" ? (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Lucky and Essence of Greed only roll once the item is High grade or above (grade ≥ 1).
-          Lower steps still get the 2.5% bonus-grace proc.
-        </Typography>
-      ) : null}
-
-      {summary.darkTristone ? (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Compounding Tri-Stone +0→+1 has a {(summary.darkTristone.chance * 100).toFixed(1)}% chance
-          to become Dark Tri-Stone on success.
-        </Typography>
-      ) : null}
-
-      {summary.isBooster ? (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Boosters always succeed when compounding (~100%). With an offering, each success can
-          cascade extra levels (12%, then half that, …). Enable offerings in the toolkit to see
-          extras above.
-        </Typography>
-      ) : null}
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 0.5 }}>
+        {chips.map((c) => (
+          <SideEffectChip key={c.label} label={c.label} value={c.value} hint={c.hint} />
+        ))}
+      </Box>
 
       {shinyOptions.length > 0 ? (
         <Accordion
           disableGutters
           elevation={0}
-          defaultExpanded
-          sx={{ bgcolor: "transparent", "&:before": { display: "none" } }}
+          sx={{ bgcolor: "transparent", "&:before": { display: "none" }, mt: 0.5 }}
         >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 36 }}>
-            <Typography variant="body2" color="text.secondary">
-              Shiny polish (no scroll)
+          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 32 }}>
+            <Typography variant="caption" color="text.secondary">
+              Shiny polish
+              {cheapestShiny
+                ? ` · best ${G?.items?.[cheapestShiny.key]?.name ?? cheapestShiny.key} ${formatGold(
+                    cheapestShiny.expectedCost,
+                  )}`
+                : ""}
             </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ px: 0, pt: 0 }}>
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-              Use an ingot/nugget alone at the upgrade NPC. Fail consumes the material but keeps the
-              item. Prices come from Toolkit & prices.
-            </Typography>
             <TableContainer>
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Material</TableCell>
-                    <TableCell align="right">Chance</TableCell>
-                    <TableCell align="right">Exp. tries</TableCell>
-                    <TableCell align="right">EV gold</TableCell>
+                    <TableCell sx={{ py: 0.5 }}>Material</TableCell>
+                    <TableCell align="right" sx={{ py: 0.5 }}>
+                      Chance
+                    </TableCell>
+                    <TableCell align="right" sx={{ py: 0.5 }}>
+                      EV
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1359,21 +1355,18 @@ export function SideEffectsPanel({
                           : undefined
                       }
                     >
-                      <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <ItemInstance itemInfo={{ name: o.key as ItemKey }} size={ICON} tooltip />
+                      <TableCell sx={{ py: 0.5 }}>
+                        <Stack direction="row" spacing={0.75} alignItems="center">
+                          <ItemInstance itemInfo={{ name: o.key as ItemKey }} size={22} tooltip />
                           <Typography variant="body2">
                             {G?.items?.[o.key]?.name ?? o.key}
                           </Typography>
                         </Stack>
                       </TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                      <TableCell align="right" sx={{ py: 0.5, fontVariantNumeric: "tabular-nums" }}>
                         {formatChancePct(o.chance)}
                       </TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
-                        {formatAttempts(o.chance)}
-                      </TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                      <TableCell align="right" sx={{ py: 0.5, fontVariantNumeric: "tabular-nums" }}>
                         {formatGold(o.expectedCost)}
                       </TableCell>
                     </TableRow>
@@ -1391,8 +1384,8 @@ export function SideEffectsPanel({
           elevation={0}
           sx={{ bgcolor: "transparent", "&:before": { display: "none" } }}
         >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 36 }}>
-            <Typography variant="body2" color="text.secondary">
+          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 32 }}>
+            <Typography variant="caption" color="text.secondary">
               Per-step odds ({eligibleSteps.length})
             </Typography>
           </AccordionSummary>
@@ -1401,35 +1394,47 @@ export function SideEffectsPanel({
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Step</TableCell>
-                    <TableCell align="right">Lucky</TableCell>
-                    {mode === "upgrade" ? <TableCell align="right">Greed</TableCell> : null}
-                    {summary.isBooster ? <TableCell align="right">Extras</TableCell> : null}
-                    <TableCell align="right">Chance</TableCell>
+                    <TableCell sx={{ py: 0.5 }}>Step</TableCell>
+                    <TableCell align="right" sx={{ py: 0.5 }}>
+                      Lucky
+                    </TableCell>
+                    {mode === "upgrade" ? (
+                      <TableCell align="right" sx={{ py: 0.5 }}>
+                        Greed
+                      </TableCell>
+                    ) : null}
+                    {summary.isBooster ? (
+                      <TableCell align="right" sx={{ py: 0.5 }}>
+                        Extras
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {eligibleSteps.map((s) => (
                     <TableRow key={`${s.fromLevel}-${s.toLevel}`}>
-                      <TableCell>
+                      <TableCell sx={{ py: 0.5 }}>
                         +{s.fromLevel}→+{s.toLevel}
                       </TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                      <TableCell align="right" sx={{ py: 0.5, fontVariantNumeric: "tabular-nums" }}>
                         {s.eligibleLucky ? formatTinyExpect(s.expectedLucky) : "—"}
                       </TableCell>
                       {mode === "upgrade" ? (
-                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        <TableCell
+                          align="right"
+                          sx={{ py: 0.5, fontVariantNumeric: "tabular-nums" }}
+                        >
                           {s.eligibleGreed ? formatTinyExpect(s.expectedGreed) : "—"}
                         </TableCell>
                       ) : null}
                       {summary.isBooster ? (
-                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        <TableCell
+                          align="right"
+                          sx={{ py: 0.5, fontVariantNumeric: "tabular-nums" }}
+                        >
                           {formatTinyExpect(s.expectedBoosterExtras)}
                         </TableCell>
                       ) : null}
-                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
-                        {formatChancePct(s.chance)}
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1437,13 +1442,6 @@ export function SideEffectsPanel({
             </TableContainer>
           </AccordionDetails>
         </Accordion>
-      ) : null}
-
-      {summary.inactiveTitles.length > 0 ? (
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-          Inactive on live server: {summary.inactiveTitles.map((t) => t.label).join(" / ")} titles
-          still exist in data but are not assigned (assignment code commented out).
-        </Typography>
       ) : null}
     </Paper>
   );
@@ -1466,20 +1464,21 @@ export function MaterialsPanel({
   });
   const maxTotal = Math.max(0, ...ranked.map((m) => (Number.isFinite(m.total) ? m.total : 0)));
   const { materialsSum, destroyGap } = materialsTotals(materials, planEv);
+  const riskPct = planEv > 0 && destroyGap > 0 ? Math.round((destroyGap / planEv) * 100) : null;
 
   return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
+    <Paper variant="outlined" sx={{ p: 1.5, height: "100%" }}>
       <Stack
         direction="row"
-        alignItems="flex-start"
+        alignItems="center"
         justifyContent="space-between"
         spacing={1}
-        sx={{ mb: 0.5 }}
+        sx={{ mb: 1 }}
       >
-        <Box>
-          <Typography variant="subtitle1">Shopping list</Typography>
-          <Typography variant="caption" color="text.secondary" display="block">
-            Buy = ceil(expected). Gold columns stay expected-value spend.
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle2">Shopping list</Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            Buy = ceil(expected) · gold is EV spend
           </Typography>
         </Box>
         <Button
@@ -1487,6 +1486,7 @@ export function MaterialsPanel({
           variant="text"
           startIcon={<ContentCopyIcon fontSize="small" />}
           disabled={!ranked.length}
+          sx={{ flexShrink: 0 }}
           onClick={() => {
             const text = formatMaterialsClipboard(
               ranked,
@@ -1501,10 +1501,11 @@ export function MaterialsPanel({
             });
           }}
         >
-          {copied ? "Copied" : "Copy list"}
+          {copied ? "Copied" : "Copy"}
         </Button>
       </Stack>
-      <Stack spacing={1} sx={{ mt: 1.25 }}>
+
+      <Stack spacing={0.75}>
         {ranked.map((m) => {
           const share = maxTotal > 0 && Number.isFinite(m.total) ? m.total / maxTotal : 0;
           const ofMats =
@@ -1513,77 +1514,100 @@ export function MaterialsPanel({
               : null;
           const isStacks = m.itemKey === "_stacks";
           const buy = isStacks ? null : buyQty(m.expectedQty);
+          const secondary = isStacks
+            ? ofMats != null
+              ? `${ofMats}%`
+              : null
+            : `~${m.expectedQty.toFixed(1)}${ofMats != null ? ` · ${ofMats}%` : ""}`;
           return (
-            <Box key={m.itemKey}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
-                  <MatIcon itemKey={m.itemKey} />
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" noWrap>
-                      {isStacks ? materialLabel(m.itemKey) : `${materialLabel(m.itemKey)} × ${buy}`}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {isStacks
-                        ? ofMats != null
-                          ? `${ofMats}% of materials`
-                          : null
-                        : `expect ${m.expectedQty.toFixed(2)}${
-                            ofMats != null ? ` · ${ofMats}% of materials` : ""
-                          }`}
-                    </Typography>
-                  </Box>
-                </Stack>
-                <Typography
-                  variant="body2"
-                  fontWeight={500}
-                  sx={{ fontVariantNumeric: "tabular-nums", flexShrink: 0 }}
+            <Stack
+              key={m.itemKey}
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              sx={{ minWidth: 0 }}
+            >
+              <MatIcon itemKey={m.itemKey} />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  spacing={1}
+                  alignItems="baseline"
                 >
-                  {formatGold(m.total)}
-                </Typography>
-              </Stack>
-              <Box sx={{ mt: 0.5, ml: `${ICON + 8}px` }}>
-                <CostShareBar share={share} />
+                  <Typography variant="body2" noWrap>
+                    {isStacks ? materialLabel(m.itemKey) : `${materialLabel(m.itemKey)} × ${buy}`}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    fontWeight={600}
+                    sx={{ fontVariantNumeric: "tabular-nums", flexShrink: 0 }}
+                  >
+                    {formatGold(m.total)}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.25 }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <CostShareBar share={share} />
+                  </Box>
+                  {secondary ? (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ flexShrink: 0, fontVariantNumeric: "tabular-nums" }}
+                    >
+                      {secondary}
+                    </Typography>
+                  ) : null}
+                </Stack>
               </Box>
-            </Box>
+            </Stack>
           );
         })}
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          sx={{ pt: 1, borderTop: 1, borderColor: "divider" }}
-        >
-          <Typography fontWeight={600}>Materials subtotal</Typography>
-          <Typography fontWeight={600} sx={{ fontVariantNumeric: "tabular-nums" }}>
-            {formatGold(materialsSum)}
-          </Typography>
-        </Stack>
-        {destroyGap > 0 ? (
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Box>
-              <Typography variant="body2" color="text.secondary">
-                Destroy / base risk
-              </Typography>
-              <Typography variant="caption" color="warning.main">
-                {planEv > 0 ? `${Math.round((destroyGap / planEv) * 100)}% of plan EV` : ""}
-              </Typography>
-            </Box>
-            <Typography
-              variant="body2"
-              color="warning.main"
-              fontWeight={600}
-              sx={{ fontVariantNumeric: "tabular-nums" }}
-            >
-              {formatGold(destroyGap)}
-            </Typography>
-          </Stack>
-        ) : null}
-        <Stack direction="row" justifyContent="space-between">
-          <Typography fontWeight={600}>Plan EV</Typography>
-          <Typography fontWeight={600} sx={{ fontVariantNumeric: "tabular-nums" }}>
-            {formatGold(planEv)}
-          </Typography>
-        </Stack>
       </Stack>
+
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 1,
+          alignItems: "center",
+          justifyContent: "space-between",
+          mt: 1.25,
+          pt: 1,
+          borderTop: 1,
+          borderColor: "divider",
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          Materials{" "}
+          <Box
+            component="span"
+            sx={{ fontWeight: 700, color: "text.primary", fontVariantNumeric: "tabular-nums" }}
+          >
+            {formatGold(materialsSum)}
+          </Box>
+          {destroyGap > 0 ? (
+            <>
+              {" · "}
+              <Box component="span" sx={{ color: "warning.main" }}>
+                risk{" "}
+                <Box component="span" sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                  {formatGold(destroyGap)}
+                </Box>
+                {riskPct != null ? ` (${riskPct}%)` : ""}
+              </Box>
+            </>
+          ) : null}
+        </Typography>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ fontVariantNumeric: "tabular-nums" }}
+        >
+          plan {formatGold(planEv)}
+        </Typography>
+      </Box>
     </Paper>
   );
 }
