@@ -171,6 +171,7 @@ export function GearPlanner() {
     <Container>
       <Grid container rowSpacing={1}>
         <Grid item xs={12}>
+          <Typography gutterBottom>Level {level}</Typography>
           <Slider
             aria-label="Level"
             value={level}
@@ -180,6 +181,7 @@ export function GearPlanner() {
             min={1}
             max={200}
             onChange={onLevelSliderChange}
+            sx={{ mt: 3 }}
           />
           <SaveLinkButton gear={gear} characterClass={selectedClass} level={level} />
           <LoadLinkButton load={onLoadSavedLoadout} />
