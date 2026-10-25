@@ -50,6 +50,7 @@ import {
   POLISH_MATERIAL_KEYS,
   PriceTable,
   STAT_SCROLL_PROXY_KEY,
+  scrollKeyForUpgrade,
   UPGRADE_SCROLL_KEYS,
 } from "../gameData/upgradePrices";
 import { GDataContext } from "../GDataContext";
@@ -58,11 +59,18 @@ import { ItemInstance } from "../Shared/ItemInstance";
 import { useMerchants } from "../Market/useMerchants";
 import { UpgradeCalcHelpButton } from "./UpgradeCalcHelp";
 import {
+  GREED_QUICK_PICKS,
+  GreedScrollKey,
+  minGreedEligibleLevel,
+  planGreedFarm,
+} from "../gameData/greedFarm";
+import {
   applyShinyPolishToSummary,
   listShinyPolishOptions,
   pickShinyPolish,
   summarizeUpgradeSideEffects,
 } from "../gameData/upgradeSideEffects";
+import { GreedFarmResults, greedCompareForLevel } from "./GreedFarmResults";
 import {
   CopyPlanLinkButton,
   EvDeltaBanner,
@@ -622,7 +630,7 @@ function EmptyPickState({
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Search in the sidebar, or start from a recent, market, or random{" "}
-        {mode === "compound" ? "compound" : "upgrade"} item.
+        {mode === "compound" ? "compound" : mode === "greed" ? "farm" : "upgrade"} item.
       </Typography>
       {hasAny ? (
         <>
@@ -655,6 +663,15 @@ export function UpgradeCalculator() {
 
   const selectItem = (key: ItemKey | "") => {
     if (key) setRecentItems(pushRecentItem(key));
+    if (key && params.mode === "greed" && G?.items?.[key]) {
+      const def = G.items[key];
+      const minLv = minGreedEligibleLevel(def);
+      const from = Number.isFinite(minLv) ? minLv : 0;
+      const grade = getItemGrade(def, from);
+      const minScroll = scrollKeyForUpgrade(Math.max(1, grade)) ?? "scroll1";
+      patch({ item: key, from, greedScroll: minScroll });
+      return;
+    }
     patch({ item: key });
   };
 
@@ -699,7 +716,7 @@ export function UpgradeCalculator() {
   const midPathStart = params.mode === "upgrade" && params.from > 0;
 
   const cheapest = useMemo(() => {
-    if (!ctx || !gItem || !itemKey) return null;
+    if (!ctx || !gItem || !itemKey || params.mode === "greed") return null;
     if (params.mode === "compound") {
       return planCompoundPath(ctx, itemKey, itemValue, params.target, "costOptimal");
     }
@@ -710,7 +727,7 @@ export function UpgradeCalculator() {
   }, [ctx, gItem, itemKey, itemValue, params]);
 
   const fewest = useMemo(() => {
-    if (!ctx || !gItem || !itemKey) return null;
+    if (!ctx || !gItem || !itemKey || params.mode === "greed") return null;
     if (params.mode === "compound") {
       return planCompoundPath(ctx, itemKey, itemValue, params.target, "bestOdds");
     }
@@ -719,6 +736,35 @@ export function UpgradeCalculator() {
       startLevel: params.from,
     });
   }, [ctx, gItem, itemKey, itemValue, params]);
+
+  const greedFarm = useMemo(() => {
+    if (params.mode !== "greed" || !gItem?.upgrade || !itemKey) return null;
+    return planGreedFarm({
+      gItem,
+      itemKey,
+      level: params.from,
+      scrollKey: params.greedScroll,
+      offering: params.greedOffering,
+      itemUnit: itemValue,
+      prices,
+      luckySlot: params.luckySlot,
+      tables,
+      targetCount: params.greedTarget,
+    });
+  }, [params, gItem, itemKey, itemValue, prices, tables]);
+
+  const greedCompare = useMemo(() => {
+    if (params.mode !== "greed" || !gItem?.upgrade || !itemKey) return [];
+    return greedCompareForLevel({
+      gItem,
+      itemKey,
+      level: params.from,
+      itemUnit: itemValue,
+      prices,
+      luckySlot: params.luckySlot,
+      tables,
+    });
+  }, [params, gItem, itemKey, itemValue, prices, tables]);
 
   const itemIgrade = gItem ? getItemGrade(gItem, 0) : 0;
 
@@ -777,6 +823,7 @@ export function UpgradeCalculator() {
 
   const sideEffects = useMemo(() => {
     if (!summary) return null;
+    if (params.mode !== "upgrade" && params.mode !== "compound") return null;
     return summarizeUpgradeSideEffects({
       steps: summary.steps,
       gItem,
@@ -890,6 +937,7 @@ export function UpgradeCalculator() {
       if (params.mode === "compound") {
         if (item.compound) keys.push(key);
       } else if (item.upgrade) {
+        // Upgrade + Greed farm both need upgradeable gear (any source: vendor, drop, event).
         keys.push(key);
       }
     }
@@ -925,6 +973,8 @@ export function UpgradeCalculator() {
   }
 
   const itemName = gItem?.name ?? itemKey;
+  const pathMode: Exclude<CalcMode, "greed"> | null =
+    params.mode === "upgrade" || params.mode === "compound" ? params.mode : null;
 
   return (
     <Box
@@ -952,13 +1002,15 @@ export function UpgradeCalculator() {
           <Typography variant="body2" color="text.secondary">
             {itemKey && gItem
               ? `${gItem.name} · ${
-                  params.mode === "compound"
+                  params.mode === "greed"
+                    ? `greed farm at +${params.from}`
+                    : params.mode === "compound"
                     ? `compound to +${params.target}`
                     : params.from > 0
                     ? `+${params.from} → +${params.target}`
                     : `upgrade to +${params.target}`
                 }`
-              : "Plan upgrade and compound paths. Pick Cheapest for minimum expected gold, or Fewest Copies when base items are scarce."}
+              : "Plan upgrade/compound paths, or farm Essence of Greed from any upgradeable item (set its unit price)."}
           </Typography>
         </Box>
         <Stack
@@ -1010,12 +1062,19 @@ export function UpgradeCalculator() {
             >
               <Tab label="Upgrade" value="upgrade" />
               <Tab label="Compound" value="compound" />
+              <Tab label="Greed" value="greed" />
             </Tabs>
 
             <SimEntityAutocomplete
               options={itemOptions}
               value={itemKey || null}
-              label={params.mode === "compound" ? "Compound item" : "Upgrade item"}
+              label={
+                params.mode === "compound"
+                  ? "Compound item"
+                  : params.mode === "greed"
+                  ? "Farm item"
+                  : "Upgrade item"
+              }
               onChange={(value) => selectItem((value ?? "") as ItemKey | "")}
               getOptionLabel={(option) => {
                 const item = G.items[option];
@@ -1048,11 +1107,15 @@ export function UpgradeCalculator() {
             <Stack direction="row" alignItems="center" spacing={1}>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography variant="body2" color="text.secondary">
-                  Base item cost
+                  {params.mode === "greed" ? "Item unit price" : "Base item cost"}
                 </Typography>
                 {itemKey && priceOverrides[itemKey] != null ? (
                   <Typography variant="caption" color="primary.main">
                     edited
+                  </Typography>
+                ) : params.mode === "greed" ? (
+                  <Typography variant="caption" color="text.secondary">
+                    vendor / market / event
                   </Typography>
                 ) : null}
               </Box>
@@ -1063,14 +1126,127 @@ export function UpgradeCalculator() {
               />
             </Stack>
 
-            <LevelRangeControl
-              mode={params.mode}
-              from={params.from}
-              target={params.target}
-              maxTarget={maxTarget}
-              onFrom={(from) => patch({ from })}
-              onTarget={(target) => patch({ target })}
-            />
+            {params.mode === "greed" ? (
+              <>
+                <SidebarSection title="Quick picks">
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                    {GREED_QUICK_PICKS.filter((k) => G.items[k]?.upgrade).map((key) => (
+                      <Chip
+                        key={key}
+                        size="small"
+                        label={G.items[key]?.name ?? key}
+                        color={itemKey === key ? "primary" : "default"}
+                        variant={itemKey === key ? "filled" : "outlined"}
+                        onClick={() => selectItem(key)}
+                      />
+                    ))}
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                    sx={{ mt: 0.75 }}
+                  >
+                    Any upgradeable item works — edit unit price for drops and event gear.
+                  </Typography>
+                </SidebarSection>
+
+                <SidebarSection title="Farm level">
+                  <Stack spacing={1}>
+                    <LevelStepper
+                      label="Level"
+                      value={params.from}
+                      min={0}
+                      max={12}
+                      onChange={(from) => patch({ from })}
+                    />
+                    {gItem ? (
+                      <Typography variant="caption" color="text.secondary">
+                        High grade+ from +{minGreedEligibleLevel(gItem)}
+                        {greedFarm && greedFarm.eligible
+                          ? ` · ${formatChancePct(greedFarm.chance)} with kit`
+                          : ""}
+                      </Typography>
+                    ) : null}
+                  </Stack>
+                </SidebarSection>
+
+                <SidebarSection title="Target essences">
+                  <LevelStepper
+                    label="Count"
+                    value={params.greedTarget}
+                    min={1}
+                    max={100}
+                    onChange={(greedTarget) => patch({ greedTarget })}
+                  />
+                </SidebarSection>
+
+                <SidebarSection title="Scroll">
+                  <ToggleButtonGroup
+                    exclusive
+                    size="small"
+                    fullWidth
+                    value={params.greedScroll}
+                    onChange={(_, v: GreedScrollKey | null) => v && patch({ greedScroll: v })}
+                  >
+                    {(["scroll0", "scroll1", "scroll2", "scroll3"] as const).map((key) => (
+                      <ToggleButton key={key} value={key} sx={{ fontSize: 11, px: 0.5 }}>
+                        {key.replace("scroll", "s")}
+                      </ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+                </SidebarSection>
+
+                <SidebarSection title="Offering">
+                  <ToggleButtonGroup
+                    exclusive
+                    size="small"
+                    fullWidth
+                    value={params.greedOffering == null ? "none" : String(params.greedOffering)}
+                    onChange={(_, v: string | null) => {
+                      if (v == null) return;
+                      if (v === "none") patch({ greedOffering: null });
+                      else patch({ greedOffering: Number(v) as 0 | 1 | 2 });
+                    }}
+                  >
+                    <ToggleButton value="none" sx={{ fontSize: 11, px: 0.5 }}>
+                      None
+                    </ToggleButton>
+                    <ToggleButton value="0" sx={{ fontSize: 11, px: 0.5 }}>
+                      Primling
+                    </ToggleButton>
+                    <ToggleButton value="1" sx={{ fontSize: 11, px: 0.5 }}>
+                      Primordial
+                    </ToggleButton>
+                    <ToggleButton value="2" sx={{ fontSize: 11, px: 0.5 }}>
+                      Prim X
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                </SidebarSection>
+
+                <SidebarSection title="Chance modifiers">
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        size="small"
+                        checked={params.luckySlot}
+                        onChange={(e) => patch({ luckySlot: e.target.checked })}
+                      />
+                    }
+                    label="Lucky Slot"
+                  />
+                </SidebarSection>
+              </>
+            ) : (
+              <LevelRangeControl
+                mode={params.mode}
+                from={params.from}
+                target={params.target}
+                maxTarget={maxTarget}
+                onFrom={(from) => patch({ from })}
+                onTarget={(target) => patch({ target })}
+              />
+            )}
 
             {params.mode === "upgrade" ? (
               <SidebarSection title="Chance modifiers">
@@ -1151,9 +1327,11 @@ export function UpgradeCalculator() {
                     Toolkit & prices
                   </Typography>
                   <Typography variant="caption" color="text.secondary" display="block">
-                    {enabledOfferingCount}/{offeringKeys.length} offerings
-                    {params.scroll4 ? " · scroll4 on" : ""}
-                    {params.mode === "upgrade" && params.primlings ? " · primlings" : ""}
+                    {params.mode === "greed"
+                      ? "Scroll & offering unit prices"
+                      : `${enabledOfferingCount}/${offeringKeys.length} offerings${
+                          params.scroll4 ? " · scroll4 on" : ""
+                        }${params.mode === "upgrade" && params.primlings ? " · primlings" : ""}`}
                   </Typography>
                 </Box>
               </AccordionSummary>
@@ -1169,12 +1347,18 @@ export function UpgradeCalculator() {
                           price={prices[key] ?? 0}
                           onPriceChange={(n) => setPrice(key, n)}
                           overridden={priceOverrides[key] != null}
-                          enabled={offeringEnabled(key, params)}
-                          onEnabledChange={(v) => {
-                            if (key === "offeringp") patch({ offeringp: v });
-                            else if (key === "offering") patch({ offering: v });
-                            else patch({ offeringx: v });
-                          }}
+                          enabled={
+                            params.mode === "greed" ? undefined : offeringEnabled(key, params)
+                          }
+                          onEnabledChange={
+                            params.mode === "greed"
+                              ? undefined
+                              : (v) => {
+                                  if (key === "offeringp") patch({ offeringp: v });
+                                  else if (key === "offering") patch({ offering: v });
+                                  else patch({ offeringx: v });
+                                }
+                          }
                           extra={
                             key === "offeringp" && params.mode === "upgrade" ? (
                               <FormControlLabel
@@ -1307,14 +1491,24 @@ export function UpgradeCalculator() {
             />
           )}
 
-          {itemKey && midPathStart ? (
+          {itemKey && params.mode === "greed" ? (
+            <GreedFarmResults
+              itemKey={itemKey}
+              itemName={itemName}
+              result={greedFarm}
+              compareRows={greedCompare}
+              onPickKit={(greedScroll, greedOffering) => patch({ greedScroll, greedOffering })}
+            />
+          ) : null}
+
+          {itemKey && midPathStart && params.mode !== "greed" ? (
             <Alert severity="info" sx={{ py: 0.5 }}>
               Mid-path starts use the max-chance chain per step. Pareto Cheapest still needs a +0
               start.
             </Alert>
           ) : null}
 
-          {itemKey ? (
+          {itemKey && pathMode ? (
             <>
               {!midPathStart ? (
                 <>
@@ -1398,7 +1592,7 @@ export function UpgradeCalculator() {
                   <PlanHero
                     itemKey={itemKey}
                     itemName={itemName}
-                    mode={params.mode}
+                    mode={pathMode}
                     from={params.from}
                     target={params.target}
                     strategy={midPathStart ? "fewest" : params.strategy}
@@ -1449,10 +1643,10 @@ export function UpgradeCalculator() {
                     offeringp={params.offeringp}
                     offering={params.offering}
                     offeringx={params.offeringx}
-                    mode={params.mode}
+                    mode={pathMode}
                     onToggle={(key) => patch({ [key]: !params[key] })}
                   />
-                  {params.wantShiny && params.mode === "upgrade" && !shinyPolish ? (
+                  {params.wantShiny && pathMode === "upgrade" && !shinyPolish ? (
                     <Alert severity="warning" sx={{ py: 0.5 }}>
                       No valid polish material for this item&apos;s grade. Raise polish tier or
                       check prices in Toolkit.
@@ -1477,7 +1671,7 @@ export function UpgradeCalculator() {
                     {sideEffects ? (
                       <SideEffectsPanel
                         summary={sideEffects}
-                        mode={params.mode}
+                        mode={pathMode}
                         luckySlot={params.luckySlot}
                       />
                     ) : null}

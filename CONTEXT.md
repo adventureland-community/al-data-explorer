@@ -24,6 +24,7 @@ Domain language for al-data-explorer (Items Explorer focus).
 | **Failstack / Primestack** | Helmet-proxy farm costs (`upgradeStacks`) that buy personal ugrace / ograce for Cheapest. Optional **Server ugrace** folds `S.ugrace`-style bonus from the same failstack count into chance.                                                                                                                                                                                                                         |
 | **Stat scroll grace**      | Server technique: upgrade with a `pscroll` + any offering grants +1 `item.grace` (qty `needed[grade]` of the property scroll). Toggleable in the calculator; costs use a proxy pscroll price (`strscroll`). Only items with a non-zero `stat` pool accept property scrolls.                                                                                                                                          |
 | **Upgrade side effects**   | Live RNG outside plan EV: chance-edge **Lucky** / **Essence of Greed**; 2.5% bonus grace; **Dark Tri-Stone** (1.2% on ctristone 0→1); booster extras. **Polish Shiny** is a plan toggle that appends an ingot/nugget polish step (fail keeps item). Fast/Super Fast titles are inactive. |
+| **Greed farm**             | Calculator mode for Essence of Greed: spam one High-grade+ upgrade step. Any upgradeable item (vendor, drop, event) with an editable unit price; scroll/offering kit; target essence count. EV = attempt cost / P(edge fail). |
 
 ## Related (not yet deepened)
 

@@ -65,6 +65,13 @@ function HelpBody() {
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
+        <strong>Greed</strong> mode farms <em>Essence of Greed</em>: pick any upgradeable item, set
+        its unit price (vendor catalog default, or market/event estimate), farm at a High-grade+
+        level, and choose scroll/offering. Expected gold is attempt cost ÷ edge-fail chance
+        (~1/10000 slice). Keep a free inventory slot or the drop is skipped.
+      </Typography>
+
+      <Typography variant="body2" color="text.secondary">
         <strong>Side effects</strong> (under the shopping list, not in plan EV):
       </Typography>
       <Typography variant="body2" color="text.secondary" component="div">

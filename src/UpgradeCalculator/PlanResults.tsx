@@ -33,7 +33,7 @@ import {
 import { SideEffectSummary } from "../gameData/upgradeSideEffects";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { CalcStrategy } from "./useUpgradeCalcParams";
+import { CalcMode, CalcStrategy } from "./useUpgradeCalcParams";
 
 const ICON = 28;
 
@@ -822,7 +822,7 @@ export function PlanHero({
 }: {
   itemKey: string;
   itemName: string;
-  mode: "upgrade" | "compound";
+  mode: Exclude<CalcMode, "greed">;
   from?: number;
   target: number;
   strategy: CalcStrategy;
@@ -1125,7 +1125,7 @@ export function PlanModifiersChips({
   offeringp: boolean;
   offering: boolean;
   offeringx: boolean;
-  mode: "upgrade" | "compound";
+  mode: Exclude<CalcMode, "greed">;
   onToggle: (
     key:
       | "luckySlot"
@@ -1277,7 +1277,7 @@ export function SideEffectsPanel({
   luckySlot,
 }: {
   summary: SideEffectSummary;
-  mode: "upgrade" | "compound";
+  mode: Exclude<CalcMode, "greed">;
   luckySlot: boolean;
 }) {
   const eligibleSteps = summary.steps.filter(

@@ -1,13 +1,17 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-export type CalcMode = "upgrade" | "compound";
+import { GreedScrollKey } from "../gameData/greedFarm";
+import { OfferingChoice } from "../gameData/upgradeChance";
+import { UPGRADE_SCROLL_KEYS } from "../gameData/upgradePrices";
+
+export type CalcMode = "upgrade" | "compound" | "greed";
 export type CalcStrategy = "cheapest" | "fewest";
 
 export type UpgradeCalcParams = {
   mode: CalcMode;
   item: string;
-  /** Starting level (inclusive). Upgrade-only; compound always plans from +0. */
+  /** Starting level (inclusive). Upgrade-only; compound always plans from +0. Greed = farm level. */
   from: number;
   target: number;
   strategy: CalcStrategy;
@@ -24,6 +28,12 @@ export type UpgradeCalcParams = {
   offeringp: boolean;
   offering: boolean;
   offeringx: boolean;
+  /** Greed farm: uscroll key. */
+  greedScroll: GreedScrollKey;
+  /** Greed farm: offering grade (null = none). */
+  greedOffering: OfferingChoice;
+  /** Greed farm: target essence count. */
+  greedTarget: number;
 };
 
 const DEFAULTS: UpgradeCalcParams = {
@@ -42,10 +52,16 @@ const DEFAULTS: UpgradeCalcParams = {
   offeringp: true,
   offering: true,
   offeringx: true,
+  /** High+ farm levels need scroll grade ≥ item grade; scroll0 never works for greed. */
+  greedScroll: "scroll1",
+  greedOffering: null,
+  greedTarget: 1,
 };
 
 function parseMode(raw: string | null): CalcMode {
-  return raw === "compound" ? "compound" : "upgrade";
+  if (raw === "compound") return "compound";
+  if (raw === "greed") return "greed";
+  return "upgrade";
 }
 
 function parseStrategy(raw: string | null): CalcStrategy {
@@ -60,11 +76,15 @@ function parseBool(raw: string | null, fallback: boolean): boolean {
 }
 
 function maxTarget(mode: CalcMode): number {
-  return mode === "compound" ? 5 : 12;
+  if (mode === "compound") return 5;
+  if (mode === "greed") return 12;
+  return 12;
 }
 
 function defaultTarget(mode: CalcMode): number {
-  return mode === "compound" ? 3 : 7;
+  if (mode === "compound") return 3;
+  if (mode === "greed") return 1;
+  return 7;
 }
 
 function parseTarget(raw: string | null, mode: CalcMode): number {
@@ -80,7 +100,37 @@ function parseFrom(raw: string | null, mode: CalcMode, target: number): number {
   if (raw == null || raw === "") return 0;
   const n = Math.floor(Number(raw));
   if (!Number.isFinite(n) || n < 0) return 0;
+  if (mode === "greed") return Math.min(n, 12);
   return Math.min(n, Math.max(0, target - 1));
+}
+
+function parseGreedScroll(raw: string | null): GreedScrollKey {
+  if (raw && (UPGRADE_SCROLL_KEYS as readonly string[]).includes(raw)) {
+    return raw as GreedScrollKey;
+  }
+  return DEFAULTS.greedScroll;
+}
+
+function parseGreedOffering(raw: string | null): OfferingChoice {
+  if (raw == null || raw === "" || raw === "none") return null;
+  if (raw === "offeringp" || raw === "0") return 0;
+  if (raw === "offering" || raw === "1") return 1;
+  if (raw === "offeringx" || raw === "2") return 2;
+  return null;
+}
+
+function parseGreedTarget(raw: string | null): number {
+  if (raw == null || raw === "") return DEFAULTS.greedTarget;
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n) || n < 1) return DEFAULTS.greedTarget;
+  return Math.min(n, 10_000);
+}
+
+function greedOfferingParam(offering: OfferingChoice): string | null {
+  if (offering == null) return null;
+  if (offering === 0) return "offeringp";
+  if (offering === 1) return "offering";
+  return "offeringx";
 }
 
 export function parseUpgradeCalcParams(searchParams: URLSearchParams): UpgradeCalcParams {
@@ -102,6 +152,9 @@ export function parseUpgradeCalcParams(searchParams: URLSearchParams): UpgradeCa
     offeringp: parseBool(searchParams.get("op"), DEFAULTS.offeringp),
     offering: parseBool(searchParams.get("o"), DEFAULTS.offering),
     offeringx: parseBool(searchParams.get("ox"), DEFAULTS.offeringx),
+    greedScroll: parseGreedScroll(searchParams.get("gscroll")),
+    greedOffering: parseGreedOffering(searchParams.get("goffer")),
+    greedTarget: parseGreedTarget(searchParams.get("n")),
   };
 }
 
@@ -109,6 +162,15 @@ function writeParams(params: UpgradeCalcParams): URLSearchParams {
   const sp = new URLSearchParams();
   if (params.mode !== DEFAULTS.mode) sp.set("mode", params.mode);
   if (params.item) sp.set("item", params.item);
+  if (params.mode === "greed") {
+    if (params.from > 0) sp.set("from", String(params.from));
+    if (params.greedScroll !== DEFAULTS.greedScroll) sp.set("gscroll", params.greedScroll);
+    const go = greedOfferingParam(params.greedOffering);
+    if (go) sp.set("goffer", go);
+    if (params.greedTarget !== DEFAULTS.greedTarget) sp.set("n", String(params.greedTarget));
+    if (params.luckySlot) sp.set("lucky", "1");
+    return sp;
+  }
   if (params.from > 0 && params.mode === "upgrade") sp.set("from", String(params.from));
   if (params.target !== defaultTarget(params.mode)) {
     sp.set("target", String(params.target));
@@ -139,11 +201,20 @@ function normalizePatch(
   if (partial.mode === "compound" || (next.mode === "compound" && partial.from == null)) {
     next.from = 0;
   }
-  if (next.mode === "compound") {
+  if (next.mode === "compound" || next.mode === "greed") {
     next.wantShiny = false;
     next.polish = "";
   }
   if (!next.wantShiny) next.polish = "";
+
+  if (next.mode === "greed") {
+    next.from = Math.min(Math.max(0, next.from), 12);
+    next.greedTarget = Math.min(Math.max(1, Math.floor(next.greedTarget)), 10_000);
+    if (!(UPGRADE_SCROLL_KEYS as readonly string[]).includes(next.greedScroll)) {
+      next.greedScroll = DEFAULTS.greedScroll;
+    }
+    return next;
+  }
 
   const cap = maxTarget(next.mode);
   next.target = Math.min(Math.max(1, next.target), cap);
