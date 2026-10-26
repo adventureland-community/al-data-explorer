@@ -18,10 +18,12 @@ import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom
 import { useContext, useMemo } from "react";
 import { GCraft, ItemKey } from "typed-adventureland";
 
+import { listCxJarVariants } from "../gameData/cxJarVariants";
 import { GDismantle } from "../gameData/dismantle";
 import { craftRowKey, formatCraftCost, parseCraftRow } from "../gameData/craftRecipe";
 import type { CraftRecipeRow } from "../gameData/craftRecipe";
 import type { ItemEffectView } from "../gameData/itemEffects";
+import { parseCraftOutput } from "../gameData/itemInstanceData";
 import {
   getItemBadges,
   getItemFacts,
@@ -41,6 +43,7 @@ import {
 import { effectLookupsFromG } from "../gameData/itemEffects";
 import { CustomGData, GDataContext } from "../GDataContext";
 import { ItemImage } from "../ItemImage";
+import { CxJarContentSprite } from "../Shared/CxJarItemSprite";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { RecipeItemTile } from "../Shared/RecipeItemTile";
 import { LoadingState } from "../Shared/LoadingState";
@@ -257,6 +260,12 @@ function CraftRecipeCard({
   craft: GCraft;
   items: CustomGData["items"];
 }) {
+  const output = parseCraftOutput(craft as { output?: unknown }, itemKey);
+  const outputItem = items[output.name as ItemKey];
+  const outputLabel = [outputItem?.name ?? output.name, output.data ? `· ${output.data}` : null]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <Paper sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom>
@@ -273,9 +282,95 @@ function CraftRecipeCard({
         </Typography>
       )}
       <IngredientTiles items={items} rows={craft.items ?? []} />
-      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-        Output: {items[itemKey]?.name ?? itemKey}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
+        <ItemInstance
+          itemInfo={
+            {
+              name: output.name as ItemKey,
+              ...(output.data ? { data: output.data } : {}),
+            } as never
+          }
+          size={32}
+          linkToDetail={output.name !== itemKey}
+        />
+        <Typography variant="caption" color="text.secondary">
+          Output: {outputLabel}
+          {output.name !== itemKey ? ` (${output.name})` : null}
+        </Typography>
+      </Box>
+    </Paper>
+  );
+}
+
+function CxJarVariantsCard({ G }: { G: CustomGData }) {
+  const variants = useMemo(() => listCxJarVariants(G), [G]);
+  if (variants.length === 0) return null;
+
+  return (
+    <Paper sx={{ p: 2, mb: 2 }}>
+      <Typography variant="h6" gutterBottom>
+        Jar contents
       </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        Each CX Jar stores a cosmetic in <code>ItemInfo.data</code>. Activate the jar to unlock it.
+      </Typography>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+          gap: 1.25,
+        }}
+      >
+        {variants.map((variant) => {
+          const source = variant.sources[0];
+          const sourceLabel =
+            source?.kind === "drop"
+              ? `${source.label} · ${source.oddsLabel}`
+              : source?.kind === "token"
+              ? source.costLabel
+              : source?.kind === "craft"
+              ? source.label
+              : undefined;
+          return (
+            <Box
+              key={variant.data}
+              component={RouterLink}
+              to={`/cosmetics?q=${encodeURIComponent(variant.data)}`}
+              sx={{
+                textDecoration: "none",
+                color: "inherit",
+                p: 1,
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 1,
+                minWidth: 0,
+              }}
+            >
+              <CxJarContentSprite data={variant.data} size={40} />
+              <Typography
+                variant="caption"
+                display="block"
+                noWrap
+                sx={{ mt: 0.5 }}
+                title={variant.data}
+              >
+                {variant.data}
+              </Typography>
+              {sourceLabel ? (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  noWrap
+                  title={sourceLabel}
+                >
+                  {sourceLabel}
+                </Typography>
+              ) : null}
+            </Box>
+          );
+        })}
+      </Box>
     </Paper>
   );
 }
@@ -643,6 +738,7 @@ export function ItemDetail() {
           </Box>
         </Grid>
         <Grid item xs={12} md={7}>
+          {key === "cxjar" ? <CxJarVariantsCard G={G} /> : null}
           <ItemSourcesPanel itemKey={key} G={G} />
         </Grid>
       </Grid>

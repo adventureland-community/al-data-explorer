@@ -1,4 +1,5 @@
 import { ItemKey } from "typed-adventureland";
+import { instanceVariantKey } from "../../gameData/itemInstanceData";
 import {
   analyzeCompoundCombines,
   analyzeCraftRecipes,
@@ -15,6 +16,9 @@ import {
   groupCombineSteps,
 } from "../bankAnalysis";
 import { AggregatedBankItem } from "../bankItems";
+
+/** Plain (no title / no data) market variant key — matches `groupItemsByNameAndLevel`. */
+const PLAIN_VARIANT = instanceVariantKey({});
 
 const hpot: AggregatedBankItem = {
   name: "hpot0",
@@ -194,7 +198,7 @@ describe("computeBankSellBreakdown", () => {
     ];
     const merchantItems = {
       hpot0: {
-        "": {
+        [PLAIN_VARIANT]: {
           0: {
             buying: {
               amount: 1,
@@ -214,7 +218,7 @@ describe("computeBankSellBreakdown", () => {
         },
       },
       gem0: {
-        "": {
+        [PLAIN_VARIANT]: {
           0: {
             buying: {
               amount: 1,
@@ -251,7 +255,7 @@ describe("computeBankSellBreakdown", () => {
       [{ name: "vitbelt" as ItemKey, level: 3, q: 5, stack: 1, category: "Belts" }],
       {
         vitbelt: {
-          "": {
+          [PLAIN_VARIANT]: {
             3: {
               buying: {
                 amount: 2,
@@ -302,7 +306,7 @@ describe("computeBankSellBreakdown", () => {
       ],
       {
         hpot0: {
-          "": {
+          [PLAIN_VARIANT]: {
             0: {
               buying: {
                 amount: 1,

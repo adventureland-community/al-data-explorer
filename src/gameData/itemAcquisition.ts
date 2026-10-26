@@ -63,6 +63,8 @@ export type AcquisitionTokenView = {
   tokenCost: number;
   /** Items received per purchase. */
   quantity: number;
+  /** Instance data on the purchased item (cxjar cosmetic id). */
+  data?: string;
   npcId?: string;
   npcLabel?: string;
   linkTo: string;
@@ -231,8 +233,16 @@ function toDropAndExchangeViews(
       }
     }
 
+    const payloadBits = [
+      drop.title ? (drop.itemKey === "cxjar" ? `Contains ${drop.title}` : drop.title) : null,
+      drop.quantity != null && drop.quantity > 1 ? `×${drop.quantity}` : null,
+    ].filter(Boolean);
+    if (payloadBits.length) {
+      secondary = [secondary, ...payloadBits].filter(Boolean).join(" · ") || undefined;
+    }
+
     drops.push({
-      id: `${drop.sourceType}-${drop.sourceKey}-${drop.itemKey}-${oddsLabel}`,
+      id: `${drop.sourceType}-${drop.sourceKey}-${drop.itemKey}-${drop.title}-${oddsLabel}`,
       sourceType: drop.sourceType,
       sourceKey: drop.sourceKey,
       label,
@@ -302,6 +312,7 @@ function toTokenViews(offers: TokenOfferSource[], items: GItems): AcquisitionTok
       costLabel,
       tokenCost: normalized.tokenCost,
       quantity: normalized.quantity,
+      data: offer.data,
       npcId: offer.npcId ?? undefined,
       npcLabel: offer.npcName ?? offer.npcId ?? undefined,
       linkTo: `/items/${offer.tokenKey}`,

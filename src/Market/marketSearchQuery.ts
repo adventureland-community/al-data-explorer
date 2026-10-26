@@ -2,7 +2,7 @@
  * Market search — market-only ops (price, merchant, buy/sell). No bank/monster fields.
  */
 
-import type { GData, ItemKey, TitleKey } from "typed-adventureland";
+import type { GData, ItemKey } from "typed-adventureland";
 
 import { itemMatchesSearch } from "../gameData/itemFilters";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
@@ -39,7 +39,9 @@ import type { BuySellItemPrices } from "./merchantTypes";
 
 export type MarketSearchRow = {
   itemName: ItemKey;
-  title: TitleKey | "";
+  title: string;
+  /** Instance data (cxjar cosmetic id). */
+  data?: string;
   level: number;
   prices: BuySellItemPrices;
 };
@@ -48,12 +50,13 @@ export type MarketClause =
   | { kind: "text"; value: string; negated?: boolean }
   | { kind: "item"; value: string; negated?: boolean }
   | { kind: "title"; value: string; negated?: boolean }
+  | { kind: "data"; value: string; negated?: boolean }
   | { kind: "merchant"; value: string; negated?: boolean }
   | { kind: "level"; amts: ParsedAmount[]; negated?: boolean }
   | { kind: "price"; amts: ParsedAmount[]; side?: "buy" | "sell" | "any"; negated?: boolean }
   | { kind: "attr"; specs: AttrSpec[]; negated?: boolean }
   | { kind: "is"; value: "buy" | "sell"; negated?: boolean }
-  | { kind: "has"; value: "title"; negated?: boolean };
+  | { kind: "has"; value: "title" | "data"; negated?: boolean };
 
 export type MarketSearchQuery = { groups: MarketClause[][] };
 
@@ -89,6 +92,7 @@ function parseClause(token: string): MarketClause | null {
   }
   if (field === "item") return withNeg({ kind: "item", value: raw });
   if (field === "title") return withNeg({ kind: "title", value: raw });
+  if (field === "data") return withNeg({ kind: "data", value: raw });
   if (field === "attr") {
     const specs = parseAttrSpecs(raw);
     if (!specs.length) return null;
@@ -129,6 +133,9 @@ function parseClause(token: string): MarketClause | null {
     if (raw.toLowerCase() === "title" || raw.toLowerCase() === "p") {
       return withNeg({ kind: "has", value: "title" });
     }
+    if (raw.toLowerCase() === "data") {
+      return withNeg({ kind: "has", value: "data" });
+    }
     return withNeg({ kind: "text", value: body });
   }
   return withNeg({ kind: "text", value: body });
@@ -151,6 +158,7 @@ function clauseMatches(ctx: MarketMatchCtx, clause: MarketClause): boolean {
         row.itemName.toLowerCase().includes(needle) ||
         display.includes(needle) ||
         String(row.title).toLowerCase().includes(needle) ||
+        Boolean(row.data?.toLowerCase().includes(needle)) ||
         Boolean(
           gItem &&
             itemMatchesSearch(row.itemName, gItem, needle, {
@@ -170,6 +178,11 @@ function clauseMatches(ctx: MarketMatchCtx, clause: MarketClause): boolean {
       const needle = clause.value.toLowerCase();
       const titleDisp = row.title && G ? getTitleName({ p: row.title }, G).toLowerCase() : "";
       hit = String(row.title).toLowerCase().includes(needle) || titleDisp.includes(needle);
+      break;
+    }
+    case "data": {
+      const needle = clause.value.toLowerCase();
+      hit = Boolean(row.data?.toLowerCase().includes(needle));
       break;
     }
     case "merchant": {
@@ -210,7 +223,7 @@ function clauseMatches(ctx: MarketMatchCtx, clause: MarketClause): boolean {
       else hit = Object.keys(row.prices.selling.merchants).length > 0;
       break;
     case "has":
-      hit = Boolean(row.title);
+      hit = clause.value === "data" ? Boolean(row.data) : Boolean(row.title);
       break;
     default: {
       const _exhaustive: never = clause;
@@ -270,6 +283,7 @@ export function buildMarketSearchSuggestions(
   if (trailing?.op === "has") {
     pushQuerySearchSection(menu, "Has", [
       { kind: "value", label: "title", hint: "Titled listing", value: "title" },
+      { kind: "value", label: "data", hint: "CX Jar cosmetic", value: "data" },
     ]);
     return menu;
   }

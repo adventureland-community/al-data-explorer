@@ -17,6 +17,7 @@ import { ItemKey } from "typed-adventureland";
 import { formatDropProbability } from "../gameData/drops";
 import { COOP_MIN_DROP_SHARE, OddsInspectionRow } from "../gameData/dropSim";
 import { nestedLeafShares } from "../gameData/dropSimViz";
+import { itemInfoFromDropFields } from "../gameData/itemInstanceData";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { abbreviateNumber } from "../Shared/utils";
@@ -76,11 +77,17 @@ function ItemCell({ row }: { row: OddsInspectionRow }) {
   const gItem = G?.items[row.itemKey as ItemKey];
   const href = gItem ? `/items/${encodeURIComponent(row.itemKey)}` : undefined;
   const displayName = gItem?.name ?? row.itemKey;
+  const itemInfo = itemInfoFromDropFields({
+    itemKey: row.itemKey,
+    quantity: row.quantity,
+    title: row.title,
+  });
+  const payload = row.title ? ` · ${row.title}` : "";
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
       <ItemInstance
-        itemInfo={{ name: row.itemKey as ItemKey, q: row.quantity ?? undefined }}
+        itemInfo={itemInfo}
         size={ITEM_ICON_SIZE}
         showQuantity={false}
         tooltip={Boolean(gItem)}
@@ -97,6 +104,7 @@ function ItemCell({ row }: { row: OddsInspectionRow }) {
         )}
         <Typography variant="caption" color="text.secondary" display="block">
           {row.itemKey}
+          {payload}
           {gItem?.tier != null ? ` · Tier ${gItem.tier}` : ""}
           {gItem?.type ? ` · ${gItem.type}${gItem.wtype ? ` ${gItem.wtype}` : ""}` : ""}
         </Typography>
@@ -326,7 +334,7 @@ export function OddsPanel({
                     const leafExp =
                       leaf.probability > 0 && leaf.probability < 1 ? 1 / leaf.probability : null;
                     return (
-                      <Fragment key={`${key}|${leaf.itemKey}|${leaf.quantity ?? ""}`}>
+                      <Fragment key={`${key}|${leaf.itemKey}|${leaf.quantity ?? ""}|${leaf.title}`}>
                         <TableRow className="odds-nested" hover>
                           <TableCell>
                             <Box
@@ -342,10 +350,11 @@ export function OddsPanel({
                                 ↳
                               </Typography>
                               <ItemInstance
-                                itemInfo={{
-                                  name: leaf.itemKey as ItemKey,
-                                  q: leaf.quantity ?? undefined,
-                                }}
+                                itemInfo={itemInfoFromDropFields({
+                                  itemKey: leaf.itemKey,
+                                  quantity: leaf.quantity,
+                                  title: leaf.title,
+                                })}
                                 size={NESTED_ICON_SIZE}
                                 showQuantity={leaf.quantity != null && leaf.quantity > 1}
                                 tooltip={Boolean(gItem)}
@@ -369,6 +378,7 @@ export function OddsPanel({
                                   display="block"
                                 >
                                   from {row.nestedTable}
+                                  {leaf.title ? ` · ${leaf.title}` : ""}
                                 </Typography>
                               </Box>
                             </Box>

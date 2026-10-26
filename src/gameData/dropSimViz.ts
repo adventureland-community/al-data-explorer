@@ -4,6 +4,7 @@ export type NestedLeafShare = {
   itemKey: string;
   probability: number;
   quantity: number | null;
+  title: string;
 };
 
 /** Expand an open nested table into leaf shares for display (exchange or kill open row). */
@@ -28,6 +29,7 @@ export function nestedLeafShares(
         itemKey: row.itemKey,
         probability: openProbability * row.probability,
         quantity: row.quantity,
+        title: row.title,
       });
     }
   }

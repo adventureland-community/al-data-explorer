@@ -70,9 +70,13 @@ describe("compareBankItems", () => {
 });
 
 describe("getUniqueItemKey", () => {
-  it("includes title, level, and name", () => {
-    expect(getUniqueItemKey({ p: "lucky", level: 7, name: "sword" })).toBe("lucky7sword");
-    expect(getUniqueItemKey({ level: 0, name: "hpot0" })).toBe("0hpot0");
+  it("includes title, level, name, and data", () => {
+    expect(getUniqueItemKey({ p: "lucky", level: 7, name: "sword" })).toBe("lucky7sword\0");
+    expect(getUniqueItemKey({ level: 0, name: "hpot0" })).toBe("0hpot0\0");
+    expect(getUniqueItemKey({ level: 0, name: "cxjar", data: "breyes" })).toBe("0cxjar\0breyes");
+    expect(getUniqueItemKey({ level: 0, name: "cxjar", data: "bathat" })).not.toBe(
+      getUniqueItemKey({ level: 0, name: "cxjar", data: "breyes" }),
+    );
   });
 });
 

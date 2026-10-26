@@ -40,6 +40,7 @@ function matchesTextTerm(
   }
   if (String(item.level).includes(needle)) return true;
   if (item.p && item.p.toLowerCase().includes(needle)) return true;
+  if (item.data && item.data.toLowerCase().includes(needle)) return true;
 
   const itemKey = item.name as ItemKey;
   const gItem = G?.items[itemKey];
@@ -81,6 +82,9 @@ function clauseMatchesItem(
       break;
     case "title":
       hit = Boolean(item.p && item.p.toLowerCase() === clause.value.toLowerCase());
+      break;
+    case "data":
+      hit = Boolean(item.data && item.data.toLowerCase() === clause.value.toLowerCase());
       break;
     case "class":
       hit = Boolean(gItem && itemMatchesClasses(gItem, [clause.value.toLowerCase()]));
@@ -138,7 +142,7 @@ function clauseMatchesItem(
   return clause.negated ? !hit : hit;
 }
 
-const OR_FIELD_KINDS = new Set(["type", "title", "class", "set", "category"]);
+const OR_FIELD_KINDS = new Set(["type", "title", "data", "class", "set", "category"]);
 
 export function bankItemMatchesQuery(
   item: BankSearchableItem,

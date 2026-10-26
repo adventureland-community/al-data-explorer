@@ -130,6 +130,31 @@ describe("buildItemTooltipLines", () => {
     });
   });
 
+  it("shows cxjar sealed cosmetic from ItemInfo.data", () => {
+    const lines = buildItemTooltipLines(
+      {
+        name: "CX Jar",
+        type: "jar",
+        explanation: "An appearance liquified and stored inside a jar.",
+        s: 9999,
+        g: 1,
+      } as never,
+      { name: "cxjar" as never, data: "breyes" } as never,
+      {
+        skills: {},
+        conditions: {},
+        sets: {},
+        items: {},
+        cosmetics: { map: { breyes: true } },
+        positions: {},
+      } as never,
+    );
+
+    expect(
+      lines.some((l) => l.kind === "stat" && l.label === "Contains" && l.value === "breyes"),
+    ).toBe(true);
+  });
+
   it("includes luck from festive title on item instance", () => {
     const lines = buildItemTooltipLines(
       {

@@ -1,5 +1,6 @@
 import type { GData, GItem, ItemInfo } from "typed-adventureland";
 
+import { appendDataBadge, getItemData } from "./itemInstanceData";
 import { buildItemTooltipLines, type ItemTooltipLine } from "./itemTooltipLines";
 
 export type EntityTooltipLine = ItemTooltipLine;
@@ -13,6 +14,8 @@ export type EntityRef =
       /** Property/stat scroll type (ItemInfo.stat_type). */
       statType?: string;
       quantity?: number;
+      /** Free-form instance payload (`ItemInfo.data`, e.g. cxjar cosmetic id). */
+      data?: string;
     }
   | { kind: "monster"; key: string }
   | { kind: "npc"; key: string };
@@ -92,19 +95,22 @@ export function buildEntityTooltipModel(entity: EntityRef, G: GData): EntityTool
     case "item": {
       const gItem = G.items?.[entity.key as keyof typeof G.items] as GItem | undefined;
       if (!gItem) return null;
+      const data = getItemData({ data: entity.data });
       const itemInfo: ItemInfo = {
         name: entity.key as ItemInfo["name"],
         level: entity.level ?? 0,
         ...(entity.title ? { p: entity.title as ItemInfo["p"] } : {}),
         ...(entity.statType ? { stat_type: entity.statType as ItemInfo["stat_type"] } : {}),
         ...(entity.quantity != null && entity.quantity > 1 ? { q: entity.quantity } : {}),
-      };
+        ...(data ? { data } : {}),
+      } as ItemInfo;
       const level = entity.level ?? 0;
       const badges: string[] = [];
       if (level > 0) badges.push(`+${level}`);
       if (entity.title) badges.push(entity.title);
       if (entity.statType) badges.push(entity.statType);
       if (entity.quantity != null && entity.quantity > 1) badges.push(`×${entity.quantity}`);
+      appendDataBadge(badges, { name: entity.key, data });
       return {
         kind: "item",
         key: entity.key,

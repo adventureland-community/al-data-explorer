@@ -531,6 +531,33 @@ function pushGlitchedTitleLine(itemInfo: ItemInfo, lines: ItemTooltipLine[]) {
   });
 }
 
+/** Mirrors html.js render_item cxjar block (Empty / Invalid / cosmetic id). */
+function pushCxJarDataLine(itemInfo: ItemInfo, G: GData, lines: ItemTooltipLine[]) {
+  if (itemInfo.name !== "cxjar") return;
+  const rawData = "data" in itemInfo ? (itemInfo as { data?: unknown }).data : undefined;
+  const data = typeof rawData === "string" ? rawData.trim() : "";
+  if (!data) {
+    lines.push({ kind: "text", text: "Empty / Anomaly", color: "#C3C3C3" });
+    return;
+  }
+  const { cosmetics, positions } = G as {
+    cosmetics?: { map?: Record<string, unknown> };
+    positions?: Record<string, unknown>;
+  };
+  const known = Boolean(cosmetics?.map?.[data]) || Boolean(positions?.[data]);
+  if (!known) {
+    lines.push({ kind: "text", text: `Invalid / ${data}`, color: "#C3C3C3" });
+    return;
+  }
+  lines.push({
+    kind: "stat",
+    label: "Contains",
+    value: data,
+    labelColor: "text.secondary",
+    valueColor: "#E4E4E4",
+  });
+}
+
 function pushExplanationLine(gItem: GItem, lines: ItemTooltipLine[]) {
   if (gItem.explanation) {
     lines.push({ kind: "text", text: gItem.explanation, color: "text.secondary" });
@@ -625,6 +652,7 @@ export function buildItemTooltipLines(
   pushSetLine(gItem, G, lines);
   pushMetaLines(gItem, lines);
   pushGlitchedTitleLine(itemInfo, lines);
+  pushCxJarDataLine(itemInfo, G, lines);
   pushExplanationLine(gItem, lines);
 
   return lines;

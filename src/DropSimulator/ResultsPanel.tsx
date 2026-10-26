@@ -16,6 +16,7 @@ import { ItemKey } from "typed-adventureland";
 
 import { formatDropProbability } from "../gameData/drops";
 import { OutcomeRow } from "../gameData/dropSim";
+import { itemInfoFromDropFields } from "../gameData/itemInstanceData";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { abbreviateNumber } from "../Shared/utils";
@@ -31,11 +32,17 @@ function ResultItemCell({ row }: { row: OutcomeRow }) {
   const gItem = G?.items[row.itemKey as ItemKey];
   const displayName = gItem?.name ?? row.itemKey;
   const href = gItem ? `/items/${encodeURIComponent(row.itemKey)}` : undefined;
+  const itemInfo = itemInfoFromDropFields({
+    itemKey: row.itemKey,
+    quantity: row.quantity,
+    title: row.title,
+  });
+  const payload = row.title ? ` · ${row.title}` : "";
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
       <ItemInstance
-        itemInfo={{ name: row.itemKey as ItemKey, q: row.quantity ?? undefined }}
+        itemInfo={itemInfo}
         size={ITEM_ICON_SIZE}
         showQuantity={row.quantity != null && row.quantity > 1}
         tooltip={Boolean(gItem)}
@@ -52,6 +59,7 @@ function ResultItemCell({ row }: { row: OutcomeRow }) {
         )}
         <Typography variant="caption" color="text.secondary" display="block">
           {row.itemKey}
+          {payload}
         </Typography>
       </Box>
     </Box>
@@ -160,7 +168,7 @@ export function ResultsPanel({
                 const deltaPct =
                   row.expected > 0 ? ((row.observed - row.expected) / row.expected) * 100 : null;
                 return (
-                  <TableRow key={`${row.itemKey}-${row.quantity ?? ""}`} hover>
+                  <TableRow key={`${row.itemKey}-${row.quantity ?? ""}-${row.title}`} hover>
                     <TableCell>
                       <ResultItemCell row={row} />
                     </TableCell>

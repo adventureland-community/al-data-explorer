@@ -177,3 +177,11 @@ export function spriteSkinView(
   if (!match) return null;
   return spriteSkinViewFromMatch(match, images, dimensions, skin, scale, opts);
 }
+
+/**
+ * Scale that fits a natural (scale=1) sprite view into a square box (`object-fit: contain`).
+ */
+export function spriteFitScale(naturalWidth: number, naturalHeight: number, box: number): number {
+  if (!(naturalWidth > 0) || !(naturalHeight > 0) || !(box > 0)) return 1;
+  return Math.min(box / naturalWidth, box / naturalHeight);
+}

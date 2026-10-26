@@ -155,6 +155,25 @@ describe("drops", () => {
     expect(rare?.probability).toBeCloseTo(0.1 / total, 10);
     expect(formatDropProbability(common?.probability)).not.toBe("1 / 1");
   });
+
+  it("maps official G.drops `cx` shorthand to cxjar with cosmetic title", () => {
+    // Server drop_item_logic: name=="cx" → name="cxjar", data = cosmetic id.
+    const rows = extractDropRates({
+      cosmo0: [
+        [0.5, "cx", "marmor10a"],
+        [1, "cxjar", 1, "breyes"],
+      ],
+    });
+    const fromCx = rows.find((r) => r.title === "marmor10a");
+    expect(fromCx).toMatchObject({
+      itemKey: "cxjar",
+      sourceType: "table",
+      sourceKey: "cosmo0",
+      title: "marmor10a",
+    });
+    expect(rows.every((r) => r.itemKey !== "cx")).toBe(true);
+    expect(rows.filter((r) => r.itemKey === "cxjar")).toHaveLength(2);
+  });
 });
 
 describe("itemSets", () => {

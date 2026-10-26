@@ -3,6 +3,7 @@ import type { SearchContextId, SurfaceOpDef } from "./types";
 export const BANK_OPS: readonly SurfaceOpDef[] = [
   { name: "type", hint: "weapon · pot · …", insert: "type:" },
   { name: "title", hint: "lucky · shiny · …", insert: "title:" },
+  { name: "data", hint: "cxjar cosmetic id", insert: "data:" },
   { name: "class", hint: "warrior · mage · …", insert: "class:" },
   { name: "set", hint: "set key", insert: "set:" },
   { name: "category", hint: "bank category", insert: "category:" },
@@ -18,12 +19,13 @@ export const BANK_OPS: readonly SurfaceOpDef[] = [
 export const MARKET_OPS: readonly SurfaceOpDef[] = [
   { name: "item", hint: "Filter by item key", insert: "item:" },
   { name: "title", hint: "lucky · shiny", insert: "title:" },
+  { name: "data", hint: "cxjar cosmetic id", insert: "data:" },
   { name: "merchant", hint: "Seller / buyer id", insert: "merchant:" },
   { name: "level", hint: "e.g. level:>=7", insert: "level:>=" },
   { name: "price", hint: "e.g. price:>=1m", insert: "price:>=" },
   { name: "attr", hint: "armor>=40 · str>=10", insert: "attr:" },
   { name: "is", hint: "buy · sell", insert: "is:" },
-  { name: "has", hint: "title", insert: "has:" },
+  { name: "has", hint: "title · data", insert: "has:" },
 ];
 
 export const CATALOG_OPS: readonly SurfaceOpDef[] = [

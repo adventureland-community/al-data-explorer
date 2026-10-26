@@ -1,4 +1,4 @@
-import { ItemKey, MapKey, TitleKey, TradeItemInfo, TradeSlotType } from "typed-adventureland";
+import { ItemKey, MapKey, TradeItemInfo, TradeSlotType } from "typed-adventureland";
 
 export type ItemPrices = {
   amount: number;
@@ -18,8 +18,12 @@ export type BuySellItemPrices = {
   selling: ItemPrices;
 };
 
+/**
+ * Nested as item → variant (`${p}\0${data}`) → level → buy/sell prices.
+ * Variant matches server `can_stack` (titles + cxjar.data stay separate).
+ */
 export type ItemsByNameTitleLevel = Partial<
-  Record<ItemKey, Partial<Record<TitleKey | "", BuySellItemPrices[]>>>
+  Record<ItemKey, Partial<Record<string, BuySellItemPrices[]>>>
 >;
 
 export type Merchant = {

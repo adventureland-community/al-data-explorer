@@ -51,6 +51,14 @@ describe("cosmeticAcquisition", () => {
     expect(bathat.some((s) => s.kind === "drop" && s.dropSourceKey === "mrgreen")).toBe(true);
   });
 
+  it("links token-shop and craft cxjar payloads to cosmetics", () => {
+    const stone = acquireSourcesFor(index, "xgravestone2");
+    expect(stone.some((s) => s.kind === "token" && s.tokenKey === "friendtoken")).toBe(true);
+
+    const makeawish = acquireSourcesFor(index, "makeawish");
+    expect(makeawish.some((s) => s.kind === "craft" && s.craftKey === "makeawishjar")).toBe(true);
+  });
+
   it("expands cxbundle members onto member skins", () => {
     const sources = acquireSourcesFor(index, "blackhead");
     const bundle = sources.find((s) => s.kind === "cosmo" && s.note?.includes("bundle"));
