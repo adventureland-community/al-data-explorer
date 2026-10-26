@@ -81,17 +81,6 @@ function formatMs(ms: number): string {
   return `${ms}ms`;
 }
 
-/** Known class / map-only bonus keys on items (mirrors render_item). */
-const CLASS_BONUS_KEYS = [
-  "mage",
-  "merchant",
-  "paladin",
-  "priest",
-  "ranger",
-  "rogue",
-  "warrior",
-] as const;
-
 /**
  * Catalog chips: rarity / acquisition / progression flags players care about.
  * Grade / set / class / craftable are passed in so the caller owns display order.
@@ -189,7 +178,8 @@ export function metaLookupsFromG(G: {
 
 /**
  * Non-combat catalog facts for the detail header (type/tier plus duration,
- * keys, stacks, offerings, map/class-only bonuses, etc.).
+ * keys, stacks, offerings, etc.). Class/map-only bonuses live in
+ * `itemContextBonusRows` / the context modifiers panel.
  */
 export function getItemFacts(gItem: GItem, lookups?: ItemMetaLookups): ItemFact[] {
   const item = asExtras(gItem);
@@ -278,39 +268,6 @@ export function getItemFacts(gItem: GItem, lookups?: ItemMetaLookups): ItemFact[
       value: mapName,
       href: mapExists ? `/maps/${encodeURIComponent(item.unlocks)}` : undefined,
     });
-  }
-
-  for (const classKey of CLASS_BONUS_KEYS) {
-    const bonus = (gItem as unknown as Record<string, unknown>)[classKey];
-    if (!bonus || typeof bonus !== "object") continue;
-    const parts = Object.entries(bonus as Record<string, unknown>)
-      .filter(([k]) => k !== "upgrade" && k !== "compound")
-      .map(([k, v]) => `${k} ${String(v)}`);
-    if (parts.length === 0) continue;
-    facts.push({
-      key: `class-bonus-${classKey}`,
-      label: `${titleCase(classKey)} only`,
-      value: parts.join(", "),
-    });
-  }
-
-  // Map-only bonuses (e.g. winterland) — any key that looks like a map in lookups.
-  if (lookups?.maps) {
-    for (const [mapKey, mapDef] of Object.entries(lookups.maps)) {
-      if (!mapDef || mapDef.ignore) continue;
-      const bonus = (gItem as unknown as Record<string, unknown>)[mapKey];
-      if (!bonus || typeof bonus !== "object") continue;
-      const parts = Object.entries(bonus as Record<string, unknown>)
-        .filter(([k]) => k !== "upgrade" && k !== "compound")
-        .map(([k, v]) => `${k} ${String(v)}`);
-      if (parts.length === 0) continue;
-      facts.push({
-        key: `map-bonus-${mapKey}`,
-        label: `${mapDef.name ?? mapKey} only`,
-        value: parts.join(", "),
-        href: `/maps/${encodeURIComponent(mapKey)}`,
-      });
-    }
   }
 
   return facts;

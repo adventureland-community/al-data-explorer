@@ -30,6 +30,8 @@ import {
   type ItemBadge,
   type ItemFact,
 } from "../gameData/itemMeta";
+import { itemClassSlotRows } from "../gameData/classSkills";
+import { itemContextBonusRows } from "../gameData/itemContextBonuses";
 import {
   buildPlayerStatRows,
   gradeLabel,
@@ -44,6 +46,8 @@ import { RecipeItemTile } from "../Shared/RecipeItemTile";
 import { LoadingState } from "../Shared/LoadingState";
 import { SpriteSkin } from "../Shared/SpriteSkin";
 import { getMaxLevel } from "../Utils";
+import { ItemClassSlotMods } from "./components/ItemClassSlotMods";
+import { ItemContextBonuses } from "./components/ItemContextBonuses";
 import { ItemSetCard } from "./components/ItemSetCard";
 import { ItemSourcesPanel } from "./components/ItemSourcesPanel";
 import { ItemUsesPanel } from "./components/ItemUsesPanel";
@@ -358,6 +362,14 @@ export function ItemDetail() {
     [effectLookups, gItem, key, level],
   );
   const statRows = useMemo(() => (gItem ? buildPlayerStatRows(gItem, level) : []), [gItem, level]);
+  const classSlotRows = useMemo(
+    () => (gItem && G ? itemClassSlotRows(G.classes, gItem) : []),
+    [G, gItem],
+  );
+  const contextBonusRows = useMemo(
+    () => (gItem && G ? itemContextBonusRows(gItem, { maps: G.maps }) : []),
+    [G, gItem],
+  );
 
   if (!G || !itemKey) {
     return <LoadingState />;
@@ -604,6 +616,16 @@ export function ItemDetail() {
           {usedInDismantle.length > 0 && (
             <Box sx={{ mt: 2 }}>
               <ItemLinkTiles title="From dismantling" outputs={usedInDismantle} G={G} />
+            </Box>
+          )}
+          {contextBonusRows.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <ItemContextBonuses rows={contextBonusRows} />
+            </Box>
+          )}
+          {classSlotRows.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <ItemClassSlotMods rows={classSlotRows} />
             </Box>
           )}
           {setKey && setDef && (

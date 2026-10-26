@@ -63,6 +63,73 @@ describe("buildItemTooltipLines", () => {
     expect(lines.some((l) => l.kind === "text" && /Spider silk/.test(l.text))).toBe(true);
   });
 
+  it("includes class-only context bonus boxes", () => {
+    const lines = buildItemTooltipLines(
+      {
+        name: "Helmet of the Tiger",
+        type: "helmet",
+        armor: 10,
+        rogue: { crit: 2, upgrade: { crit: 0.25 } },
+        g: 100,
+      } as never,
+      { name: "tigerhelmet" as never, level: 0 },
+      {
+        skills: {},
+        conditions: {},
+        sets: {},
+        items: {},
+        maps: {},
+        classes: {},
+      } as never,
+    );
+
+    const context = lines.filter((l) => l.kind === "context_bonus");
+    expect(context).toHaveLength(1);
+    expect(context[0]).toMatchObject({
+      kind: "context_bonus",
+      headers: [{ label: "Rogue" }],
+      bonuses: [{ label: "Crit", value: "+2%" }],
+    });
+  });
+
+  it("includes class slot modifier boxes for dagger wtype", () => {
+    const lines = buildItemTooltipLines(
+      {
+        name: "Dagger",
+        type: "weapon",
+        wtype: "dagger",
+        attack: 12,
+        g: 100,
+      } as never,
+      { name: "dagger" as never, level: 0 },
+      {
+        skills: {},
+        conditions: {},
+        sets: {},
+        items: {},
+        classes: {
+          rogue: { mainhand: { dagger: {} }, offhand: { dagger: {} }, doublehand: {} },
+          ranger: { mainhand: {}, offhand: {}, doublehand: { dagger: {} } },
+          merchant: { mainhand: { dagger: { speed: -3 } }, offhand: {}, doublehand: {} },
+          warrior: { mainhand: {}, offhand: {}, doublehand: {} },
+          paladin: { mainhand: {}, offhand: {}, doublehand: {} },
+          mage: { mainhand: {}, offhand: {}, doublehand: {} },
+          priest: { mainhand: {}, offhand: {}, doublehand: {} },
+        },
+      } as never,
+    );
+
+    const slots = lines.filter((l) => l.kind === "class_slot");
+    expect(slots).toHaveLength(4);
+    expect(slots.some((l) => l.kind === "class_slot" && l.classKey === "merchant")).toBe(true);
+    const merchant = slots.find((l) => l.kind === "class_slot" && l.classKey === "merchant");
+    expect(merchant).toMatchObject({
+      kind: "class_slot",
+      slotLabel: "Mainhand",
+      bonuses: [{ label: "Speed", value: "-3" }],
+    });
+  });
+
   it("includes luck from festive title on item instance", () => {
     const lines = buildItemTooltipLines(
       {

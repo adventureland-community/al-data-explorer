@@ -29,16 +29,145 @@ function TooltipLines({ lines }: { lines: EntityTooltipLine[] }) {
 
   return (
     <Box sx={{ fontSize: 12, lineHeight: 1.45 }}>
-      {lines.map((line) =>
-        line.kind === "text" ? (
-          <Typography
-            key={`text:${line.text}`}
-            component="p"
-            sx={{ m: 0, mb: 0.5, fontSize: 12, color: line.color ?? "text.secondary" }}
-          >
-            {line.text}
-          </Typography>
-        ) : (
+      {lines.map((line) => {
+        if (line.kind === "text") {
+          return (
+            <Typography
+              key={`text:${line.text}`}
+              component="p"
+              sx={{ m: 0, mb: 0.5, fontSize: 12, color: line.color ?? "text.secondary" }}
+            >
+              {line.text}
+            </Typography>
+          );
+        }
+        if (line.kind === "class_slot" || line.kind === "context_bonus") {
+          const boxKey =
+            line.kind === "class_slot"
+              ? `class_slot:${line.classKey}:${line.slotLabel}`
+              : `context_bonus:${line.id}`;
+          const accent =
+            line.kind === "class_slot"
+              ? line.classColor ?? "#90a4ae"
+              : line.headers[0]?.color ?? "#38bdf8";
+          const empty =
+            line.kind === "class_slot"
+              ? line.bonuses.length === 0
+              : line.bonuses.length === 0 &&
+                line.upgrade.length === 0 &&
+                line.compound.length === 0;
+          const bonusRows =
+            line.kind === "class_slot"
+              ? line.bonuses
+              : [
+                  ...line.bonuses,
+                  ...line.upgrade.map((b) => ({ ...b, label: `${b.label}/lvl` })),
+                  ...line.compound.map((b) => ({ ...b, label: `${b.label}/compound` })),
+                ];
+          return (
+            <Box
+              key={boxKey}
+              sx={{
+                borderLeft: `2px solid ${accent}`,
+                backgroundImage: empty
+                  ? "none"
+                  : `linear-gradient(90deg, ${accent}18 0%, transparent 72%)`,
+                borderRadius: 0.5,
+                px: 0.7,
+                py: 0.3,
+                mb: 0.35,
+                opacity: empty ? 0.72 : 1,
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "baseline",
+                columnGap: 0.55,
+                rowGap: 0.1,
+              }}
+            >
+              {line.kind === "class_slot" ? (
+                <>
+                  <Box
+                    component="span"
+                    sx={{ fontWeight: 700, color: line.classColor ?? "text.primary" }}
+                  >
+                    [{line.classLabel}]
+                  </Box>
+                  <Box
+                    component="span"
+                    sx={{
+                      fontSize: "0.65rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.03em",
+                      textTransform: "uppercase",
+                      color: "text.secondary",
+                    }}
+                  >
+                    {line.slotLabel}
+                  </Box>
+                </>
+              ) : (
+                <>
+                  {line.headers.map((headerPart, index) => (
+                    <Box component="span" key={headerPart.label}>
+                      {index > 0 ? (
+                        <Box component="span" sx={{ color: "text.secondary", mx: 0.1 }}>
+                          ·
+                        </Box>
+                      ) : null}
+                      <Box
+                        component="span"
+                        sx={{ fontWeight: 700, color: headerPart.color ?? "text.primary" }}
+                      >
+                        [{headerPart.label}]
+                      </Box>
+                    </Box>
+                  ))}
+                  <Box
+                    component="span"
+                    sx={{
+                      fontSize: "0.65rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.03em",
+                      textTransform: "uppercase",
+                      color: "text.secondary",
+                    }}
+                  >
+                    only
+                  </Box>
+                </>
+              )}
+              {empty ? (
+                <Box component="span" sx={{ color: "text.secondary", fontStyle: "italic" }}>
+                  No Modifier
+                </Box>
+              ) : (
+                bonusRows.map((bonus, index) => (
+                  <Box
+                    component="span"
+                    key={`${bonus.label}:${bonus.value}`}
+                    sx={{ fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {index > 0 ? (
+                      <Box component="span" sx={{ color: "text.disabled", mx: 0.35 }}>
+                        ·
+                      </Box>
+                    ) : null}
+                    <Box
+                      component="span"
+                      sx={{ color: bonus.labelColor ?? "text.secondary", fontWeight: 600 }}
+                    >
+                      {bonus.label}
+                    </Box>{" "}
+                    <Box component="span" sx={{ fontWeight: 700 }}>
+                      {bonus.value}
+                    </Box>
+                  </Box>
+                ))
+              )}
+            </Box>
+          );
+        }
+        return (
           <Box
             key={`stat:${line.label}:${line.value}`}
             sx={{ display: "flex", gap: 0.75, mb: 0.15 }}
@@ -60,8 +189,8 @@ function TooltipLines({ lines }: { lines: EntityTooltipLine[] }) {
               {line.value}
             </Box>
           </Box>
-        ),
-      )}
+        );
+      })}
     </Box>
   );
 }

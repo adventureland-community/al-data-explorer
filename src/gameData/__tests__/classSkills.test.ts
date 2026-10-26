@@ -9,6 +9,7 @@ import {
   formatSkillMs,
   getSkill,
   isClassKey,
+  itemClassSlotRows,
   listClassCatalog,
   querySkills,
   skillAuraStates,
@@ -175,5 +176,37 @@ describe("classSkills", () => {
     expect(skillLevelRows(G.skills.partyheal).map((row) => row.level)).toStrictEqual([
       0, 60, 72, 80,
     ]);
+  });
+
+  it("lists dagger class/slot modifiers like the game tooltip", () => {
+    const rows = itemClassSlotRows(G.classes, { type: "weapon", wtype: "dagger" });
+    expect(rows.map((row) => `${row.classKey}:${row.slot}`)).toStrictEqual([
+      "rogue:mainhand",
+      "rogue:offhand",
+      "ranger:doublehand",
+      "merchant:mainhand",
+    ]);
+    expect(
+      rows.find((row) => row.classKey === "rogue" && row.slot === "mainhand")?.bonuses,
+    ).toStrictEqual([]);
+    expect(rows.find((row) => row.classKey === "merchant")?.bonuses).toStrictEqual([
+      { key: "speed", label: "Speed", value: "-3" },
+    ]);
+  });
+
+  it("lists shield offhand modifiers by item type", () => {
+    const rows = itemClassSlotRows(G.classes, { type: "shield" });
+    expect(rows.every((row) => row.slot === "offhand")).toBe(true);
+    expect(rows.map((row) => row.classKey)).toStrictEqual(
+      expect.arrayContaining(["warrior", "paladin", "priest", "merchant"]),
+    );
+    expect(rows.find((row) => row.classKey === "merchant")?.bonuses).toStrictEqual(
+      expect.arrayContaining([{ key: "speed", label: "Speed", value: "-8" }]),
+    );
+  });
+
+  it("returns no class slot rows for items without equip table keys", () => {
+    expect(itemClassSlotRows(G.classes, { type: "material" })).toStrictEqual([]);
+    expect(itemClassSlotRows(G.classes, {})).toStrictEqual([]);
   });
 });

@@ -1,12 +1,33 @@
 import type { GData, GItem, ItemInfo, StatType } from "typed-adventureland";
 
+import { CLASS_COLOR } from "../constants";
+import { CLASS_SLOT_LABELS, isClassKey, itemClassSlotRows, titleCaseKey } from "./classSkills";
+import { CONTEXT_BONUS_LABEL_COLOR, itemContextBonusRows } from "./itemContextBonuses";
 import { resolveItemInstanceStats } from "./itemProperties";
 import { getItemGrade, gradeLabel } from "./playerItemDisplay";
 import { formatItemStatValue } from "./prettyNumbers";
 
+type TooltipBonus = { label: string; value: string; labelColor?: string };
+
 export type ItemTooltipLine =
   | { kind: "text"; text: string; color?: string }
-  | { kind: "stat"; label: string; value: string; labelColor?: string; valueColor?: string };
+  | { kind: "stat"; label: string; value: string; labelColor?: string; valueColor?: string }
+  | {
+      kind: "class_slot";
+      classKey: string;
+      classLabel: string;
+      classColor?: string;
+      slotLabel: string;
+      bonuses: TooltipBonus[];
+    }
+  | {
+      kind: "context_bonus";
+      id: string;
+      headers: { label: string; color?: string }[];
+      bonuses: TooltipBonus[];
+      upgrade: TooltipBonus[];
+      compound: TooltipBonus[];
+    };
 
 const GRADE_COLORS: Record<number, string> = {
   1: "#696354",
@@ -251,6 +272,47 @@ function pushClassLine(gItem: GItem, lines: ItemTooltipLine[]) {
     value: classes.map(formatClassName).join(", "),
     labelColor: "text.secondary",
   });
+}
+
+function tooltipBonuses(rows: { key: string; label: string; value: string }[]): TooltipBonus[] {
+  return rows.map((bonus) => ({
+    label: bonus.label,
+    value: bonus.value,
+    labelColor: CONTEXT_BONUS_LABEL_COLOR[bonus.key],
+  }));
+}
+
+function pushClassSlotLines(gItem: GItem, G: GData, lines: ItemTooltipLine[]) {
+  if (!G.classes) return;
+  const rows = itemClassSlotRows(G.classes, gItem);
+  for (const row of rows) {
+    lines.push({
+      kind: "class_slot",
+      classKey: row.classKey,
+      classLabel: titleCaseKey(row.classKey),
+      classColor: isClassKey(row.classKey) ? CLASS_COLOR[row.classKey] : undefined,
+      slotLabel: CLASS_SLOT_LABELS[row.slot],
+      bonuses: tooltipBonuses(row.bonuses),
+    });
+  }
+}
+
+function pushContextBonusLines(gItem: GItem, G: GData, lines: ItemTooltipLine[]) {
+  const rows = itemContextBonusRows(gItem, { maps: G.maps as never });
+  for (const row of rows) {
+    const headers =
+      row.scope.kind === "class"
+        ? [{ label: row.scope.label, color: row.scope.color }]
+        : row.scope.maps.map((map) => ({ label: map.label, color: "#38bdf8" }));
+    lines.push({
+      kind: "context_bonus",
+      id: row.id,
+      headers,
+      bonuses: tooltipBonuses(row.bonuses),
+      upgrade: tooltipBonuses(row.upgrade),
+      compound: tooltipBonuses(row.compound),
+    });
+  }
 }
 
 type AbilityContext = {
@@ -545,6 +607,8 @@ export function buildItemTooltipLines(
 
   pushDamageTypeLine(gItem, lines);
   pushClassLine(gItem, lines);
+  pushContextBonusLines(gItem, G, lines);
+  pushClassSlotLines(gItem, G, lines);
 
   const grade = getItemGrade(gItem, itemInfo.level ?? 0);
   const gradeName = gradeLabel(grade);
