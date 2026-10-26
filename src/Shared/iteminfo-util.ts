@@ -1,4 +1,5 @@
 import { ItemKey, GItem, GData, TitleKey, ItemInfo } from "typed-adventureland";
+import { formatItemDataCaption } from "../gameData/itemInstanceData";
 import { getLevelString } from "../Utils";
 
 export const tshirtNames: { [key in ItemKey]?: string } = {
@@ -30,8 +31,10 @@ export function getFullItemName(itemInfo: ItemInfo, G: GData) {
   const levelString = level > 0 ? getLevelString(gItem, level) : undefined;
   const levelPrefix =
     levelString !== undefined ? `+${levelString} ` : level > 0 ? `+${level} ` : "";
+  const dataCaption = formatItemDataCaption(itemInfo);
+  const dataSuffix = dataCaption ? ` · ${dataCaption}` : "";
 
-  return `${levelPrefix}${titleName ? `${titleName} ` : ""}${itemName}`;
+  return `${levelPrefix}${titleName ? `${titleName} ` : ""}${itemName}${dataSuffix}`;
 }
 
 /** Native `title` tooltip text for an item instance (name, level, key, type, quantity). */
@@ -57,6 +60,10 @@ export function getItemInstanceTitle(itemInfo: ItemInfo, G: GData) {
   }
   htmlTitle += `\n${itemKey}`;
   htmlTitle += `\n${gItem.type}`;
+  const dataCaption = formatItemDataCaption(itemInfo);
+  if (dataCaption) {
+    htmlTitle += `\n${dataCaption}`;
+  }
   if (quantity > 1) {
     htmlTitle += `\nx${quantity.toLocaleString()}`;
   }

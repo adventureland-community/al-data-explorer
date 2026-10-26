@@ -12,6 +12,7 @@ import { useMemo } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { ItemKey, TradeItemInfo } from "typed-adventureland";
 
+import { parseInstanceVariantKey } from "../../gameData/itemInstanceData";
 import type { BuySellItemPrices, Merchant } from "../../Market/useMerchants";
 import { useMerchants } from "../../Market/useMerchants";
 import { abbreviateNumber } from "../../Shared/utils";
@@ -20,20 +21,22 @@ type OfferRow = {
   id: string;
   level: number;
   title: string;
+  data?: string;
   merchantName: string;
   price: number;
   quantity: number;
 };
 
 function collectOffers(
-  byTitle: Partial<Record<string, BuySellItemPrices[]>> | undefined,
+  byVariant: Partial<Record<string, BuySellItemPrices[]>> | undefined,
   side: "buying" | "selling",
 ): OfferRow[] {
-  if (!byTitle) return [];
+  if (!byVariant) return [];
   const rows: OfferRow[] = [];
 
-  for (const [titleKey, byLevel] of Object.entries(byTitle)) {
+  for (const [variantKey, byLevel] of Object.entries(byVariant)) {
     if (!byLevel) continue;
+    const { title, data } = parseInstanceVariantKey(variantKey);
     for (const [levelKey, prices] of Object.entries(byLevel)) {
       if (!prices) continue;
       const level = Number(levelKey);
@@ -41,9 +44,10 @@ function collectOffers(
         for (const item of entry.items as TradeItemInfo[]) {
           if (item.price == null) continue;
           rows.push({
-            id: `${side}-${titleKey}-${level}-${merchantName}-${item.price}-${item.q ?? 1}`,
+            id: `${side}-${variantKey}-${level}-${merchantName}-${item.price}-${item.q ?? 1}`,
             level,
-            title: titleKey,
+            title,
+            data,
             merchantName,
             price: item.price,
             quantity: item.q ?? 1,
@@ -102,7 +106,7 @@ function OfferTable({
           <Table size="small" sx={{ "& td, & th": { borderColor: "divider", py: 0.35, px: 0.75 } }}>
             <TableHead>
               <TableRow>
-                <TableCell>Lvl</TableCell>
+                <TableCell>Variant</TableCell>
                 <TableCell align="right">Price</TableCell>
                 <TableCell align="right">Qty</TableCell>
                 <TableCell>Merchant</TableCell>
@@ -111,11 +115,16 @@ function OfferTable({
             <TableBody>
               {rows.map((row) => {
                 const merchant = merchants[row.merchantName];
-                const titlePrefix = row.title ? `${row.title} ` : "";
+                const bits = [
+                  row.title || null,
+                  row.data || null,
+                  row.level > 0 ? `+${row.level}` : null,
+                ].filter(Boolean);
+                const variantLabel = bits.length ? bits.join(" · ") : "—";
                 return (
                   <TableRow key={row.id} hover>
                     <TableCell sx={{ fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
-                      {titlePrefix}+{row.level}
+                      {variantLabel}
                     </TableCell>
                     <TableCell
                       align="right"

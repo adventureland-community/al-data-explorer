@@ -29,6 +29,13 @@ export type TokenOfferSource = {
   /** NPC that sells this token catalog (`G.npcs[…].token`). */
   npcId: string | null;
   npcName: string | null;
+  /**
+   * Free-form instance payload when the catalog key is `name-data`
+   * (e.g. `cxjar-beekeeper` → item `cxjar`, data `beekeeper`).
+   */
+  data?: string;
+  /** Raw `G.tokens[…]` key when it differs from the item name. */
+  offerKey?: string;
 };
 
 export type MapLocation = {

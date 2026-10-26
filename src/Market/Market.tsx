@@ -16,7 +16,9 @@ import {
 import { useContext, useMemo, useState } from "react";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import { ItemInfoPValues, ItemKey, TitleKey } from "typed-adventureland";
+import { ItemInfoPValues, ItemKey } from "typed-adventureland";
+
+import { parseInstanceVariantKey } from "../gameData/itemInstanceData";
 
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
@@ -61,12 +63,14 @@ function getTimeAgo(lastSeen: string | Date) {
 function TradeItemRow({
   itemKey,
   title,
+  data,
   level,
   prices,
   merchants,
 }: {
   itemKey: ItemKey;
-  title: TitleKey;
+  title: string;
+  data?: string;
   level: number;
   prices: BuySellItemPrices;
   merchants: { [id: string]: Merchant };
@@ -143,7 +147,8 @@ function TradeItemRow({
 
   const itemInfo = {
     name: itemKey,
-    p: title as ItemInfoPValues,
+    ...(title ? { p: title as ItemInfoPValues } : {}),
+    ...(data ? { data } : {}),
     level,
   };
 
@@ -153,6 +158,7 @@ function TradeItemRow({
   }
 
   const itemName = getItemName(itemKey, gItem);
+  const keyLine = data ? `${itemInfo.name} · ${data}` : itemInfo.name;
 
   return (
     <>
@@ -169,14 +175,14 @@ function TradeItemRow({
         {/* <TableCell>{itemName}</TableCell> */}
         <TableCell component="td">
           <div style={{ display: "inline-block" }}>
-            <ItemInstance itemInfo={itemInfo} />
+            <ItemInstance itemInfo={itemInfo as never} />
           </div>
           <div style={{ marginLeft: "10px", display: "inline-block" }}>
             <div>
               {titleName}
               {itemName}
             </div>
-            <div style={{ color: "grey" }}>{itemInfo.name}</div>
+            <div style={{ color: "grey" }}>{keyLine}</div>
           </div>
         </TableCell>
         <TableCell component="td">{buyerCount || ""}</TableCell>
@@ -256,11 +262,11 @@ export function Market() {
     for (const itemKey in items) {
       const itemsByItemKey = items[itemKey as ItemKey];
       // eslint-disable-next-line guard-for-in
-      for (const titleKey in itemsByItemKey) {
-        const itemsByTitle = itemsByItemKey[titleKey as TitleKey] ?? [];
+      for (const variantKey in itemsByItemKey) {
+        const itemsByVariant = itemsByItemKey[variantKey] ?? [];
         // eslint-disable-next-line guard-for-in
-        for (const level in itemsByTitle) {
-          const pricesByLevel = itemsByTitle[level];
+        for (const level in itemsByVariant) {
+          const pricesByLevel = itemsByVariant[level];
           // eslint-disable-next-line guard-for-in
           for (const merchantName in pricesByLevel.buying.merchants) {
             buyers.add(merchantName);
@@ -279,11 +285,11 @@ export function Market() {
     for (const itemKey in items) {
       const itemsByItemKey = items[itemKey as ItemKey];
       // eslint-disable-next-line guard-for-in
-      for (const titleKey in itemsByItemKey) {
-        const itemsByTitle = itemsByItemKey[titleKey as TitleKey] ?? [];
+      for (const variantKey in itemsByItemKey) {
+        const itemsByVariant = itemsByItemKey[variantKey] ?? [];
         // eslint-disable-next-line guard-for-in
-        for (const level in itemsByTitle) {
-          const pricesByLevel = itemsByTitle[level];
+        for (const level in itemsByVariant) {
+          const pricesByLevel = itemsByVariant[level];
           // eslint-disable-next-line guard-for-in
           for (const merchantName in pricesByLevel.selling.merchants) {
             sellers.add(merchantName);
@@ -316,7 +322,8 @@ export function Market() {
   const rows = useMemo(() => {
     const tmpRows: Array<{
       itemName: ItemKey;
-      title: TitleKey;
+      title: string;
+      data?: string;
       level: number;
       prices: BuySellItemPrices;
     }> = [];
@@ -325,14 +332,16 @@ export function Market() {
     for (const itemKey in items) {
       const itemsByItemKey = items[itemKey as ItemKey];
       // eslint-disable-next-line guard-for-in
-      for (const titleKey in itemsByItemKey) {
-        const itemsByTitle = itemsByItemKey[titleKey as TitleKey] ?? [];
+      for (const variantKey in itemsByItemKey) {
+        const itemsByVariant = itemsByItemKey[variantKey] ?? [];
+        const { title, data } = parseInstanceVariantKey(variantKey);
         // eslint-disable-next-line guard-for-in
-        for (const level in itemsByTitle) {
-          const pricesByLevel = itemsByTitle[level];
+        for (const level in itemsByVariant) {
+          const pricesByLevel = itemsByVariant[level];
           tmpRows.push({
             itemName: itemKey as ItemKey,
-            title: titleKey as TitleKey,
+            title,
+            data,
             level: Number(level),
             prices: pricesByLevel,
           });
@@ -340,7 +349,12 @@ export function Market() {
       }
     }
 
-    tmpRows.sort((a, b) => a.itemName.localeCompare(b.itemName));
+    tmpRows.sort(
+      (a, b) =>
+        a.itemName.localeCompare(b.itemName) ||
+        (a.data ?? "").localeCompare(b.data ?? "") ||
+        a.title.localeCompare(b.title),
+    );
     return tmpRows;
   }, [items]);
 
@@ -438,11 +452,12 @@ export function Market() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredRows.map(({ itemName, title, level, prices }) => (
+            {filteredRows.map(({ itemName, title, data, level, prices }) => (
               <TradeItemRow
-                key={`${itemName}${title}${level}`}
+                key={`${itemName}\0${title}\0${data ?? ""}\0${level}`}
                 itemKey={itemName}
                 title={title}
+                data={data}
                 level={level}
                 prices={prices}
                 merchants={merchants}

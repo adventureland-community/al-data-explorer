@@ -7,6 +7,8 @@ import { ItemTooltip } from "./EntityTooltip";
 import type { EntityTooltipLine } from "../gameData/entityTooltip";
 import { CURRENCY_SKINS, ItemImage } from "../ItemImage";
 import { getLevelString } from "../Utils";
+import { cxJarData, getItemData } from "../gameData/itemInstanceData";
+import { CxJarItemSprite } from "./CxJarItemSprite";
 import { abbreviateNumber } from "./utils";
 
 export function ItemInstance({
@@ -192,6 +194,13 @@ export function ItemInstance({
       break;
   }
 
+  const sealedCx = cxJarData(itemInfo);
+  const mainSprite = sealedCx ? (
+    <CxJarItemSprite data={sealedCx} size={size} />
+  ) : (
+    <ItemImage itemName={itemName} size={size} />
+  );
+
   const sprite = (
     <div
       style={{
@@ -204,7 +213,7 @@ export function ItemInstance({
         padding: 1,
       }}
     >
-      <ItemImage itemName={itemName} size={size} />
+      {mainSprite}
       {(gItem.upgrade || gItem.compound) && itemInfo.level ? (
         <Box sx={levelStyle}>{levelString}</Box>
       ) : (
@@ -247,6 +256,7 @@ export function ItemInstance({
       title={typeof itemInfo.p === "string" ? itemInfo.p : undefined}
       statType={typeof itemInfo.stat_type === "string" ? itemInfo.stat_type : undefined}
       quantity={itemInfo.q}
+      data={getItemData(itemInfo)}
       extraLines={tooltipExtraLines}
     >
       {sprite}

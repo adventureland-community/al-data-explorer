@@ -4,6 +4,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { ItemInfo } from "typed-adventureland";
 
 import { GDataContext } from "../GDataContext";
+import { formatItemDataCaption } from "../gameData/itemInstanceData";
 import { getFullItemName, getItemName, getTitleName } from "./iteminfo-util";
 import { ItemInstance } from "./ItemInstance";
 
@@ -40,6 +41,9 @@ export function ItemInstanceLabel({
     displayName = `${titleName}${itemName}`;
   }
 
+  const dataCaption = formatItemDataCaption(itemInfo);
+  const keyLine = dataCaption ? `${itemKey} · ${dataCaption}` : itemKey;
+
   const nameBlock = (
     <Box sx={{ minWidth: 0 }}>
       {linkToDetail ? (
@@ -59,7 +63,7 @@ export function ItemInstanceLabel({
         </Typography>
       )}
       <Typography variant="caption" color="text.secondary" display="block" noWrap>
-        {itemKey}
+        {keyLine}
       </Typography>
       {caption ? (
         <Typography variant="caption" color="text.secondary" display="block" noWrap>

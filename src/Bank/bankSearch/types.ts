@@ -5,6 +5,8 @@ import type { AttrSpec, ItemSearchFlag, NumericCompareOp } from "../../Shared/qu
 /** Minimal item shape for search matching (aggregated or pack slot). */
 export type BankSearchableItem = {
   p?: ItemInfoPValues;
+  /** Free-form instance payload (`ItemInfo.data`, e.g. cxjar cosmetic id). */
+  data?: string;
   level: number;
   name: string;
   q: number;
@@ -20,6 +22,7 @@ export type BankSearchClause =
   | { kind: "text"; value: string; negated?: boolean }
   | { kind: "type"; value: string; negated?: boolean }
   | { kind: "title"; value: string; negated?: boolean }
+  | { kind: "data"; value: string; negated?: boolean }
   | { kind: "class"; value: string; negated?: boolean }
   | { kind: "set"; value: string; negated?: boolean }
   | { kind: "category"; value: string; negated?: boolean }
@@ -89,6 +92,7 @@ export const BANK_SEARCH_SYNTAX_HELP: { op: string; meaning: string; example: st
     example: "type:weapon type:shield",
   },
   { op: "title:", meaning: "Title / prefix (multi = OR)", example: "title:lucky" },
+  { op: "data:", meaning: "Instance data (cxjar cosmetic id)", example: "data:breyes" },
   { op: "class:", meaning: "Class restriction (multi = OR)", example: "class:warrior" },
   { op: "set:", meaning: "Set key (multi = OR)", example: "set:mwarrior" },
   { op: "category:", meaning: "Bank category (multi = OR)", example: "category:Potions" },

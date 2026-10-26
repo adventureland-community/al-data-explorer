@@ -2,6 +2,7 @@ import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
 import { ItemKey, TradeItemInfo, TradeSlotType } from "typed-adventureland";
 
+import { instanceVariantKey } from "../gameData/itemInstanceData";
 import {
   BuySellItemPrices,
   ItemsByNameTitleLevel,
@@ -27,11 +28,12 @@ export function groupItemsByNameAndLevel(merchants: Merchant[]): ItemsByNameTitl
       result[item.name] = result[item.name] ?? {};
       const itemPricesByName = result[item.name] ?? {};
 
-      const titleKey = item.p ?? "";
-      let itemPricesByTitle = itemPricesByName[titleKey];
+      // Titles + cxjar.data: same stack rule as can_stack (do not merge different cosmetics).
+      const variantKey = instanceVariantKey(item);
+      let itemPricesByTitle = itemPricesByName[variantKey];
       if (!itemPricesByTitle) {
-        itemPricesByName[titleKey] = [];
-        itemPricesByTitle = itemPricesByName[titleKey] ?? [];
+        itemPricesByName[variantKey] = [];
+        itemPricesByTitle = itemPricesByName[variantKey] ?? [];
       }
 
       const level = item.level ?? 0;

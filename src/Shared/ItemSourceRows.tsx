@@ -189,7 +189,7 @@ export function TokenOfferList({ offers }: { offers: AcquisitionTokenView[] }) {
       <List dense disablePadding sx={{ py: 0 }}>
         {offers.map((offer) => (
           <ListItem
-            key={`${offer.tokenKey}-${offer.npcId ?? "shop"}`}
+            key={`${offer.tokenKey}-${offer.data ?? ""}-${offer.npcId ?? "shop"}`}
             disableGutters
             disablePadding
             sx={{ minHeight: SOURCE_ICON_BOX, gap: 1, alignItems: "center", py: 0.35 }}
@@ -220,6 +220,16 @@ export function TokenOfferList({ offers }: { offers: AcquisitionTokenView[] }) {
                     {offer.tokenName}
                   </Link>
                   {offer.npcLabel ? ` · ${offer.tokenKey}` : null}
+                  {offer.data ? (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      component="span"
+                      display="block"
+                    >
+                      Contains {offer.data}
+                    </Typography>
+                  ) : null}
                 </>
               }
               primaryTypographyProps={{ variant: "body2" }}

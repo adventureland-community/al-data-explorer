@@ -218,6 +218,7 @@ function BankChangeTile({ change, label }: { change: BankItemChange; label: stri
         itemKey={change.item.name as ItemKey}
         level={change.item.level}
         title={change.item.p}
+        data={change.item.data}
         quantity={quantity}
         showQuantity
         forceShowQuantity

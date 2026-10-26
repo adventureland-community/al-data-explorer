@@ -1,6 +1,9 @@
 import { GItem, ItemKey } from "typed-adventureland";
 
+import { instanceVariantKey } from "./itemInstanceData";
 import { GItems } from "./types";
+
+const PLAIN_VARIANT = instanceVariantKey({});
 
 /** Unit gold price keyed by item id (scrolls, offerings, base item). */
 export type PriceTable = Record<string, number>;
@@ -136,7 +139,8 @@ export function marketSellMinPrice(
 ): number | undefined {
   const byTitle = market[itemKey];
   if (!byTitle) return undefined;
-  const untitled = byTitle[""] ?? byTitle["undefined" as never];
+  // Prefer current variant key (`\0`); keep "" / "undefined" for older fixtures/caches.
+  const untitled = byTitle[PLAIN_VARIANT] ?? byTitle[""] ?? byTitle["undefined" as never];
   const atLevel = untitled?.[level];
   const price = atLevel?.selling?.minPrice?.price;
   if (typeof price === "number" && Number.isFinite(price) && price > 0) return price;

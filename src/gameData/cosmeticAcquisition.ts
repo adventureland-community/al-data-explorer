@@ -1,10 +1,11 @@
 import { classLooks } from "./characterLook";
 import { CosmeticSlot, COSMETIC_SLOT_LABEL } from "./cosmeticsCatalog";
 import { toAcquisitionDropSources } from "./dropTable";
+import { parseCompoundItemKey, parseCraftOutput } from "./itemInstanceData";
 import { DropSourceType } from "./types";
 import { CustomGData } from "../GDataContext";
 
-export type CosmeticAcquireKind = "class" | "cosmo" | "drop" | "unknown";
+export type CosmeticAcquireKind = "class" | "cosmo" | "drop" | "token" | "craft" | "unknown";
 
 export type CosmeticAcquireSource = {
   kind: CosmeticAcquireKind;
@@ -29,6 +30,11 @@ export type CosmeticAcquireSource = {
   dropSourceName?: string;
   /** Item that yields the cosmetic (`cx` / `cxjar` / `cxbundle`). */
   dropItemKey?: string;
+  /** Token shop (`G.tokens`) when kind is token. */
+  tokenKey?: string;
+  tokenCost?: number;
+  /** Craft recipe key when kind is craft (`G.craft.*.output`). */
+  craftKey?: string;
   /** True when this cx is part of a class starting look. */
   classDefault?: boolean;
   note?: string;
@@ -100,7 +106,8 @@ export function classDefaultCosmeticIds(G: Pick<CustomGData, "classes">): Set<st
  * (cosmo packs, monster/map tables, exchange chests — same walk as item acquisition).
  */
 export function buildCosmeticAcquireIndex(
-  G: Pick<CustomGData, "items" | "drops" | "npcs" | "classes" | "cosmetics" | "monsters" | "maps">,
+  G: Pick<CustomGData, "items" | "drops" | "npcs" | "classes" | "cosmetics" | "monsters" | "maps"> &
+    Partial<Pick<CustomGData, "tokens" | "craft">>,
 ): Map<string, CosmeticAcquireSource[]> {
   const index = new Map<string, CosmeticAcquireSource[]>();
   const vendor = findShellVendor(G);
@@ -173,6 +180,38 @@ export function buildCosmeticAcquireIndex(
     }
   }
 
+  const tokens = G.tokens as Record<string, Record<string, unknown>> | undefined;
+  if (tokens) {
+    for (const [tokenKey, shop] of Object.entries(tokens)) {
+      if (!shop || typeof shop !== "object") continue;
+      for (const [offerKey, costRaw] of Object.entries(shop)) {
+        const parsed = parseCompoundItemKey(offerKey, items as Record<string, unknown>);
+        if (parsed.name !== "cxjar" || !parsed.data) continue;
+        const cost =
+          typeof costRaw === "number" && Number.isFinite(costRaw) ? costRaw : Number(costRaw);
+        push(parsed.data, {
+          kind: "token",
+          tokenKey,
+          tokenCost: Number.isFinite(cost) ? cost : undefined,
+          note: "CX Jar (token shop)",
+        });
+      }
+    }
+  }
+
+  const craft = G.craft as Record<string, { output?: unknown }> | undefined;
+  if (craft) {
+    for (const [recipeKey, recipe] of Object.entries(craft)) {
+      const output = parseCraftOutput(recipe, recipeKey);
+      if (output.name !== "cxjar" || !output.data) continue;
+      push(output.data, {
+        kind: "craft",
+        craftKey: recipeKey,
+        note: `Craft ${items[recipeKey]?.name ?? recipeKey}`,
+      });
+    }
+  }
+
   return index;
 }
 
@@ -203,6 +242,8 @@ export function formatAcquireSummary(sources: CosmeticAcquireSource[]): string {
   const classSrc = sources.find((s) => s.kind === "class");
   const cosmo = sources.find((s) => s.kind === "cosmo");
   const drop = sources.find((s) => s.kind === "drop");
+  const token = sources.find((s) => s.kind === "token");
+  const craft = sources.find((s) => s.kind === "craft");
   const parts: string[] = [];
   if (classSrc) parts.push("class default");
   if (cosmo?.packName && cosmo.shells != null) {
@@ -214,6 +255,16 @@ export function formatAcquireSummary(sources: CosmeticAcquireSource[]): string {
     const where = drop.dropSourceName ?? drop.dropSourceKey ?? "drop";
     const via = drop.note ? `${drop.note} · ` : "";
     parts.push(`${via}${where}${formatAcquireOdds(drop.chance)}`);
+  }
+  if (token) {
+    const cost =
+      token.tokenCost != null
+        ? `${token.tokenCost.toLocaleString("en-US")} × ${token.tokenKey}`
+        : token.tokenKey;
+    parts.push(`token · ${cost}`);
+  }
+  if (craft?.craftKey) {
+    parts.push(craft.note ?? `craft ${craft.craftKey}`);
   }
   return parts.join(" · ") || "Unknown source";
 }
@@ -268,7 +319,13 @@ export function acquireAvailability(
   sources: CosmeticAcquireSource[],
 ): "free" | "pack" | "unpublished" {
   if (sources.some((s) => s.kind === "class")) return "free";
-  if (sources.some((s) => s.kind === "cosmo" || s.kind === "drop")) return "pack";
+  if (
+    sources.some(
+      (s) => s.kind === "cosmo" || s.kind === "drop" || s.kind === "token" || s.kind === "craft",
+    )
+  ) {
+    return "pack";
+  }
   return "unpublished";
 }
 

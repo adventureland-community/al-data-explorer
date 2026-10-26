@@ -177,6 +177,10 @@ export function advancedSearchFormFromQuery(query: BankSearchQuery): BankAdvance
         case "title":
           if (!clause.negated) pushUnique(form.titles, clause.value);
           break;
+        case "data":
+          // Advanced form has no data field yet — keep as free text.
+          if (!clause.negated) textPositives.push(`data:${clause.value}`);
+          break;
         case "class":
           if (!clause.negated) pushUnique(form.classKeys, clause.value);
           break;

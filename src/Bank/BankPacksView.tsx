@@ -1,6 +1,7 @@
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { GData, ItemInfo, ItemKey } from "typed-adventureland";
 import { useContext, useMemo } from "react";
+import { getItemData } from "../gameData/itemInstanceData";
 import { bankItemMatchesSearch } from "./bankItems";
 import { computePackUtilization, PackUtilization } from "./bankAnalysis";
 import { getBankItemPackKeys, SLOTS_PER_BANK_PACK } from "./bankPacks";
@@ -32,6 +33,7 @@ function packItemMatchesSearch(
   return bankItemMatchesSearch(
     {
       p: itemInfo.p,
+      data: getItemData(itemInfo),
       level: itemInfo.level ?? 0,
       name: itemInfo.name,
       q: itemInfo.q ?? 1,

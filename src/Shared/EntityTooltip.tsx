@@ -7,6 +7,7 @@ import {
   type EntityTooltipLine,
 } from "../gameData/entityTooltip";
 import { GDataContext } from "../GDataContext";
+import { getItemData } from "../gameData/itemInstanceData";
 import { getFullItemName } from "./iteminfo-util";
 import { JsonHighlight } from "./JsonHighlight";
 
@@ -229,6 +230,7 @@ export function EntityTooltip({ entity, children, extraLines }: EntityTooltipPro
           level: entity.level ?? 0,
           ...(entity.title ? { p: entity.title as never } : {}),
           ...(entity.statType ? { stat_type: entity.statType as never } : {}),
+          ...(entity.data ? { data: entity.data } : {}),
         },
         G,
       );
@@ -413,6 +415,7 @@ export function ItemTooltip({
   title = "",
   statType,
   quantity,
+  data,
   extraLines,
   children,
 }: {
@@ -422,6 +425,8 @@ export function ItemTooltip({
   /** Property/stat scroll type (ItemInfo.stat_type). */
   statType?: string;
   quantity?: number;
+  /** Free-form instance payload (`ItemInfo.data`, e.g. cxjar cosmetic id). */
+  data?: string;
   extraLines?: EntityTooltipLine[];
   children: ReactNode;
 }) {
@@ -433,8 +438,9 @@ export function ItemTooltip({
       title: title || undefined,
       statType: statType || undefined,
       quantity,
+      data: getItemData({ data }) ?? undefined,
     }),
-    [itemName, level, quantity, title, statType],
+    [itemName, level, quantity, title, statType, data],
   );
 
   return (

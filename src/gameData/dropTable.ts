@@ -14,6 +14,14 @@ function toInt(value: unknown): number | null {
   return null;
 }
 
+/**
+ * Official `G.drops` uses `cx` as shorthand; the server grants `cxjar` with
+ * `ItemInfo.data` = the cosmetic id (3rd tuple field → DropSource.title).
+ */
+function normalizeDropItemKey(itemKey: string): string {
+  return itemKey === "cx" ? "cxjar" : itemKey;
+}
+
 /** Sum of numeric weights in a named exchange / nested open table. */
 export function tableTotalWeight(entries: unknown[]): number {
   let total = 0;
@@ -66,7 +74,7 @@ function parseDropTuple(
     {
       sourceType,
       sourceKey,
-      itemKey: second,
+      itemKey: normalizeDropItemKey(second),
       probability,
       quantity: toInt(third),
       title: typeof fourth === "string" ? fourth : typeof third === "string" ? third : "",

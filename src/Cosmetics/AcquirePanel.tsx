@@ -14,6 +14,7 @@ import {
 import { COSMETIC_SLOT_LABEL, CosmeticEntry } from "../gameData/cosmeticsCatalog";
 import { isAnimatedCosmeticType } from "../gameData/spriteSkinLayout";
 import { ItemImage } from "../ItemImage";
+import { CxJarItemSprite } from "../Shared/CxJarItemSprite";
 import { MonsterImage, NpcImage, SpriteSkin } from "../Shared/SpriteSkin";
 
 type Availability = "free" | "pack" | "unpublished";
@@ -278,11 +279,15 @@ export function AcquirePanel({
 
   const cosmo = sources.filter((s) => s.kind === "cosmo");
   const drops = sources.filter((s) => s.kind === "drop");
+  const tokens = sources.filter((s) => s.kind === "token");
+  const crafts = sources.filter((s) => s.kind === "craft");
   const isClass = sources.some((s) => s.kind === "class");
   const avail = availability ?? acquireAvailability(sources);
   const chip = AVAIL_CHIP[avail];
   const animated = entry ? isAnimatedCosmeticType(entry.sheetType) : false;
   const unpublished = avail === "unpublished";
+  const hasUnlockRows =
+    cosmo.length > 0 || drops.length > 0 || tokens.length > 0 || crafts.length > 0;
 
   return (
     <Box
@@ -344,12 +349,13 @@ export function AcquirePanel({
           variant="body2"
           sx={{ color: "warning.light", fontWeight: 600, lineHeight: 1.4 }}
         >
-          No class default, cosmo pack, or drop-table row for this id in G (WIP / staff-only).
+          No class default, cosmo pack, drop, token-shop, or craft row for this id in G (WIP /
+          staff-only).
         </Typography>
       ) : null}
 
       <Stack spacing={0.65}>
-        {isClass && cosmo.length === 0 && drops.length === 0 ? (
+        {isClass && !hasUnlockRows ? (
           <SourceRow
             kindLabel="Class"
             title="Starting look"
@@ -419,6 +425,55 @@ export function AcquirePanel({
             />
           );
         })}
+
+        {tokens.map((src) => (
+          <SourceRow
+            key={`token-${src.tokenKey ?? "tok"}-${src.tokenCost ?? 0}-${src.note ?? ""}`}
+            kindLabel="Token shop"
+            title={src.tokenKey ?? "Token"}
+            subtitle={[
+              src.tokenCost != null ? `${src.tokenCost.toLocaleString("en-US")} tokens` : null,
+              src.note,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            icons={
+              <Stack direction="row" spacing={0.65} alignItems="center">
+                {src.tokenKey ? (
+                  <IconWell title={src.tokenKey} to={itemDeepLink(src.tokenKey)}>
+                    <ItemImage itemName={src.tokenKey} size={36} />
+                  </IconWell>
+                ) : null}
+                <IconWell title="CX Jar">
+                  <CxJarItemSprite data={cosmeticId} size={36} />
+                </IconWell>
+              </Stack>
+            }
+            links={src.tokenKey ? [{ label: "Token", to: itemDeepLink(src.tokenKey) }] : undefined}
+          />
+        ))}
+
+        {crafts.map((src) => (
+          <SourceRow
+            key={`craft-${src.craftKey ?? "craft"}-${src.note ?? ""}`}
+            kindLabel="Craft"
+            title={src.craftKey ?? "Recipe"}
+            subtitle={src.note}
+            icons={
+              <Stack direction="row" spacing={0.65} alignItems="center">
+                {src.craftKey ? (
+                  <IconWell title={src.craftKey} to={itemDeepLink(src.craftKey)}>
+                    <ItemImage itemName={src.craftKey} size={36} />
+                  </IconWell>
+                ) : null}
+                <IconWell title="CX Jar">
+                  <CxJarItemSprite data={cosmeticId} size={36} />
+                </IconWell>
+              </Stack>
+            }
+            links={src.craftKey ? [{ label: "Recipe", to: itemDeepLink(src.craftKey) }] : undefined}
+          />
+        ))}
       </Stack>
 
       {propLabels && propLabels.length > 0 ? (

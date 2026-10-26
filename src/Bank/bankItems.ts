@@ -1,4 +1,5 @@
 import { GData, ItemInfoPValues, ItemKey } from "typed-adventureland";
+import { getItemData } from "../gameData/itemInstanceData";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
 import { getBankItemCategory } from "./bankCategory";
 import { isOfficialBankPack, SLOTS_PER_BANK_PACK } from "./bankPacks";
@@ -9,6 +10,8 @@ export { getBankItemCategory } from "./bankCategory";
 
 export type AggregatedBankItem = {
   p?: ItemInfoPValues;
+  /** Free-form instance payload (`ItemInfo.data`, e.g. cxjar cosmetic id). */
+  data?: string;
   level: number;
   name: ItemKey;
   q: number;
@@ -45,8 +48,14 @@ export type AggregatedBankData = {
   usedPackSlots: number;
 };
 
-export function getUniqueItemKey(item: { p?: string; level: number; name: ItemKey | string }) {
-  return `${item.p ?? ""}${item.level}${item.name}`;
+export function getUniqueItemKey(item: {
+  p?: string;
+  data?: string;
+  level: number;
+  name: ItemKey | string;
+}) {
+  // Keep jars with different cosmetics separate (server stacks by matching data).
+  return `${item.p ?? ""}${item.level}${item.name}\0${item.data ?? ""}`;
 }
 
 export function aggregateBankData(bankData: BankDataProps, G?: GData): AggregatedBankData {
@@ -84,6 +93,7 @@ export function aggregateBankData(bankData: BankDataProps, G?: GData): Aggregate
 
         data = {
           p: item.p,
+          data: getItemData(item),
           level: item.level,
           name: item.name,
           q: 0,
@@ -115,7 +125,8 @@ export function formatBankItemLabel(item: AggregatedBankItem, G?: GData): string
   const itemName = gItem ? getItemName(itemKey, gItem) : item.name;
   const levelPrefix = item.level > 0 ? `+${item.level} ` : "";
   const titlePrefix = titleName ? `${titleName} ` : "";
-  return `${levelPrefix}${titlePrefix}${itemName}`;
+  const dataSuffix = item.data ? ` · ${item.data}` : "";
+  return `${levelPrefix}${titlePrefix}${itemName}${dataSuffix}`;
 }
 
 export function bankItemMatchesSearch(

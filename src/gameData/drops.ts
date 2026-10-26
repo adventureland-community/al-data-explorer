@@ -85,7 +85,10 @@ export function formatMergedDropOdds(probs: number[]): string {
 export function mergeDropSources(drops: DropSource[]): Array<DropSource & { oddsLabel: string }> {
   const groups = new Map<string, DropSource[]>();
   for (const drop of drops) {
-    const id = `${drop.sourceType}\0${drop.sourceKey}\0${drop.itemKey}`;
+    // Include title/data so distinct cxjar cosmetics (and titled gear) stay separate.
+    const id = `${drop.sourceType}\0${drop.sourceKey}\0${drop.itemKey}\0${drop.title}\0${
+      drop.quantity ?? ""
+    }`;
     const list = groups.get(id) ?? [];
     list.push(drop);
     groups.set(id, list);
@@ -122,8 +125,10 @@ export function formatMonsterDropsDisplay(drops: unknown): string {
     .map((row) => {
       const name = row.nestedTable || row.itemKey;
       if (!name) return "";
-      if (row.probability == null) return name;
-      return `${name} (${formatDropProbability(row.probability)})`;
+      const payload = row.title ? ` · ${row.title}` : "";
+      const label = `${name}${payload}`;
+      if (row.probability == null) return label;
+      return `${label} (${formatDropProbability(row.probability)})`;
     })
     .filter(Boolean)
     .join(", ");

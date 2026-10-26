@@ -14,6 +14,7 @@ import type { BankSearchClause, BankSearchQuery } from "./types";
 const FIELD_OPS = new Set([
   "type",
   "title",
+  "data",
   "class",
   "set",
   "category",
@@ -31,7 +32,7 @@ function quoteIfNeeded(value: string): string {
 
 export function hasFieldSyntax(input: string): boolean {
   return (
-    /(?:^|\s)-?(?:type|title|class|set|category|cat|name|is|attr):/iu.test(input) ||
+    /(?:^|\s)-?(?:type|title|data|class|set|category|cat|name|is|attr):/iu.test(input) ||
     /(?:^|\s)-?(?:q|stack|level|grade)\s*(?:>=|<=|>|<|:|=)/iu.test(input)
   );
 }
@@ -79,7 +80,7 @@ function parseClause(token: string): BankSearchClause | null {
     }
     if (FIELD_OPS.has(field) && field !== "is" && field !== "cat" && field !== "attr") {
       return withNegation({
-        kind: field as "type" | "title" | "class" | "set" | "category" | "name",
+        kind: field as "type" | "title" | "data" | "class" | "set" | "category" | "name",
         value,
       });
     }
@@ -114,6 +115,7 @@ export function serializeBankSearchQuery(query: BankSearchQuery): string {
               return `${prefix}${quoteIfNeeded(clause.value)}`;
             case "type":
             case "title":
+            case "data":
             case "class":
             case "set":
             case "category":

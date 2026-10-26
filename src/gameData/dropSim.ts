@@ -38,6 +38,8 @@ export type WeightedEntry = {
   weight: number;
   itemKey: string;
   quantity: number | null;
+  /** Drop payload: cxjar cosmetic id, or gear title (`p`). */
+  title: string;
   nestedTable: string;
 };
 
@@ -53,6 +55,8 @@ export type AbsoluteOpportunity = {
   baseRate: number;
   itemKey: string;
   quantity: number | null;
+  /** Drop payload: cxjar cosmetic id, or gear title (`p`). */
+  title: string;
   nestedTable: string;
   /** How many independent rolls of this row per kill (coop table multiplier). */
   repeats: number;
@@ -65,6 +69,8 @@ export type OpportunitySet =
 export type OutcomeRow = {
   itemKey: string;
   quantity: number | null;
+  /** Drop payload: cxjar cosmetic id, or gear title (`p`). */
+  title: string;
   observed: number;
   expected: number;
   /** Per-trial grant probability for this leaf (before × n). */
@@ -161,6 +167,7 @@ function parseWeightedEntries(raw: unknown[]): WeightedEntry[] {
         weight: entry[0],
         itemKey: row.itemKey,
         quantity: row.quantity,
+        title: row.title,
         nestedTable: row.nestedTable,
       });
     }
@@ -206,6 +213,7 @@ function parseAbsoluteRows(
         baseRate: base,
         itemKey: row.itemKey,
         quantity: row.quantity,
+        title: row.title,
         nestedTable: row.nestedTable,
         repeats,
       });
@@ -531,10 +539,10 @@ export function planKillDrops(input: PlanKillDropsInput): KillDropPlan | null {
   };
 }
 
-type LeafGrant = { itemKey: string; quantity: number | null };
+type LeafGrant = { itemKey: string; quantity: number | null; title: string };
 
 function grantKey(grant: LeafGrant): string {
-  return `${grant.itemKey}\0${grant.quantity ?? ""}`;
+  return `${grant.itemKey}\0${grant.quantity ?? ""}\0${grant.title}`;
 }
 
 function rollWeightedExclusive(
@@ -560,18 +568,25 @@ function rollWeightedExclusive(
       return rollWeightedExclusive(parseWeightedEntries(nested), drops, rng, depth + 1);
     }
     if (!entry.itemKey) return null;
-    return { itemKey: entry.itemKey, quantity: entry.quantity };
+    return { itemKey: entry.itemKey, quantity: entry.quantity, title: entry.title };
   }
   return null;
 }
+
+type LeafExpect = {
+  probability: number;
+  quantity: number | null;
+  itemKey: string;
+  title: string;
+};
 
 /** Expected leaf probabilities for one exclusive roll (open expanded). */
 function exclusiveLeafProbabilities(
   entries: WeightedEntry[],
   drops: Record<string, unknown>,
   depth = 0,
-): Map<string, { probability: number; quantity: number | null; itemKey: string }> {
-  const out = new Map<string, { probability: number; quantity: number | null; itemKey: string }>();
+): Map<string, LeafExpect> {
+  const out = new Map<string, LeafExpect>();
   if (entries.length === 0 || depth > 16) return out;
   let total = 0;
   for (const entry of entries) {
@@ -598,6 +613,7 @@ function exclusiveLeafProbabilities(
           out.set(key, {
             itemKey: leaf.itemKey,
             quantity: leaf.quantity,
+            title: leaf.title,
             probability: add,
           });
         }
@@ -613,6 +629,7 @@ function exclusiveLeafProbabilities(
       out.set(key, {
         itemKey: entry.itemKey,
         quantity: entry.quantity,
+        title: entry.title,
         probability: p,
       });
     }
@@ -621,7 +638,10 @@ function exclusiveLeafProbabilities(
 }
 
 function addObserved(
-  counts: Map<string, { itemKey: string; quantity: number | null; observed: number }>,
+  counts: Map<
+    string,
+    { itemKey: string; quantity: number | null; title: string; observed: number }
+  >,
   grant: LeafGrant,
   amount = 1,
 ) {
@@ -633,19 +653,18 @@ function addObserved(
     counts.set(key, {
       itemKey: grant.itemKey,
       quantity: grant.quantity,
+      title: grant.title,
       observed: amount,
     });
   }
 }
 
-function expectedMapFromSet(
-  set: OpportunitySet,
-): Map<string, { itemKey: string; quantity: number | null; probability: number }> {
+function expectedMapFromSet(set: OpportunitySet): Map<string, LeafExpect> {
   if (set.kind === "exchange") {
     return exclusiveLeafProbabilities(set.entries, set.drops);
   }
 
-  const out = new Map<string, { itemKey: string; quantity: number | null; probability: number }>();
+  const out = new Map<string, LeafExpect>();
   for (const row of set.rows) {
     const successP = Math.min(1, row.probability) * row.repeats;
     if (row.nestedTable) {
@@ -661,6 +680,7 @@ function expectedMapFromSet(
           out.set(key, {
             itemKey: leaf.itemKey,
             quantity: leaf.quantity,
+            title: leaf.title,
             probability: add,
           });
         }
@@ -676,6 +696,7 @@ function expectedMapFromSet(
       out.set(key, {
         itemKey: row.itemKey,
         quantity: row.quantity,
+        title: row.title,
         probability: successP,
       });
     }
@@ -723,7 +744,7 @@ export function simulateOutcomes(args: {
       : new Set<string>();
   const observed = new Map<
     string,
-    { itemKey: string; quantity: number | null; observed: number }
+    { itemKey: string; quantity: number | null; title: string; observed: number }
   >();
 
   for (let i = 0; i < n; i += 1) {
@@ -750,7 +771,11 @@ export function simulateOutcomes(args: {
             continue;
           }
           if (!row.itemKey) continue;
-          addObserved(observed, { itemKey: row.itemKey, quantity: row.quantity });
+          addObserved(observed, {
+            itemKey: row.itemKey,
+            quantity: row.quantity,
+            title: row.title,
+          });
         }
       }
     }
@@ -767,6 +792,7 @@ export function simulateOutcomes(args: {
     rows.push({
       itemKey,
       quantity: exp?.quantity ?? obs?.quantity ?? null,
+      title: exp?.title ?? obs?.title ?? "",
       observed: obs?.observed ?? 0,
       expected: probability * n,
       probability,
@@ -774,7 +800,12 @@ export function simulateOutcomes(args: {
     });
   }
 
-  rows.sort((a, b) => b.expected - a.expected || a.itemKey.localeCompare(b.itemKey));
+  rows.sort(
+    (a, b) =>
+      b.expected - a.expected ||
+      a.itemKey.localeCompare(b.itemKey) ||
+      a.title.localeCompare(b.title),
+  );
   return rows;
 }
 

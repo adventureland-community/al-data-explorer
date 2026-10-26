@@ -113,6 +113,7 @@ function BankTableView({ items }: { items: AggregatedBankItem[] }) {
           }
 
           const itemName = getItemName(itemKey, gItem);
+          const keyLine = itemInfo.data ? `${itemInfo.name} · ${itemInfo.data}` : itemInfo.name;
 
           return (
             <TableRow key={getUniqueItemKey(itemInfo)} hover>
@@ -122,14 +123,14 @@ function BankTableView({ items }: { items: AggregatedBankItem[] }) {
               </TableCell>
               <TableCell component="td">
                 <div style={{ display: "inline-block" }}>
-                  <ItemInstance itemInfo={itemInfo} linkToDetail />
+                  <ItemInstance itemInfo={itemInfo as never} linkToDetail />
                 </div>
                 <div style={{ marginLeft: "10px", display: "inline-block" }}>
                   <div>
                     {titleName}
                     {itemName}
                   </div>
-                  <div style={{ color: "grey" }}>{itemInfo.name}</div>
+                  <div style={{ color: "grey" }}>{keyLine}</div>
                 </div>
               </TableCell>
               <TableCell component="td">{itemInfo.level}</TableCell>
@@ -157,7 +158,7 @@ function BankGridViewItemRow({ items }: { items: AggregatedBankItem[] }) {
 
         return (
           <div key={getUniqueItemKey(itemInfo)}>
-            <ItemInstance showQuantity itemInfo={itemInfo} linkToDetail />
+            <ItemInstance showQuantity itemInfo={itemInfo as never} linkToDetail />
           </div>
         );
       })}

@@ -13,6 +13,8 @@ export type RecipeItemTileProps = {
   itemKey: ItemKey;
   level?: number;
   title?: ItemInfoPValues;
+  /** Free-form instance payload (`ItemInfo.data`, e.g. cxjar cosmetic). */
+  data?: string;
   quantity?: number;
   showQuantity?: boolean;
   forceShowQuantity?: boolean;
@@ -28,6 +30,7 @@ export function RecipeItemTile({
   itemKey,
   level,
   title,
+  data,
   quantity,
   showQuantity,
   forceShowQuantity,
@@ -44,12 +47,15 @@ export function RecipeItemTile({
   return (
     <Box sx={{ textAlign: "center", width: size + 8 }}>
       <ItemInstance
-        itemInfo={{
-          name: itemKey,
-          ...(level != null ? { level } : {}),
-          ...(title ? { p: title } : {}),
-          ...(quantity != null ? { q: quantity } : {}),
-        }}
+        itemInfo={
+          {
+            name: itemKey,
+            ...(level != null ? { level } : {}),
+            ...(title ? { p: title } : {}),
+            ...(data ? { data } : {}),
+            ...(quantity != null ? { q: quantity } : {}),
+          } as never
+        }
         showQuantity={resolvedShowQuantity}
         forceShowQuantity={forceShowQuantity}
         quantityColor={quantityColor}

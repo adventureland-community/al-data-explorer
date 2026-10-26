@@ -6,6 +6,7 @@ import {
   findSpriteSheet,
   idleWalkFrame,
   isAnimatedCosmeticType,
+  spriteFitScale,
   spriteGridSize,
   spriteSkinView,
 } from "../spriteSkinLayout";
@@ -80,5 +81,22 @@ describe("spriteSkinLayout", () => {
     });
     expect(bbeyes?.sheetType).toBe("a_makeup");
     expect(bbeyes?.colNum).toBe(3);
+  });
+
+  it("fits natural sprite views into a square without overflowing", () => {
+    expect(spriteFitScale(20, 40, 40)).toBe(1);
+    expect(spriteFitScale(80, 40, 40)).toBe(0.5);
+    expect(spriteFitScale(0, 10, 40)).toBe(1);
+
+    const box = 40;
+    for (const id of ["bathat", "hairdo607", "gcandle", "hat410"] as const) {
+      const natural = spriteSkinView(G.sprites, G.images, G.dimensions, id, 1);
+      expect(natural).toBeTruthy();
+      const scale = spriteFitScale(natural!.viewWidth, natural!.viewHeight, box);
+      const fitted = spriteSkinView(G.sprites, G.images, G.dimensions, id, scale);
+      expect(fitted!.viewWidth).toBeLessThanOrEqual(box + 0.01);
+      expect(fitted!.viewHeight).toBeLessThanOrEqual(box + 0.01);
+      expect(Math.max(fitted!.viewWidth, fitted!.viewHeight)).toBeGreaterThan(box * 0.5);
+    }
   });
 });

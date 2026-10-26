@@ -553,11 +553,14 @@ function BankMarketTile({
   return (
     <Box sx={marketCardSx(line)}>
       <ItemInstance
-        itemInfo={{
-          name: line.item.name,
-          level: line.item.level,
-          ...(line.item.p ? { p: line.item.p } : {}),
-        }}
+        itemInfo={
+          {
+            name: line.item.name,
+            level: line.item.level,
+            ...(line.item.p ? { p: line.item.p } : {}),
+            ...(line.item.data ? { data: line.item.data } : {}),
+          } as never
+        }
         linkToDetail
         size={48}
         tooltip

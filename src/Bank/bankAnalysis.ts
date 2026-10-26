@@ -8,6 +8,7 @@ import { getMaxLevel } from "../gameData/itemProperties";
 import { ItemsByNameTitleLevel } from "../Market/merchantTypes";
 import { getItemGrade, gradeLabel } from "../gameData/playerItemDisplay";
 import { itemMatchesClasses } from "../gameData/itemMeta";
+import { instanceVariantKey } from "../gameData/itemInstanceData";
 import { AggregatedBankItem, formatBankItemLabel, getUniqueItemKey } from "./bankItems";
 import { BankDataProps } from "./getBankData";
 
@@ -297,8 +298,8 @@ export function getBankItemSellQuote(
   G?: GData,
 ): { unitPrice: number; priceSource: BankSellPriceSource; merchantId?: string } | undefined {
   const gItem = G?.items[item.name];
-  const titleKey = item.p ?? "";
-  const buying = merchantItems?.[item.name]?.[titleKey]?.[item.level]?.buying;
+  const variantKey = instanceVariantKey(item);
+  const buying = merchantItems?.[item.name]?.[variantKey]?.[item.level]?.buying;
   const maxBuyPrice = buying?.maxPrice?.price ?? 0;
 
   if (maxBuyPrice > 0) {

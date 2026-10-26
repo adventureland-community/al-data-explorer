@@ -1,5 +1,6 @@
 import { GData, ItemKey } from "typed-adventureland";
 
+import { parseCompoundItemKey } from "./itemInstanceData";
 import { MapLocation, NpcShopSource, TokenOfferSource } from "./types";
 
 export { normalizeTokenShopOffer } from "./tokenShopOffer";
@@ -77,16 +78,18 @@ export function buildTokenOffersByItem(
   for (const [tokenKey, shop] of Object.entries(tokens)) {
     if (!shop || typeof shop !== "object") continue;
     const vendor = npcByToken.get(tokenKey);
-    for (const [itemKey, costRaw] of Object.entries(shop as Record<string, unknown>)) {
+    for (const [offerKey, costRaw] of Object.entries(shop as Record<string, unknown>)) {
       const cost =
         typeof costRaw === "number" && Number.isFinite(costRaw) ? costRaw : Number(costRaw);
+      const parsed = parseCompoundItemKey(offerKey);
       const offer: TokenOfferSource = {
         tokenKey,
         cost: Number.isFinite(cost) ? cost : null,
         npcId: vendor?.npcId ?? null,
         npcName: vendor?.npcName ?? null,
+        ...(parsed.data ? { data: parsed.data, offerKey } : {}),
       };
-      const key = itemKey as ItemKey;
+      const key = parsed.name as ItemKey;
       const list = byItem.get(key) ?? [];
       list.push(offer);
       byItem.set(key, list);
