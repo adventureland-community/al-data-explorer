@@ -108,7 +108,7 @@ export function PlanHero({
             <Box sx={{ minWidth: 0 }}>
               <Link
                 component={RouterLink}
-                to={`/items/${encodeURIComponent(itemKey)}`}
+                to={`/items/${encodeURIComponent(itemKey)}?level=${target}`}
                 variant={compact ? "subtitle1" : "h6"}
                 underline="hover"
                 fontWeight={600}
