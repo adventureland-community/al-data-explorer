@@ -65,6 +65,25 @@ export type WeaponBonusRow = {
   bonuses: { key: string; label: string; value: string }[];
 };
 
+export type ClassSlotKind = "mainhand" | "offhand" | "doublehand";
+
+export const CLASS_SLOT_KINDS: ClassSlotKind[] = ["mainhand", "offhand", "doublehand"];
+
+export const CLASS_SLOT_LABELS: Record<ClassSlotKind, string> = {
+  mainhand: "Mainhand",
+  offhand: "Offhand",
+  doublehand: "Doublehand",
+};
+
+export type ClassSlotBonus = { key: string; label: string; value: string };
+
+/** One class × slot that can equip this item’s wtype/type (inverse of `classWeaponRows`). */
+export type ItemClassSlotRow = {
+  classKey: ClassKey;
+  slot: ClassSlotKind;
+  bonuses: ClassSlotBonus[];
+};
+
 const MAIN_STATS = ["str", "dex", "int", "vit", "for"] as const;
 
 export function isClassKey(key: string): key is ClassKey {
@@ -281,22 +300,65 @@ export function classAttributeRows(gClass: GClass, level: number): ClassAttrRow[
   return rows;
 }
 
+function slotBonusRows(bonuses: unknown): ClassSlotBonus[] {
+  const rows: ClassSlotBonus[] = [];
+  if (!bonuses || typeof bonuses !== "object") return rows;
+  for (const [key, value] of Object.entries(bonuses)) {
+    if (typeof value !== "number") continue;
+    rows.push({
+      key,
+      label: STAT_DISPLAY_LABELS[key] ?? titleCaseKey(key),
+      value: value > 0 ? `+${value}` : String(value),
+    });
+  }
+  return rows;
+}
+
 export function classWeaponRows(table: object | undefined): WeaponBonusRow[] {
   if (!table) return [];
   const rows: WeaponBonusRow[] = [];
   for (const [wtype, bonuses] of Object.entries(table)) {
-    const bonusRows: WeaponBonusRow["bonuses"] = [];
-    if (bonuses && typeof bonuses === "object") {
-      for (const [key, value] of Object.entries(bonuses)) {
-        if (typeof value !== "number") continue;
-        bonusRows.push({
-          key,
-          label: STAT_DISPLAY_LABELS[key] ?? titleCaseKey(key),
-          value: value > 0 ? `+${value}` : String(value),
+    rows.push({ wtype, bonuses: slotBonusRows(bonuses) });
+  }
+  return rows;
+}
+
+/** Keys used in class mainhand/offhand/doublehand tables for this item. */
+export function itemEquipTableKeys(gItem: { type?: string; wtype?: string }): string[] {
+  const keys: string[] = [];
+  if (gItem.wtype) keys.push(gItem.wtype);
+  if (gItem.type && gItem.type !== gItem.wtype) keys.push(gItem.type);
+  return keys;
+}
+
+/**
+ * Per-class slot modifiers for an item (dagger → rogue main/off, ranger doublehand, …).
+ * Presence of a table key means that class can equip the type in that slot.
+ */
+export function itemClassSlotRows(
+  classes: Pick<CustomGData, "classes">["classes"] | Record<string, GClass | undefined>,
+  gItem: { type?: string; wtype?: string },
+): ItemClassSlotRow[] {
+  const tableKeys = itemEquipTableKeys(gItem);
+  if (tableKeys.length === 0) return [];
+
+  const rows: ItemClassSlotRow[] = [];
+  for (const classKey of CLASS_KEYS) {
+    const gClass = (classes as Record<string, GClass | undefined>)[classKey];
+    if (!gClass) continue;
+    for (const slot of CLASS_SLOT_KINDS) {
+      const table = gClass[slot] as Record<string, unknown> | undefined;
+      if (!table) continue;
+      for (const key of tableKeys) {
+        if (!(key in table)) continue;
+        rows.push({
+          classKey,
+          slot,
+          bonuses: slotBonusRows(table[key]),
         });
+        break;
       }
     }
-    rows.push({ wtype, bonuses: bonusRows });
   }
   return rows;
 }
