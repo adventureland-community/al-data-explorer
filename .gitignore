@@ -17,6 +17,9 @@
 # Scratch copy from scheduled data version check (never commit).
 /public/data.json.before
 
+# Local agent scratch (screenshots, one-off scripts)
+.tmp/
+
 # misc
 .DS_Store
 .env.local

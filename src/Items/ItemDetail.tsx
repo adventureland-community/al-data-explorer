@@ -46,6 +46,7 @@ import { SpriteSkin } from "../Shared/SpriteSkin";
 import { getMaxLevel } from "../Utils";
 import { ItemSetCard } from "./components/ItemSetCard";
 import { ItemSourcesPanel } from "./components/ItemSourcesPanel";
+import { ItemUpgradeCard } from "./components/ItemUpgradeCard";
 import { ItemUsesPanel } from "./components/ItemUsesPanel";
 import { RelatedItemsCard } from "./components/RelatedItemsCard";
 
@@ -586,6 +587,10 @@ export function ItemDetail() {
           )}
         </Box>
       </Paper>
+
+      {level > 0 && (gItem.upgrade || gItem.compound) ? (
+        <ItemUpgradeCard itemKey={key} gItem={gItem} level={level} G={G} />
+      ) : null}
 
       <Grid container spacing={2}>
         <Grid item xs={12} md={5}>

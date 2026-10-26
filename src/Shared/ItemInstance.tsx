@@ -220,12 +220,17 @@ export function ItemInstance({
     </div>
   );
 
+  const detailHref =
+    itemInfo.level != null && itemInfo.level > 0
+      ? `/items/${encodeURIComponent(itemName)}?level=${itemInfo.level}`
+      : `/items/${encodeURIComponent(itemName)}`;
+
   if (!tooltip) {
     if (linkToDetail) {
       return (
         <Link
           component={RouterLink}
-          to={`/items/${encodeURIComponent(itemName)}`}
+          to={detailHref}
           sx={{ display: "inline-block", color: "inherit", textDecoration: "none" }}
         >
           {sprite}
@@ -252,7 +257,7 @@ export function ItemInstance({
     return (
       <Link
         component={RouterLink}
-        to={`/items/${encodeURIComponent(itemName)}`}
+        to={detailHref}
         sx={{ display: "inline-block", color: "inherit", textDecoration: "none" }}
       >
         {tooltipContent}
