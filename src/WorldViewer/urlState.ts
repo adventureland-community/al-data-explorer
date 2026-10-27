@@ -29,12 +29,21 @@ export function syncHashFromState(
   focus: MapFocus | null,
   viewMode: ViewerMode,
   layerHeight: number,
+  planShare?: string | null,
 ): void {
+  const existing = parseHash();
   writeHash({
     map: selectedMap ?? undefined,
     x: focus?.x !== undefined ? String(Math.round(focus.x)) : undefined,
     y: focus?.y !== undefined ? String(Math.round(focus.y)) : undefined,
     mode: viewMode,
     layers: layerHeight !== DEFAULT_LAYER_HEIGHT ? String(layerHeight) : undefined,
+    // Keep an open share blob unless a newer one is supplied; drop when leaving Plan.
+    plan:
+      viewMode === "plan"
+        ? planShare !== undefined
+          ? planShare ?? undefined
+          : existing.plan
+        : undefined,
   });
 }

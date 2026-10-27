@@ -36,9 +36,10 @@ import { toWorldSource } from "./worldData";
 import { PLAN_DEFAULT_OVERLAYS } from "./plan/planDefaults";
 import { PlanLibraryPanel } from "./plan/PlanLibraryPanel";
 import { PlanToolbar } from "./plan/PlanToolbar";
+import { computeLoadoutStats } from "../gameData/loadoutStats";
 import { advanceRouteT, pointAlongRoute } from "./plan/planPlayback";
 import { usePlanSession } from "./plan/usePlanSession";
-import { PlanRouteObject } from "./plan/types";
+import { PlanPoint, PlanRouteObject } from "./plan/types";
 
 const MAX_TRAVEL_HISTORY = 15;
 
@@ -99,7 +100,8 @@ export function WorldViewer() {
   const [doorDialog, setDoorDialog] = useState<DoorTravel | null>(null);
   const [fogDensity, setFogDensity] = useState(0.000025);
   const [soloBand, setSoloBand] = useState<MapBand | null>(null);
-  const [playbackPoint, setPlaybackPoint] = useState<{ x: number; y: number } | null>(null);
+  const [playbackPoint, setPlaybackPoint] = useState<PlanPoint | null>(null);
+  const [trailPoints, setTrailPoints] = useState<PlanPoint[]>([]);
 
   const world = useMemo(() => (G ? toWorldSource(G) : null), [G]);
 
@@ -168,10 +170,18 @@ export function WorldViewer() {
     [world, sheets],
   );
 
-  // Sync state → URL hash
+  // Sync state → URL hash (preserve plan= share blob while in Plan mode)
   useEffect(() => {
-    syncHashFromState(selectedMap, focus, viewMode, layerHeight);
-  }, [selectedMap, focus, viewMode, layerHeight]);
+    syncHashFromState(
+      selectedMap,
+      focus,
+      viewMode,
+      layerHeight,
+      viewMode === "plan" && planSession.document
+        ? planSession.shareUrl()?.split("plan=")[1]
+        : null,
+    );
+  }, [selectedMap, focus, viewMode, layerHeight, planSession.document, planSession]);
 
   const requestMapFocus = (mapId: string, x: number, y: number, fit: MapFocus["fit"] = "map") => {
     focusSeqRef.current += 1;
@@ -287,9 +297,33 @@ export function WorldViewer() {
     }
     let frame = 0;
     let last = performance.now();
-    const speedPx = 40;
-    const { speedMul } = planSession.playback;
-    const { loop } = planSession.playback;
+    const ghost = route.ghostId
+      ? planSession.document.objects.find((object) => object.id === route.ghostId)
+      : undefined;
+    let speedPx = 40;
+    if (ghost?.kind === "ghost" && ghost.loadout && G) {
+      const classRaw = G.classes[ghost.loadout.classKey];
+      const stats = computeLoadoutStats({
+        characterClass: classRaw
+          ? {
+              className: ghost.loadout.classKey,
+              stats: classRaw.stats ?? {},
+              lstats: classRaw.lstats ?? {},
+              main_stat: classRaw.main_stat,
+              mainhand: classRaw.mainhand,
+              offhand: classRaw.offhand,
+              doublehand: classRaw.doublehand,
+            }
+          : undefined,
+        level: ghost.loadout.level,
+        gear: ghost.loadout.gear,
+        G,
+      });
+      if (typeof stats.speed === "number" && stats.speed > 0) {
+        speedPx = stats.speed;
+      }
+    }
+    const { speedMul, loop, trail } = planSession.playback;
     const tick = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
@@ -302,7 +336,11 @@ export function WorldViewer() {
         loop,
       });
       playbackTRef.current = advanced.t;
-      setPlaybackPoint(pointAlongRoute(route, advanced.t));
+      const point = pointAlongRoute(route, advanced.t);
+      setPlaybackPoint(point);
+      if (trail && point) {
+        setTrailPoints((current) => [...current.slice(-24), point]);
+      }
       if (advanced.done) {
         planSession.setPlayback({ t: advanced.t, playing: false });
         return;
@@ -316,8 +354,10 @@ export function WorldViewer() {
     planSession.playback.routeId,
     planSession.playback.speedMul,
     planSession.playback.loop,
+    planSession.playback.trail,
     planSession.document,
     planSession,
+    G,
   ]);
 
   useEffect(() => {
@@ -467,7 +507,17 @@ export function WorldViewer() {
           tool={planSession.tool}
           onTool={planSession.setTool}
           color={planSession.color}
-          onColor={planSession.setColor}
+          onColor={planSession.recolorSelected}
+          selectedRadius={(() => {
+            const rangeDisc = [...planSession.selectedIds]
+              .map((id) => planSession.document?.objects.find((object) => object.id === id))
+              .find((object) => object?.kind === "ellipse" && object.role === "range");
+            if (!rangeDisc || rangeDisc.kind !== "ellipse") {
+              return null;
+            }
+            return rangeDisc.radiusOverride ?? rangeDisc.radiusX;
+          })()}
+          onSelectedRadius={planSession.setSelectedRadiusOverride}
           stamp={planSession.stamp}
           onStamp={planSession.setStamp}
           planName={planSession.document.name}
@@ -489,21 +539,37 @@ export function WorldViewer() {
           onGhostLoadoutName={setGhostLoadoutName}
           playback={{
             playing: planSession.playback.playing,
+            t: planSession.playback.t,
             speedMul: planSession.playback.speedMul,
             trail: planSession.playback.trail,
             loop: planSession.playback.loop,
             hasRoute: planSession.document.objects.some((object) => object.kind === "route"),
           }}
           onPlayback={(patch) => {
+            if (patch.t != null) {
+              playbackTRef.current = patch.t;
+              const activeRoute = planSession.document?.objects.find(
+                (object) =>
+                  object.kind === "route" &&
+                  (object.id === planSession.playback.routeId || !planSession.playback.routeId),
+              ) as PlanRouteObject | undefined;
+              if (activeRoute) {
+                setPlaybackPoint(pointAlongRoute(activeRoute, patch.t));
+              }
+            }
             if (patch.playing && !planSession.playback.routeId) {
               const route = planSession.document?.objects.find((object) => object.kind === "route");
               planSession.setPlayback({
                 ...patch,
                 routeId: route?.id ?? null,
-                t: 0,
+                t: patch.t ?? 0,
               });
-              playbackTRef.current = 0;
+              playbackTRef.current = patch.t ?? 0;
+              setTrailPoints([]);
               return;
+            }
+            if (patch.trail === false) {
+              setTrailPoints([]);
             }
             planSession.setPlayback(patch);
           }}
@@ -604,6 +670,7 @@ export function WorldViewer() {
                     capturePointer: planSession.tool !== "select",
                     playbackPoint,
                     playbackRouteId: planSession.playback.routeId,
+                    trailPoints: planSession.playback.trail ? trailPoints : [],
                     onSelectIds: planSession.setSelectedIds,
                     onPointer: (args) => {
                       if (planSession.tool === "ghost" && args.phase === "down") {

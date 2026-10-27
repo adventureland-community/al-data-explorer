@@ -99,6 +99,7 @@ function buildObjectMesh(args: {
   packCenters: ReadonlyMap<number, PlanPoint>;
   selected: boolean;
   playbackGhost?: PlanPoint | null;
+  trailPoints?: PlanPoint[];
 }): THREE.Object3D | null {
   const { object, mapId, selected } = args;
   const color = parseColor(object.color);
@@ -226,6 +227,12 @@ function buildObjectMesh(args: {
         dot.position.set(waypoint.x, lift + 0.2, waypoint.y);
         group.add(dot);
       }
+      if (args.trailPoints && args.trailPoints.length > 1) {
+        const trail = lineFromPoints(args.trailPoints, 0xffffff, lift + 0.15, false);
+        if (trail) {
+          group.add(trail);
+        }
+      }
       if (args.playbackGhost) {
         const ghost = new THREE.Mesh(
           layFlat(new THREE.CircleGeometry(6, 12)),
@@ -291,7 +298,7 @@ export function syncPlanLayer(args: {
   G: CustomGData | null;
   selectedIds: ReadonlySet<string>;
   packCenters: ReadonlyMap<number, PlanPoint>;
-  playback?: { routeId: string; point: PlanPoint } | null;
+  playback?: { routeId: string; point: PlanPoint; trail?: PlanPoint[] } | null;
 }): void {
   let layer = args.mapGroup.getObjectByName(PLAN_LAYER_NAME) as THREE.Group | undefined;
   if (layer) {
@@ -313,6 +320,8 @@ export function syncPlanLayer(args: {
       selected: args.selectedIds.has(object.id),
       playbackGhost:
         args.playback && args.playback.routeId === object.id ? args.playback.point : null,
+      trailPoints:
+        args.playback && args.playback.routeId === object.id ? args.playback.trail : undefined,
     });
     if (mesh) {
       layer.add(mesh);

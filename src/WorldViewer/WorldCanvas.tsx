@@ -760,7 +760,11 @@ export function WorldCanvas({
       packCenters: packCentersFromMap(map),
       playback:
         plan?.playbackRouteId && plan.playbackPoint
-          ? { routeId: plan.playbackRouteId, point: plan.playbackPoint }
+          ? {
+              routeId: plan.playbackRouteId,
+              point: plan.playbackPoint,
+              trail: plan.trailPoints,
+            }
           : null,
     });
   }, [
@@ -769,6 +773,7 @@ export function WorldCanvas({
     plan?.selectedIds,
     plan?.playbackPoint,
     plan?.playbackRouteId,
+    plan?.trailPoints,
     plan?.active,
     selectedMap,
     maps,

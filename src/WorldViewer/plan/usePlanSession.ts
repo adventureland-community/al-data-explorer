@@ -67,6 +67,8 @@ export type PlanSession = {
   setTool: (tool: PlanTool) => void;
   color: string;
   setColor: (color: string) => void;
+  recolorSelected: (color: string) => void;
+  setSelectedRadiusOverride: (radius: number) => void;
   stamp: PlanStampKind;
   setStamp: (stamp: PlanStampKind) => void;
   selectedIds: Set<string>;
@@ -313,6 +315,48 @@ export function usePlanSession(args: {
     [commit, document, selectedIds],
   );
 
+  const recolorSelected = useCallback(
+    (nextColor: string) => {
+      setColor(nextColor);
+      if (!document || selectedIds.size === 0) {
+        return;
+      }
+      let next = document;
+      for (const id of selectedIds) {
+        const object = next.objects.find((entry) => entry.id === id);
+        if (!object) {
+          continue;
+        }
+        next = replacePlanObject(next, { ...object, color: nextColor });
+      }
+      commit(next);
+    },
+    [commit, document, selectedIds],
+  );
+
+  const setSelectedRadiusOverride = useCallback(
+    (radius: number) => {
+      if (!document || selectedIds.size === 0) {
+        return;
+      }
+      let next = document;
+      for (const id of selectedIds) {
+        const object = next.objects.find((entry) => entry.id === id);
+        if (!object || object.kind !== "ellipse") {
+          continue;
+        }
+        next = replacePlanObject(next, {
+          ...object,
+          radiusOverride: radius,
+          radiusX: radius,
+          radiusY: radius,
+        });
+      }
+      commit(next);
+    },
+    [commit, document, selectedIds],
+  );
+
   const shareUrl = useCallback(() => {
     if (!document) {
       return null;
@@ -375,13 +419,14 @@ export function usePlanSession(args: {
       if (!document) {
         return;
       }
+      const order = nextPackOrder(document);
       const marker: PlanObject = {
         kind: "packMarker",
         id: createPlanObjectId(),
         color,
         packIndex,
-        order: nextPackOrder(document),
-        label: `Pack ${String.fromCharCode(64 + nextPackOrder(document))}`,
+        order,
+        label: `Pack ${String.fromCharCode(64 + order)}`,
       };
       commit(addPlanObject(document, marker));
       setSelectedIds(new Set([marker.id]));
@@ -416,18 +461,19 @@ export function usePlanSession(args: {
           if (dx === 0 && dy === 0) {
             return;
           }
-          commit(movePlanObject(document, dragRef.current.id, dx, dy));
-          // also move linked range disc with ghost
-          const moved = document.objects.find((object) => object.id === dragRef.current?.id);
+          const draggedId = dragRef.current.id;
+          const moved = document.objects.find((object) => object.id === draggedId);
+          let next = movePlanObject(document, draggedId, dx, dy);
           if (moved?.kind === "ghost") {
             const range = document.objects.find(
               (object) => object.kind === "ellipse" && object.ghostId === moved.id,
             );
             if (range) {
-              commit(movePlanObject(movePlanObject(document, moved.id, dx, dy), range.id, dx, dy));
+              next = movePlanObject(next, range.id, dx, dy);
             }
           }
-          dragRef.current = { id: dragRef.current.id, last: point };
+          commit(next);
+          dragRef.current = { id: draggedId, last: point };
         }
         if (phase === "up") {
           dragRef.current = null;
@@ -545,13 +591,15 @@ export function usePlanSession(args: {
               }),
             );
           } else if (current.kind === "ellipse") {
+            const radius = Math.max(Math.abs(point.x - start.x), Math.abs(point.y - start.y), 1);
             commit(
               replacePlanObject(document, {
                 ...current,
                 x: start.x,
                 y: start.y,
-                radiusX: Math.max(Math.abs(point.x - start.x), 1),
-                radiusY: Math.max(Math.abs(point.y - start.y), 1),
+                radiusX: radius,
+                radiusY: radius,
+                ...(current.role === "range" || current.ghostId ? { radiusOverride: radius } : {}),
               }),
             );
           }
@@ -671,6 +719,8 @@ export function usePlanSession(args: {
     setTool,
     color,
     setColor,
+    recolorSelected,
+    setSelectedRadiusOverride,
     stamp,
     setStamp,
     selectedIds,

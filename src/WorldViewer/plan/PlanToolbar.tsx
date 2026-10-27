@@ -3,6 +3,7 @@ import {
   Button,
   ButtonGroup,
   MenuItem,
+  Slider,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -39,6 +40,8 @@ type PlanToolbarProps = {
   onTool: (tool: PlanTool) => void;
   color: string;
   onColor: (color: string) => void;
+  selectedRadius: number | null;
+  onSelectedRadius: (radius: number) => void;
   stamp: PlanStampKind;
   onStamp: (stamp: PlanStampKind) => void;
   planName: string;
@@ -55,6 +58,7 @@ type PlanToolbarProps = {
   onGhostLoadoutName: (name: string) => void;
   playback: {
     playing: boolean;
+    t: number;
     speedMul: number;
     trail: boolean;
     loop: boolean;
@@ -62,6 +66,7 @@ type PlanToolbarProps = {
   };
   onPlayback: (patch: {
     playing?: boolean;
+    t?: number;
     speedMul?: number;
     trail?: boolean;
     loop?: boolean;
@@ -73,6 +78,8 @@ export function PlanToolbar({
   onTool,
   color,
   onColor,
+  selectedRadius,
+  onSelectedRadius,
   stamp,
   onStamp,
   planName,
@@ -118,6 +125,17 @@ export function PlanToolbar({
           sx={{ width: 88 }}
           InputLabelProps={{ shrink: true }}
         />
+        {selectedRadius != null && (
+          <TextField
+            size="small"
+            type="number"
+            label="Range px"
+            value={Math.round(selectedRadius)}
+            onChange={(event) => onSelectedRadius(Number(event.target.value))}
+            sx={{ width: 110 }}
+            inputProps={{ min: 1, step: 1 }}
+          />
+        )}
         <ButtonGroup size="small" variant="outlined">
           <Button onClick={onUndo}>Undo</Button>
           <Button onClick={onRedo}>Redo</Button>
@@ -257,6 +275,22 @@ export function PlanToolbar({
           <ToggleButton value={1}>1×</ToggleButton>
           <ToggleButton value={2}>2×</ToggleButton>
         </ToggleButtonGroup>
+        <Box
+          sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 180, flex: "1 1 160px" }}
+        >
+          <Typography variant="caption">Scrub</Typography>
+          <Slider
+            size="small"
+            min={0}
+            max={1}
+            step={0.01}
+            value={playback.t}
+            disabled={!playback.hasRoute}
+            onChange={(_event, value) =>
+              onPlayback({ t: Array.isArray(value) ? value[0] : value, playing: false })
+            }
+          />
+        </Box>
       </Box>
     </Box>
   );

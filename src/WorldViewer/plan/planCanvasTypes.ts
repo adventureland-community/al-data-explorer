@@ -11,6 +11,7 @@ export type PlanCanvasBridge = {
   capturePointer: boolean;
   playbackPoint: PlanPoint | null;
   playbackRouteId: string | null;
+  trailPoints: PlanPoint[];
   onSelectIds: (ids: Set<string>) => void;
   onPointer: (args: {
     phase: "down" | "move" | "up";
