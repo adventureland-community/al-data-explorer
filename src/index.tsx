@@ -15,6 +15,7 @@ import { ItemDetail } from "./Items/ItemDetail";
 import { ItemCompare } from "./Items/ItemCompare";
 import { DropSimulator } from "./DropSimulator/DropSimulator";
 import { UpgradeCalculator } from "./UpgradeCalculator/UpgradeCalculator";
+import { ListsPage } from "./lists/ListsPage";
 import { ClassesBrowse } from "./Classes/ClassesBrowse";
 import { ClassDetail } from "./Classes/ClassDetail";
 import { SkillDetail } from "./Classes/SkillDetail";
@@ -94,6 +95,10 @@ const router = createBrowserRouter([
           {
             path: "upgrade",
             element: <UpgradeCalculator />,
+          },
+          {
+            path: "lists",
+            element: <ListsPage />,
           },
           {
             path: "classes",

@@ -56,6 +56,7 @@ import { ItemSourcesPanel } from "./components/ItemSourcesPanel";
 import { ItemUpgradeCard } from "./components/ItemUpgradeCard";
 import { ItemUsesPanel } from "./components/ItemUsesPanel";
 import { RelatedItemsCard } from "./components/RelatedItemsCard";
+import { AddToListButtons } from "../lists/AddToListButtons";
 
 function StatsTable({ rows }: { rows: ReturnType<typeof buildPlayerStatRows> }) {
   if (rows.length === 0) {
@@ -609,6 +610,14 @@ export function ItemDetail() {
                 </Box>
               )}
             </Stack>
+
+            <AddToListButtons
+              draft={{
+                itemKey: key,
+                ...(maxLevel != null && maxLevel > 0 ? { level } : {}),
+                qty: 1,
+              }}
+            />
 
             {metaRows.length > 0 && <FactsTable rows={metaRows} />}
 

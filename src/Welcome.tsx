@@ -39,6 +39,12 @@ const sections = [
     description: "Plan upgrade and compound paths — cheapest expected gold or fewest base copies.",
   },
   {
+    title: "Lists",
+    path: "/lists",
+    description:
+      "Named wishlists and shopping lists — capture wants, promote to buy-now, share a snapshot link.",
+  },
+  {
     title: "Market",
     path: "/market",
     description: "See what merchants are buying and selling across Adventure Land.",

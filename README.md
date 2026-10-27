@@ -10,6 +10,7 @@ It currently contains
 - A list of monsters
 - A drop simulator (exchange tables + monster kills, with coop / 1hp what-if)
 - An upgrade / compound calculator (cheapest EV path and fewest copies; Cheapest follows [Kora Dereva's pastebin](https://pastebin.com/jBMKeLfd))
+- Wishlists and shopping lists (browser-local, shareable snapshot links; Upgrade materials can send into a shopping list)
 - A 3D world viewer that stacks maps by door connections
 
 # Contributing
