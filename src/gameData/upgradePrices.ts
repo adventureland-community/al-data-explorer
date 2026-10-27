@@ -204,6 +204,11 @@ export function seedMissingPrices(args: {
       out[key] = catalogG;
       continue;
     }
+    // Toggle off: keep catalog `.g` so the market line stays a hint / Use market target.
+    if (!preferMarket && hasCatalogG) {
+      out[key] = catalogG;
+      continue;
+    }
     if (market != null) {
       out[key] = market;
       continue;

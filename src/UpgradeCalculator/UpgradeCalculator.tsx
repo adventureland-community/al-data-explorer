@@ -883,7 +883,6 @@ export function UpgradeCalculator() {
                     {itemKey && !isVendorBuyable(itemKey) ? (
                       <MarketPriceHint
                         marketPrice={getMarketPrice(itemKey)}
-                        unitPrice={buyUnit}
                         vendorBuyable={false}
                         onApplyMarket={(n) => setPrice(itemKey, n)}
                       />

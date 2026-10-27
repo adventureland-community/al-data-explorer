@@ -121,12 +121,10 @@ export function MaterialPriceRow({
 
 export function MarketPriceHint({
   marketPrice,
-  unitPrice,
   vendorBuyable,
   onApplyMarket,
 }: {
   marketPrice: number | undefined;
-  unitPrice: number;
   vendorBuyable: boolean;
   onApplyMarket?: (n: number) => void;
 }) {
@@ -139,7 +137,6 @@ export function MarketPriceHint({
     );
   }
 
-  const differs = !Number.isFinite(unitPrice) || Math.abs(unitPrice - marketPrice) > 1e-9;
   return (
     <Stack direction="row" alignItems="center" spacing={0.5} flexWrap="wrap">
       <Typography
@@ -149,11 +146,12 @@ export function MarketPriceHint({
       >
         market {formatGold(marketPrice)}
       </Typography>
-      {onApplyMarket && differs ? (
+      {onApplyMarket ? (
         <Button
           size="small"
           variant="text"
           onClick={() => onApplyMarket(marketPrice)}
+          aria-label={`Set override to market ${formatGold(marketPrice)}`}
           sx={{ minWidth: 0, px: 0.5, py: 0, fontSize: "0.7rem", lineHeight: 1.4 }}
         >
           Use market
@@ -251,7 +249,6 @@ export function CraftRecipeBreakdown({
                 {showMarketControls && !vendorBuyable ? (
                   <MarketPriceHint
                     marketPrice={marketPrice}
-                    unitPrice={unit}
                     vendorBuyable={vendorBuyable}
                     onApplyMarket={(n) => onPriceChange(leaf.itemKey, n)}
                   />
@@ -304,7 +301,6 @@ export function CraftRecipeBreakdown({
               {showMarketControls && !vendorBuyable ? (
                 <MarketPriceHint
                   marketPrice={marketPrice}
-                  unitPrice={unit}
                   vendorBuyable={vendorBuyable}
                   onApplyMarket={(n) => onPriceChange(key, n)}
                 />

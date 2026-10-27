@@ -56,13 +56,27 @@ describe("seedMissingPrices", () => {
     },
   };
 
-  it("fills missing vendor keys with catalog .g, others with market then .g", () => {
+  it("fills missing vendor keys with catalog .g; non-vendor uses .g when market toggle is off", () => {
     const prices = seedMissingPrices({
       prices: {},
       keys: ["spidersilk", "staff"],
       items,
       market,
       shopsByItem: shops,
+      preferMarketForNonVendor: false,
+    });
+    expect(prices.spidersilk).toBe(1000);
+    expect(prices.staff).toBe(2);
+  });
+
+  it("fills missing non-vendor keys from market when toggle is on", () => {
+    const prices = seedMissingPrices({
+      prices: {},
+      keys: ["spidersilk", "staff"],
+      items,
+      market,
+      shopsByItem: shops,
+      preferMarketForNonVendor: true,
     });
     expect(prices.spidersilk).toBe(1_000_000);
     expect(prices.staff).toBe(2);
