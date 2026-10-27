@@ -1391,13 +1391,16 @@ export function UpgradeCalculator() {
                             onResetAll: () => setStepOverrides({}),
                             onCyclePolish:
                               params.wantShiny && shinyPolishOptions.some((o) => !o.invalid)
-                                ? () => {
+                                ? (delta) => {
                                     const valid = shinyPolishOptions.filter((o) => !o.invalid);
                                     if (!valid.length) return;
                                     const curKey =
                                       params.polish || shinyPolish?.key || valid[0].key;
                                     const idx = valid.findIndex((o) => o.key === curKey);
-                                    const next = valid[(idx + 1) % valid.length] ?? valid[0];
+                                    const base = idx >= 0 ? idx : delta > 0 ? -1 : 0;
+                                    const next =
+                                      valid[(base + delta + valid.length) % valid.length] ??
+                                      valid[0];
                                     patch({ polish: next.key, wantShiny: true });
                                   }
                                 : undefined,
