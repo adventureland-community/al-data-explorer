@@ -249,7 +249,7 @@ function HelpBody() {
 
       <Typography variant="body2" color="text.secondary">
         <strong>Break-even ask</strong> is the merchant-stand list price that recovers Plan EV after
-        sales tax: <code>EV ÷ (1 − tax)</code>. Set tax to your character&apos;s Stats{" "}
+        sales tax: <code>ceil(EV ÷ (1 − tax))</code>. Set tax to your character&apos;s Stats{" "}
         <code>tax</code> (default 2.5%). Buyer pays the ask; you keep the rest.
       </Typography>
 

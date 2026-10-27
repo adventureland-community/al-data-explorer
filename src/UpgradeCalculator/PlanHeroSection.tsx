@@ -261,7 +261,7 @@ export function PlanHero({
               </Typography>
             </Stack>
             <Typography variant="caption" color="text.disabled">
-              from Stats · ask = EV ÷ (1 − tax)
+              from Stats · ask = ceil(EV ÷ (1 − tax))
             </Typography>
           </Stack>
         ) : null}
