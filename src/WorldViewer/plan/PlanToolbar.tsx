@@ -1,7 +1,28 @@
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import BrushIcon from "@mui/icons-material/Brush";
+import CropSquareIcon from "@mui/icons-material/CropSquare";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import HexagonOutlinedIcon from "@mui/icons-material/HexagonOutlined";
+import IosShareIcon from "@mui/icons-material/IosShare";
+import NearMeIcon from "@mui/icons-material/NearMe";
+import PauseIcon from "@mui/icons-material/Pause";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import RedoIcon from "@mui/icons-material/Redo";
+import RouteIcon from "@mui/icons-material/Route";
+import ShowChartIcon from "@mui/icons-material/ShowChart";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
+import TextFieldsIcon from "@mui/icons-material/TextFields";
+import TimelineIcon from "@mui/icons-material/Timeline";
+import UndoIcon from "@mui/icons-material/Undo";
+import WhatshotOutlinedIcon from "@mui/icons-material/WhatshotOutlined";
 import {
   Box,
   Button,
   Divider,
+  IconButton,
   MenuItem,
   Paper,
   Slider,
@@ -12,48 +33,85 @@ import {
   Typography,
 } from "@mui/material";
 import { ClassKey } from "typed-adventureland";
+import type { ChangeEvent, ComponentType } from "react";
+import type { SvgIconProps } from "@mui/material/SvgIcon";
 
 import { SavedLoadout } from "../../GearPlanner/types";
 import { ZONE_PRESETS } from "./zonePresets";
 import { PlanStampKind, PlanTool, ZonePresetId } from "./types";
 
-/** Primary farm-planning actions — these lead the board. */
-const STRATEGY_TOOLS: Array<{ id: PlanTool | "zone"; label: string; hint: string }> = [
-  { id: "select", label: "Select", hint: "Move and edit board objects" },
-  { id: "zone", label: "Zone", hint: "Pull box, camp, safe, no-go" },
-  { id: "ghost", label: "Party", hint: "Place a character ghost with range" },
-  { id: "route", label: "Route", hint: "Click waypoints, then switch tools to finish" },
-  { id: "packMarker", label: "Pack", hint: "Click a monster pack for pull order" },
-  { id: "pin", label: "Note", hint: "Pin a callout on the map" },
+type ToolIcon = ComponentType<SvgIconProps>;
+
+type ToolDef = {
+  id: PlanTool | "zone";
+  label: string;
+  hint: string;
+  Icon: ToolIcon;
+};
+
+/** Farm-planning actions lead the dock. */
+const STRATEGY_TOOLS: ToolDef[] = [
+  { id: "select", label: "Select", hint: "Move and edit board objects", Icon: NearMeIcon },
+  { id: "zone", label: "Zone", hint: "Pull box, camp, safe, no-go", Icon: CropSquareIcon },
+  {
+    id: "ghost",
+    label: "Party",
+    hint: "Place a character ghost with range",
+    Icon: PeopleAltOutlinedIcon,
+  },
+  {
+    id: "route",
+    label: "Route",
+    hint: "Click waypoints, then switch tools to finish",
+    Icon: TimelineIcon,
+  },
+  {
+    id: "packMarker",
+    label: "Pack",
+    hint: "Click a monster pack for pull order",
+    Icon: WhatshotOutlinedIcon,
+  },
+  { id: "pin", label: "Note", hint: "Pin a callout on the map", Icon: PushPinOutlinedIcon },
 ];
 
-const DRAW_TOOLS: Array<{ id: PlanTool; label: string }> = [
-  { id: "line", label: "Line" },
-  { id: "arrow", label: "Arrow" },
-  { id: "freehand", label: "Ink" },
-  { id: "ellipse", label: "Ellipse" },
-  { id: "polygon", label: "Poly" },
-  { id: "text", label: "Text" },
-  { id: "stamp", label: "Stamp" },
+const DRAW_TOOLS: ToolDef[] = [
+  { id: "line", label: "Line", hint: "Straight line", Icon: ShowChartIcon },
+  { id: "arrow", label: "Arrow", hint: "Directional callout", Icon: ArrowForwardIcon },
+  { id: "freehand", label: "Ink", hint: "Freehand stroke", Icon: BrushIcon },
+  { id: "ellipse", label: "Ellipse", hint: "Ellipse / circle", Icon: RadioButtonUncheckedIcon },
+  { id: "polygon", label: "Poly", hint: "Polygon", Icon: HexagonOutlinedIcon },
+  { id: "text", label: "Text", hint: "Text label", Icon: TextFieldsIcon },
+  { id: "stamp", label: "Stamp", hint: "Stamp marker", Icon: StarBorderIcon },
 ];
 
 const STAMPS: PlanStampKind[] = ["x", "checkpoint", "star"];
 const CLASSES: ClassKey[] = ["warrior", "mage", "ranger", "priest", "rogue", "paladin", "merchant"];
 
-const railSx = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: 0.75,
+const dockSx = {
+  display: "inline-flex",
   alignItems: "center",
+  gap: 0.25,
+  padding: "4px 6px",
+  borderRadius: 2,
+  border: "1px solid",
+  borderColor: "divider",
+  backgroundColor: "background.paper",
+  boxShadow: 2,
 } as const;
 
-const sectionLabelSx = {
-  fontSize: 11,
-  letterSpacing: "0.06em",
-  textTransform: "uppercase",
-  opacity: 0.55,
-  fontWeight: 600,
-  marginRight: 0.5,
+const toolBtnSx = {
+  width: 36,
+  height: 36,
+  border: "none",
+  borderRadius: 1.25,
+  color: "text.secondary",
+  "&.Mui-selected": {
+    color: "primary.main",
+    backgroundColor: "action.selected",
+  },
+  "&.Mui-selected:hover": {
+    backgroundColor: "action.selected",
+  },
 } as const;
 
 type PlanToolbarProps = {
@@ -136,59 +194,80 @@ export function PlanToolbar({
 }: PlanToolbarProps) {
   const loadoutNames = Object.keys(loadouts).sort((a, b) => a.localeCompare(b));
   const strategy = strategyValue(tool, zoneMode);
-  const showGhostContext = tool === "ghost" || (tool === "select" && Boolean(ghostLoadoutName));
+  const drawValue = !strategy && DRAW_TOOLS.some((entry) => entry.id === tool) ? tool : null;
+  const showGhostContext = tool === "ghost";
   const showZoneContext = zoneMode || tool === "rect";
   const showRouteContext = tool === "route" || playback.hasRoute || routeDraftCount > 0;
   const showDrawExtras = tool === "stamp";
+  const hasContext =
+    showZoneContext ||
+    showGhostContext ||
+    tool === "packMarker" ||
+    tool === "route" ||
+    showDrawExtras ||
+    showRouteContext ||
+    selectedRadius != null;
 
   return (
-    <Paper
-      elevation={0}
+    <Box
       sx={{
-        border: "1px solid",
-        borderColor: "divider",
-        backgroundColor: "background.paper",
-        padding: 1.25,
+        position: "absolute",
+        top: 10,
+        left: 0,
+        right: 0,
+        zIndex: 6,
         display: "flex",
         flexDirection: "column",
-        gap: 1.25,
+        alignItems: "center",
+        gap: 1,
+        pointerEvents: "none",
+        px: 1,
       }}
     >
-      <Box sx={{ ...railSx, justifyContent: "space-between" }}>
-        <Box sx={{ ...railSx, flex: "1 1 220px" }}>
-          <Typography sx={sectionLabelSx}>Strategy board</Typography>
+      <Box
+        sx={{
+          pointerEvents: "auto",
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 1,
+          maxWidth: "100%",
+        }}
+      >
+        <Paper elevation={0} sx={{ ...dockSx, gap: 0.75, paddingLeft: 1.25, paddingRight: 0.75 }}>
           <TextField
             size="small"
             variant="standard"
             value={planName}
             onChange={(event) => onRename(event.target.value)}
-            sx={{ minWidth: 160, maxWidth: 280 }}
+            sx={{
+              minWidth: 100,
+              maxWidth: 160,
+              "& .MuiInput-root": { fontSize: 13, fontWeight: 600 },
+              "& .MuiInput-underline:before": { borderBottomColor: "transparent" },
+            }}
             inputProps={{ "aria-label": "Plan name" }}
           />
-        </Box>
-        <Box sx={railSx}>
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
           <Tooltip title="Undo">
-            <Button size="small" onClick={onUndo}>
-              Undo
-            </Button>
+            <IconButton size="small" onClick={onUndo} aria-label="Undo">
+              <UndoIcon fontSize="small" />
+            </IconButton>
           </Tooltip>
           <Tooltip title="Redo">
-            <Button size="small" onClick={onRedo}>
-              Redo
-            </Button>
+            <IconButton size="small" onClick={onRedo} aria-label="Redo">
+              <RedoIcon fontSize="small" />
+            </IconButton>
           </Tooltip>
-          <Button size="small" color="error" onClick={onDelete}>
-            Delete
-          </Button>
-          <Button size="small" variant="outlined" onClick={onShare}>
-            Share
-          </Button>
-        </Box>
-      </Box>
+          <Tooltip title="Delete selected">
+            <IconButton size="small" color="error" onClick={onDelete} aria-label="Delete selected">
+              <DeleteOutlineIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Paper>
 
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-start" }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-          <Typography sx={sectionLabelSx}>Place</Typography>
+        <Paper elevation={0} sx={dockSx}>
           <ToggleButtonGroup
             exclusive
             size="small"
@@ -205,25 +284,37 @@ export function PlanToolbar({
               onZoneMode(false);
               onTool(value as PlanTool);
             }}
+            sx={{
+              gap: 0.15,
+              "& .MuiToggleButtonGroup-grouped": {
+                border: 0,
+                marginLeft: 0,
+                borderRadius: "10px !important",
+              },
+            }}
           >
-            {STRATEGY_TOOLS.map((entry) => (
-              <ToggleButton key={entry.id} value={entry.id} sx={{ px: 1.25 }}>
-                <Tooltip title={entry.hint}>
-                  <span>{entry.label}</span>
-                </Tooltip>
-              </ToggleButton>
-            ))}
+            {STRATEGY_TOOLS.map((entry) => {
+              const { Icon } = entry;
+              return (
+                <ToggleButton
+                  key={entry.id}
+                  value={entry.id}
+                  aria-label={entry.label}
+                  title={`${entry.label} — ${entry.hint}`}
+                  sx={toolBtnSx}
+                >
+                  <Icon sx={{ fontSize: 20 }} />
+                </ToggleButton>
+              );
+            })}
           </ToggleButtonGroup>
-        </Box>
 
-        <Divider orientation="vertical" flexItem sx={{ display: { xs: "none", md: "block" } }} />
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5, my: 0.5 }} />
 
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-          <Typography sx={sectionLabelSx}>Draw</Typography>
           <ToggleButtonGroup
             exclusive
             size="small"
-            value={!strategy && DRAW_TOOLS.some((entry) => entry.id === tool) ? tool : null}
+            value={drawValue}
             onChange={(_event, value: PlanTool | null) => {
               if (!value) {
                 return;
@@ -231,24 +322,201 @@ export function PlanToolbar({
               onZoneMode(false);
               onTool(value);
             }}
+            sx={{
+              gap: 0.15,
+              "& .MuiToggleButtonGroup-grouped": {
+                border: 0,
+                marginLeft: 0,
+                borderRadius: "10px !important",
+              },
+            }}
           >
-            {DRAW_TOOLS.map((entry) => (
-              <ToggleButton key={entry.id} value={entry.id} sx={{ px: 1 }}>
-                {entry.label}
-              </ToggleButton>
-            ))}
+            {DRAW_TOOLS.map((entry) => {
+              const { Icon } = entry;
+              return (
+                <ToggleButton
+                  key={entry.id}
+                  value={entry.id}
+                  aria-label={entry.label}
+                  title={`${entry.label} — ${entry.hint}`}
+                  sx={toolBtnSx}
+                >
+                  <Icon sx={{ fontSize: 20 }} />
+                </ToggleButton>
+              );
+            })}
           </ToggleButtonGroup>
-        </Box>
 
-        <Box sx={{ ...railSx, marginLeft: "auto" }}>
-          <TextField
-            size="small"
-            type="color"
-            value={color}
-            onChange={(event) => onColor(event.target.value)}
-            sx={{ width: 56 }}
-            inputProps={{ "aria-label": "Stroke color", style: { padding: 4 } }}
-          />
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5, my: 0.5 }} />
+
+          <Tooltip title="Stroke / fill color">
+            <Box
+              component="label"
+              sx={{
+                width: 28,
+                height: 28,
+                borderRadius: 1,
+                border: "1px solid",
+                borderColor: "divider",
+                overflow: "hidden",
+                cursor: "pointer",
+                display: "inline-flex",
+                mx: 0.25,
+              }}
+            >
+              <Box
+                component="input"
+                type="color"
+                value={color}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => onColor(event.target.value)}
+                aria-label="Stroke color"
+                sx={{
+                  width: 40,
+                  height: 40,
+                  border: 0,
+                  padding: 0,
+                  margin: "-6px",
+                  cursor: "pointer",
+                  background: "none",
+                }}
+              />
+            </Box>
+          </Tooltip>
+        </Paper>
+
+        <Paper elevation={0} sx={{ ...dockSx, paddingX: 0.75 }}>
+          <Tooltip title="Copy share link">
+            <IconButton size="small" color="primary" onClick={onShare} aria-label="Share plan">
+              <IosShareIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Paper>
+      </Box>
+
+      {hasContext && (
+        <Paper
+          elevation={0}
+          sx={{
+            pointerEvents: "auto",
+            ...dockSx,
+            flexWrap: "wrap",
+            gap: 0.75,
+            paddingY: 0.75,
+            paddingX: 1.25,
+            maxWidth: "min(920px, 96%)",
+            justifyContent: "center",
+          }}
+        >
+          {showZoneContext && (
+            <>
+              <Typography
+                variant="caption"
+                sx={{ opacity: 0.55, fontWeight: 600, letterSpacing: "0.04em" }}
+              >
+                Zones
+              </Typography>
+              {ZONE_PRESETS.map((preset) => (
+                <Button
+                  key={preset.id}
+                  size="small"
+                  variant={color === preset.color ? "contained" : "outlined"}
+                  onClick={() => onPreset(preset.id)}
+                  sx={{
+                    borderColor: preset.color,
+                    color: color === preset.color ? "#111" : preset.color,
+                    backgroundColor: color === preset.color ? preset.color : "transparent",
+                    minWidth: 0,
+                    py: 0.25,
+                    px: 1,
+                    fontSize: 12,
+                  }}
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </>
+          )}
+
+          {showGhostContext && (
+            <>
+              <Typography
+                variant="caption"
+                sx={{ opacity: 0.55, fontWeight: 600, letterSpacing: "0.04em" }}
+              >
+                Party
+              </Typography>
+              <TextField
+                select
+                size="small"
+                label="Class"
+                value={ghostClass}
+                onChange={(event) => onGhostClass(event.target.value as ClassKey)}
+                sx={{ minWidth: 110 }}
+              >
+                {CLASSES.map((classKey) => (
+                  <MenuItem key={classKey} value={classKey}>
+                    {classKey}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                size="small"
+                label="Loadout"
+                value={ghostLoadoutName}
+                onChange={(event) => onGhostLoadoutName(event.target.value)}
+                sx={{ minWidth: 140 }}
+              >
+                <MenuItem value="">Blank token</MenuItem>
+                {loadoutNames.map((name) => (
+                  <MenuItem key={name} value={name}>
+                    {name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </>
+          )}
+
+          {tool === "packMarker" && (
+            <Typography variant="caption" sx={{ opacity: 0.8 }}>
+              Click a monster pack to mark Pack A, B, C…
+            </Typography>
+          )}
+
+          {tool === "route" && (
+            <Typography variant="caption" sx={{ opacity: 0.8 }}>
+              Click waypoints
+              {routeDraftCount > 0 ? ` (${routeDraftCount} so far)` : ""}. Switch tool to finish.
+            </Typography>
+          )}
+
+          {showDrawExtras && (
+            <>
+              <Typography
+                variant="caption"
+                sx={{ opacity: 0.55, fontWeight: 600, letterSpacing: "0.04em" }}
+              >
+                Stamp
+              </Typography>
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={stamp}
+                onChange={(_event, value: PlanStampKind | null) => {
+                  if (value) {
+                    onStamp(value);
+                  }
+                }}
+              >
+                {STAMPS.map((entry) => (
+                  <ToggleButton key={entry} value={entry} sx={{ px: 1, py: 0.25 }}>
+                    {entry}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </>
+          )}
+
           {selectedRadius != null && (
             <TextField
               size="small"
@@ -256,203 +524,104 @@ export function PlanToolbar({
               label="Range"
               value={Math.round(selectedRadius)}
               onChange={(event) => onSelectedRadius(Number(event.target.value))}
-              sx={{ width: 96 }}
+              sx={{ width: 88 }}
               inputProps={{ min: 1, step: 1 }}
             />
           )}
-        </Box>
-      </Box>
 
-      {showZoneContext && (
-        <Box
-          sx={{
-            ...railSx,
-            padding: 1,
-            borderRadius: 1,
-            backgroundColor: "action.hover",
-          }}
-        >
-          <Typography sx={sectionLabelSx}>Zones</Typography>
-          {ZONE_PRESETS.map((preset) => (
-            <Button
-              key={preset.id}
-              size="small"
-              variant={color === preset.color ? "contained" : "outlined"}
-              onClick={() => onPreset(preset.id)}
-              sx={{
-                borderColor: preset.color,
-                color: color === preset.color ? "#111" : preset.color,
-                backgroundColor: color === preset.color ? preset.color : "transparent",
-                minWidth: 0,
-              }}
-            >
-              {preset.label}
-            </Button>
-          ))}
-          <Typography variant="caption" sx={{ opacity: 0.7, marginLeft: 0.5 }}>
-            Drag on the map to place · preset paints selection or next zone
-          </Typography>
-        </Box>
-      )}
-
-      {showGhostContext && (
-        <Box
-          sx={{
-            ...railSx,
-            padding: 1,
-            borderRadius: 1,
-            backgroundColor: "action.hover",
-          }}
-        >
-          <Typography sx={sectionLabelSx}>Party ghost</Typography>
-          <TextField
-            select
-            size="small"
-            label="Class"
-            value={ghostClass}
-            onChange={(event) => onGhostClass(event.target.value as ClassKey)}
-            sx={{ minWidth: 120 }}
-          >
-            {CLASSES.map((classKey) => (
-              <MenuItem key={classKey} value={classKey}>
-                {classKey}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label="Loadout"
-            value={ghostLoadoutName}
-            onChange={(event) => onGhostLoadoutName(event.target.value)}
-            sx={{ minWidth: 160 }}
-          >
-            <MenuItem value="">Blank token</MenuItem>
-            {loadoutNames.map((name) => (
-              <MenuItem key={name} value={name}>
-                {name}
-              </MenuItem>
-            ))}
-          </TextField>
-          <Typography variant="caption" sx={{ opacity: 0.7 }}>
-            Click the map to drop · attack range comes from class/gear
-          </Typography>
-        </Box>
-      )}
-
-      {tool === "packMarker" && (
-        <Box sx={{ ...railSx, padding: 1, borderRadius: 1, backgroundColor: "action.hover" }}>
-          <Typography sx={sectionLabelSx}>Pull order</Typography>
-          <Typography variant="caption" sx={{ opacity: 0.8 }}>
-            Click a monster pack on the map to mark Pack A, B, C…
-          </Typography>
-        </Box>
-      )}
-
-      {tool === "route" && (
-        <Box sx={{ ...railSx, padding: 1, borderRadius: 1, backgroundColor: "action.hover" }}>
-          <Typography sx={sectionLabelSx}>Route</Typography>
-          <Typography variant="caption" sx={{ opacity: 0.8 }}>
-            Click waypoints
-            {routeDraftCount > 0 ? ` (${routeDraftCount} so far)` : ""}. Switch tool to finish the
-            path.
-          </Typography>
-        </Box>
-      )}
-
-      {showDrawExtras && (
-        <Box sx={{ ...railSx, padding: 1, borderRadius: 1, backgroundColor: "action.hover" }}>
-          <Typography sx={sectionLabelSx}>Stamp</Typography>
-          <ToggleButtonGroup
-            exclusive
-            size="small"
-            value={stamp}
-            onChange={(_event, value: PlanStampKind | null) => {
-              if (value) {
-                onStamp(value);
-              }
-            }}
-          >
-            {STAMPS.map((entry) => (
-              <ToggleButton key={entry} value={entry}>
-                {entry}
+          {showRouteContext && (
+            <>
+              {(showZoneContext ||
+                showGhostContext ||
+                tool === "packMarker" ||
+                tool === "route" ||
+                showDrawExtras ||
+                selectedRadius != null) && (
+                <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+              )}
+              <Tooltip title={playback.playing ? "Pause" : "Play route"}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    disabled={!playback.hasRoute}
+                    onClick={() => onPlayback({ playing: !playback.playing })}
+                    aria-label={playback.playing ? "Pause" : "Play"}
+                  >
+                    {playback.playing ? (
+                      <PauseIcon fontSize="small" />
+                    ) : (
+                      <PlayArrowIcon fontSize="small" />
+                    )}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <ToggleButton
+                size="small"
+                value="loop"
+                selected={playback.loop}
+                onChange={() => onPlayback({ loop: !playback.loop })}
+                sx={{ px: 1, py: 0.25 }}
+              >
+                Loop
               </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
-        </Box>
+              <ToggleButton
+                size="small"
+                value="trail"
+                selected={playback.trail}
+                onChange={() => onPlayback({ trail: !playback.trail })}
+                sx={{ px: 1, py: 0.25 }}
+              >
+                Trail
+              </ToggleButton>
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={playback.speedMul}
+                onChange={(_event, value: number | null) => {
+                  if (value) {
+                    onPlayback({ speedMul: value });
+                  }
+                }}
+              >
+                <ToggleButton value={0.5} sx={{ px: 0.75, py: 0.25 }}>
+                  0.5×
+                </ToggleButton>
+                <ToggleButton value={1} sx={{ px: 0.75, py: 0.25 }}>
+                  1×
+                </ToggleButton>
+                <ToggleButton value={2} sx={{ px: 0.75, py: 0.25 }}>
+                  2×
+                </ToggleButton>
+              </ToggleButtonGroup>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  minWidth: 140,
+                  flex: "1 1 140px",
+                  maxWidth: 220,
+                }}
+              >
+                <RouteIcon sx={{ fontSize: 16, opacity: 0.55 }} />
+                <Slider
+                  size="small"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={playback.t}
+                  disabled={!playback.hasRoute}
+                  onChange={(_event, value) =>
+                    onPlayback({ t: Array.isArray(value) ? value[0] : value, playing: false })
+                  }
+                  aria-label="Scrub route"
+                />
+              </Box>
+            </>
+          )}
+        </Paper>
       )}
-
-      {showRouteContext && (
-        <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 1,
-            alignItems: "center",
-            paddingTop: 0.5,
-            borderTop: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Typography sx={sectionLabelSx}>Playback</Typography>
-          <Button
-            size="small"
-            variant="contained"
-            disabled={!playback.hasRoute}
-            onClick={() => onPlayback({ playing: !playback.playing })}
-          >
-            {playback.playing ? "Pause" : "Play"}
-          </Button>
-          <ToggleButton
-            size="small"
-            value="loop"
-            selected={playback.loop}
-            onChange={() => onPlayback({ loop: !playback.loop })}
-          >
-            Loop
-          </ToggleButton>
-          <ToggleButton
-            size="small"
-            value="trail"
-            selected={playback.trail}
-            onChange={() => onPlayback({ trail: !playback.trail })}
-          >
-            Trail
-          </ToggleButton>
-          <ToggleButtonGroup
-            exclusive
-            size="small"
-            value={playback.speedMul}
-            onChange={(_event, value: number | null) => {
-              if (value) {
-                onPlayback({ speedMul: value });
-              }
-            }}
-          >
-            <ToggleButton value={0.5}>0.5×</ToggleButton>
-            <ToggleButton value={1}>1×</ToggleButton>
-            <ToggleButton value={2}>2×</ToggleButton>
-          </ToggleButtonGroup>
-          <Box
-            sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 200, flex: "1 1 180px" }}
-          >
-            <Typography variant="caption" sx={{ opacity: 0.7 }}>
-              Scrub
-            </Typography>
-            <Slider
-              size="small"
-              min={0}
-              max={1}
-              step={0.01}
-              value={playback.t}
-              disabled={!playback.hasRoute}
-              onChange={(_event, value) =>
-                onPlayback({ t: Array.isArray(value) ? value[0] : value, playing: false })
-              }
-            />
-          </Box>
-        </Box>
-      )}
-    </Paper>
+    </Box>
   );
 }

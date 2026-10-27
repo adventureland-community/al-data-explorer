@@ -503,93 +503,6 @@ export function WorldViewer() {
           }}
         />
       </WorldTopBar>
-      {viewMode === "plan" && planSession.document && (
-        <PlanToolbar
-          tool={planSession.tool}
-          onTool={(nextTool) => {
-            if (nextTool !== "rect") {
-              setZoneMode(false);
-            }
-            planSession.setTool(nextTool);
-          }}
-          zoneMode={zoneMode}
-          onZoneMode={setZoneMode}
-          color={planSession.color}
-          onColor={planSession.recolorSelected}
-          selectedRadius={(() => {
-            const rangeDisc = [...planSession.selectedIds]
-              .map((id) => planSession.document?.objects.find((object) => object.id === id))
-              .find((object) => object?.kind === "ellipse" && object.role === "range");
-            if (!rangeDisc || rangeDisc.kind !== "ellipse") {
-              return null;
-            }
-            return rangeDisc.radiusOverride ?? rangeDisc.radiusX;
-          })()}
-          onSelectedRadius={planSession.setSelectedRadiusOverride}
-          stamp={planSession.stamp}
-          onStamp={planSession.setStamp}
-          planName={planSession.document.name}
-          onRename={planSession.renamePlan}
-          onUndo={planSession.undo}
-          onRedo={planSession.redo}
-          onDelete={planSession.deleteSelected}
-          onPreset={(presetId) => {
-            setZoneMode(true);
-            if (planSession.tool !== "rect" && planSession.tool !== "polygon") {
-              planSession.setTool("rect");
-            }
-            planSession.applyPreset(presetId);
-          }}
-          onShare={() => {
-            const url = planSession.shareUrl();
-            if (url) {
-              navigator.clipboard.writeText(url).catch(() => undefined);
-            }
-          }}
-          loadouts={planSession.loadouts}
-          ghostClass={ghostClass}
-          onGhostClass={setGhostClass}
-          ghostLoadoutName={ghostLoadoutName}
-          onGhostLoadoutName={setGhostLoadoutName}
-          routeDraftCount={planSession.routeDraft.length}
-          playback={{
-            playing: planSession.playback.playing,
-            t: planSession.playback.t,
-            speedMul: planSession.playback.speedMul,
-            trail: planSession.playback.trail,
-            loop: planSession.playback.loop,
-            hasRoute: planSession.document.objects.some((object) => object.kind === "route"),
-          }}
-          onPlayback={(patch) => {
-            if (patch.t != null) {
-              playbackTRef.current = patch.t;
-              const activeRoute = planSession.document?.objects.find(
-                (object) =>
-                  object.kind === "route" &&
-                  (object.id === planSession.playback.routeId || !planSession.playback.routeId),
-              ) as PlanRouteObject | undefined;
-              if (activeRoute) {
-                setPlaybackPoint(pointAlongRoute(activeRoute, patch.t));
-              }
-            }
-            if (patch.playing && !planSession.playback.routeId) {
-              const route = planSession.document?.objects.find((object) => object.kind === "route");
-              planSession.setPlayback({
-                ...patch,
-                routeId: route?.id ?? null,
-                t: patch.t ?? 0,
-              });
-              playbackTRef.current = patch.t ?? 0;
-              setTrailPoints([]);
-              return;
-            }
-            if (patch.trail === false) {
-              setTrailPoints([]);
-            }
-            planSession.setPlayback(patch);
-          }}
-        />
-      )}
       <TravelBreadcrumb
         history={travelHistory}
         maps={layout.maps}
@@ -655,7 +568,96 @@ export function WorldViewer() {
             />
           }
         />
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
+          {viewMode === "plan" && planSession.document && (
+            <PlanToolbar
+              tool={planSession.tool}
+              onTool={(nextTool) => {
+                if (nextTool !== "rect") {
+                  setZoneMode(false);
+                }
+                planSession.setTool(nextTool);
+              }}
+              zoneMode={zoneMode}
+              onZoneMode={setZoneMode}
+              color={planSession.color}
+              onColor={planSession.recolorSelected}
+              selectedRadius={(() => {
+                const rangeDisc = [...planSession.selectedIds]
+                  .map((id) => planSession.document?.objects.find((object) => object.id === id))
+                  .find((object) => object?.kind === "ellipse" && object.role === "range");
+                if (!rangeDisc || rangeDisc.kind !== "ellipse") {
+                  return null;
+                }
+                return rangeDisc.radiusOverride ?? rangeDisc.radiusX;
+              })()}
+              onSelectedRadius={planSession.setSelectedRadiusOverride}
+              stamp={planSession.stamp}
+              onStamp={planSession.setStamp}
+              planName={planSession.document.name}
+              onRename={planSession.renamePlan}
+              onUndo={planSession.undo}
+              onRedo={planSession.redo}
+              onDelete={planSession.deleteSelected}
+              onPreset={(presetId) => {
+                setZoneMode(true);
+                if (planSession.tool !== "rect" && planSession.tool !== "polygon") {
+                  planSession.setTool("rect");
+                }
+                planSession.applyPreset(presetId);
+              }}
+              onShare={() => {
+                const url = planSession.shareUrl();
+                if (url) {
+                  navigator.clipboard.writeText(url).catch(() => undefined);
+                }
+              }}
+              loadouts={planSession.loadouts}
+              ghostClass={ghostClass}
+              onGhostClass={setGhostClass}
+              ghostLoadoutName={ghostLoadoutName}
+              onGhostLoadoutName={setGhostLoadoutName}
+              routeDraftCount={planSession.routeDraft.length}
+              playback={{
+                playing: planSession.playback.playing,
+                t: planSession.playback.t,
+                speedMul: planSession.playback.speedMul,
+                trail: planSession.playback.trail,
+                loop: planSession.playback.loop,
+                hasRoute: planSession.document.objects.some((object) => object.kind === "route"),
+              }}
+              onPlayback={(patch) => {
+                if (patch.t != null) {
+                  playbackTRef.current = patch.t;
+                  const activeRoute = planSession.document?.objects.find(
+                    (object) =>
+                      object.kind === "route" &&
+                      (object.id === planSession.playback.routeId || !planSession.playback.routeId),
+                  ) as PlanRouteObject | undefined;
+                  if (activeRoute) {
+                    setPlaybackPoint(pointAlongRoute(activeRoute, patch.t));
+                  }
+                }
+                if (patch.playing && !planSession.playback.routeId) {
+                  const route = planSession.document?.objects.find(
+                    (object) => object.kind === "route",
+                  );
+                  planSession.setPlayback({
+                    ...patch,
+                    routeId: route?.id ?? null,
+                    t: patch.t ?? 0,
+                  });
+                  playbackTRef.current = patch.t ?? 0;
+                  setTrailPoints([]);
+                  return;
+                }
+                if (patch.trail === false) {
+                  setTrailPoints([]);
+                }
+                planSession.setPlayback(patch);
+              }}
+            />
+          )}
           <WorldCanvas
             scene={visibleLayout}
             maps={layout.maps}
