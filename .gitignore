@@ -19,6 +19,7 @@
 
 # Local agent scratch (screenshots, one-off scripts)
 .tmp/
+.tmp-screenshots/
 
 # misc
 .DS_Store

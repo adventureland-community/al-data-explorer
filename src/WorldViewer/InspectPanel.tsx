@@ -243,7 +243,7 @@ interface InspectPanelProps {
   inspect: OverlayPick;
   maps: Record<string, ParsedMap>;
   monsters: Record<string, GMonster>;
-  drops: Record<string, unknown[]>;
+  drops: Record<string, unknown>;
   items: GItems;
   npcs: Record<string, GNpc>;
   onClose: () => void;

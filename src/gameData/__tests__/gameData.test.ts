@@ -1,9 +1,13 @@
 import {
   extractDropRates,
   formatDropProbability,
+  formatHomeServerDropsDisplay,
   formatMonsterDropsDisplay,
+  formatMonsterDropsWithHome,
   getMapDisplayName,
+  getMonsterDropDisplayParts,
   mergeDropSources,
+  parseHomeServerDropTable,
   parseMonsterDropTable,
 } from "../drops";
 import { getSetBonusTiers } from "../itemSets";
@@ -38,6 +42,77 @@ describe("drops", () => {
   it("formats monster drops via the shared parser", () => {
     expect(formatMonsterDropsDisplay([100, [0.5, "leather"], "gold"])).toBe(
       "leather (50.00%), gold",
+    );
+  });
+
+  it("parses home-server tables without skipping the first entry", () => {
+    const parsed = parseHomeServerDropTable("mrgreen", [
+      [0.01, "fallen"],
+      [1, "candy0", 7],
+    ]);
+    expect(parsed).toStrictEqual([
+      {
+        sourceType: "monster_home",
+        sourceKey: "mrgreen",
+        itemKey: "fallen",
+        probability: 0.01,
+        quantity: null,
+        title: "",
+        nestedTable: "",
+      },
+      {
+        sourceType: "monster_home",
+        sourceKey: "mrgreen",
+        itemKey: "candy0",
+        probability: 1,
+        quantity: 7,
+        title: "",
+        nestedTable: "",
+      },
+    ]);
+    expect(formatHomeServerDropsDisplay([[0.01, "fallen"], [1, "candy0", 7]])).toBe(
+      "fallen (1.00%), candy0 (1 / 1)",
+    );
+  });
+
+  it("splits home-server bonus drops for monster browse formatting", () => {
+    const parts = getMonsterDropDisplayParts("mrgreen", {
+      monsters: { mrgreen: [100, [0.001, "base"]] },
+      monsters_home_server: { mrgreen: [[0.01, "fallen"]] },
+    });
+    expect(parts.regular).toBe("base (0.1000%)");
+    expect(parts.home).toBe("fallen (1.00%)");
+    expect(parts.searchText).toBe("base (0.1000%); homeserver fallen (1.00%)");
+    expect(
+      formatMonsterDropsWithHome("mrgreen", {
+        monsters: { mrgreen: [100, [0.001, "base"]] },
+        monsters_home_server: { mrgreen: [[0.01, "fallen"]] },
+      }),
+    ).toBe(parts.searchText);
+  });
+
+  it("includes monsters_home_server rows in acquisition extraction", () => {
+    const rows = extractDropRates({
+      monsters: { mrgreen: [[0.001, "base"]] },
+      monsters_home_server: { mrgreen: [[0.01, "fallen"], [1, "candy0", 7]] },
+    });
+    const home = rows.filter((r) => r.sourceType === "monster_home");
+    expect(home).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceType: "monster_home",
+          sourceKey: "mrgreen",
+          itemKey: "fallen",
+          probability: 0.01,
+        }),
+        expect.objectContaining({
+          sourceType: "monster_home",
+          sourceKey: "mrgreen",
+          itemKey: "candy0",
+          probability: 1,
+          quantity: 7,
+        }),
+      ]),
     );
   });
 

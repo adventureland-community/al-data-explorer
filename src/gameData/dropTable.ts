@@ -182,12 +182,44 @@ export function collectOpenTableOpeners(
   };
   scan(drops.maps as Record<string, unknown[]> | undefined, "map");
   scan(drops.monsters as Record<string, unknown[]> | undefined, "monster");
+  // Home-server opens still deep-link as the monster (same spawn / inspect page).
+  scan(drops.monsters_home_server as Record<string, unknown[]> | undefined, "monster");
   return byTable;
 }
 
 /** @deprecated Prefer collectOpenTableOpeners — same open targets as keys. */
 export function collectOpenTableTargets(drops: Record<string, unknown>): Set<string> {
   return new Set(collectOpenTableOpeners(drops).keys());
+}
+
+function appendMonsterStyleBucket(
+  rows: DropSource[],
+  bucket: Record<string, unknown[]> | undefined,
+  sourceType: "monster" | "monster_home",
+  drops: Record<string, unknown>,
+): void {
+  if (!bucket) return;
+  for (const [monsterKey, entries] of Object.entries(bucket)) {
+    if (!Array.isArray(entries)) continue;
+    for (const entry of entries) {
+      const parsed = parseDropEntry(sourceType, monsterKey, entry, "absolute");
+      for (const row of parsed) {
+        if (row.nestedTable && row.probability != null) {
+          rows.push(
+            ...expandOpenForAcquisition(
+              sourceType,
+              monsterKey,
+              row.probability,
+              row.nestedTable,
+              drops,
+            ),
+          );
+        } else {
+          rows.push(row);
+        }
+      }
+    }
+  }
 }
 
 /** Item Acquisition view of all Drop Tables (opens expanded to leaves). */
@@ -228,30 +260,18 @@ export function toAcquisitionDropSources(drops: Record<string, unknown>): DropSo
     }
   }
 
-  const monsters = drops.monsters as Record<string, unknown[]> | undefined;
-  if (monsters) {
-    for (const [monsterKey, entries] of Object.entries(monsters)) {
-      if (!Array.isArray(entries)) continue;
-      for (const entry of entries) {
-        const parsed = parseDropEntry("monster", monsterKey, entry, "absolute");
-        for (const row of parsed) {
-          if (row.nestedTable && row.probability != null) {
-            rows.push(
-              ...expandOpenForAcquisition(
-                "monster",
-                monsterKey,
-                row.probability,
-                row.nestedTable,
-                drops,
-              ),
-            );
-          } else {
-            rows.push(row);
-          }
-        }
-      }
-    }
-  }
+  appendMonsterStyleBucket(
+    rows,
+    drops.monsters as Record<string, unknown[]> | undefined,
+    "monster",
+    drops,
+  );
+  appendMonsterStyleBucket(
+    rows,
+    drops.monsters_home_server as Record<string, unknown[]> | undefined,
+    "monster_home",
+    drops,
+  );
 
   for (const [tableKey, value] of Object.entries(drops)) {
     if (
@@ -299,6 +319,22 @@ export function parseMonsterDropTable(
   const result: DropSource[] = [];
   for (let i = 1; i < raw.length; i += 1) {
     result.push(...parseDropEntry("monster", monsterKey, raw[i], "absolute"));
+  }
+  return result;
+}
+
+/**
+ * `G.drops.monsters_home_server[type]` has no gold/meta slot — every entry is a real drop.
+ * Only rolls when the player is on their home server.
+ */
+export function parseHomeServerDropTable(
+  monsterKey: string,
+  raw: unknown[] | undefined,
+): DropSource[] {
+  if (!raw || raw.length === 0) return [];
+  const result: DropSource[] = [];
+  for (const entry of raw) {
+    result.push(...parseDropEntry("monster_home", monsterKey, entry, "absolute"));
   }
   return result;
 }

@@ -1,53 +1,100 @@
-import { Chip, Link, List, ListItem, ListItemText, Typography } from "@mui/material";
+import { Box, Chip, Link, List, ListItem, ListItemText, Typography } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import { GItem, ItemKey } from "typed-adventureland";
 
-import { formatDropProbability, parseMonsterDropTable } from "../gameData/drops";
+import {
+  formatDropProbability,
+  parseHomeServerDropTable,
+  parseMonsterDropTable,
+} from "../gameData/drops";
+import { DropSource } from "../gameData/types";
 import { GItems } from "../GDataContext";
+import { HomeServerBadge } from "../Shared/HomeServerBadge";
 
-/** Monster inspect: drop table rows from G.drops.monsters[type]. */
+function asMonsterTable(value: unknown): Record<string, unknown[] | undefined> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  return value as Record<string, unknown[] | undefined>;
+}
+
+function DropRows({ rows, items }: { rows: DropSource[]; items: GItems }) {
+  return (
+    <List dense disablePadding sx={{ mt: 0.25 }}>
+      {rows.map((drop, index) => {
+        const itemKey = drop.nestedTable || drop.itemKey;
+        if (!itemKey) return null;
+        const itemDef = (items as Record<string, GItem | undefined>)[itemKey];
+        const displayName = itemDef?.name ?? itemKey;
+        const rowKey = `${drop.sourceType}-${itemKey}-${drop.title}-${drop.probability}-${index}`;
+        return (
+          <ListItem key={rowKey} disableGutters disablePadding sx={{ minHeight: 24 }}>
+            <ListItemText
+              primary={
+                <Link component={RouterLink} to={`/items/${itemKey}`} variant="body2">
+                  {displayName}
+                </Link>
+              }
+              primaryTypographyProps={{ variant: "body2", noWrap: true }}
+            />
+            {drop.probability != null && (
+              <Typography variant="caption" sx={{ opacity: 0.5, flexShrink: 0, ml: 1 }}>
+                {formatDropProbability(drop.probability)}
+              </Typography>
+            )}
+          </ListItem>
+        );
+      })}
+    </List>
+  );
+}
+
+/** Monster inspect: drop table rows from G.drops.monsters + monsters_home_server. */
 export function MonsterDropList({
   monsterType,
   drops,
   items,
 }: {
   monsterType: string;
-  drops: Record<string, unknown[]>;
+  /** Full `G.drops` object. */
+  drops: Record<string, unknown>;
   items: GItems;
 }) {
-  const parsed = parseMonsterDropTable(monsterType, drops[monsterType]);
-  if (parsed.length === 0) return null;
+  const monsters = asMonsterTable(drops.monsters);
+  const homeServer = asMonsterTable(drops.monsters_home_server);
+  const regular = parseMonsterDropTable(monsterType, monsters?.[monsterType]);
+  const home = parseHomeServerDropTable(monsterType, homeServer?.[monsterType]);
+  if (regular.length === 0 && home.length === 0) return null;
 
   return (
     <>
-      <Typography variant="overline" sx={{ lineHeight: 1, opacity: 0.7, mt: 1, display: "block" }}>
-        Drops
-      </Typography>
-      <List dense disablePadding sx={{ mt: 0.25 }}>
-        {parsed.map((drop) => {
-          const itemKey = drop.nestedTable || drop.itemKey;
-          if (!itemKey) return null;
-          const itemDef = (items as Record<string, GItem | undefined>)[itemKey];
-          const displayName = itemDef?.name ?? itemKey;
-          return (
-            <ListItem key={itemKey} disableGutters disablePadding sx={{ minHeight: 24 }}>
-              <ListItemText
-                primary={
-                  <Link component={RouterLink} to={`/items/${itemKey}`} variant="body2">
-                    {displayName}
-                  </Link>
-                }
-                primaryTypographyProps={{ variant: "body2", noWrap: true }}
-              />
-              {drop.probability != null && (
-                <Typography variant="caption" sx={{ opacity: 0.5, flexShrink: 0, ml: 1 }}>
-                  {formatDropProbability(drop.probability)}
-                </Typography>
-              )}
-            </ListItem>
-          );
-        })}
-      </List>
+      {regular.length > 0 && (
+        <>
+          <Typography
+            variant="overline"
+            sx={{ lineHeight: 1, opacity: 0.7, mt: 1, display: "block" }}
+          >
+            Drops
+          </Typography>
+          <DropRows rows={regular} items={items} />
+        </>
+      )}
+      {home.length > 0 && (
+        <>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              mt: 1,
+            }}
+          >
+            <Typography variant="overline" sx={{ lineHeight: 1, opacity: 0.7 }}>
+              Bonus drops
+            </Typography>
+            <HomeServerBadge />
+          </Box>
+          <DropRows rows={home} items={items} />
+        </>
+      )}
     </>
   );
 }

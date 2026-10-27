@@ -71,7 +71,7 @@ function dropSourceLabel(
   sourceType: DropSourceType,
   sourceKey: string,
 ): string {
-  if (sourceType === "monster") {
+  if (sourceType === "monster" || sourceType === "monster_home") {
     const monsters = G.monsters as Record<string, { name?: string } | undefined>;
     return monsters[sourceKey]?.name ?? sourceKey;
   }
@@ -84,6 +84,12 @@ function dropSourceLabel(
     return items[sourceKey]?.name ?? sourceKey;
   }
   return sourceKey;
+}
+
+function dropAcquireNote(itemKey: string): string | undefined {
+  if (itemKey === "cxjar") return "CX Jar";
+  if (itemKey === "cxbundle") return "Bundle unlock";
+  return undefined;
 }
 
 /** Class starting looks — free / already unlocked baselines. */
@@ -158,12 +164,7 @@ export function buildCosmeticAcquireIndex(
           dropSourceName: dropSourceLabel(G, row.sourceType, row.sourceKey),
           dropItemKey: row.itemKey,
           chance: row.probability ?? undefined,
-          note:
-            row.itemKey === "cxjar"
-              ? "CX Jar"
-              : row.itemKey === "cxbundle"
-              ? "Bundle unlock"
-              : undefined,
+          note: dropAcquireNote(row.itemKey),
         };
 
     push(cxId, source);
@@ -303,7 +304,7 @@ export function dropsDeepLink(packId: string): string {
 
 export function dropSourceDeepLink(source: CosmeticAcquireSource): string | undefined {
   if (source.kind !== "drop" || !source.dropSourceKey) return undefined;
-  if (source.dropSourceType === "monster") {
+  if (source.dropSourceType === "monster" || source.dropSourceType === "monster_home") {
     return `/monsters?monster=${encodeURIComponent(source.dropSourceKey)}`;
   }
   if (source.dropSourceType === "map") {

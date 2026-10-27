@@ -111,7 +111,7 @@ interface WorldInspectorProps {
   onFocusMap: (mapId: string) => void;
   inspect: OverlayPick | null;
   monsters: Record<string, GMonster>;
-  drops: Record<string, unknown[]>;
+  drops: Record<string, unknown>;
   items: GItems;
   npcs: Record<string, GNpc>;
   onInspectClose: () => void;

@@ -19,6 +19,7 @@ import { useContext, useMemo } from "react";
 import { GCraft, ItemKey } from "typed-adventureland";
 
 import { listCxJarVariants } from "../gameData/cxJarVariants";
+import { HomeServerBadge } from "../Shared/HomeServerBadge";
 import { GDismantle } from "../gameData/dismantle";
 import { craftRowKey, formatCraftCost, parseCraftRow } from "../gameData/craftRecipe";
 import type { CraftRecipeRow } from "../gameData/craftRecipe";
@@ -332,6 +333,7 @@ function CxJarVariantsCard({ G }: { G: CustomGData }) {
               : source?.kind === "craft"
               ? source.label
               : undefined;
+          const homeServer = source?.kind === "drop" && source.homeServer;
           return (
             <Box
               key={variant.data}
@@ -367,6 +369,11 @@ function CxJarVariantsCard({ G }: { G: CustomGData }) {
                 >
                   {sourceLabel}
                 </Typography>
+              ) : null}
+              {homeServer ? (
+                <Box sx={{ mt: 0.35 }}>
+                  <HomeServerBadge />
+                </Box>
               ) : null}
             </Box>
           );

@@ -28,8 +28,9 @@ import { GMonster, MonsterKey } from "typed-adventureland";
 import { useState, useContext, useEffect, useMemo } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
-import { formatMonsterDropsDisplay } from "../gameData/drops";
+import { getMonsterDropDisplayParts } from "../gameData/drops";
 import { mapDetailHref } from "../gameData/mapCatalog";
+import { HomeServerBadge } from "../Shared/HomeServerBadge";
 import { MonsterImage } from "../Shared/SpriteSkin";
 import { QuerySearchBar } from "../Shared/QuerySearchBar";
 import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
@@ -49,10 +50,42 @@ type MonsterBrowseRowData = GMonster & {
   avgGold: number;
   hpPerGold: number;
   xpPerHp: number;
-  drops: unknown;
+  /** Plain-text drops for search / sort. */
+  drops: string;
+  dropsRegular: string;
+  dropsHome: string;
   spawns: string[];
   achievements: unknown;
 };
+
+function MonsterDropsCell({ regular, home }: { regular: string; home: string }) {
+  if (!regular && !home) return null;
+  return (
+    <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, rowGap: 0.35 }}>
+      {regular ? (
+        <Typography variant="body2" component="span" sx={{ fontSize: "inherit" }}>
+          {regular}
+        </Typography>
+      ) : null}
+      {home ? (
+        <Box
+          component="span"
+          sx={{ display: "inline-flex", flexWrap: "wrap", alignItems: "center", gap: 0.5 }}
+        >
+          {regular ? (
+            <Typography variant="body2" component="span" sx={{ fontSize: "inherit" }}>
+              ;
+            </Typography>
+          ) : null}
+          <HomeServerBadge />
+          <Typography variant="body2" component="span" sx={{ fontSize: "inherit" }}>
+            {home}
+          </Typography>
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
 
 function formatMonsterStat(value: number): string {
   if (value === -1) return "—";
@@ -265,28 +298,16 @@ export function Monsters() {
     G.indexes.spawnsByMonster.get(monsterKey as MonsterKey) ?? [];
 
   // TODO: do the heavy row calculations here and map a new object with min and max gold for example.
-  const rows: [
-    MonsterKey,
-    GMonster & {
-      avgGold: number;
-      hpPerGold: number;
-      xpPerHp: number;
-      drops: any;
-      spawns: string[];
-      achievements: any; // Add achievements to the row type
-    },
-  ][] = Object.entries(G.monsters)
+  const rows: [MonsterKey, MonsterBrowseRowData][] = Object.entries(G.monsters)
     .map(([monsterKey, monster]) => {
       const base_gold = G.base_gold[monsterKey as keyof typeof G.base_gold] as number[];
       const goldValues = base_gold ? Object.values(base_gold) : ([] as number[]);
       const minGold = Math.min(...goldValues) as number;
       const maxGold = Math.max(...goldValues) as number;
-      // Get the drops for this monster
-      const drops = G.drops.monsters[monsterKey];
       // Get the spawn locations of the monster
       const spawns = getMonsterSpawnsForKey(monsterKey);
 
-      const formattedDrops = formatMonsterDropsDisplay(drops);
+      const dropParts = getMonsterDropDisplayParts(monsterKey, G.drops ?? {});
       let avgGold = (minGold + maxGold) / 2;
       if (isNaN(avgGold)) {
         avgGold = 0;
@@ -311,7 +332,9 @@ export function Monsters() {
           avgGold,
           hpPerGold,
           xpPerHp,
-          drops: formattedDrops,
+          drops: dropParts.searchText,
+          dropsRegular: dropParts.regular,
+          dropsHome: dropParts.home,
           spawns,
           achievements: monster.achievements || [], // Add achievements to the row
         },
@@ -361,33 +384,12 @@ export function Monsters() {
       const result = aNumericValue - bNumericValue;
 
       return result * numericDirection;
-    }) as [
-    MonsterKey,
-    GMonster & {
-      avgGold: number;
-      hpPerGold: number;
-      xpPerHp: number;
-      drops: any;
-      spawns: string[];
-      achievements: any; // Add achievements to the row type
-    },
-  ][];
+    }) as [MonsterKey, MonsterBrowseRowData][];
 
   // Filter the rows based on the query search
   const filteredRows = rows.filter(([key, monster]) => monsterMatchesSearch(key, monster, search));
 
-  // Ensure filteredRowsWithFilters is defined
-  const filteredRowsWithFilters = filteredRows as [
-    MonsterKey,
-    GMonster & {
-      avgGold: number;
-      hpPerGold: number;
-      xpPerHp: number;
-      drops: any;
-      spawns: string[];
-      achievements: any;
-    },
-  ][];
+  const filteredRowsWithFilters = filteredRows;
 
   const advancedContent = (
     <MonsterAdvancedSearchPanel
@@ -490,17 +492,7 @@ export function Monsters() {
             </TableHead>
             <TableBody>
               {filteredRowsWithFilters.map(
-                ([monsterKey, row]: [
-                  MonsterKey,
-                  GMonster & {
-                    avgGold: number;
-                    hpPerGold: number;
-                    xpPerHp: number;
-                    drops: any;
-                    spawns: string[];
-                    achievements: any;
-                  },
-                ]) => {
+                ([monsterKey, row]: [MonsterKey, MonsterBrowseRowData]) => {
                   const base_gold = G.base_gold[monsterKey as keyof typeof G.base_gold];
                   const goldPerMapString = base_gold
                     ? Object.entries(base_gold)
@@ -560,7 +552,9 @@ export function Monsters() {
                       <TableCell>{row.resistance}</TableCell>
                       <TableCell>{row.evasion}</TableCell>
                       <TableCell>{row.reflection}</TableCell>
-                      <TableCell>{row.drops}</TableCell>
+                      <TableCell>
+                        <MonsterDropsCell regular={row.dropsRegular} home={row.dropsHome} />
+                      </TableCell>
                       <TableCell>
                         {spawnMaps.length === 0
                           ? "—"
