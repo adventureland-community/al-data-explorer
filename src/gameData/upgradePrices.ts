@@ -192,17 +192,23 @@ export function seedMissingPrices(args: {
   for (const key of args.keys) {
     const market = args.market ? marketSellMinPrice(args.market, key) : undefined;
     const vendorBuyable = isGoldVendorBuyable(key, args.shopsByItem, args.items);
+    const catalogG = args.items[key as ItemKey]?.g;
+    const hasCatalogG = typeof catalogG === "number" && catalogG > 0;
     if (preferMarket && !vendorBuyable && market != null) {
       out[key] = market;
       continue;
     }
     if (typeof out[key] === "number" && Number.isFinite(out[key])) continue;
+    // Gold NPC shelf → catalog `.g` (what you pay the vendor), not player market.
+    if (vendorBuyable && hasCatalogG) {
+      out[key] = catalogG;
+      continue;
+    }
     if (market != null) {
       out[key] = market;
       continue;
     }
-    const g = args.items[key as ItemKey]?.g;
-    if (typeof g === "number" && g > 0) out[key] = g;
+    if (hasCatalogG) out[key] = catalogG;
   }
   return out;
 }

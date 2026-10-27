@@ -56,7 +56,7 @@ describe("seedMissingPrices", () => {
     },
   };
 
-  it("fills missing keys with market then catalog .g", () => {
+  it("fills missing vendor keys with catalog .g, others with market then .g", () => {
     const prices = seedMissingPrices({
       prices: {},
       keys: ["spidersilk", "staff"],
@@ -65,7 +65,7 @@ describe("seedMissingPrices", () => {
       shopsByItem: shops,
     });
     expect(prices.spidersilk).toBe(1_000_000);
-    expect(prices.staff).toBe(50_000);
+    expect(prices.staff).toBe(2);
   });
 
   it("does not overwrite existing prices by default", () => {
