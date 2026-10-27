@@ -4,7 +4,7 @@ export type GItems = {
   [T in ItemKey]: GItem;
 };
 
-export type DropSourceType = "monster" | "map" | "table" | "gold";
+export type DropSourceType = "monster" | "monster_home" | "map" | "table" | "gold";
 
 export type DropSource = {
   sourceType: DropSourceType;

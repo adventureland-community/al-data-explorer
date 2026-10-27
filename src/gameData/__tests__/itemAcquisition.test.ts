@@ -203,4 +203,31 @@ describe("getItemAcquisition", () => {
       "/maps/goobrawl",
     ]);
   });
+
+  it("surfaces home-server-only drops with a homeserver flag", () => {
+    const G = stubG({
+      items: {
+        fallen: { name: "Fallen", type: "material" },
+      } as unknown as CustomGData["items"],
+      monsters: {
+        mrgreen: { name: "Mr. Green" },
+      } as unknown as CustomGData["monsters"],
+      drops: {
+        monsters: {},
+        monsters_home_server: {
+          mrgreen: [[0.01, "fallen"]],
+        },
+      },
+    });
+
+    const acq = getItemAcquisition("fallen" as ItemKey, G);
+    expect(acq.drops).toHaveLength(1);
+    expect(acq.drops[0]?.sourceType).toBe("monster_home");
+    expect(acq.drops[0]?.label).toBe("Mr. Green");
+    expect(acq.drops[0]?.homeServer).toBe(true);
+    expect(acq.drops[0]?.secondary).not.toMatch(/home server/i);
+    expect(acq.drops[0]?.linkTo).toBe("/monsters?monster=mrgreen");
+    expect(acq.drops[0]?.icon.kind).toBe("monster");
+    expect(acq.drops[0]?.oddsLabel).toBe("1.00%");
+  });
 });

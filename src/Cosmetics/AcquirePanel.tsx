@@ -15,6 +15,7 @@ import { COSMETIC_SLOT_LABEL, CosmeticEntry } from "../gameData/cosmeticsCatalog
 import { isAnimatedCosmeticType } from "../gameData/spriteSkinLayout";
 import { ItemImage } from "../ItemImage";
 import { CxJarItemSprite } from "../Shared/CxJarItemSprite";
+import { HomeServerBadge } from "../Shared/HomeServerBadge";
 import { MonsterImage, NpcImage, SpriteSkin } from "../Shared/SpriteSkin";
 
 type Availability = "free" | "pack" | "unpublished";
@@ -65,6 +66,7 @@ function SourceRow({
   chance,
   icons,
   links,
+  badge,
 }: {
   kindLabel: string;
   title: string;
@@ -72,6 +74,7 @@ function SourceRow({
   chance?: number;
   icons?: ReactNode;
   links?: { label: string; to: string }[];
+  badge?: ReactNode;
 }) {
   const odds = formatAcquireOdds(chance, true).replace(/^ · /, "");
   return (
@@ -123,9 +126,12 @@ function SourceRow({
         >
           {kindLabel}
         </Typography>
-        <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
-          {title}
-        </Typography>
+        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
+          <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
+            {title}
+          </Typography>
+          {badge}
+        </Stack>
         {subtitle ? (
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.1 }}>
             {subtitle}
@@ -228,7 +234,8 @@ function DropSourceIcons({
           <ItemImage itemName={src.dropItemKey} size={36} />
         </IconWell>
       ) : null}
-      {src.dropSourceType === "monster" && src.dropSourceKey ? (
+      {(src.dropSourceType === "monster" || src.dropSourceType === "monster_home") &&
+      src.dropSourceKey ? (
         <IconWell title={src.dropSourceName ?? src.dropSourceKey}>
           <MonsterImage monsterName={src.dropSourceKey} scale={1.55} tooltip={false} />
         </IconWell>
@@ -405,14 +412,17 @@ export function AcquirePanel({
               kindLabel={src.note ?? "Drop"}
               title={src.dropSourceName ?? src.dropSourceKey ?? "Unknown"}
               subtitle={
-                src.dropSourceType
+                src.dropSourceType && src.dropSourceType !== "monster_home"
                   ? `${src.dropSourceType} drop${
                       src.dropSourceKey && src.dropSourceKey !== src.dropSourceName
                         ? ` · ${src.dropSourceKey}`
                         : ""
                     }`
+                  : src.dropSourceKey && src.dropSourceKey !== src.dropSourceName
+                  ? src.dropSourceKey
                   : undefined
               }
+              badge={src.dropSourceType === "monster_home" ? <HomeServerBadge /> : undefined}
               chance={src.chance}
               icons={
                 <DropSourceIcons

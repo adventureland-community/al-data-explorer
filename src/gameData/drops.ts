@@ -3,6 +3,7 @@ import {
   collectOpenTableOpeners,
   collectOpenTableTargets,
   parseDropEntry,
+  parseHomeServerDropTable,
   parseMonsterDropTable,
   resolveDisplayChance,
   tableTotalWeight,
@@ -17,6 +18,7 @@ export {
   collectOpenTableOpeners,
   collectOpenTableTargets,
   parseDropEntry,
+  parseHomeServerDropTable,
   parseMonsterDropTable,
   resolveDisplayChance,
   tableTotalWeight,
@@ -33,10 +35,11 @@ export function extractDropRates(drops: Record<string, unknown>): DropSource[] {
 export function dropSourceSortKey(sourceType: string, sourceKey: string): number {
   const debugTables = new Set(["glitch", "lglitch", "test", "dev"]);
   if (sourceType === "monster") return 0;
-  if (sourceType === "map") return 1;
-  if (sourceType === "gold") return 2;
+  if (sourceType === "monster_home") return 1;
+  if (sourceType === "map") return 2;
+  if (sourceType === "gold") return 3;
   if (sourceType === "table" && debugTables.has(sourceKey)) return 9;
-  if (sourceType === "table") return 3;
+  if (sourceType === "table") return 4;
   return 5;
 }
 
@@ -116,12 +119,8 @@ export function prepareDropSourcesForDisplay(
   return mergeDropSources(sortDropSources(drops));
 }
 
-/** Format monster drop list for Monsters table display. */
-export function formatMonsterDropsDisplay(drops: unknown): string {
-  if (!Array.isArray(drops)) {
-    return typeof drops === "object" ? JSON.stringify(drops) : String(drops ?? "");
-  }
-  return parseMonsterDropTable("", drops)
+function formatParsedDropRows(rows: DropSource[]): string {
+  return rows
     .map((row) => {
       const name = row.nestedTable || row.itemKey;
       if (!name) return "";
@@ -134,6 +133,55 @@ export function formatMonsterDropsDisplay(drops: unknown): string {
     .join(", ");
 }
 
+/** Format monster drop list for Monsters table display. */
+export function formatMonsterDropsDisplay(drops: unknown): string {
+  if (!Array.isArray(drops)) {
+    return typeof drops === "object" ? JSON.stringify(drops) : String(drops ?? "");
+  }
+  return formatParsedDropRows(parseMonsterDropTable("", drops));
+}
+
+/** Format home-server bonus drops (`G.drops.monsters_home_server[type]`). */
+export function formatHomeServerDropsDisplay(drops: unknown): string {
+  if (!Array.isArray(drops) || drops.length === 0) return "";
+  return formatParsedDropRows(parseHomeServerDropTable("", drops));
+}
+
+export type MonsterDropDisplayParts = {
+  regular: string;
+  home: string;
+  /** Plain text for search / sort (includes "homeserver" when home loot exists). */
+  searchText: string;
+};
+
+/** Split regular vs home-server bonus drops for monster browse cells. */
+export function getMonsterDropDisplayParts(
+  monsterKey: string,
+  drops: {
+    monsters?: Record<string, unknown>;
+    monsters_home_server?: Record<string, unknown>;
+  },
+): MonsterDropDisplayParts {
+  const regular = formatMonsterDropsDisplay(drops.monsters?.[monsterKey]);
+  const home = formatHomeServerDropsDisplay(drops.monsters_home_server?.[monsterKey]);
+  const searchText = home ? [regular, `homeserver ${home}`].filter(Boolean).join("; ") : regular;
+  return { regular, home, searchText };
+}
+
+/**
+ * Regular monster drops plus optional home-server bonus section for browse cells.
+ * Prefer `getMonsterDropDisplayParts` when rendering a Homeserver badge.
+ */
+export function formatMonsterDropsWithHome(
+  monsterKey: string,
+  drops: {
+    monsters?: Record<string, unknown>;
+    monsters_home_server?: Record<string, unknown>;
+  },
+): string {
+  return getMonsterDropDisplayParts(monsterKey, drops).searchText;
+}
+
 /** Drop Simulator deep link for a named loot / exchange table. */
 export function dropsTableDeepLink(tableKey: string): string {
   return `/drops?mode=exchange&table=${encodeURIComponent(tableKey)}`;
@@ -143,7 +191,7 @@ export function getDropSourceLink(
   drop: DropSource,
   items?: Record<string, unknown>,
 ): string | undefined {
-  if (drop.sourceType === "monster") {
+  if (drop.sourceType === "monster" || drop.sourceType === "monster_home") {
     return `/monsters?monster=${encodeURIComponent(drop.sourceKey)}`;
   }
   if (drop.sourceType === "map") {

@@ -6,6 +6,7 @@ import { GCraft, ItemKey } from "typed-adventureland";
 import { AcquisitionDropView, AcquisitionShopView } from "../gameData/itemAcquisition";
 import { craftRowKey, formatCraftCost, parseCraftRow } from "../gameData/craftRecipe";
 import { AcquisitionDropIcon } from "./AcquisitionDropIcon";
+import { HOME_SERVER_BADGE_LABEL, HomeServerBadge } from "./HomeServerBadge";
 import { RECIPE_ITEM_SIZE, RecipeItemTile } from "./RecipeItemTile";
 import { NpcImage } from "./SpriteSkin";
 
@@ -94,7 +95,9 @@ export function BrowseDropsCell({ drops }: { drops: AcquisitionDropView[] }) {
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, alignItems: "flex-start" }}>
       {drops.map((drop) => {
-        const title = `${drop.label} · ${drop.oddsLabel}`;
+        const title = drop.homeServer
+          ? `${drop.label} · ${drop.oddsLabel} · ${HOME_SERVER_BADGE_LABEL}`
+          : `${drop.label} · ${drop.oddsLabel}`;
         const content = (
           <Box sx={tileColumnSx}>
             <Box sx={tileSlotSx}>
@@ -103,6 +106,7 @@ export function BrowseDropsCell({ drops }: { drops: AcquisitionDropView[] }) {
             <Typography variant="caption" sx={oddsSx}>
               {drop.oddsLabel}
             </Typography>
+            {drop.homeServer ? <HomeServerBadge /> : null}
           </Box>
         );
 
@@ -350,7 +354,9 @@ export function BrowseAcquisitionStrip({
       {drops.length > 0 ? (
         <CompactSection label="Drops">
           {drops.map((drop) => {
-            const title = `${drop.label} · ${drop.oddsLabel}`;
+            const title = drop.homeServer
+              ? `${drop.label} · ${drop.oddsLabel} · ${HOME_SERVER_BADGE_LABEL}`
+              : `${drop.label} · ${drop.oddsLabel}`;
             const content = (
               <Box sx={compactColumnSx}>
                 <Box sx={compactSlotSx}>
@@ -367,6 +373,7 @@ export function BrowseAcquisitionStrip({
                 <Typography variant="caption" sx={compactOddsSx} title={drop.oddsLabel}>
                   {drop.oddsLabel}
                 </Typography>
+                {drop.homeServer ? <HomeServerBadge /> : null}
               </Box>
             );
             return (

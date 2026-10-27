@@ -1,4 +1,4 @@
-import { Box, Link, List, ListItem, ListItemText, Typography } from "@mui/material";
+import { Box, Link, List, ListItem, ListItemText, Stack, Typography } from "@mui/material";
 import { ReactNode } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { ItemKey } from "typed-adventureland";
@@ -16,6 +16,7 @@ import {
   UseTokenVendorGroup,
 } from "../gameData/itemUses";
 import { AcquisitionDropIcon } from "./AcquisitionDropIcon";
+import { HomeServerBadge } from "./HomeServerBadge";
 import { ItemInstance } from "./ItemInstance";
 import { NpcImage } from "./SpriteSkin";
 
@@ -104,18 +105,21 @@ export function DropSourceRow({ drop }: { drop: AcquisitionDropView }) {
       </SourceIconSlot>
       <ListItemText
         primary={
-          drop.linkTo ? (
-            <Link component={RouterLink} to={drop.linkTo} variant="body2">
-              {drop.label}
-            </Link>
-          ) : (
-            <Typography variant="body2" component="span">
-              {drop.label}
-            </Typography>
-          )
+          <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
+            {drop.linkTo ? (
+              <Link component={RouterLink} to={drop.linkTo} variant="body2">
+                {drop.label}
+              </Link>
+            ) : (
+              <Typography variant="body2" component="span">
+                {drop.label}
+              </Typography>
+            )}
+            {drop.homeServer ? <HomeServerBadge /> : null}
+          </Stack>
         }
         secondary={secondary}
-        primaryTypographyProps={{ variant: "body2" }}
+        primaryTypographyProps={{ variant: "body2", component: "div" }}
         secondaryTypographyProps={{ component: "div" }}
         sx={{ my: 0 }}
       />

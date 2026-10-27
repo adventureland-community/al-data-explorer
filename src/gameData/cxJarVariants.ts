@@ -12,6 +12,7 @@ export type CxJarVariantSource =
       sourceKey: string;
       label: string;
       oddsLabel: string;
+      homeServer?: boolean;
       linkTo?: string;
     }
   | {
@@ -51,28 +52,33 @@ export function listCxJarVariants(G: CustomGData): CxJarVariant[] {
   const drops = prepareDropSourcesForDisplay(G.indexes.dropsByItem.get("cxjar" as ItemKey) ?? []);
   for (const drop of drops) {
     if (!drop.title) continue;
-    const label =
-      drop.sourceType === "monster"
-        ? (G.monsters as Record<string, { name?: string } | undefined>)?.[drop.sourceKey]?.name ??
-          drop.sourceKey
-        : drop.sourceType === "map"
-        ? (G.maps as Record<string, { name?: string } | undefined>)?.[drop.sourceKey]?.name ??
-          drop.sourceKey
-        : drop.sourceKey;
+    const isMonster = drop.sourceType === "monster" || drop.sourceType === "monster_home";
+    const monsterName = isMonster
+      ? (G.monsters as Record<string, { name?: string } | undefined>)?.[drop.sourceKey]?.name
+      : undefined;
+    const mapName =
+      drop.sourceType === "map"
+        ? (G.maps as Record<string, { name?: string } | undefined>)?.[drop.sourceKey]?.name
+        : undefined;
+    const baseLabel = isMonster
+      ? monsterName ?? drop.sourceKey
+      : drop.sourceType === "map"
+      ? mapName ?? drop.sourceKey
+      : drop.sourceKey;
     push(drop.title, {
       kind: "drop",
       sourceType: drop.sourceType,
       sourceKey: drop.sourceKey,
-      label,
+      label: baseLabel,
       oddsLabel: drop.oddsLabel,
-      linkTo:
-        drop.sourceType === "monster"
-          ? `/monsters?monster=${encodeURIComponent(drop.sourceKey)}`
-          : drop.sourceType === "map"
-          ? `/maps/${encodeURIComponent(drop.sourceKey)}`
-          : drop.sourceType === "table"
-          ? `/items/${encodeURIComponent(drop.sourceKey)}`
-          : undefined,
+      homeServer: drop.sourceType === "monster_home",
+      linkTo: isMonster
+        ? `/monsters?monster=${encodeURIComponent(drop.sourceKey)}`
+        : drop.sourceType === "map"
+        ? `/maps/${encodeURIComponent(drop.sourceKey)}`
+        : drop.sourceType === "table"
+        ? `/items/${encodeURIComponent(drop.sourceKey)}`
+        : undefined,
     });
   }
 

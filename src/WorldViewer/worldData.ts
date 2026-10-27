@@ -18,7 +18,8 @@ export interface WorldGameData {
   spriteContext: MapSpriteContext;
   tilesets: Record<string, GTileset>;
   monsters: Record<string, GMonster>;
-  drops: Record<string, unknown[]>;
+  /** Full `G.drops` (monsters / maps / monsters_home_server / named tables). */
+  drops: Record<string, unknown>;
   items: GItems;
   npcs: Record<string, GNpc>;
 }
@@ -40,7 +41,7 @@ export function toWorldSource(G: CustomGData): WorldGameData {
     },
     tilesets: G.tilesets as unknown as Record<string, GTileset>,
     monsters: G.monsters as unknown as Record<string, GMonster>,
-    drops: (G.drops ?? {}) as Record<string, unknown[]>,
+    drops: (G.drops ?? {}) as Record<string, unknown>,
     items: G.items as unknown as GItems,
     npcs: G.npcs as unknown as Record<string, GNpc>,
   };

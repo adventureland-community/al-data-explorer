@@ -37,6 +37,8 @@ export type AcquisitionDropView = {
   sourceKey: string;
   label: string;
   secondary?: string;
+  /** From `G.drops.monsters_home_server` — only while on home server. */
+  homeServer?: boolean;
   /** Monster spawn maps — rendered as links in the source row. */
   mapLinks?: AcquisitionMapLink[];
   /** For auto-opened loot tables — who rolls `open` into this table. */
@@ -116,7 +118,9 @@ function dropIcon(
   sourceKey: string,
   items: GItems,
 ): AcquisitionDropView["icon"] {
-  if (sourceType === "monster") return { kind: "monster", key: sourceKey };
+  if (sourceType === "monster" || sourceType === "monster_home") {
+    return { kind: "monster", key: sourceKey };
+  }
   if (sourceType === "map") return { kind: "map-text", key: sourceKey };
   if (sourceType === "table" && items[sourceKey as ItemKey]) {
     return { kind: "table-item", key: sourceKey };
@@ -168,7 +172,9 @@ function toDropAndExchangeViews(
 
     const mapName = drop.sourceType === "map" ? getMapDisplayName(drop.sourceKey, maps) : undefined;
     const monsterName =
-      drop.sourceType === "monster" ? monsters?.[drop.sourceKey]?.name : undefined;
+      drop.sourceType === "monster" || drop.sourceType === "monster_home"
+        ? monsters?.[drop.sourceKey]?.name
+        : undefined;
     const tableItemName =
       drop.sourceType === "table" ? items[drop.sourceKey as ItemKey]?.name : undefined;
 
@@ -177,7 +183,8 @@ function toDropAndExchangeViews(
     let mapLinks: AcquisitionMapLink[] | undefined;
     let openerLinks: AcquisitionOpenerLink[] | undefined;
     switch (drop.sourceType) {
-      case "monster": {
+      case "monster":
+      case "monster_home": {
         label = monsterName ?? drop.sourceKey;
         const spawnMaps = spawnsByMonster?.get(drop.sourceKey) ?? [];
         if (spawnMaps.length > 0) {
@@ -247,6 +254,7 @@ function toDropAndExchangeViews(
       sourceKey: drop.sourceKey,
       label,
       secondary,
+      homeServer: drop.sourceType === "monster_home",
       mapLinks,
       openerLinks,
       oddsLabel,
