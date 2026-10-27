@@ -15,7 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
-import { useContext, useMemo } from "react";
+import { Fragment, useContext, useMemo } from "react";
 import { GCraft, ItemKey } from "typed-adventureland";
 
 import { listCxJarVariants } from "../gameData/cxJarVariants";
@@ -217,6 +217,14 @@ function ItemEffectBlock({ effects }: { effects: ItemEffectView[] }) {
   );
 }
 
+const recipeOpSx = {
+  alignSelf: "center",
+  fontSize: "1.25rem",
+  lineHeight: 1,
+  px: 0.25,
+  userSelect: "none",
+} as const;
+
 function IngredientTiles({ items, rows }: { items: CustomGData["items"]; rows: CraftRecipeRow[] }) {
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mt: 1 }}>
@@ -224,82 +232,113 @@ function IngredientTiles({ items, rows }: { items: CustomGData["items"]; rows: C
         const parsed = parseCraftRow(row);
         const name = items[parsed.itemKey]?.name ?? parsed.itemKey;
         return (
-          <RecipeItemTile
+          <Box
             key={craftRowKey(parsed)}
-            itemKey={parsed.itemKey}
-            level={parsed.level}
-            quantity={parsed.quantity}
-            showQuantity={parsed.quantity > 1}
-            footer={
-              <>
-                <Typography
-                  variant="caption"
-                  display="block"
-                  noWrap
-                  sx={{ maxWidth: 100 }}
-                  title={name}
-                >
-                  {name}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  ×{parsed.quantity}
-                </Typography>
-              </>
-            }
-          />
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              minWidth: 72,
+              maxWidth: 160,
+            }}
+          >
+            <RecipeItemTile
+              itemKey={parsed.itemKey}
+              level={parsed.level}
+              title={parsed.title}
+              quantity={parsed.quantity}
+              showQuantity={parsed.quantity > 1}
+            />
+            <Typography
+              variant="caption"
+              display="block"
+              sx={{ textAlign: "center", lineHeight: 1.25, mt: 0.25, px: 0.25 }}
+            >
+              {name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block">
+              ×{parsed.quantity}
+            </Typography>
+          </Box>
         );
       })}
     </Box>
   );
 }
 
-function CraftRecipeCard({
-  itemKey,
-  craft,
-  items,
-}: {
-  itemKey: ItemKey;
-  craft: GCraft;
-  items: CustomGData["items"];
-}) {
+function CraftRecipeCard({ itemKey, craft }: { itemKey: ItemKey; craft: GCraft }) {
   const output = parseCraftOutput(craft as { output?: unknown }, itemKey);
-  const outputItem = items[output.name as ItemKey];
-  const outputLabel = [outputItem?.name ?? output.name, output.data ? `· ${output.data}` : null]
-    .filter(Boolean)
-    .join(" ");
+  const rows = craft.items ?? [];
+  const cost = craft.cost != null && craft.cost > 0 ? craft.cost : null;
 
   return (
     <Paper sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom>
         Craft recipe
       </Typography>
-      {craft.cost != null && craft.cost > 0 && (
-        <Typography variant="body2" gutterBottom>
-          Craft cost: {formatCraftCost(craft.cost)}
-        </Typography>
-      )}
       {craft.quest && (
         <Typography variant="body2" color="text.secondary" gutterBottom>
           Quest NPC: {craft.quest}
         </Typography>
       )}
-      <IngredientTiles items={items} rows={craft.items ?? []} />
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
-        <ItemInstance
-          itemInfo={
-            {
-              name: output.name as ItemKey,
-              ...(output.data ? { data: output.data } : {}),
-            } as never
-          }
-          size={32}
+      <Stack
+        direction="row"
+        alignItems="center"
+        flexWrap="wrap"
+        sx={{ gap: 0.75, mt: 0.5, py: 0.5, overflow: "visible" }}
+      >
+        <RecipeItemTile
+          itemKey={output.name as ItemKey}
+          data={output.data}
+          quantity={output.q}
+          showQuantity={output.q != null && output.q > 1}
           linkToDetail={output.name !== itemKey}
         />
-        <Typography variant="caption" color="text.secondary">
-          Output: {outputLabel}
-          {output.name !== itemKey ? ` (${output.name})` : null}
+        <Typography aria-hidden color="success.light" sx={recipeOpSx}>
+          ≤
         </Typography>
-      </Box>
+        {rows.map((row, index) => {
+          const parsed = parseCraftRow(row);
+          const key = craftRowKey(parsed);
+          return (
+            <Fragment key={key}>
+              {index > 0 ? (
+                <Typography aria-hidden color="text.secondary" sx={recipeOpSx}>
+                  +
+                </Typography>
+              ) : null}
+              <RecipeItemTile
+                itemKey={parsed.itemKey}
+                level={parsed.level}
+                title={parsed.title}
+                quantity={parsed.quantity}
+                showQuantity={parsed.quantity > 1}
+              />
+            </Fragment>
+          );
+        })}
+        {cost != null ? (
+          <>
+            {rows.length > 0 ? (
+              <Typography aria-hidden color="text.secondary" sx={recipeOpSx}>
+                +
+              </Typography>
+            ) : null}
+            <Typography
+              sx={{
+                color: "#fde047",
+                fontWeight: 600,
+                fontVariantNumeric: "tabular-nums",
+                fontSize: "1rem",
+                lineHeight: 1.2,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {formatCraftCost(cost)}
+            </Typography>
+          </>
+        ) : null}
+      </Stack>
     </Paper>
   );
 }
@@ -721,7 +760,7 @@ export function ItemDetail() {
           <ItemUsesPanel itemKey={key} G={G} />
           {craft && (
             <Box sx={{ mb: 2 }}>
-              <CraftRecipeCard itemKey={key} craft={craft} items={G.items} />
+              <CraftRecipeCard itemKey={key} craft={craft} />
             </Box>
           )}
           {dismantle && (
