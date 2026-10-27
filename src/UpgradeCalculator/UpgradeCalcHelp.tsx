@@ -248,6 +248,12 @@ function HelpBody() {
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
+        <strong>Break-even ask</strong> is the merchant-stand list price that recovers Plan EV after
+        sales tax: <code>EV ÷ (1 − tax)</code>. Set tax to your character&apos;s Stats{" "}
+        <code>tax</code> (default 2.5%). Buyer pays the ask; you keep the rest.
+      </Typography>
+
+      <Typography variant="body2" color="text.secondary">
         <strong>Greed</strong> mode farms <em>Essence of Greed</em>: pick any upgradeable item, set
         its unit price (vendor catalog default, or market/event estimate), farm at a High-grade+
         level, and choose scroll/offering. Expected gold is attempt cost ÷ edge-fail chance

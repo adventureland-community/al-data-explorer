@@ -9,6 +9,7 @@ import {
   formatGold,
   itemUpgradeMode,
 } from "../../gameData/itemUpgradeSnapshot";
+import { breakEvenListPrice, DEFAULT_MERCHANT_TAX } from "../../gameData/merchantTax";
 import { CustomGData } from "../../GDataContext";
 import { ItemInstance } from "../../Shared/ItemInstance";
 import { useMerchants } from "../../Market/useMerchants";
@@ -77,6 +78,8 @@ export function ItemUpgradeCard({
     snapshot.mode === "compound"
       ? `Compound to +${snapshot.targetLevel}`
       : `Upgrade to +${snapshot.targetLevel}`;
+  const breakEvenAsk =
+    snapshot.planEv != null ? breakEvenListPrice(snapshot.planEv, DEFAULT_MERCHANT_TAX) : null;
 
   return (
     <Paper sx={{ p: 2, mb: 2 }}>
@@ -122,6 +125,13 @@ export function ItemUpgradeCard({
         <Metric
           label="Plan EV"
           value={snapshot.planEv != null ? formatGold(snapshot.planEv) : "—"}
+        />
+        <Metric
+          label="Break-even ask"
+          value={breakEvenAsk == null ? "—" : formatGold(breakEvenAsk)}
+          hint={`List price so ${
+            DEFAULT_MERCHANT_TAX * 100
+          }% merchant tax still leaves Plan EV. Open the calculator to change tax.`}
         />
         <Metric
           label="Exp. attempts"

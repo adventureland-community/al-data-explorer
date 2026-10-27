@@ -1,11 +1,63 @@
-import { Box, Button, Chip, Link, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Chip, Link, Paper, Stack, TextField, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { ItemKey } from "typed-adventureland";
 
-import { formatChancePct, formatGold, PlanSummaryStep } from "../calculators";
+import {
+  breakEvenListPrice,
+  DEFAULT_MERCHANT_TAX,
+  formatChancePct,
+  formatGold,
+  PlanSummaryStep,
+} from "../calculators";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { Metric } from "./planResultsShared";
 import { CalcMode, CalcStrategy } from "./useUpgradeCalcParams";
+
+function TaxPercentField({
+  taxRate,
+  onTaxRateChange,
+}: {
+  taxRate: number;
+  onTaxRateChange: (rate: number) => void;
+}) {
+  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState(() => String(Number((taxRate * 100).toFixed(4))));
+
+  useEffect(() => {
+    if (!focused) setDraft(String(Number((taxRate * 100).toFixed(4))));
+  }, [taxRate, focused]);
+
+  return (
+    <TextField
+      size="small"
+      value={draft}
+      onFocus={() => {
+        setFocused(true);
+        setDraft(String(Number((taxRate * 100).toFixed(4))));
+      }}
+      onBlur={() => {
+        setFocused(false);
+        const n = Number(draft.replace(/,/g, ""));
+        if (Number.isFinite(n) && n >= 0 && n < 100) onTaxRateChange(n / 100);
+        else setDraft(String(Number((taxRate * 100).toFixed(4))));
+      }}
+      onChange={(e) => {
+        const raw = e.target.value;
+        if (raw === "" || /^\d*\.?\d*$/.test(raw)) setDraft(raw);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+      }}
+      inputProps={{
+        inputMode: "decimal",
+        "aria-label": "Merchant tax percent",
+        sx: { fontVariantNumeric: "tabular-nums", textAlign: "right", width: 44, py: 0.5 },
+      }}
+      sx={{ width: 64, flexShrink: 0, "& .MuiOutlinedInput-root": { height: 28 } }}
+    />
+  );
+}
 
 export function PlanHero({
   itemKey,
@@ -20,6 +72,8 @@ export function PlanHero({
   totalAttempts,
   oneshotPct,
   shrineTime = null,
+  taxRate = DEFAULT_MERCHANT_TAX,
+  onTaxRateChange,
   bottleneck,
   showMetrics = true,
   onBottleneckClick,
@@ -38,6 +92,9 @@ export function PlanHero({
   oneshotPct: number | null;
   /** Expected shrine wait with Mass Production++ (indicative). */
   shrineTime?: string | null;
+  /** Merchant-stand tax fraction (`character.tax`). */
+  taxRate?: number;
+  onTaxRateChange?: (rate: number) => void;
   bottleneck: PlanSummaryStep | null;
   /** When false, skip EV/attempts/oneshot (already on strategy cards). */
   showMetrics?: boolean;
@@ -64,6 +121,8 @@ export function PlanHero({
       ? bottleneck.stepSpend / planEv
       : 0;
   const riskDominates = riskShare >= 0.5;
+  const askPrice = breakEvenListPrice(planEv, taxRate);
+  const taxPctLabel = `${Number((taxRate * 100).toFixed(4))}%`;
 
   const compact = !showMetrics;
 
@@ -148,6 +207,11 @@ export function PlanHero({
             >
               <Metric label="Plan EV" value={formatGold(planEv)} />
               <Metric
+                label="Break-even ask"
+                value={askPrice == null ? "—" : formatGold(askPrice)}
+                hint={`List price so merchant tax (${taxPctLabel}) still leaves you with Plan EV. Match character.tax on Stats.`}
+              />
+              <Metric
                 label="Exp. attempts"
                 value={
                   Number.isFinite(totalAttempts)
@@ -170,6 +234,37 @@ export function PlanHero({
             </Stack>
           ) : null}
         </Stack>
+
+        {compact && askPrice != null ? (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            Break-even ask {formatGold(askPrice)}
+            <Box component="span" sx={{ color: "text.disabled" }}>
+              {" "}
+              · after {taxPctLabel} tax
+            </Box>
+          </Typography>
+        ) : null}
+
+        {onTaxRateChange ? (
+          <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" sx={{ gap: 0.75 }}>
+            <Typography variant="caption" color="text.secondary">
+              Merchant tax
+            </Typography>
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              <TaxPercentField taxRate={taxRate} onTaxRateChange={onTaxRateChange} />
+              <Typography variant="caption" color="text.secondary">
+                %
+              </Typography>
+            </Stack>
+            <Typography variant="caption" color="text.disabled">
+              from Stats · ask = EV ÷ (1 − tax)
+            </Typography>
+          </Stack>
+        ) : null}
 
         <Box>
           <Box
