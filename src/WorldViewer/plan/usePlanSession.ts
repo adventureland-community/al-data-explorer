@@ -98,6 +98,7 @@ export type PlanSession = {
   redo: () => void;
   deleteSelected: () => void;
   applyPreset: (presetId: ZonePresetId) => void;
+  zoneDraft: { label: string; color: string } | null;
   shareUrl: () => string | null;
   importShare: (encoded: string) => PlanDocument | null;
   handleMapPointer: (args: {
@@ -129,6 +130,7 @@ export function usePlanSession(args: {
   const [draftPoint, setDraftPoint] = useState<PlanPoint | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<PlanPoint[]>([]);
   const [routeDraft, setRouteDraft] = useState<PlanPoint[]>([]);
+  const [zoneDraft, setZoneDraft] = useState<{ label: string; color: string } | null>(null);
   const [playback, setPlaybackState] = useState({
     routeId: null as string | null,
     playing: false,
@@ -294,11 +296,13 @@ export function usePlanSession(args: {
 
   const applyPreset = useCallback(
     (presetId: ZonePresetId) => {
-      if (!document) {
-        return;
-      }
       const preset = ZONE_PRESETS.find((entry) => entry.id === presetId);
       if (!preset) {
+        return;
+      }
+      setColor(preset.color);
+      setZoneDraft({ label: preset.label, color: preset.color });
+      if (!document || selectedIds.size === 0) {
         return;
       }
       let next = document;
@@ -309,7 +313,6 @@ export function usePlanSession(args: {
         }
         next = replacePlanObject(next, applyZonePreset(object, preset));
       }
-      setColor(preset.color);
       commit(next);
     },
     [commit, document, selectedIds],
@@ -542,11 +545,12 @@ export function usePlanSession(args: {
               addPlanObject(document, {
                 kind: "rect",
                 id,
-                color,
+                color: zoneDraft?.color ?? color,
                 x: point.x,
                 y: point.y,
                 width: 1,
                 height: 1,
+                ...(zoneDraft ? { role: "zone" as const, label: zoneDraft.label } : {}),
               }),
             );
           } else {
@@ -554,11 +558,12 @@ export function usePlanSession(args: {
               addPlanObject(document, {
                 kind: "ellipse",
                 id,
-                color,
+                color: zoneDraft?.color ?? color,
                 x: point.x,
                 y: point.y,
                 radiusX: 1,
                 radiusY: 1,
+                ...(zoneDraft ? { role: "zone" as const, label: zoneDraft.label } : {}),
               }),
             );
           }
@@ -669,7 +674,18 @@ export function usePlanSession(args: {
         placeGhost({ point, classKey: "warrior" });
       }
     },
-    [color, commit, document, placeGhost, placePackMarker, polygonDraft, selectedIds, stamp, tool],
+    [
+      color,
+      commit,
+      document,
+      placeGhost,
+      placePackMarker,
+      polygonDraft,
+      selectedIds,
+      stamp,
+      tool,
+      zoneDraft,
+    ],
   );
 
   // Finalize polygon / route when tool changes away
@@ -683,8 +699,9 @@ export function usePlanSession(args: {
         addPlanObject(document, {
           kind: "polygon",
           id,
-          color,
+          color: zoneDraft?.color ?? color,
           points: polygonDraft,
+          ...(zoneDraft ? { role: "zone" as const, label: zoneDraft.label } : {}),
         }),
       );
       setPolygonDraft([]);
@@ -731,6 +748,7 @@ export function usePlanSession(args: {
     draftPoint,
     polygonDraft,
     routeDraft,
+    zoneDraft,
     playback,
     setPlayback: (patch) => setPlaybackState((current) => ({ ...current, ...patch })),
     enterPlan,

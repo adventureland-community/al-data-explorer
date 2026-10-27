@@ -71,6 +71,7 @@ export function WorldViewer() {
   );
   const [ghostClass, setGhostClass] = useState<ClassKey>("warrior");
   const [ghostLoadoutName, setGhostLoadoutName] = useState("");
+  const [zoneMode, setZoneMode] = useState(false);
   const [layerHeight, setLayerHeight] = useState(() => {
     const h = Number(initialHash.current.layers);
     return h > 0 ? h : DEFAULT_LAYER_HEIGHT;
@@ -505,7 +506,14 @@ export function WorldViewer() {
       {viewMode === "plan" && planSession.document && (
         <PlanToolbar
           tool={planSession.tool}
-          onTool={planSession.setTool}
+          onTool={(nextTool) => {
+            if (nextTool !== "rect") {
+              setZoneMode(false);
+            }
+            planSession.setTool(nextTool);
+          }}
+          zoneMode={zoneMode}
+          onZoneMode={setZoneMode}
           color={planSession.color}
           onColor={planSession.recolorSelected}
           selectedRadius={(() => {
@@ -525,7 +533,13 @@ export function WorldViewer() {
           onUndo={planSession.undo}
           onRedo={planSession.redo}
           onDelete={planSession.deleteSelected}
-          onPreset={planSession.applyPreset}
+          onPreset={(presetId) => {
+            setZoneMode(true);
+            if (planSession.tool !== "rect" && planSession.tool !== "polygon") {
+              planSession.setTool("rect");
+            }
+            planSession.applyPreset(presetId);
+          }}
           onShare={() => {
             const url = planSession.shareUrl();
             if (url) {
@@ -537,6 +551,7 @@ export function WorldViewer() {
           onGhostClass={setGhostClass}
           ghostLoadoutName={ghostLoadoutName}
           onGhostLoadoutName={setGhostLoadoutName}
+          routeDraftCount={planSession.routeDraft.length}
           playback={{
             playing: planSession.playback.playing,
             t: planSession.playback.t,
@@ -610,6 +625,7 @@ export function WorldViewer() {
               plansForMap={planSession.libraryForMap}
               allPlans={planSession.allPlans}
               activePlanId={planSession.document?.id ?? null}
+              planMode={viewMode === "plan"}
               onCreate={(name) => {
                 if (!selectedMap) {
                   return;
@@ -720,6 +736,17 @@ export function WorldViewer() {
         cursorMapName={cursorMap?.name}
         dataVersion={G.version}
         dataTimestamp={G.timestamp}
+        planHint={
+          planSession.tool === "ghost"
+            ? "Party: click map to place a ghost with attack range"
+            : planSession.tool === "packMarker"
+            ? "Pack: click a monster pack to set pull order"
+            : planSession.tool === "route"
+            ? "Route: click waypoints, then switch tool to finish"
+            : zoneMode
+            ? "Zone: drag a box, pick Camp / Safe / Pull box presets"
+            : null
+        }
       />
 
       <Dialog
