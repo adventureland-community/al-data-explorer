@@ -133,6 +133,9 @@ export {
   formatShrineTime,
 } from "../gameData/upgradePathFormat";
 
+// --- Merchant sell ask (tax) ---
+export { breakEvenListPrice, DEFAULT_MERCHANT_TAX, netAfterTax } from "../gameData/merchantTax";
+
 // --- Craft EV ---
 export type {
   CraftCostIncomplete,

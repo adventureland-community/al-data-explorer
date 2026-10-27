@@ -1,3 +1,4 @@
+import { DEFAULT_MERCHANT_TAX } from "../../calculators";
 import { parsePriceOverrides, parseUpgradeCalcParams } from "../useUpgradeCalcParams";
 
 describe("useUpgradeCalcParams URL codec", () => {
@@ -31,6 +32,18 @@ describe("useUpgradeCalcParams URL codec", () => {
     expect(parseUpgradeCalcParams(new URLSearchParams("item=rod")).useMarketPrices).toBe(true);
     expect(parseUpgradeCalcParams(new URLSearchParams("item=rod&mkt=0")).useMarketPrices).toBe(
       false,
+    );
+  });
+
+  it("parses tax percent into a fraction and defaults to 2.5%", () => {
+    expect(parseUpgradeCalcParams(new URLSearchParams()).taxRate).toBe(DEFAULT_MERCHANT_TAX);
+    expect(parseUpgradeCalcParams(new URLSearchParams("tax=4")).taxRate).toBe(0.04);
+    expect(parseUpgradeCalcParams(new URLSearchParams("tax=7.5")).taxRate).toBe(0.075);
+    expect(parseUpgradeCalcParams(new URLSearchParams("tax=100")).taxRate).toBe(
+      DEFAULT_MERCHANT_TAX,
+    );
+    expect(parseUpgradeCalcParams(new URLSearchParams("tax=-1")).taxRate).toBe(
+      DEFAULT_MERCHANT_TAX,
     );
   });
 });

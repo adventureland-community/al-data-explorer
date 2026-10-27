@@ -1371,6 +1371,8 @@ export function UpgradeCalculator() {
                         ? "∞"
                         : null
                     }
+                    taxRate={params.taxRate}
+                    onTaxRateChange={(rate) => patch({ taxRate: rate }, { replace: true })}
                     bottleneck={bottleneck}
                     showMetrics={!showStrategyCards}
                     alternateStrategy={alternateStrategy}
