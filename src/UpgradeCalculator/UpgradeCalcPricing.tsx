@@ -1,4 +1,14 @@
-import { Alert, Box, Stack, Switch, TextField, Tooltip, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  FormControlLabel,
+  Stack,
+  Switch,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { ReactNode, useEffect, useState } from "react";
 import { ItemKey } from "typed-adventureland";
 
@@ -109,6 +119,50 @@ export function MaterialPriceRow({
   );
 }
 
+export function MarketPriceHint({
+  marketPrice,
+  unitPrice,
+  vendorBuyable,
+  onApplyMarket,
+}: {
+  marketPrice: number | undefined;
+  unitPrice: number;
+  vendorBuyable: boolean;
+  onApplyMarket?: (n: number) => void;
+}) {
+  if (marketPrice == null) {
+    if (vendorBuyable) return null;
+    return (
+      <Typography variant="caption" color="text.secondary">
+        no market listing
+      </Typography>
+    );
+  }
+
+  const differs = !Number.isFinite(unitPrice) || Math.abs(unitPrice - marketPrice) > 1e-9;
+  return (
+    <Stack direction="row" alignItems="center" spacing={0.5} flexWrap="wrap">
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ fontVariantNumeric: "tabular-nums" }}
+      >
+        market {formatGold(marketPrice)}
+      </Typography>
+      {onApplyMarket && differs ? (
+        <Button
+          size="small"
+          variant="text"
+          onClick={() => onApplyMarket(marketPrice)}
+          sx={{ minWidth: 0, px: 0.5, py: 0, fontSize: "0.7rem", lineHeight: 1.4 }}
+        >
+          Use market
+        </Button>
+      ) : null}
+    </Stack>
+  );
+}
+
 /** One craft of the selected item: leaves + fee, each leaf price overridable. */
 export function CraftRecipeBreakdown({
   craftCost,
@@ -116,19 +170,48 @@ export function CraftRecipeBreakdown({
   prices,
   priceOverrides,
   onPriceChange,
+  getMarketPrice,
+  isVendorBuyable,
+  useMarketPrices,
+  onUseMarketPricesChange,
 }: {
   craftCost: NonNullable<ReturnType<typeof craftExpectedCost>>;
   materialLabel: (key: string) => string;
   prices: PriceTable;
   priceOverrides: PriceTable;
   onPriceChange: (key: string, n: number) => void;
+  getMarketPrice?: (key: string) => number | undefined;
+  isVendorBuyable?: (key: string) => boolean;
+  useMarketPrices?: boolean;
+  onUseMarketPricesChange?: (v: boolean) => void;
 }) {
   const unresolved = craftCost.ok ? [] : craftCost.unresolved;
   const leafKeys = new Set(craftCost.leaves.map((l) => l.itemKey));
   const missingOnly = unresolved.filter((k) => !leafKeys.has(k));
+  const showMarketControls = getMarketPrice != null;
 
   return (
     <Stack spacing={1} sx={{ mt: 1 }}>
+      {onUseMarketPricesChange != null ? (
+        <FormControlLabel
+          sx={{ ml: 0, alignItems: "flex-start", mr: 0 }}
+          control={
+            <Switch
+              size="small"
+              checked={Boolean(useMarketPrices)}
+              onChange={(e) => onUseMarketPricesChange(e.target.checked)}
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body2">Use market prices</Typography>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Non-vendor materials take the cheapest player listing when available
+              </Typography>
+            </Box>
+          }
+        />
+      ) : null}
       <Typography variant="caption" color="text.secondary">
         Recipe (per craft) — edit unit prices to override market/vendor
       </Typography>
@@ -138,6 +221,8 @@ export function CraftRecipeBreakdown({
             ? prices[leaf.itemKey]
             : leaf.unitPrice;
         const line = Number.isFinite(unit) ? unit * leaf.quantity : Infinity;
+        const marketPrice = getMarketPrice?.(leaf.itemKey);
+        const vendorBuyable = isVendorBuyable?.(leaf.itemKey) ?? false;
         return (
           <Stack key={leaf.itemKey} spacing={0.25}>
             <Stack direction="row" alignItems="center" spacing={1}>
@@ -158,6 +243,18 @@ export function CraftRecipeBreakdown({
                   <Typography variant="caption" color="primary.main">
                     edited
                   </Typography>
+                ) : vendorBuyable ? (
+                  <Typography variant="caption" color="text.secondary">
+                    vendor
+                  </Typography>
+                ) : null}
+                {showMarketControls && !vendorBuyable ? (
+                  <MarketPriceHint
+                    marketPrice={marketPrice}
+                    unitPrice={unit}
+                    vendorBuyable={vendorBuyable}
+                    onApplyMarket={(n) => onPriceChange(leaf.itemKey, n)}
+                  />
                 ) : null}
                 {leaf.quantity > 1 && Number.isFinite(line) ? (
                   <Typography
@@ -182,32 +279,41 @@ export function CraftRecipeBreakdown({
           </Stack>
         );
       })}
-      {missingOnly.map((key) => (
-        <Stack key={`missing-${key}`} direction="row" alignItems="center" spacing={1}>
-          <ItemInstance itemInfo={{ name: key as ItemKey }} size={28} tooltip />
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="body2" noWrap>
-              {materialLabel(key)}
-            </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              noWrap
-              sx={{ display: "block", fontFamily: "monospace", fontSize: "0.65rem" }}
-            >
-              {key}
-            </Typography>
-            <Typography variant="caption" color="warning.main">
-              needs price
-            </Typography>
-          </Box>
-          <PriceField
-            value={prices[key] ?? 0}
-            onChange={(n) => onPriceChange(key, n)}
-            width={104}
-          />
-        </Stack>
-      ))}
+      {missingOnly.map((key) => {
+        const marketPrice = getMarketPrice?.(key);
+        const vendorBuyable = isVendorBuyable?.(key) ?? false;
+        const unit = prices[key] ?? 0;
+        return (
+          <Stack key={`missing-${key}`} direction="row" alignItems="center" spacing={1}>
+            <ItemInstance itemInfo={{ name: key as ItemKey }} size={28} tooltip />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="body2" noWrap>
+                {materialLabel(key)}
+              </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                noWrap
+                sx={{ display: "block", fontFamily: "monospace", fontSize: "0.65rem" }}
+              >
+                {key}
+              </Typography>
+              <Typography variant="caption" color="warning.main">
+                needs price
+              </Typography>
+              {showMarketControls && !vendorBuyable ? (
+                <MarketPriceHint
+                  marketPrice={marketPrice}
+                  unitPrice={unit}
+                  vendorBuyable={vendorBuyable}
+                  onApplyMarket={(n) => onPriceChange(key, n)}
+                />
+              ) : null}
+            </Box>
+            <PriceField value={unit} onChange={(n) => onPriceChange(key, n)} width={104} />
+          </Stack>
+        );
+      })}
       {craftCost.fee > 0 ? (
         <Stack direction="row" justifyContent="space-between" alignItems="baseline">
           <Typography variant="caption" color="text.secondary">

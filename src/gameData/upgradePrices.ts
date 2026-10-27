@@ -1,7 +1,7 @@
 import { GItem, ItemKey } from "typed-adventureland";
 
 import { instanceVariantKey } from "./itemInstanceData";
-import { GItems } from "./types";
+import { GItems, NpcShopSource } from "./types";
 
 const PLAIN_VARIANT = instanceVariantKey({});
 
@@ -115,25 +115,50 @@ export function defaultPriceTable(items: GItems, baseItemKey?: ItemKey): PriceTa
   return prices;
 }
 
+export type MarketPriceIndex = {
+  [name: string]:
+    | {
+        [title: string]:
+          | Array<
+              | {
+                  selling?: { minPrice?: { price?: number } };
+                }
+              | undefined
+            >
+          | undefined;
+      }
+    | undefined;
+};
+
+/**
+ * True when an NPC gold shop stocks the item (not token/shell catalogs).
+ * Catalog `.g` alone is not a buy price — many drop mats have `.g` but no shelf.
+ */
+export function isGoldVendorBuyable(
+  itemKey: string,
+  shopsByItem: Map<ItemKey, NpcShopSource[]> | undefined,
+  items: GItems | undefined,
+): boolean {
+  if (!shopsByItem || !items) return false;
+  const item = items[itemKey as ItemKey];
+  if (!item) return false;
+  if (item.cash != null && Number.isFinite(item.cash)) return false;
+  const { g } = item;
+  if (typeof g !== "number" || !(g > 0)) return false;
+  const shops = shopsByItem.get(itemKey as ItemKey);
+  if (!shops?.length) return false;
+  for (const shop of shops) {
+    if (shop.token == null || shop.token === "") return true;
+  }
+  return false;
+}
+
 /**
  * Cheapest player-merchant *sell* listing for an untitled item at `level`
  * (what you pay to buy from them). Returns undefined when none.
  */
 export function marketSellMinPrice(
-  market: {
-    [name: string]:
-      | {
-          [title: string]:
-            | Array<
-                | {
-                    selling?: { minPrice?: { price?: number } };
-                  }
-                | undefined
-              >
-            | undefined;
-        }
-      | undefined;
-  },
+  market: MarketPriceIndex,
   itemKey: string,
   level = 0,
 ): number | undefined {
@@ -148,19 +173,30 @@ export function marketSellMinPrice(
 }
 
 /**
- * Fill missing `prices` keys from market sell mins, then vendor `.g`.
- * Does not overwrite keys already present (caller applies overrides last).
+ * Fill `prices` keys from market sell mins and vendor `.g`.
+ *
+ * Default: only fills missing keys (market, then catalog `.g`).
+ * With `preferMarketForNonVendor`, non-vendor keys take the market min even when a
+ * catalog `.g` was already seeded (caller still applies overrides last).
  */
 export function seedMissingPrices(args: {
   prices: PriceTable;
   keys: string[];
   items: GItems;
-  market?: Parameters<typeof marketSellMinPrice>[0];
+  market?: MarketPriceIndex;
+  shopsByItem?: Map<ItemKey, NpcShopSource[]>;
+  preferMarketForNonVendor?: boolean;
 }): PriceTable {
   const out: PriceTable = { ...args.prices };
+  const preferMarket = Boolean(args.preferMarketForNonVendor);
   for (const key of args.keys) {
-    if (typeof out[key] === "number" && Number.isFinite(out[key])) continue;
     const market = args.market ? marketSellMinPrice(args.market, key) : undefined;
+    const vendorBuyable = isGoldVendorBuyable(key, args.shopsByItem, args.items);
+    if (preferMarket && !vendorBuyable && market != null) {
+      out[key] = market;
+      continue;
+    }
+    if (typeof out[key] === "number" && Number.isFinite(out[key])) continue;
     if (market != null) {
       out[key] = market;
       continue;

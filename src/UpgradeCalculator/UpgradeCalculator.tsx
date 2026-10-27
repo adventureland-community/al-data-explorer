@@ -37,9 +37,11 @@ import {
   getItemGrade,
   GREED_QUICK_PICKS,
   GreedScrollKey,
+  isGoldVendorBuyable,
   itemAcceptsStatScroll,
   itemHasCraftRecipe,
   listShinyPolishOptions,
+  marketSellMinPrice,
   MaterialLine,
   mergeUpgradeStepOverrides,
   minGreedEligibleLevel,
@@ -99,7 +101,12 @@ import {
   TARGET_COMPOUND,
   TARGET_UPGRADE,
 } from "./upgradeCalcHelpers";
-import { CraftRecipeBreakdown, MaterialPriceRow, PriceField } from "./UpgradeCalcPricing";
+import {
+  CraftRecipeBreakdown,
+  MarketPriceHint,
+  MaterialPriceRow,
+  PriceField,
+} from "./UpgradeCalcPricing";
 import { LevelRangeControl, LevelStepper, SidebarSection } from "./UpgradeCalcControls";
 import { EmptyPickState, RecentItemsStrip } from "./UpgradeCalcPicker";
 
@@ -146,6 +153,9 @@ export function UpgradeCalculator() {
     patch(next);
   };
 
+  const shopsByItem = G?.indexes.shopsByItem;
+  const preferMarket = params.useMarketPrices;
+
   const basePrices = useMemo(() => {
     if (!G?.items) return {};
     const defaults = defaultPriceTable(G.items, itemKey || undefined);
@@ -154,27 +164,40 @@ export function UpgradeCalculator() {
       keys: [...Object.keys(defaults), ...(itemKey ? [itemKey] : [])],
       items: G.items,
       market: marketItems,
+      shopsByItem,
+      preferMarketForNonVendor: preferMarket,
     });
-  }, [G, itemKey, marketItems]);
+  }, [G, itemKey, marketItems, shopsByItem, preferMarket]);
 
   const prices = useMemo(() => {
     if (!G?.items) return { ...basePrices, ...priceOverrides };
-    let merged: PriceTable = { ...basePrices, ...priceOverrides };
+    let merged: PriceTable = { ...basePrices };
     if (itemKey && itemHasCraftRecipe(craftMap, itemKey)) {
-      // Probe once for unresolved leaves, seed market/vendor, keep overrides on top.
-      const probe = craftExpectedCost({ itemKey, prices: merged, craft: craftMap });
-      if (!probe.ok && probe.unresolved.length) {
+      // Probe with overrides so already-priced leaves show up, then seed leaves /
+      // unresolved from market/vendor. Overrides win last.
+      const probe = craftExpectedCost({
+        itemKey,
+        prices: { ...merged, ...priceOverrides },
+        craft: craftMap,
+      });
+      const leafKeys = probe.leaves.map((l) => l.itemKey);
+      const keys = probe.ok ? leafKeys : [...leafKeys, ...probe.unresolved];
+      if (keys.length) {
         merged = seedMissingPrices({
           prices: merged,
-          keys: probe.unresolved,
+          keys,
           items: G.items,
           market: marketItems,
+          shopsByItem,
+          preferMarketForNonVendor: preferMarket,
         });
-        merged = { ...merged, ...priceOverrides };
       }
     }
-    return merged;
-  }, [G, basePrices, priceOverrides, itemKey, craftMap, marketItems]);
+    return { ...merged, ...priceOverrides };
+  }, [G, basePrices, priceOverrides, itemKey, craftMap, marketItems, shopsByItem, preferMarket]);
+
+  const getMarketPrice = (key: string) => marketSellMinPrice(marketItems, key);
+  const isVendorBuyable = (key: string) => isGoldVendorBuyable(key, shopsByItem, G?.items);
 
   const craftCost = useMemo(() => {
     if (!itemKey || !canCraft) return null;
@@ -804,36 +827,74 @@ export function UpgradeCalculator() {
                     prices={prices}
                     priceOverrides={priceOverrides}
                     onPriceChange={setPrice}
+                    getMarketPrice={getMarketPrice}
+                    isVendorBuyable={isVendorBuyable}
+                    useMarketPrices={params.useMarketPrices}
+                    onUseMarketPricesChange={(v) => patch({ useMarketPrices: v })}
                   />
                 ) : null}
               </SidebarSection>
             ) : null}
 
             {params.acquire !== "craft" ? (
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {params.mode === "greed" ? "Item unit price" : "Base item cost"}
-                  </Typography>
-                  {itemKey && priceOverrides[itemKey] != null ? (
-                    <Typography variant="caption" color="primary.main">
-                      edited
+              <Stack spacing={0.5}>
+                {params.mode !== "greed" ? (
+                  <FormControlLabel
+                    sx={{ ml: 0, alignItems: "flex-start", mr: 0 }}
+                    control={
+                      <Switch
+                        size="small"
+                        checked={params.useMarketPrices}
+                        onChange={(e) => patch({ useMarketPrices: e.target.checked })}
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography variant="body2">Use market prices</Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Prefer player listings when the base item is not on a gold NPC shelf
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                ) : null}
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {params.mode === "greed" ? "Item unit price" : "Base item cost"}
                     </Typography>
-                  ) : params.mode === "greed" ? (
-                    <Typography variant="caption" color="text.secondary">
-                      vendor / market / event
-                    </Typography>
-                  ) : (
-                    <Typography variant="caption" color="text.secondary">
-                      override · else market · else vendor .g
-                    </Typography>
-                  )}
-                </Box>
-                <PriceField
-                  value={buyUnit}
-                  onChange={(n) => itemKey && setPrice(itemKey, n)}
-                  width={128}
-                />
+                    {itemKey && priceOverrides[itemKey] != null ? (
+                      <Typography variant="caption" color="primary.main">
+                        edited
+                      </Typography>
+                    ) : params.mode === "greed" ? (
+                      <Typography variant="caption" color="text.secondary">
+                        vendor / market / event
+                      </Typography>
+                    ) : itemKey && isVendorBuyable(itemKey) ? (
+                      <Typography variant="caption" color="text.secondary">
+                        vendor
+                      </Typography>
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">
+                        override · else market · else vendor .g
+                      </Typography>
+                    )}
+                    {itemKey && !isVendorBuyable(itemKey) ? (
+                      <MarketPriceHint
+                        marketPrice={getMarketPrice(itemKey)}
+                        unitPrice={buyUnit}
+                        vendorBuyable={false}
+                        onApplyMarket={(n) => setPrice(itemKey, n)}
+                      />
+                    ) : null}
+                  </Box>
+                  <PriceField
+                    value={buyUnit}
+                    onChange={(n) => itemKey && setPrice(itemKey, n)}
+                    width={128}
+                  />
+                </Stack>
               </Stack>
             ) : null}
 
