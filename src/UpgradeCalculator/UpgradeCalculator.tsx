@@ -734,10 +734,6 @@ export function UpgradeCalculator() {
         <Paper
           sx={{
             p: 2,
-            position: { md: "sticky" },
-            top: { md: 8 },
-            maxHeight: { md: "calc(100vh - 24px)" },
-            overflow: { md: "auto" },
             alignSelf: "start",
           }}
           variant="outlined"
