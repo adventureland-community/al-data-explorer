@@ -70,9 +70,12 @@ describe("drops", () => {
         nestedTable: "",
       },
     ]);
-    expect(formatHomeServerDropsDisplay([[0.01, "fallen"], [1, "candy0", 7]])).toBe(
-      "fallen (1.00%), candy0 (1 / 1)",
-    );
+    expect(
+      formatHomeServerDropsDisplay([
+        [0.01, "fallen"],
+        [1, "candy0", 7],
+      ]),
+    ).toBe("fallen (1.00%), candy0 (1 / 1)");
   });
 
   it("splits home-server bonus drops for monster browse formatting", () => {
@@ -94,10 +97,15 @@ describe("drops", () => {
   it("includes monsters_home_server rows in acquisition extraction", () => {
     const rows = extractDropRates({
       monsters: { mrgreen: [[0.001, "base"]] },
-      monsters_home_server: { mrgreen: [[0.01, "fallen"], [1, "candy0", 7]] },
+      monsters_home_server: {
+        mrgreen: [
+          [0.01, "fallen"],
+          [1, "candy0", 7],
+        ],
+      },
     });
     const home = rows.filter((r) => r.sourceType === "monster_home");
-    expect(home).toEqual(
+    expect(home).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           sourceType: "monster_home",

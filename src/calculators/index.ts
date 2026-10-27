@@ -10,10 +10,16 @@ export { getItemGrade } from "../gameData/itemGrade";
 export { itemAcceptsStatScroll } from "../gameData/statScroll";
 
 // --- Prices ---
-export type { OfferingKeyName, PriceTable, PrimstackingSpend } from "../gameData/upgradePrices";
+export type {
+  MarketPriceIndex,
+  OfferingKeyName,
+  PriceTable,
+  PrimstackingSpend,
+} from "../gameData/upgradePrices";
 export {
   COMPOUND_SCROLL_KEYS,
   defaultPriceTable,
+  isGoldVendorBuyable,
   marketSellMinPrice,
   OFFERING_KEYS,
   offeringGradeFromKey,

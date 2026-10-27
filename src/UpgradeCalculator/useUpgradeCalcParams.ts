@@ -17,6 +17,11 @@ export type UpgradeCalcParams = {
   strategy: CalcStrategy;
   /** Buy finished item, or craft from materials. */
   acquire: AcquireMode;
+  /**
+   * Prefer player-market sell mins for materials that NPCs do not stock for gold.
+   * Vendor-shelf items still use catalog `.g` unless overridden.
+   */
+  useMarketPrices: boolean;
   luckySlot: boolean;
   serverUgrace: boolean;
   /** Property scroll + offering for +1 item grace (items with a `stat` pool). */
@@ -45,6 +50,7 @@ const DEFAULTS: UpgradeCalcParams = {
   target: 7,
   strategy: "cheapest",
   acquire: "buy",
+  useMarketPrices: true,
   luckySlot: false,
   serverUgrace: false,
   statScrollGrace: false,
@@ -184,6 +190,7 @@ export function parseUpgradeCalcParams(searchParams: URLSearchParams): UpgradeCa
     target,
     strategy: parseStrategy(searchParams.get("strategy")),
     acquire: parseAcquire(searchParams.get("acquire")),
+    useMarketPrices: parseBool(searchParams.get("mkt"), DEFAULTS.useMarketPrices),
     luckySlot: parseBool(searchParams.get("lucky"), DEFAULTS.luckySlot),
     serverUgrace: parseBool(searchParams.get("sugrace"), DEFAULTS.serverUgrace),
     statScrollGrace: parseBool(searchParams.get("ssgrace"), DEFAULTS.statScrollGrace),
@@ -220,6 +227,7 @@ function writeParams(params: UpgradeCalcParams, priceOverrides: PriceTable = {})
   }
   if (params.strategy !== DEFAULTS.strategy) sp.set("strategy", params.strategy);
   if (params.acquire !== DEFAULTS.acquire) sp.set("acquire", params.acquire);
+  if (!params.useMarketPrices) sp.set("mkt", "0");
   if (params.luckySlot) sp.set("lucky", "1");
   if (params.serverUgrace) sp.set("sugrace", "1");
   if (params.statScrollGrace) sp.set("ssgrace", "1");

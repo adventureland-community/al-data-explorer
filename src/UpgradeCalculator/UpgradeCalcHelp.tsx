@@ -226,7 +226,9 @@ function HelpBody() {
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
-        Toggle materials and prices in the sidebar. Chance / Cap match the in-game upgrade UI; Lucky
+        Toggle materials and prices in the sidebar. Craft Acquire can prefer player-market mins for
+        materials NPCs do not stock for gold (Use market prices); each row can also snap its
+        override to the current market listing. Chance / Cap match the in-game upgrade UI; Lucky
         Slot does not change those numbers — it only improves expected tries and gold EV (about 60%
         of rolls get a boosted check). The Chance by level chart peels techniques on in order (kit →
         prim → stat grace → failstack → ograce → server ugrace → plan → lucky EV); toggle series in

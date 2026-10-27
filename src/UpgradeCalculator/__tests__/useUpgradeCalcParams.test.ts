@@ -26,4 +26,11 @@ describe("useUpgradeCalcParams URL codec", () => {
     delete after.fallen;
     expect(after).toStrictEqual({ scroll0: 100, offeringp: 50 });
   });
+
+  it("defaults useMarketPrices on and parses mkt=0", () => {
+    expect(parseUpgradeCalcParams(new URLSearchParams("item=rod")).useMarketPrices).toBe(true);
+    expect(parseUpgradeCalcParams(new URLSearchParams("item=rod&mkt=0")).useMarketPrices).toBe(
+      false,
+    );
+  });
 });
