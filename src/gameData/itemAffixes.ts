@@ -43,6 +43,11 @@ export type TitleOption = {
   /** Numeric luck from the title def, if any. */
   luck?: number;
   type: string;
+  /**
+   * Natural = earn/type fit for this item. Transfer = non-misc Title that can
+   * ride craft/dismantle onto a different item kind (server does not type-check).
+   */
+  source: "natural" | "transfer";
 };
 
 function titleType(def: Record<string, unknown> | undefined): string {
@@ -54,6 +59,11 @@ function titleLabel(key: string, def: Record<string, unknown> | undefined): stri
   return name;
 }
 
+/** AdventureLand craft/dismantle skip Titles with `misc: true`. */
+function titleIsMisc(titleDef: Record<string, unknown> | undefined): boolean {
+  return titleDef?.misc === true;
+}
+
 /** True for weapon defs (not shields / quivers / sources). */
 function isWeaponItem(gItem: GItem): boolean {
   if (gItem.type === "weapon") return true;
@@ -63,10 +73,10 @@ function isWeaponItem(gItem: GItem): boolean {
 }
 
 /**
- * Whether a G.titles entry can apply to this item.
- * `type` on titles is the item kind the title is meant for (cape, helmet, mainhand weapon, …),
+ * Natural / earn-slot fit for a G.titles entry — not exclusive legality.
+ * `type` is the item kind the Title is meant for (cape, helmet, mainhand weapon, …),
  * not “only while equipped in that slot”. Warriors can put a Sniper's sword in offhand;
- * stats still apply from item.p.
+ * stats still apply from item.p. Non-misc Titles can also land via craft/dismantle.
  */
 export function titleAppliesToItem(
   titleDef: Record<string, unknown> | undefined,
@@ -91,32 +101,53 @@ export function titleAppliesToItem(
   return Boolean(slot && t === slot);
 }
 
+function toTitleOption(
+  key: string,
+  def: Record<string, unknown>,
+  source: "natural" | "transfer",
+): TitleOption {
+  return {
+    key,
+    label: titleLabel(key, def),
+    luck: typeof def.luck === "number" ? def.luck : undefined,
+    type: titleType(def),
+    source,
+  };
+}
+
+function sortTitleOptions(options: TitleOption[]): TitleOption[] {
+  return options.sort((a, b) => {
+    const aLuck = a.luck != null ? 0 : 1;
+    const bLuck = b.luck != null ? 0 : 1;
+    if (aLuck !== bLuck) return aLuck - bLuck;
+    return a.label.localeCompare(b.label);
+  });
+}
+
+/**
+ * Titles selectable for planning: natural fits first, then other non-misc Titles
+ * that can arrive via craft/dismantle transfer.
+ */
 export function listTitleOptions(
   titles: ItemTitleDefs | undefined,
   gItem: GItem | undefined,
   slot?: SlotType | false,
 ): TitleOption[] {
   if (!titles) return [];
-  const out: TitleOption[] = [];
+  const natural: TitleOption[] = [];
+  const transfer: TitleOption[] = [];
   for (const [key, def] of Object.entries(titles)) {
-    if (!titleAppliesToItem(def, gItem, slot)) continue;
-    out.push({
-      key,
-      label: titleLabel(key, def),
-      luck: typeof def.luck === "number" ? def.luck : undefined,
-      type: titleType(def),
-    });
+    if (titleAppliesToItem(def, gItem, slot)) {
+      natural.push(toTitleOption(key, def, "natural"));
+      continue;
+    }
+    if (titleIsMisc(def)) continue;
+    transfer.push(toTitleOption(key, def, "transfer"));
   }
-  out.sort((a, b) => {
-    const aLuck = a.luck != null ? 0 : 1;
-    const bLuck = b.luck != null ? 0 : 1;
-    if (aLuck !== bLuck) return aLuck - bLuck;
-    return a.label.localeCompare(b.label);
-  });
-  return out;
+  return [...sortTitleOptions(natural), ...sortTitleOptions(transfer)];
 }
 
-/** Titles that add luck (Lucky, Festive, …) and apply to the item/slot. */
+/** Titles that add luck (Lucky, Festive, …), including transferable luck Titles. */
 export function listLuckTitleOptions(
   titles: ItemTitleDefs | undefined,
   gItem: GItem | undefined,
