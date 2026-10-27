@@ -60,7 +60,7 @@ const ThemeModeContext = React.createContext<{
 function Menu({ compact = false }: { compact?: boolean }) {
   const { mode, toggleMode } = useContext(ThemeModeContext);
   const theme = useTheme();
-  // Eleven tabs overflow phones and many tablets; scroll instead of clipping.
+  // Many tabs overflow phones and tablets; scroll instead of clipping.
   const scrollNav = useMediaQuery(theme.breakpoints.down("lg"), { noSsr: true });
   const { pathname } = useLocation();
   const routeMatch = useRouteMatch([

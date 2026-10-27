@@ -612,6 +612,7 @@ export function ItemDetail() {
             </Stack>
 
             <AddToListButtons
+              gItem={gItem}
               draft={{
                 itemKey: key,
                 ...(maxLevel != null && maxLevel > 0 ? { level } : {}),

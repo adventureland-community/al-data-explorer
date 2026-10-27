@@ -11,8 +11,12 @@ import {
   Stack,
   TextField,
 } from "@mui/material";
-import { useState } from "react";
+import { useContext, useMemo, useState } from "react";
+import { GItem } from "typed-adventureland";
 
+import { itemTitleDefsFromG } from "../gameData/itemProperties";
+import { GDataContext } from "../GDataContext";
+import { ItemAffixControls } from "../Shared/ItemAffixControls";
 import {
   addEntry,
   createList,
@@ -25,6 +29,8 @@ import type { ListType, NewListEntryInput } from "./types";
 
 type Props = {
   draft: NewListEntryInput;
+  /** When set, Title / Stat scroll can be chosen in the add dialog. */
+  gItem?: GItem;
   size?: "small" | "medium";
 };
 
@@ -32,15 +38,19 @@ function AddDialog({
   open,
   type,
   draft,
+  gItem,
   onClose,
   onAdded,
 }: {
   open: boolean;
   type: ListType;
   draft: NewListEntryInput;
+  gItem?: GItem;
   onClose: () => void;
   onAdded: () => void;
 }) {
+  const G = useContext(GDataContext);
+  const titles = useMemo(() => (G ? itemTitleDefsFromG(G) : undefined), [G]);
   const initial = loadListsDocument();
   const [doc, setDoc] = useState(initial);
   const lists = listsOfType(doc, type);
@@ -51,6 +61,8 @@ function AddDialog({
   const [note, setNote] = useState(draft.note ?? "");
   const [qty, setQty] = useState(draft.qty ?? 1);
   const [newName, setNewName] = useState("");
+  const [titleKey, setTitleKey] = useState(draft.p ?? "");
+  const [statType, setStatType] = useState(draft.stat_type ?? "");
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
@@ -79,6 +91,16 @@ function AddDialog({
             onChange={(e) => setNewName(e.target.value)}
             helperText="If set, creates a list and adds there instead"
           />
+          {draft.itemKey && gItem ? (
+            <ItemAffixControls
+              titles={titles}
+              gItem={gItem}
+              titleKey={titleKey}
+              onTitleChange={setTitleKey}
+              statType={statType}
+              onStatTypeChange={setStatType}
+            />
+          ) : null}
           <TextField
             size="small"
             type="number"
@@ -118,6 +140,8 @@ function AddDialog({
               ...draft,
               qty,
               note: note.trim() || undefined,
+              ...(titleKey ? { p: titleKey } : {}),
+              ...(statType ? { stat_type: statType } : {}),
             });
             setLastUsedList(type, targetId);
             setDoc(nextDoc);
@@ -132,7 +156,7 @@ function AddDialog({
   );
 }
 
-export function AddToListButtons({ draft, size = "small" }: Props) {
+export function AddToListButtons({ draft, gItem, size = "small" }: Props) {
   const [openType, setOpenType] = useState<ListType | null>(null);
 
   return (
@@ -150,6 +174,7 @@ export function AddToListButtons({ draft, size = "small" }: Props) {
           open
           type={openType}
           draft={draft}
+          gItem={gItem}
           onClose={() => setOpenType(null)}
           onAdded={() => undefined}
         />

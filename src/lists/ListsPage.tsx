@@ -550,11 +550,11 @@ export function ListsPage() {
                   </Button>
                 </Stack>
                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                  Level / Title / Stat scroll can be set when adding from{" "}
+                  From{" "}
                   <Link component={RouterLink} to="/items">
                     item detail
                   </Link>
-                  .
+                  , the add dialog uses the page level plus optional Title and Stat scroll.
                 </Typography>
               </Paper>
 
