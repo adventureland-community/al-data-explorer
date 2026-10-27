@@ -34,6 +34,7 @@ import { WorldOverlayPanel, WorldStatusBar, WorldTopBar } from "./WorldViewerHud
 import { WorldSearchBar } from "./WorldSearchBar";
 import { toWorldSource } from "./worldData";
 import { PLAN_DEFAULT_OVERLAYS } from "./plan/planDefaults";
+import { PlanLayersMenu } from "./plan/PlanLayersMenu";
 import { PlanLibraryPanel } from "./plan/PlanLibraryPanel";
 import { PlanToolbar } from "./plan/PlanToolbar";
 import { computeLoadoutStats } from "../gameData/loadoutStats";
@@ -503,71 +504,75 @@ export function WorldViewer() {
           }}
         />
       </WorldTopBar>
-      <TravelBreadcrumb
-        history={travelHistory}
-        maps={layout.maps}
-        onFocusMap={focusMap}
-        onClear={() => setTravelHistory([])}
-      />
+      {viewMode !== "plan" && (
+        <TravelBreadcrumb
+          history={travelHistory}
+          maps={layout.maps}
+          onFocusMap={focusMap}
+          onClear={() => setTravelHistory([])}
+        />
+      )}
       <Box sx={{ display: "flex", gap: 1, flex: 1, minHeight: 0 }}>
-        <WorldOverlayPanel
-          viewMode={viewMode}
-          overlays={overlays}
-          overlayKinds={OVERLAY_KINDS}
-          onToggleOverlay={toggleOverlay}
-          pixelArt={pixelArt}
-          onPixelArt={setPixelArt}
-          seeThroughOverlays={seeThroughOverlays}
-          onSeeThrough={setSeeThroughOverlays}
-          includeIgnored={includeIgnored}
-          onIncludeIgnored={setIncludeIgnored}
-          monsterTypes={monsterTypes}
-          hiddenMonsterTypes={hiddenMonsterTypes}
-          monsters={world.monsters}
-          onToggleMonster={toggleMonsterType}
-          onHideAllMonsters={() => setHiddenMonsterTypes(new Set(monsterTypes))}
-          onShowAllMonsters={() => setHiddenMonsterTypes(new Set())}
-          fogDensity={fogDensity}
-          onFogDensity={setFogDensity}
-          soloBand={soloBand}
-          onSoloBand={setSoloBand}
-          plansSlot={
-            <PlanLibraryPanel
-              mapKey={selectedMap}
-              mapName={selected?.name}
-              plansForMap={planSession.libraryForMap}
-              allPlans={planSession.allPlans}
-              activePlanId={planSession.document?.id ?? null}
-              planMode={viewMode === "plan"}
-              onCreate={(name) => {
-                if (!selectedMap) {
-                  return;
-                }
-                setOverlays(PLAN_DEFAULT_OVERLAYS);
-                setViewMode("plan");
-                planSession.createNamedPlan(selectedMap, name);
-              }}
-              onLoad={(id) => {
-                const plan = planSession.allPlans.find((entry) => entry.id === id);
-                if (plan) {
-                  setSelectedMap(plan.mapKey);
+        {viewMode !== "plan" && (
+          <WorldOverlayPanel
+            viewMode={viewMode}
+            overlays={overlays}
+            overlayKinds={OVERLAY_KINDS}
+            onToggleOverlay={toggleOverlay}
+            pixelArt={pixelArt}
+            onPixelArt={setPixelArt}
+            seeThroughOverlays={seeThroughOverlays}
+            onSeeThrough={setSeeThroughOverlays}
+            includeIgnored={includeIgnored}
+            onIncludeIgnored={setIncludeIgnored}
+            monsterTypes={monsterTypes}
+            hiddenMonsterTypes={hiddenMonsterTypes}
+            monsters={world.monsters}
+            onToggleMonster={toggleMonsterType}
+            onHideAllMonsters={() => setHiddenMonsterTypes(new Set(monsterTypes))}
+            onShowAllMonsters={() => setHiddenMonsterTypes(new Set())}
+            fogDensity={fogDensity}
+            onFogDensity={setFogDensity}
+            soloBand={soloBand}
+            onSoloBand={setSoloBand}
+            plansSlot={
+              <PlanLibraryPanel
+                mapKey={selectedMap}
+                mapName={selected?.name}
+                plansForMap={planSession.libraryForMap}
+                allPlans={planSession.allPlans}
+                activePlanId={planSession.document?.id ?? null}
+                planMode={false}
+                onCreate={(name) => {
+                  if (!selectedMap) {
+                    return;
+                  }
                   setOverlays(PLAN_DEFAULT_OVERLAYS);
                   setViewMode("plan");
-                }
-                planSession.loadPlan(id);
-              }}
-              onDelete={planSession.deleteCurrentPlan}
-              onPlanThisMap={() => {
-                if (!selectedMap) {
-                  return;
-                }
-                setOverlays(PLAN_DEFAULT_OVERLAYS);
-                setViewMode("plan");
-                planSession.enterPlan(selectedMap);
-              }}
-            />
-          }
-        />
+                  planSession.createNamedPlan(selectedMap, name);
+                }}
+                onLoad={(id) => {
+                  const plan = planSession.allPlans.find((entry) => entry.id === id);
+                  if (plan) {
+                    setSelectedMap(plan.mapKey);
+                    setOverlays(PLAN_DEFAULT_OVERLAYS);
+                    setViewMode("plan");
+                  }
+                  planSession.loadPlan(id);
+                }}
+                onDelete={planSession.deleteCurrentPlan}
+                onPlanThisMap={() => {
+                  if (!selectedMap) {
+                    return;
+                  }
+                  setOverlays(PLAN_DEFAULT_OVERLAYS);
+                  setViewMode("plan");
+                  planSession.enterPlan(selectedMap);
+                }}
+              />
+            }
+          />
+        )}
         <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
           {viewMode === "plan" && planSession.document && (
             <PlanToolbar
@@ -656,6 +661,45 @@ export function WorldViewer() {
                 }
                 planSession.setPlayback(patch);
               }}
+              libraryMenu={
+                <PlanLibraryPanel
+                  asMenu
+                  mapKey={selectedMap}
+                  mapName={selected?.name}
+                  plansForMap={planSession.libraryForMap}
+                  allPlans={planSession.allPlans}
+                  activePlanId={planSession.document?.id ?? null}
+                  planMode
+                  onCreate={(name) => {
+                    if (!selectedMap) {
+                      return;
+                    }
+                    setOverlays(PLAN_DEFAULT_OVERLAYS);
+                    planSession.createNamedPlan(selectedMap, name);
+                  }}
+                  onLoad={(id) => {
+                    const plan = planSession.allPlans.find((entry) => entry.id === id);
+                    if (plan) {
+                      setSelectedMap(plan.mapKey);
+                      setOverlays(PLAN_DEFAULT_OVERLAYS);
+                    }
+                    planSession.loadPlan(id);
+                  }}
+                  onDelete={planSession.deleteCurrentPlan}
+                  onPlanThisMap={() => undefined}
+                />
+              }
+              layersMenu={
+                <PlanLayersMenu
+                  overlays={overlays}
+                  overlayKinds={OVERLAY_KINDS}
+                  onToggleOverlay={toggleOverlay}
+                  pixelArt={pixelArt}
+                  onPixelArt={setPixelArt}
+                  seeThroughOverlays={seeThroughOverlays}
+                  onSeeThrough={setSeeThroughOverlays}
+                />
+              }
             />
           )}
           <WorldCanvas
@@ -717,20 +761,22 @@ export function WorldViewer() {
             }
           />
         </Box>
-        <WorldInspector
-          selected={selected}
-          selectedPose={selectedPose}
-          connections={selectedConnections}
-          maps={layout.maps}
-          poses={layout.poses}
-          onFocusMap={focusMap}
-          inspect={inspect}
-          monsters={world.monsters}
-          drops={world.drops}
-          items={world.items}
-          npcs={world.npcs}
-          onInspectClose={() => setInspect(null)}
-        />
+        {viewMode !== "plan" && (
+          <WorldInspector
+            selected={selected}
+            selectedPose={selectedPose}
+            connections={selectedConnections}
+            maps={layout.maps}
+            poses={layout.poses}
+            onFocusMap={focusMap}
+            inspect={inspect}
+            monsters={world.monsters}
+            drops={world.drops}
+            items={world.items}
+            npcs={world.npcs}
+            onInspectClose={() => setInspect(null)}
+          />
+        )}
       </Box>
       <WorldStatusBar
         viewMode={viewMode}

@@ -1,12 +1,17 @@
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import {
   Box,
   Button,
+  IconButton,
   List,
   ListItemButton,
   ListItemText,
+  Popover,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import { useState } from "react";
 
 import { PlanDocument } from "./types";
 
@@ -21,9 +26,16 @@ type PlanLibraryPanelProps = {
   onLoad: (id: string) => void;
   onDelete: () => void;
   onPlanThisMap: () => void;
+  /** Icon + popover instead of a permanent sidebar block. */
+  asMenu?: boolean;
 };
 
-export function PlanLibraryPanel({
+type PlanLibraryBodyProps = Omit<PlanLibraryPanelProps, "asMenu"> & {
+  showHeading?: boolean;
+  dense?: boolean;
+};
+
+function PlanLibraryBody({
   mapKey,
   mapName,
   plansForMap,
@@ -34,14 +46,21 @@ export function PlanLibraryPanel({
   onLoad,
   onDelete,
   onPlanThisMap,
-}: PlanLibraryPanelProps) {
+  showHeading,
+  dense,
+}: PlanLibraryBodyProps) {
   const list = mapKey ? plansForMap : allPlans;
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, minHeight: 0 }}>
-      <Typography variant="overline" sx={{ lineHeight: 1, opacity: 0.7, letterSpacing: "0.08em" }}>
-        Strategy plans
-      </Typography>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: dense ? 0.75 : 1, minHeight: 0 }}>
+      {showHeading !== false && (
+        <Typography
+          variant="overline"
+          sx={{ lineHeight: 1, opacity: 0.7, letterSpacing: "0.08em" }}
+        >
+          Strategy plans
+        </Typography>
+      )}
       {!planMode && mapKey && (
         <Button size="small" variant="contained" onClick={onPlanThisMap} fullWidth>
           Open board{mapName ? ` · ${mapName}` : ""}
@@ -83,7 +102,7 @@ export function PlanLibraryPanel({
       <Typography variant="caption" sx={{ opacity: 0.65 }}>
         {mapKey ? `${plansForMap.length} on this map` : `${allPlans.length} saved`}
       </Typography>
-      <List dense sx={{ overflow: "auto", maxHeight: 200, padding: 0 }}>
+      <List dense sx={{ overflow: "auto", maxHeight: dense ? 240 : 200, padding: 0 }}>
         {list.length === 0 ? (
           <Typography variant="caption" sx={{ opacity: 0.55, paddingX: 0.5 }}>
             No plans yet — sketch a farm, then it autosaves here.
@@ -94,7 +113,7 @@ export function PlanLibraryPanel({
               key={plan.id}
               selected={plan.id === activePlanId}
               onClick={() => onLoad(plan.id)}
-              sx={{ borderRadius: 1, mb: 0.25 }}
+              sx={{ borderRadius: 1, mb: 0.25, py: dense ? 0.25 : undefined }}
             >
               <ListItemText
                 primary={plan.name}
@@ -112,5 +131,38 @@ export function PlanLibraryPanel({
         </Button>
       )}
     </Box>
+  );
+}
+
+export function PlanLibraryPanel(props: PlanLibraryPanelProps) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+
+  if (!props.asMenu) {
+    return <PlanLibraryBody {...props} />;
+  }
+
+  return (
+    <>
+      <Tooltip title="Strategy plans">
+        <IconButton
+          size="small"
+          aria-label="Strategy plans"
+          onClick={(event) => setAnchor(event.currentTarget)}
+          color={anchor ? "primary" : "default"}
+        >
+          <MenuBookOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Popover
+        open={Boolean(anchor)}
+        anchorEl={anchor}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        PaperProps={{ sx: { p: 1.5, width: 280 } }}
+      >
+        <PlanLibraryBody {...props} showHeading dense />
+      </Popover>
+    </>
   );
 }

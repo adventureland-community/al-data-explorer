@@ -33,7 +33,7 @@ import {
   Typography,
 } from "@mui/material";
 import { ClassKey } from "typed-adventureland";
-import type { ChangeEvent, ComponentType } from "react";
+import type { ChangeEvent, ComponentType, ReactNode } from "react";
 import type { SvgIconProps } from "@mui/material/SvgIcon";
 
 import { SavedLoadout } from "../../GearPlanner/types";
@@ -153,6 +153,9 @@ type PlanToolbarProps = {
     loop?: boolean;
   }) => void;
   routeDraftCount: number;
+  /** Strategy plans + map layers live in the dock so sidebars can stay gone. */
+  libraryMenu?: ReactNode;
+  layersMenu?: ReactNode;
 };
 
 function strategyValue(tool: PlanTool, zoneMode: boolean): string {
@@ -191,6 +194,8 @@ export function PlanToolbar({
   playback,
   onPlayback,
   routeDraftCount,
+  libraryMenu,
+  layersMenu,
 }: PlanToolbarProps) {
   const loadoutNames = Object.keys(loadouts).sort((a, b) => a.localeCompare(b));
   const strategy = strategyValue(tool, zoneMode);
@@ -235,7 +240,12 @@ export function PlanToolbar({
           maxWidth: "100%",
         }}
       >
-        <Paper elevation={0} sx={{ ...dockSx, gap: 0.75, paddingLeft: 1.25, paddingRight: 0.75 }}>
+        <Paper elevation={0} sx={{ ...dockSx, gap: 0.5, paddingLeft: 0.75, paddingRight: 0.75 }}>
+          {libraryMenu}
+          {layersMenu}
+          {(libraryMenu || layersMenu) && (
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+          )}
           <TextField
             size="small"
             variant="standard"
