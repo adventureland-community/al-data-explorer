@@ -46,6 +46,15 @@ describe("viewerMode", () => {
     expect(visible.connections).toEqual([]);
   });
 
+  it("matches map layout rules in plan mode", () => {
+    const visible = visibleWorldLayout(layout, "plan", "winterland");
+    expect(Object.keys(visible.maps)).toEqual(["winterland"]);
+    expect(visible.poses.winterland).toEqual(SINGLE_MAP_POSE);
+    expect(visible.connections).toEqual([]);
+    expect(nextSelectedMap("plan", "main", null)).toBe("main");
+    expect(selectedMapForMode("plan", null, layout.maps)).toBe("main");
+  });
+
   it("drops an unknown selected map in map mode", () => {
     const visible = visibleWorldLayout(layout, "map", "missing");
     expect(visible.maps).toEqual({});

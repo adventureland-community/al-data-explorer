@@ -8,6 +8,7 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
+import { ClassKey } from "typed-adventureland";
 import { useLocation } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
 import { DEFAULT_LAYER_HEIGHT, layoutWorld } from "./layoutWorld";
@@ -32,6 +33,12 @@ import { WorldInspector } from "./WorldInspector";
 import { WorldOverlayPanel, WorldStatusBar, WorldTopBar } from "./WorldViewerHud";
 import { WorldSearchBar } from "./WorldSearchBar";
 import { toWorldSource } from "./worldData";
+import { PLAN_DEFAULT_OVERLAYS } from "./plan/planDefaults";
+import { PlanLibraryPanel } from "./plan/PlanLibraryPanel";
+import { PlanToolbar } from "./plan/PlanToolbar";
+import { advanceRouteT, pointAlongRoute } from "./plan/planPlayback";
+import { usePlanSession } from "./plan/usePlanSession";
+import { PlanRouteObject } from "./plan/types";
 
 const MAX_TRAVEL_HISTORY = 15;
 
@@ -44,20 +51,35 @@ function focusFromHash(hash: Record<string, string>): MapFocus | null {
   return { mapId, x, y, seq: 1, fit: "point" };
 }
 
+function viewerModeFromHash(mode: string | undefined): ViewerMode {
+  if (mode === "world" || mode === "plan" || mode === "map") {
+    return mode;
+  }
+  return "map";
+}
+
 export function WorldViewer() {
   const G = useContext(GDataContext);
   const location = useLocation();
   const initialHash = useRef(parseHash());
-  const [overlays, setOverlays] = useState<OverlayVisibility>(DEFAULT_OVERLAYS);
-  const [viewMode, setViewMode] = useState<ViewerMode>(
-    initialHash.current.mode === "world" ? "world" : "map",
+  const [overlays, setOverlays] = useState<OverlayVisibility>(() =>
+    initialHash.current.mode === "plan" ? PLAN_DEFAULT_OVERLAYS : DEFAULT_OVERLAYS,
   );
+  const [viewMode, setViewMode] = useState<ViewerMode>(
+    viewerModeFromHash(initialHash.current.mode),
+  );
+  const [ghostClass, setGhostClass] = useState<ClassKey>("warrior");
+  const [ghostLoadoutName, setGhostLoadoutName] = useState("");
   const [layerHeight, setLayerHeight] = useState(() => {
     const h = Number(initialHash.current.layers);
     return h > 0 ? h : DEFAULT_LAYER_HEIGHT;
   });
   const [includeIgnored, setIncludeIgnored] = useState(false);
   const [selectedMap, setSelectedMap] = useState<string | null>(initialHash.current.map || "main");
+  const planSession = usePlanSession({
+    mapKey: selectedMap,
+    initialShare: initialHash.current.plan || null,
+  });
   const focusSeqRef = useRef(0);
   const [focus, setFocus] = useState<MapFocus | null>(() => {
     const fromHash = focusFromHash(initialHash.current);
@@ -77,6 +99,7 @@ export function WorldViewer() {
   const [doorDialog, setDoorDialog] = useState<DoorTravel | null>(null);
   const [fogDensity, setFogDensity] = useState(0.000025);
   const [soloBand, setSoloBand] = useState<MapBand | null>(null);
+  const [playbackPoint, setPlaybackPoint] = useState<{ x: number; y: number } | null>(null);
 
   const world = useMemo(() => (G ? toWorldSource(G) : null), [G]);
 
@@ -204,6 +227,19 @@ export function WorldViewer() {
       return;
     }
     setViewMode(mode);
+    if (mode === "plan") {
+      setOverlays(PLAN_DEFAULT_OVERLAYS);
+      if (selectedMap) {
+        planSession.enterPlan(
+          selectedMap,
+          planSession.document?.mapKey === selectedMap
+            ? planSession.document ?? undefined
+            : undefined,
+        );
+      }
+    } else {
+      planSession.exitPlan();
+    }
     if (!layout) {
       return;
     }
@@ -216,10 +252,98 @@ export function WorldViewer() {
       if (map) {
         requestMapFocus(next, (map.artMinX + map.artMaxX) / 2, (map.artMinY + map.artMaxY) / 2);
       }
+      if (mode === "plan") {
+        planSession.enterPlan(next);
+      }
       return;
     }
     setSelectedMap(null);
   };
+
+  useEffect(() => {
+    if (planSession.active && planSession.document && viewMode !== "plan") {
+      setViewMode("plan");
+      setOverlays(PLAN_DEFAULT_OVERLAYS);
+      if (planSession.document.mapKey !== selectedMap) {
+        setSelectedMap(planSession.document.mapKey);
+      }
+    }
+  }, [planSession.active, planSession.document, viewMode, selectedMap]);
+
+  const playbackTRef = useRef(0);
+  useEffect(() => {
+    playbackTRef.current = planSession.playback.t;
+  }, [planSession.playback.t]);
+
+  useEffect(() => {
+    if (!planSession.playback.playing || !planSession.document || !planSession.playback.routeId) {
+      return undefined;
+    }
+    const route = planSession.document.objects.find(
+      (object) => object.id === planSession.playback.routeId && object.kind === "route",
+    ) as PlanRouteObject | undefined;
+    if (!route) {
+      return undefined;
+    }
+    let frame = 0;
+    let last = performance.now();
+    const speedPx = 40;
+    const { speedMul } = planSession.playback;
+    const { loop } = planSession.playback;
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const advanced = advanceRouteT({
+        route,
+        t: playbackTRef.current,
+        dtSeconds: dt,
+        speedPx,
+        speedMul,
+        loop,
+      });
+      playbackTRef.current = advanced.t;
+      setPlaybackPoint(pointAlongRoute(route, advanced.t));
+      if (advanced.done) {
+        planSession.setPlayback({ t: advanced.t, playing: false });
+        return;
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [
+    planSession.playback.playing,
+    planSession.playback.routeId,
+    planSession.playback.speedMul,
+    planSession.playback.loop,
+    planSession.document,
+    planSession,
+  ]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!planSession.active) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) {
+          planSession.redo();
+        } else {
+          planSession.undo();
+        }
+      }
+      if (event.key === "Delete" || event.key === "Backspace") {
+        planSession.deleteSelected();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [planSession]);
 
   const pushTravel = useCallback((mapId: string) => {
     travelSeqRef.current += 1;
@@ -338,6 +462,53 @@ export function WorldViewer() {
           }}
         />
       </WorldTopBar>
+      {viewMode === "plan" && planSession.document && (
+        <PlanToolbar
+          tool={planSession.tool}
+          onTool={planSession.setTool}
+          color={planSession.color}
+          onColor={planSession.setColor}
+          stamp={planSession.stamp}
+          onStamp={planSession.setStamp}
+          planName={planSession.document.name}
+          onRename={planSession.renamePlan}
+          onUndo={planSession.undo}
+          onRedo={planSession.redo}
+          onDelete={planSession.deleteSelected}
+          onPreset={planSession.applyPreset}
+          onShare={() => {
+            const url = planSession.shareUrl();
+            if (url) {
+              navigator.clipboard.writeText(url).catch(() => undefined);
+            }
+          }}
+          loadouts={planSession.loadouts}
+          ghostClass={ghostClass}
+          onGhostClass={setGhostClass}
+          ghostLoadoutName={ghostLoadoutName}
+          onGhostLoadoutName={setGhostLoadoutName}
+          playback={{
+            playing: planSession.playback.playing,
+            speedMul: planSession.playback.speedMul,
+            trail: planSession.playback.trail,
+            loop: planSession.playback.loop,
+            hasRoute: planSession.document.objects.some((object) => object.kind === "route"),
+          }}
+          onPlayback={(patch) => {
+            if (patch.playing && !planSession.playback.routeId) {
+              const route = planSession.document?.objects.find((object) => object.kind === "route");
+              planSession.setPlayback({
+                ...patch,
+                routeId: route?.id ?? null,
+                t: 0,
+              });
+              playbackTRef.current = 0;
+              return;
+            }
+            planSession.setPlayback(patch);
+          }}
+        />
+      )}
       <TravelBreadcrumb
         history={travelHistory}
         maps={layout.maps}
@@ -366,6 +537,41 @@ export function WorldViewer() {
           onFogDensity={setFogDensity}
           soloBand={soloBand}
           onSoloBand={setSoloBand}
+          plansSlot={
+            <PlanLibraryPanel
+              mapKey={selectedMap}
+              mapName={selected?.name}
+              plansForMap={planSession.libraryForMap}
+              allPlans={planSession.allPlans}
+              activePlanId={planSession.document?.id ?? null}
+              onCreate={(name) => {
+                if (!selectedMap) {
+                  return;
+                }
+                setOverlays(PLAN_DEFAULT_OVERLAYS);
+                setViewMode("plan");
+                planSession.createNamedPlan(selectedMap, name);
+              }}
+              onLoad={(id) => {
+                const plan = planSession.allPlans.find((entry) => entry.id === id);
+                if (plan) {
+                  setSelectedMap(plan.mapKey);
+                  setOverlays(PLAN_DEFAULT_OVERLAYS);
+                  setViewMode("plan");
+                }
+                planSession.loadPlan(id);
+              }}
+              onDelete={planSession.deleteCurrentPlan}
+              onPlanThisMap={() => {
+                if (!selectedMap) {
+                  return;
+                }
+                setOverlays(PLAN_DEFAULT_OVERLAYS);
+                setViewMode("plan");
+                planSession.enterPlan(selectedMap);
+              }}
+            />
+          }
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <WorldCanvas
@@ -387,6 +593,43 @@ export function WorldViewer() {
             monsterDefs={world.monsters}
             soloBand={soloBand}
             fogDensity={fogDensity}
+            plan={
+              viewMode === "plan" && planSession.document
+                ? {
+                    active: true,
+                    document: planSession.document,
+                    selectedIds: planSession.selectedIds,
+                    tool: planSession.tool,
+                    G,
+                    capturePointer: planSession.tool !== "select",
+                    playbackPoint,
+                    playbackRouteId: planSession.playback.routeId,
+                    onSelectIds: planSession.setSelectedIds,
+                    onPointer: (args) => {
+                      if (planSession.tool === "ghost" && args.phase === "down") {
+                        const loadout = ghostLoadoutName
+                          ? planSession.loadouts[ghostLoadoutName]
+                          : undefined;
+                        planSession.placeGhost({
+                          point: args.point,
+                          classKey: loadout?.classKey || ghostClass,
+                          loadoutName: ghostLoadoutName || undefined,
+                          loadout: loadout
+                            ? {
+                                classKey: loadout.classKey || ghostClass,
+                                level: loadout.level,
+                                gear: loadout.gear,
+                                loadoutName: ghostLoadoutName,
+                              }
+                            : undefined,
+                        });
+                        return;
+                      }
+                      planSession.handleMapPointer(args);
+                    },
+                  }
+                : null
+            }
           />
         </Box>
         <WorldInspector

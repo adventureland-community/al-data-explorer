@@ -29,6 +29,8 @@ export interface WorldCameraControls {
   resetView: () => void;
   saveDefaultView: () => void;
   setViewMode: (mode: ViewerMode, bounds: WorldBounds, options?: { resetCamera?: boolean }) => void;
+  /** When false, left-drag does not pan (Plan draw tools own the pointer). */
+  setLeftPanEnabled: (enabled: boolean) => void;
   isDragging: () => boolean;
   wasDragging: () => boolean;
   dispose: () => void;
@@ -119,6 +121,7 @@ function zoomForMode(
 ): void {
   switch (mode) {
     case "map":
+    case "plan":
       zoomMapHeight(controls, wheelDelta, bounds);
       return;
     case "world":
@@ -276,10 +279,19 @@ export function createWorldCameraControls(
   let panDragOccurred = false;
   let panStartX = 0;
   let panStartY = 0;
+  let leftPanEnabled = true;
   const PAN_DRAG_THRESHOLD_PX = 4;
 
+  const setLeftPanEnabled = (enabled: boolean) => {
+    leftPanEnabled = enabled;
+    if (!enabled) {
+      panning = false;
+      panDragActive = false;
+    }
+  };
+
   const onPointerDown = (event: PointerEvent) => {
-    if (event.button !== 0) {
+    if (event.button !== 0 || !leftPanEnabled) {
       return;
     }
     panning = true;
@@ -422,6 +434,7 @@ export function createWorldCameraControls(
     resetView,
     saveDefaultView,
     setViewMode,
+    setLeftPanEnabled,
     isDragging,
     wasDragging,
     dispose: () => {

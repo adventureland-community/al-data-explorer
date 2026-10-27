@@ -130,6 +130,7 @@ export function WorldTopBar({
         }}
       >
         <ToggleButton value="map">Single map</ToggleButton>
+        <ToggleButton value="plan">Plan</ToggleButton>
         <ToggleButton value="world">World</ToggleButton>
       </ToggleButtonGroup>
       <Autocomplete
@@ -294,6 +295,7 @@ interface WorldOverlayPanelProps {
   onFogDensity: (value: number) => void;
   soloBand: MapBand | null;
   onSoloBand: (band: MapBand | null) => void;
+  plansSlot?: ReactNode;
 }
 
 export function WorldOverlayPanel({
@@ -317,6 +319,7 @@ export function WorldOverlayPanel({
   onFogDensity,
   soloBand,
   onSoloBand,
+  plansSlot,
 }: WorldOverlayPanelProps) {
   const [monsterAnchor, setMonsterAnchor] = useState<HTMLElement | null>(null);
   const hiddenCount = hiddenMonsterTypes.size;
@@ -326,7 +329,7 @@ export function WorldOverlayPanel({
       elevation={0}
       sx={{
         ...panelSx,
-        width: 220,
+        width: plansSlot ? 260 : 220,
         flexShrink: 0,
         padding: 1.5,
         display: "flex",
@@ -335,6 +338,11 @@ export function WorldOverlayPanel({
         overflow: "auto",
       }}
     >
+      {plansSlot ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, paddingBottom: 1 }}>
+          {plansSlot}
+        </Box>
+      ) : null}
       <Typography variant="overline" sx={{ lineHeight: 1, opacity: 0.7 }}>
         Overlays
       </Typography>

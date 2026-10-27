@@ -15,7 +15,8 @@ export function visibleWorldLayout(
   switch (mode) {
     case "world":
       return layout;
-    case "map": {
+    case "map":
+    case "plan": {
       if (!selectedMap) {
         return { maps: {}, poses: {}, connections: [] };
       }
@@ -44,6 +45,7 @@ export function nextSelectedMap(
 ): string | null {
   switch (mode) {
     case "map":
+    case "plan":
       return next ?? current;
     case "world":
       return next;
@@ -65,6 +67,7 @@ export function selectedMapForMode(
   }
   switch (mode) {
     case "map":
+    case "plan":
       return maps.main ? "main" : Object.keys(maps)[0] || null;
     case "world":
       return null;

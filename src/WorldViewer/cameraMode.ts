@@ -48,25 +48,28 @@ export interface CameraMode {
   help: readonly string[];
 }
 
+const MAP_LIKE_CAMERA: CameraMode = {
+  up: [0, 0, -1],
+  enableRotate: false,
+  // OrbitControls caches object.up when constructed (still +Y). Polar 0 is
+  // straight down in that space; π/2 would look at the horizon.
+  minPolarAngle: 0,
+  maxPolarAngle: 0,
+  minAzimuthAngle: 0,
+  maxAzimuthAngle: 0,
+  allowVerticalPan: false,
+  useFog: false,
+  keepFocusHeight: true,
+  allowClearSelection: false,
+  showLayerSlider: false,
+  showConnectionLegend: false,
+  pose: computeTopDownPose,
+  help: MAP_CONTROLS_HELP,
+};
+
 const CAMERA_MODE: Record<ViewerMode, CameraMode> = {
-  map: {
-    up: [0, 0, -1],
-    enableRotate: false,
-    // OrbitControls caches object.up when constructed (still +Y). Polar 0 is
-    // straight down in that space; π/2 would look at the horizon.
-    minPolarAngle: 0,
-    maxPolarAngle: 0,
-    minAzimuthAngle: 0,
-    maxAzimuthAngle: 0,
-    allowVerticalPan: false,
-    useFog: false,
-    keepFocusHeight: true,
-    allowClearSelection: false,
-    showLayerSlider: false,
-    showConnectionLegend: false,
-    pose: computeTopDownPose,
-    help: MAP_CONTROLS_HELP,
-  },
+  map: MAP_LIKE_CAMERA,
+  plan: MAP_LIKE_CAMERA,
   world: {
     up: [0, 1, 0],
     enableRotate: true,
