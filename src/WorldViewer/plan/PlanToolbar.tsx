@@ -37,6 +37,7 @@ import type { ChangeEvent, ComponentType, ReactNode } from "react";
 import type { SvgIconProps } from "@mui/material/SvgIcon";
 
 import { SavedLoadout } from "../../GearPlanner/types";
+import { PLAN_TOOL_SHORTCUT } from "./planShortcuts";
 import { ZONE_PRESETS } from "./zonePresets";
 import { PlanStampKind, PlanTool, ZonePresetId } from "./types";
 
@@ -48,6 +49,11 @@ type ToolDef = {
   hint: string;
   Icon: ToolIcon;
 };
+
+function toolTitle(label: string, hint: string, shortcutKey: PlanTool | "zone"): string {
+  const shortcut = PLAN_TOOL_SHORTCUT[shortcutKey];
+  return shortcut ? `${label} (${shortcut}) — ${hint}` : `${label} — ${hint}`;
+}
 
 /** Farm-planning actions lead the dock. */
 const STRATEGY_TOOLS: ToolDef[] = [
@@ -305,12 +311,13 @@ export function PlanToolbar({
           >
             {STRATEGY_TOOLS.map((entry) => {
               const { Icon } = entry;
+              const shortcutKey = entry.id === "zone" ? "zone" : entry.id;
               return (
                 <ToggleButton
                   key={entry.id}
                   value={entry.id}
                   aria-label={entry.label}
-                  title={`${entry.label} — ${entry.hint}`}
+                  title={toolTitle(entry.label, entry.hint, shortcutKey)}
                   sx={toolBtnSx}
                 >
                   <Icon sx={{ fontSize: 20 }} />
@@ -348,7 +355,7 @@ export function PlanToolbar({
                   key={entry.id}
                   value={entry.id}
                   aria-label={entry.label}
-                  title={`${entry.label} — ${entry.hint}`}
+                  title={toolTitle(entry.label, entry.hint, entry.id)}
                   sx={toolBtnSx}
                 >
                   <Icon sx={{ fontSize: 20 }} />

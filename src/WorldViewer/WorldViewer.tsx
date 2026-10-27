@@ -36,6 +36,7 @@ import { toWorldSource } from "./worldData";
 import { PLAN_DEFAULT_OVERLAYS } from "./plan/planDefaults";
 import { PlanLayersMenu } from "./plan/PlanLayersMenu";
 import { PlanLibraryPanel } from "./plan/PlanLibraryPanel";
+import { resolvePlanShortcut } from "./plan/planShortcuts";
 import { PlanToolbar } from "./plan/PlanToolbar";
 import { computeLoadoutStats } from "../gameData/loadoutStats";
 import { advanceRouteT, pointAlongRoute } from "./plan/planPlayback";
@@ -364,28 +365,38 @@ export function WorldViewer() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (!planSession.active) {
+      if (!planSession.active || viewMode !== "plan") {
         return;
       }
-      const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+      const action = resolvePlanShortcut(event);
+      if (!action) {
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
-        event.preventDefault();
-        if (event.shiftKey) {
-          planSession.redo();
-        } else {
-          planSession.undo();
-        }
+      event.preventDefault();
+      if (action.type === "undo") {
+        planSession.undo();
+        return;
       }
-      if (event.key === "Delete" || event.key === "Backspace") {
+      if (action.type === "redo") {
+        planSession.redo();
+        return;
+      }
+      if (action.type === "delete") {
         planSession.deleteSelected();
+        return;
       }
+      if (action.type === "escape") {
+        setZoneMode(false);
+        planSession.setTool("select");
+        planSession.setSelectedIds(new Set());
+        return;
+      }
+      setZoneMode(action.zoneMode);
+      planSession.setTool(action.tool);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [planSession]);
+  }, [planSession, viewMode]);
 
   const pushTravel = useCallback((mapId: string) => {
     travelSeqRef.current += 1;

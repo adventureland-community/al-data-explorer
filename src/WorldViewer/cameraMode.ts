@@ -17,6 +17,14 @@ export const MAP_CONTROLS_HELP = [
   "Double-click — focus point",
 ] as const;
 
+export const PLAN_CONTROLS_HELP = [
+  "Left drag — pan · arrows — pan · scroll — zoom",
+  "V Z G R K N — place tools · 1–6 same",
+  "L A D O P T S — draw tools",
+  "Ctrl+Z / Ctrl+Y — undo / redo · Del — delete · Esc — select",
+  "F — focus map · Home — reset view",
+] as const;
+
 export const WORLD_CONTROLS_HELP = [
   "Left drag — pan (fixed speed)",
   "Right / middle drag — orbit",
@@ -69,7 +77,7 @@ const MAP_LIKE_CAMERA: CameraMode = {
 
 const CAMERA_MODE: Record<ViewerMode, CameraMode> = {
   map: MAP_LIKE_CAMERA,
-  plan: MAP_LIKE_CAMERA,
+  plan: { ...MAP_LIKE_CAMERA, help: PLAN_CONTROLS_HELP },
   world: {
     up: [0, 1, 0],
     enableRotate: true,

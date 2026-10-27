@@ -348,31 +348,39 @@ export function createWorldCameraControls(
     const step = (event.shiftKey ? 2.4 : 1) * KEYBOARD_PAN_STEP;
     const { allowVerticalPan } = cameraMode(modeRef.current);
 
+    // Plan mode reserves letter keys for tools (Excalidraw-style). Arrows still pan.
+    const letterPan = modeRef.current !== "plan";
+    const panUp = key === "arrowup" || (letterPan && key === "w");
+    const panDown = key === "arrowdown" || (letterPan && key === "s");
+    const panLeft = key === "arrowleft" || (letterPan && key === "a");
+    const panRight = key === "arrowright" || (letterPan && key === "d");
+
+    if (panUp) {
+      panDeltaFromScreen(camera, 0, -step, 1, _panDelta);
+      panCamera(controls, _panDelta);
+      event.preventDefault();
+      return;
+    }
+    if (panDown) {
+      panDeltaFromScreen(camera, 0, step, 1, _panDelta);
+      panCamera(controls, _panDelta);
+      event.preventDefault();
+      return;
+    }
+    if (panLeft) {
+      panDeltaFromScreen(camera, -step, 0, 1, _panDelta);
+      panCamera(controls, _panDelta);
+      event.preventDefault();
+      return;
+    }
+    if (panRight) {
+      panDeltaFromScreen(camera, step, 0, 1, _panDelta);
+      panCamera(controls, _panDelta);
+      event.preventDefault();
+      return;
+    }
+
     switch (key) {
-      case "w":
-      case "arrowup":
-        panDeltaFromScreen(camera, 0, -step, 1, _panDelta);
-        panCamera(controls, _panDelta);
-        event.preventDefault();
-        break;
-      case "s":
-      case "arrowdown":
-        panDeltaFromScreen(camera, 0, step, 1, _panDelta);
-        panCamera(controls, _panDelta);
-        event.preventDefault();
-        break;
-      case "a":
-      case "arrowleft":
-        panDeltaFromScreen(camera, -step, 0, 1, _panDelta);
-        panCamera(controls, _panDelta);
-        event.preventDefault();
-        break;
-      case "d":
-      case "arrowright":
-        panDeltaFromScreen(camera, step, 0, 1, _panDelta);
-        panCamera(controls, _panDelta);
-        event.preventDefault();
-        break;
       case "q":
       case "pageup":
         if (allowVerticalPan) {
