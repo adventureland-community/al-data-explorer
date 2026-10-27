@@ -131,30 +131,37 @@ export type StepRecipeEdit = {
   onPatch: (fromLevel: number, toLevel: number, patch: UpgradeStepOverride) => void;
   onReset: (fromLevel: number, toLevel: number) => void;
   onResetAll: () => void;
-  /** Cycle Shiny polish material (nugget/ingot); updates chance + EV. */
-  onCyclePolish?: () => void;
+  /** Cycle Shiny polish material (nugget/ingot); updates chance + EV. +1 forward, -1 reverse. */
+  onCyclePolish?: (delta: 1 | -1) => void;
 };
 
 const UPGRADE_SCROLL_KEYS_SAFE = ["scroll0", "scroll1", "scroll2", "scroll3", "scroll4"];
 
-function cycleScrollGrade(step: PlanSummaryStep, edit: StepRecipeEdit): void {
+/** Wrap list index by delta; missing current → first on +1, last on -1. */
+function nextCycleIndex(length: number, currentIdx: number, delta: 1 | -1): number {
+  if (length <= 0) return 0;
+  const base = currentIdx >= 0 ? currentIdx : delta > 0 ? -1 : 0;
+  return (base + delta + length) % length;
+}
+
+function cycleScrollGrade(step: PlanSummaryStep, edit: StepRecipeEdit, delta: 1 | -1): void {
   if (step.kind === "shiny" || step.kind === "acquire") return;
   const itemGrade = edit.itemGradeAt(step.fromLevel);
   const grades = allowedUpgradeScrollGrades(itemGrade, edit.costModel, edit.allowScroll4);
   if (!grades.length) return;
   const cur = UPGRADE_SCROLL_KEYS_SAFE.indexOf(step.scrollKey);
   const idx = grades.indexOf(cur >= 0 ? cur : itemGrade);
-  const next = grades[(idx + 1) % grades.length] ?? grades[0];
+  const next = grades[nextCycleIndex(grades.length, idx, delta)] ?? grades[0];
   edit.onPatch(step.fromLevel, step.toLevel, { scrollGrade: next });
 }
 
-function cycleOffering(step: PlanSummaryStep, edit: StepRecipeEdit): void {
+function cycleOffering(step: PlanSummaryStep, edit: StepRecipeEdit, delta: 1 | -1): void {
   if (step.kind === "shiny" || step.kind === "acquire") return;
   const list = edit.offerings;
   if (!list.length) return;
   const cur = offeringGradeFromKey(step.offeringKey);
   const idx = list.findIndex((o) => o === cur);
-  const next = list[(idx + 1) % list.length] ?? null;
+  const next = list[nextCycleIndex(list.length, idx, delta)] ?? null;
   edit.onPatch(step.fromLevel, step.toLevel, { offering: next });
 }
 
@@ -166,15 +173,26 @@ function ClickableMat({
 }: {
   itemKey: string | null;
   title: string;
-  onCycle?: () => void;
+  onCycle?: (delta: 1 | -1) => void;
   editable?: boolean;
 }) {
-  const tip = editable ? `${title || "None"} — click to cycle` : title || "None";
+  const tip = editable
+    ? `${title || "None"} — left click forward, right click back`
+    : title || "None";
+  const cycle =
+    editable && onCycle
+      ? (delta: 1 | -1) => (e: { preventDefault(): void; stopPropagation(): void }) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onCycle(delta);
+        }
+      : undefined;
   const inner = (
     <Box
       component={editable && onCycle ? "button" : "span"}
       type={editable && onCycle ? "button" : undefined}
-      onClick={editable ? onCycle : undefined}
+      onClick={cycle?.(1)}
+      onContextMenu={cycle?.(-1)}
       aria-label={tip}
       sx={{
         display: "inline-flex",
@@ -348,7 +366,7 @@ export function StepPlanCards({
                   itemKey={s.scrollKey}
                   title={G?.items?.[s.scrollKey as ItemKey]?.name ?? s.scrollKey}
                   editable={editable}
-                  onCycle={stepEdit ? () => cycleScrollGrade(s, stepEdit) : undefined}
+                  onCycle={stepEdit ? (delta) => cycleScrollGrade(s, stepEdit, delta) : undefined}
                 />
               ) : null}
               {s.kind === "acquire" ? null : (
@@ -369,7 +387,7 @@ export function StepPlanCards({
                     s.kind === "shiny"
                       ? stepEdit?.onCyclePolish
                       : stepEdit
-                      ? () => cycleOffering(s, stepEdit)
+                      ? (delta) => cycleOffering(s, stepEdit, delta)
                       : undefined
                   }
                 />
@@ -512,14 +530,14 @@ export function StepPlanTable({
                 <ColumnHead
                   label="Scroll"
                   icons={["scroll2"]}
-                  tip="Upgrade scroll (click cell to cycle)"
+                  tip="Upgrade scroll (left click forward, right click back)"
                 />
               </TableCell>
               <TableCell sx={headSx} align="center">
                 <ColumnHead
                   label="Offering"
                   icons={["offeringp"]}
-                  tip="Offering / none (click cell to cycle)"
+                  tip="Offering / none (left click forward, right click back)"
                 />
               </TableCell>
               {showPrim ? (
@@ -643,7 +661,9 @@ export function StepPlanTable({
                         itemKey={s.scrollKey}
                         title={scrollName ?? ""}
                         editable={editable}
-                        onCycle={stepEdit ? () => cycleScrollGrade(s, stepEdit) : undefined}
+                        onCycle={
+                          stepEdit ? (delta) => cycleScrollGrade(s, stepEdit, delta) : undefined
+                        }
                       />
                     )}
                   </TableCell>
@@ -669,7 +689,7 @@ export function StepPlanTable({
                           s.kind === "shiny"
                             ? stepEdit?.onCyclePolish
                             : stepEdit
-                            ? () => cycleOffering(s, stepEdit)
+                            ? (delta) => cycleOffering(s, stepEdit, delta)
                             : undefined
                         }
                       />
@@ -812,7 +832,8 @@ export function StepPlanTable({
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="subtitle2">Plan steps</Typography>
             <Typography variant="caption" color="text.secondary">
-              Click scroll/offering/polish icons to cycle · adjust stacks inline · EV updates live
+              Left click scrolls/offerings/polish forward, right click back · stacks inline · EV
+              live
             </Typography>
           </Box>
           <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
