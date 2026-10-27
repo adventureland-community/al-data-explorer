@@ -1,5 +1,6 @@
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
 import {
   Accordion,
   AccordionDetails,
@@ -19,8 +20,11 @@ import {
   Typography,
 } from "@mui/material";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { formatGold, MaterialLine, SideEffectSummary } from "../calculators";
+import { addEntries, ensureDestinationList } from "../lists/listsStore";
+import { materialLinesToListEntries } from "../lists/materialLinesToListEntries";
 import { CostShareBar, MatIcon } from "./planResultsShared";
 import { CalcMode } from "./useUpgradeCalcParams";
 
@@ -242,7 +246,9 @@ export function MaterialsPanel({
   planEv: number;
   acquireMode?: "buy" | "craft";
 }) {
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [sent, setSent] = useState(false);
   const ranked = [...materials].sort((a, b) => {
     const at = Number.isFinite(a.total) ? a.total : 0;
     const bt = Number.isFinite(b.total) ? b.total : 0;
@@ -269,28 +275,49 @@ export function MaterialsPanel({
               : "Buy = ceil(expected) · gold is EV spend"}
           </Typography>
         </Box>
-        <Button
-          size="small"
-          variant="text"
-          startIcon={<ContentCopyIcon fontSize="small" />}
-          disabled={!ranked.length}
-          sx={{ flexShrink: 0 }}
-          onClick={() => {
-            const text = formatMaterialsClipboard(
-              ranked,
-              materialLabel,
-              materialsSum,
-              destroyGap,
-              planEv,
-            );
-            navigator.clipboard.writeText(text).then(() => {
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1500);
-            });
-          }}
-        >
-          {copied ? "Copied" : "Copy"}
-        </Button>
+        <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+          <Button
+            size="small"
+            variant="text"
+            startIcon={<PlaylistAddIcon fontSize="small" />}
+            disabled={!ranked.length}
+            onClick={() => {
+              if (sent) {
+                navigate("/lists");
+                return;
+              }
+              const { listId } = ensureDestinationList("shopping");
+              const inputs = materialLinesToListEntries(ranked, materialLabel);
+              if (!inputs.length) return;
+              addEntries(listId, inputs);
+              setSent(true);
+              window.setTimeout(() => setSent(false), 4000);
+            }}
+          >
+            {sent ? "Open Lists" : "Send to shopping list"}
+          </Button>
+          <Button
+            size="small"
+            variant="text"
+            startIcon={<ContentCopyIcon fontSize="small" />}
+            disabled={!ranked.length}
+            onClick={() => {
+              const text = formatMaterialsClipboard(
+                ranked,
+                materialLabel,
+                materialsSum,
+                destroyGap,
+                planEv,
+              );
+              navigator.clipboard.writeText(text).then(() => {
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 1500);
+              });
+            }}
+          >
+            {copied ? "Copied" : "Copy"}
+          </Button>
+        </Stack>
       </Stack>
 
       <Stack spacing={0.75}>

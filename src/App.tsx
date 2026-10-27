@@ -60,7 +60,7 @@ const ThemeModeContext = React.createContext<{
 function Menu({ compact = false }: { compact?: boolean }) {
   const { mode, toggleMode } = useContext(ThemeModeContext);
   const theme = useTheme();
-  // Eleven tabs overflow phones and many tablets; scroll instead of clipping.
+  // Many tabs overflow phones and tablets; scroll instead of clipping.
   const scrollNav = useMediaQuery(theme.breakpoints.down("lg"), { noSsr: true });
   const { pathname } = useLocation();
   const routeMatch = useRouteMatch([
@@ -74,6 +74,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
     "/items",
     "/drops",
     "/upgrade",
+    "/lists",
     "/classes",
     "/cosmetics",
     "/characters",
@@ -154,6 +155,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
         />
         <Tab label="Drops" value="/drops" to="/drops" component={RouterLink} />
         <Tab label="Upgrade (WIP)" value="/upgrade" to="/upgrade" component={RouterLink} />
+        <Tab label="Lists" value="/lists" to="/lists" component={RouterLink} />
         <Tab
           label={scrollNav ? "Market" : "🌎 Market"}
           value="/market"
