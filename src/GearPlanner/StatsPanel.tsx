@@ -35,15 +35,13 @@ function DamageVisualization({ source, target }: { source: any; target: any }) {
   const hitsToDefeat = Math.ceil(maxHealth / damage);
 
   return (
-    <div>
-      <div>
-        <Typography>
-          Will do {damage.toFixed(2)} damage to you with {healthLeft.toFixed(2)} health left. You
-          will be defeated in {hitsToDefeat} hits
-        </Typography>
-      </div>
-      <Box sx={{ display: "flex", alignItems: "center" }}>
-        <Box sx={{ width: "100%", mr: 1 }}>
+    <Box sx={{ mt: 1 }}>
+      <Typography sx={{ wordBreak: "break-word" }}>
+        Will do {damage.toFixed(2)} damage to you with {healthLeft.toFixed(2)} health left. You will
+        be defeated in {hitsToDefeat} hits
+      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+        <Box sx={{ width: "100%", mr: 1, minWidth: 0 }}>
           <LinearProgress
             variant="determinate"
             color={percent >= 100 ? "error" : "primary"}
@@ -51,18 +49,18 @@ function DamageVisualization({ source, target }: { source: any; target: any }) {
             sx={{ height: "10px" }}
           />
         </Box>
-        <Box sx={{ minWidth: 35 }}>
+        <Box sx={{ minWidth: 48, flexShrink: 0 }}>
           <Typography variant="body2" color="text.secondary">{`${percent.toFixed(2)}%`}</Typography>
         </Box>
       </Box>
 
       {excess > 0 && (
-        <Alert variant="outlined" severity="error">
+        <Alert variant="outlined" severity="error" sx={{ mt: 1, wordBreak: "break-word" }}>
           WARNING: Monster can deal {excess.toFixed(2)} excess damage! You will be one-shot with{" "}
           {maxHealth.toFixed(2)} health
         </Alert>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -203,9 +201,19 @@ export function StatsPanel({
     fontWeight: compareStats && stats[key] !== compareStats[key] ? 700 : undefined,
   });
 
+  const statColumnSx = {
+    // Keep dense tables from forcing horizontal overflow on narrow columns.
+    "& .MuiTableCell-root": {
+      px: { xs: 1, sm: 1.5 },
+      py: 0.5,
+      fontSize: { xs: "0.8125rem", sm: "0.875rem" },
+      wordBreak: "break-word" as const,
+    },
+  };
+
   return (
-    <Grid container>
-      <Grid item xs={3}>
+    <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+      <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
         <Divider textAlign="left">GENERAL</Divider>
         <Table size="small" aria-label="a dense table">
           <TableBody>
@@ -239,7 +247,7 @@ export function StatsPanel({
           </TableBody>
         </Table>
       </Grid>
-      <Grid item xs={3}>
+      <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
         <Divider textAlign="left">OFFENSE</Divider>
         <Table size="small">
           <TableBody>
@@ -254,7 +262,7 @@ export function StatsPanel({
           </TableBody>
         </Table>
       </Grid>
-      <Grid item xs={3}>
+      <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
         <Divider textAlign="left">DEFENSE</Divider>
         <Table size="small">
           <TableBody>
@@ -269,7 +277,7 @@ export function StatsPanel({
           </TableBody>
         </Table>
       </Grid>
-      <Grid item xs={3}>
+      <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
         <Divider textAlign="left">OTHER</Divider>
         <Table size="small">
           <TableBody>
@@ -288,7 +296,7 @@ export function StatsPanel({
         <AbilityLines gear={gear} G={G} />
       </Grid>
       <Grid item xs={12}>
-        <FormControl fullWidth sx={{ mt: 2 }}>
+        <FormControl fullWidth sx={{ mt: { xs: 0.5, sm: 2 } }}>
           <InputLabel id="monster-select-label">Target monster</InputLabel>
           <Select
             labelId="monster-select-label"

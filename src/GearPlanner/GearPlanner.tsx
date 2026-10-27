@@ -20,11 +20,13 @@
 // TODO: validation method to validate equipped gear against selected class.
 
 import {
+  Box,
   Card,
   CardContent,
   Container,
   Grid,
   Slider,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -168,8 +170,8 @@ export function GearPlanner() {
   };
 
   return (
-    <Container>
-      <Grid container rowSpacing={1}>
+    <Container sx={{ px: { xs: 1.5, sm: 2 } }}>
+      <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12}>
           <Typography gutterBottom>Level {level}</Typography>
           <Slider
@@ -181,27 +183,31 @@ export function GearPlanner() {
             min={1}
             max={200}
             onChange={onLevelSliderChange}
-            sx={{ mt: 3 }}
+            sx={{ mt: 3, mb: 1 }}
           />
-          <SaveLinkButton gear={gear} characterClass={selectedClass} level={level} />
-          <LoadLinkButton load={onLoadSavedLoadout} />
-          <ImportLinkButton load={onLoadSavedLoadout} />
-          <ShareLinkButton gear={gear} characterClass={selectedClass} level={level} />
+          <Stack direction="row" flexWrap="wrap" sx={{ gap: 0.5 }}>
+            <SaveLinkButton gear={gear} characterClass={selectedClass} level={level} />
+            <LoadLinkButton load={onLoadSavedLoadout} />
+            <ImportLinkButton load={onLoadSavedLoadout} />
+            <ShareLinkButton gear={gear} characterClass={selectedClass} level={level} />
+          </Stack>
         </Grid>
-        <Grid item xs={4}>
-          <LoadoutPickerShell
-            gear={gear}
-            onGearChange={setGear}
-            selectedClass={selectedClass}
-            onSelectClass={setSelectedClass}
-            onClearClass={() => setSelectedClass(undefined)}
-            classes={classes}
-            items={G.items}
-            variant="planner"
-            hint="Click a slot to pick or edit · set Title / Stat scroll in the picker · ✕ to remove"
-          />
+        <Grid item xs={12} md={4}>
+          <Box sx={{ overflowX: "auto", WebkitOverflowScrolling: "touch", pb: 0.5 }}>
+            <LoadoutPickerShell
+              gear={gear}
+              onGearChange={setGear}
+              selectedClass={selectedClass}
+              onSelectClass={setSelectedClass}
+              onClearClass={() => setSelectedClass(undefined)}
+              classes={classes}
+              items={G.items}
+              variant="planner"
+              hint="Click a slot to pick or edit · set Title / Stat scroll in the picker · ✕ to remove"
+            />
+          </Box>
         </Grid>
-        <Grid item xs={8}>
+        <Grid item xs={12} md={8}>
           <StatsPanel selectedCharacterClass={selectedClass} level={level} gear={gear} />
         </Grid>
         <Grid item xs={12}>

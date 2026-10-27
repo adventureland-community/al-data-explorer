@@ -93,7 +93,7 @@ function CompareColumn({
       <Box sx={{ overflowX: "auto", WebkitOverflowScrolling: "touch", pb: 0.5 }}>
         <GearPaperDoll gear={loadout.gear} onSlotClick={() => undefined} dhConflict={false} />
       </Box>
-      <Box sx={{ mt: 2, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+      <Box sx={{ mt: 2 }}>
         <StatsPanel
           selectedCharacterClass={selectedClass}
           level={loadout.level}
