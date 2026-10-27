@@ -1,7 +1,13 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { GreedScrollKey, OfferingChoice, PriceTable, UPGRADE_SCROLL_KEYS } from "../calculators";
+import {
+  DEFAULT_MERCHANT_TAX,
+  GreedScrollKey,
+  OfferingChoice,
+  PriceTable,
+  UPGRADE_SCROLL_KEYS,
+} from "../calculators";
 
 export type CalcMode = "upgrade" | "compound" | "greed";
 export type CalcStrategy = "cheapest" | "fewest";
@@ -35,6 +41,11 @@ export type UpgradeCalcParams = {
   offeringp: boolean;
   offering: boolean;
   offeringx: boolean;
+  /**
+   * Merchant-stand tax fraction (`character.tax` from Stats).
+   * Used for break-even list price: cost / (1 − tax).
+   */
+  taxRate: number;
   /** Greed farm: uscroll key. */
   greedScroll: GreedScrollKey;
   /** Greed farm: offering grade (null = none). */
@@ -61,6 +72,7 @@ const DEFAULTS: UpgradeCalcParams = {
   offeringp: true,
   offering: true,
   offeringx: true,
+  taxRate: DEFAULT_MERCHANT_TAX,
   /** High+ farm levels need scroll grade ≥ item grade; scroll0 never works for greed. */
   greedScroll: "scroll1",
   greedOffering: null,
@@ -140,6 +152,22 @@ function parseGreedTarget(raw: string | null): number {
   return Math.min(n, 10_000);
 }
 
+/** URL `tax` is a percent (e.g. 2.5 → 0.025). Clamped to [0, 99.99). */
+function parseTaxRate(raw: string | null): number {
+  if (raw == null || raw === "") return DEFAULTS.taxRate;
+  const pct = Number(raw);
+  if (!Number.isFinite(pct) || pct < 0 || pct >= 100) return DEFAULTS.taxRate;
+  return pct / 100;
+}
+
+function taxRateParam(taxRate: number): string | null {
+  if (!Number.isFinite(taxRate) || Math.abs(taxRate - DEFAULTS.taxRate) < 1e-9) return null;
+  const pct = taxRate * 100;
+  // Keep short: 2.5, 4, 7.5 — drop trailing zeros.
+  const text = Number(pct.toFixed(4)).toString();
+  return text;
+}
+
 function greedOfferingParam(offering: OfferingChoice): string | null {
   if (offering == null) return null;
   if (offering === 0) return "offeringp";
@@ -201,6 +229,7 @@ export function parseUpgradeCalcParams(searchParams: URLSearchParams): UpgradeCa
     offeringp: parseBool(searchParams.get("op"), DEFAULTS.offeringp),
     offering: parseBool(searchParams.get("o"), DEFAULTS.offering),
     offeringx: parseBool(searchParams.get("ox"), DEFAULTS.offeringx),
+    taxRate: parseTaxRate(searchParams.get("tax")),
     greedScroll: parseGreedScroll(searchParams.get("gscroll")),
     greedOffering: parseGreedOffering(searchParams.get("goffer")),
     greedTarget: parseGreedTarget(searchParams.get("n")),
@@ -218,6 +247,8 @@ function writeParams(params: UpgradeCalcParams, priceOverrides: PriceTable = {})
     if (go) sp.set("goffer", go);
     if (params.greedTarget !== DEFAULTS.greedTarget) sp.set("n", String(params.greedTarget));
     if (params.luckySlot) sp.set("lucky", "1");
+    const tax = taxRateParam(params.taxRate);
+    if (tax) sp.set("tax", tax);
     appendPriceOverrides(sp, priceOverrides);
     return sp;
   }
@@ -238,6 +269,8 @@ function writeParams(params: UpgradeCalcParams, priceOverrides: PriceTable = {})
   if (!params.offeringp) sp.set("op", "0");
   if (!params.offering) sp.set("o", "0");
   if (!params.offeringx) sp.set("ox", "0");
+  const tax = taxRateParam(params.taxRate);
+  if (tax) sp.set("tax", tax);
   appendPriceOverrides(sp, priceOverrides);
   return sp;
 }
@@ -262,6 +295,10 @@ function normalizePatch(
   if (next.mode === "greed") next.acquire = "buy";
   if (next.acquire !== "buy" && next.acquire !== "craft") {
     next.acquire = "buy";
+  }
+
+  if (!Number.isFinite(next.taxRate) || next.taxRate < 0 || next.taxRate >= 1) {
+    next.taxRate = DEFAULTS.taxRate;
   }
 
   if (next.mode === "greed") {
