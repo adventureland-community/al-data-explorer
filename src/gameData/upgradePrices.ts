@@ -241,17 +241,19 @@ export function statScrollGraceUnitCost(
 
 export function offeringKeyFromGrade(offering: number | null): typeof OFFERING_KEYS[number] {
   if (offering == null) return null;
-  if (offering === 0) return "offeringp";
-  if (offering === 1) return "offering";
-  return "offeringx";
+  // G.items grades: offeringp=1, offering=2, offeringx=3
+  if (offering === 1) return "offeringp";
+  if (offering === 2) return "offering";
+  if (offering === 3) return "offeringx";
+  return null;
 }
 
 /** Inverse of `offeringKeyFromGrade` (unknown keys → null). */
 export function offeringGradeFromKey(key: string | null | undefined): number | null {
   if (key == null || key === "" || key === "none") return null;
-  if (key === "offeringp") return 0;
-  if (key === "offering") return 1;
-  if (key === "offeringx") return 2;
+  if (key === "offeringp") return 1;
+  if (key === "offering") return 2;
+  if (key === "offeringx") return 3;
   return null;
 }
 

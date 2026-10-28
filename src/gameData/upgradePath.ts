@@ -60,7 +60,7 @@ export type ToolkitOptions = {
    * property scroll with an offering for +1 item grace (server pscroll path).
    */
   allowStatScrollGrace?: boolean;
-  /** null = no offering; 0/1/2 = offeringp / offering / offeringx */
+  /** null = none; else G offering grades 1/2/3 (Primling / Essence / X). */
   offerings?: OfferingChoice[];
 };
 

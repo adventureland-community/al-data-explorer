@@ -14,9 +14,9 @@ export function offeringList(params: {
   offeringx: boolean;
 }): OfferingChoice[] {
   const list: OfferingChoice[] = [null];
-  if (params.offeringp) list.push(0);
-  if (params.offering) list.push(1);
-  if (params.offeringx) list.push(2);
+  if (params.offeringp) list.push(1);
+  if (params.offering) list.push(2);
+  if (params.offeringx) list.push(3);
   return list;
 }
 

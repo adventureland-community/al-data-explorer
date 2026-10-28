@@ -376,7 +376,7 @@ export function stackingPrecalculate(prices: PriceTable, tables?: ChanceTables):
     const failstackAttemptCost =
       prev.lucky_cost + (Number.isFinite(scrolls[itemGrade]) ? scrolls[itemGrade] : Infinity);
 
-    const primeClick = getUpgradeChance(lookup, item, itemGrade, 0, tables);
+    const primeClick = getUpgradeChance(lookup, item, itemGrade, 1, tables);
     const ograceAttemptCost =
       prev.lucky_cost +
       (Number.isFinite(scrolls[itemGrade]) ? scrolls[itemGrade] : Infinity) +
