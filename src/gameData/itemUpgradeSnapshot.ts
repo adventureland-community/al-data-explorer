@@ -79,7 +79,7 @@ const DEFAULT_TOOLKIT: NonNullable<PlannerContext["toolkit"]> = {
   allowPrimstacking: true,
   allowScroll4: false,
   allowStatScrollGrace: false,
-  offerings: [null, 0, 1, 2],
+  offerings: [null, 1, 2, 3],
 };
 
 export function itemUpgradeMode(gItem: GItem): ItemUpgradeMode | null {

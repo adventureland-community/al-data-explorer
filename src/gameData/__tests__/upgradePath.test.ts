@@ -121,7 +121,7 @@ describe("upgradePath", () => {
       chance: 0.55,
       grace: 0,
       scroll: 0,
-      offering: 0 as const,
+      offering: 1 as const,
       ograce: 0,
       ograceCost: 0,
     };
@@ -130,7 +130,7 @@ describe("upgradePath", () => {
       chance: 0.7,
       grace: 0,
       scroll: 1,
-      offering: 0 as const,
+      offering: 1 as const,
       ograce: 0,
       ograceCost: 0,
     };

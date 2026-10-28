@@ -973,19 +973,19 @@ export function UpgradeCalculator() {
                     onChange={(_, v: string | null) => {
                       if (v == null) return;
                       if (v === "none") patch({ greedOffering: null });
-                      else patch({ greedOffering: Number(v) as 0 | 1 | 2 });
+                      else patch({ greedOffering: Number(v) as 1 | 2 | 3 });
                     }}
                   >
                     <ToggleButton value="none" sx={{ fontSize: 11, px: 0.5 }}>
                       None
                     </ToggleButton>
-                    <ToggleButton value="0" sx={{ fontSize: 11, px: 0.5 }}>
+                    <ToggleButton value="1" sx={{ fontSize: 11, px: 0.5 }}>
                       Primling
                     </ToggleButton>
-                    <ToggleButton value="1" sx={{ fontSize: 11, px: 0.5 }}>
+                    <ToggleButton value="2" sx={{ fontSize: 11, px: 0.5 }}>
                       Primordial
                     </ToggleButton>
-                    <ToggleButton value="2" sx={{ fontSize: 11, px: 0.5 }}>
+                    <ToggleButton value="3" sx={{ fontSize: 11, px: 0.5 }}>
                       Prim X
                     </ToggleButton>
                   </ToggleButtonGroup>

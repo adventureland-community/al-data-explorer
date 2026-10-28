@@ -139,9 +139,13 @@ function parseGreedScroll(raw: string | null): GreedScrollKey {
 
 function parseGreedOffering(raw: string | null): OfferingChoice {
   if (raw == null || raw === "" || raw === "none") return null;
-  if (raw === "offeringp" || raw === "0") return 0;
-  if (raw === "offering" || raw === "1") return 1;
-  if (raw === "offeringx" || raw === "2") return 2;
+  if (raw === "offeringp") return 1;
+  if (raw === "offering") return 2;
+  if (raw === "offeringx") return 3;
+  // Legacy URL indices 0/1/2 → G grades 1/2/3.
+  if (raw === "0") return 1;
+  if (raw === "1") return 2;
+  if (raw === "2" || raw === "3") return 3;
   return null;
 }
 
@@ -170,9 +174,10 @@ function taxRateParam(taxRate: number): string | null {
 
 function greedOfferingParam(offering: OfferingChoice): string | null {
   if (offering == null) return null;
-  if (offering === 0) return "offeringp";
-  if (offering === 1) return "offering";
-  return "offeringx";
+  if (offering === 1) return "offeringp";
+  if (offering === 2) return "offering";
+  if (offering === 3) return "offeringx";
+  return null;
 }
 
 const PRICE_OVERRIDES_PARAM = "px";

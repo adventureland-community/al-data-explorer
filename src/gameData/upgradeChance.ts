@@ -352,6 +352,9 @@ export function getCompoundChance(
   };
 }
 
-/** Offering grade: null = none, 0 = offeringp, 1 = offering, 2 = offeringx */
-export const OFFERING_GRADES = [null, 0, 1, 2] as const;
+/**
+ * Offering grade: null = none; otherwise `G.items[…].grade`
+ * (Primling=1, Primordial Essence=2, Primordial X=3).
+ */
+export const OFFERING_GRADES = [null, 1, 2, 3] as const;
 export type OfferingChoice = typeof OFFERING_GRADES[number];

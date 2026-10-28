@@ -44,12 +44,13 @@ describe("upgradeChance", () => {
 
   it("failstack increases upgrade chance when an offering is used", () => {
     // Without an offering, low-level grace is crushed and failstack can be a no-op.
-    const base = getUpgradeChance(lookup, { name: "blade", level: 8, grace: 0 }, 0, 0).chance;
+    // Offering grade 1 = Primling (G.items.offeringp.grade).
+    const base = getUpgradeChance(lookup, { name: "blade", level: 8, grace: 0 }, 0, 1).chance;
     const stacked = getUpgradeChance(
       lookup,
       { name: "blade", level: 8, grace: 0 },
       0,
-      0,
+      1,
       undefined,
       { failstack: 9 },
     ).chance;
@@ -61,7 +62,7 @@ describe("upgradeChance", () => {
       lookup,
       { name: "blade", level: 8, grace: 0 },
       0,
-      0,
+      1,
       undefined,
       { failstack: 9, useServerUgrace: false },
     ).chance;
@@ -69,11 +70,32 @@ describe("upgradeChance", () => {
       lookup,
       { name: "blade", level: 8, grace: 0 },
       0,
-      0,
+      1,
       undefined,
       { failstack: 9, useServerUgrace: true },
     ).chance;
     expect(withServer).toBeGreaterThan(personal);
+  });
+
+  it("uses G offering grades so Primling matches High-grade items", () => {
+    // Discord: wingedboots +7→+8 with Primling + failstack hits ~45% (cap) in-game
+    // when server ugrace is included; old 0-based offering indices under-counted.
+    ITEMS.wingedboots = {
+      upgrade: true,
+      g: 150000,
+      grades: [4, 8, 10, 12],
+    } as unknown as GItem;
+    const { chance, chanceCap } = getUpgradeChance(
+      lookup,
+      { name: "wingedboots" as ItemKey, level: 7, grace: 0 },
+      2,
+      1, // Primling
+      undefined,
+      { failstack: 18, useServerUgrace: true },
+    );
+    expect(chanceCap).toBeCloseTo(0.45, 6);
+    // igrace +1 (zero-grade item) + failstack 18 + server ugrace → cap.
+    expect(chance).toBeCloseTo(0.45, 6);
   });
 
   it("ograce increases compound chance", () => {
