@@ -345,6 +345,67 @@ function drawLabelChip(
   ctx.fillText(text, x, textY);
 }
 
+/**
+ * Marker chrome sizes must track map zoom (`cssScale` = CSS px per bake px).
+ * Full-map Map Detail covers sit around 0.1–0.4; cropped NPC/path heroes are ~1–3.
+ * Never floor zoom near 1 — that made labels/NPCs look enormous on overview (esp. mobile).
+ */
+export function markerOverlaySizes(cssScale: number, canvasW: number, canvasH: number) {
+  const frame = Math.min(canvasW, canvasH);
+  const compact = frame < 120;
+  const zoom = Math.max(0.05, Math.min(cssScale, 3));
+  /** Whole-map cover (Map Detail) vs cropped hero/path thumbs. */
+  const overview = !compact && zoom < 0.55;
+  if (compact) {
+    return {
+      compact: true as const,
+      overview: false as const,
+      zoom,
+      doorFontPx: Math.max(6.5, Math.min(8, 7.25)),
+      npcFontPx: Math.max(9, Math.min(11, 10)),
+      spriteScale: Math.max(1.05, Math.min(1.5, 1.3 * Math.max(cssScale, 0.55))),
+      doorPinR: 2,
+      npcPinR: Math.max(2, Math.min(3.5, 3 * zoom)),
+      doorMaxLabelW: Math.max(44, Math.min(canvasW - 4, 58)),
+      npcMaxLabelW: Math.max(42, Math.min(canvasW - 4, 58)),
+      doorLabelLines: 1,
+      /** Compact thumbs keep a caption; overview drops NPC nameplates. */
+      showNpcLabels: true,
+    };
+  }
+  if (overview) {
+    return {
+      compact: false as const,
+      overview: true as const,
+      zoom,
+      doorFontPx: Math.max(5, Math.min(9, 22 * zoom + 3)),
+      npcFontPx: Math.max(5, Math.min(8, 18 * zoom + 2.5)),
+      spriteScale: Math.max(0.22, Math.min(0.65, 1.35 * zoom)),
+      doorPinR: Math.max(1.75, Math.min(3.5, 3.2 * zoom + 1.2)),
+      npcPinR: Math.max(1.5, Math.min(3, 2.5 * zoom + 1)),
+      doorMaxLabelW: Math.max(28, Math.min(canvasW * 0.22, 72)),
+      npcMaxLabelW: Math.max(24, Math.min(canvasW * 0.2, 64)),
+      doorLabelLines: 1,
+      // Dense full-map overlays: sprites/pins only for NPCs; doors keep tiny labels.
+      showNpcLabels: false,
+    };
+  }
+  return {
+    compact: false as const,
+    overview: false as const,
+    zoom,
+    doorFontPx: Math.max(10, Math.min(24, 21 * zoom)),
+    npcFontPx: Math.max(10, Math.min(20, 17 * zoom)),
+    spriteScale: Math.max(1.1, Math.min(2.8, 2.1 * zoom)),
+    doorPinR: Math.max(3, Math.min(6, 4.75 * zoom)),
+    npcPinR: Math.max(2.5, Math.min(5, 4 * zoom)),
+    doorMaxLabelW: Math.max(80, Math.min(canvasW - 16, 260)),
+    npcMaxLabelW: Math.max(70, Math.min(canvasW - 16, 220)),
+    doorLabelLines: zoom >= 0.7 ? 2 : 1,
+    showNpcLabels: true,
+  };
+}
+
 function drawMarkers(
   ctx: CanvasRenderingContext2D,
   geometry: GGeometry,
@@ -359,44 +420,29 @@ function drawMarkers(
 ): void {
   const canvasW = viewW ?? ctx.canvas.width;
   const canvasH = viewH ?? ctx.canvas.height;
-  const compact = Math.min(canvasW, canvasH) < 120;
+  const sizes = markerOverlaySizes(cssScale, canvasW, canvasH);
+  const { compact } = sizes;
 
   for (const marker of markers) {
     const px = (marker.x - originX) * bakeScale * cssScale;
     const py = (marker.y - originY) * bakeScale * cssScale;
     const skinPaint = marker.skin ? sprites.get(marker.skin) : undefined;
     const isDoorPin = marker.kind === "door" || marker.kind === "pin";
-    const pinR = isDoorPin
-      ? compact
-        ? 2
-        : Math.max(4, Math.min(6, 4.75 * Math.max(cssScale, 0.7)))
-      : Math.max(2.5, Math.min(5, 4 * cssScale));
+    const pinR = isDoorPin ? sizes.doorPinR : sizes.npcPinR;
 
     const drawY = py;
     let labelLines: string[] = [];
     let fontPx = 0;
     let labelGap = 0;
 
-    if (marker.label) {
-      if (isDoorPin) {
-        fontPx = compact
-          ? Math.max(6.5, Math.min(8, 7.25))
-          : Math.max(20, Math.min(24, 21 * Math.max(cssScale, 0.8)));
-      } else {
-        fontPx = compact
-          ? Math.max(9, Math.min(11, 10))
-          : Math.max(16, Math.min(20, 17 * Math.max(cssScale, 0.8)));
-      }
+    const showLabel =
+      Boolean(marker.label) && (isDoorPin || marker.kind === "transporter" || sizes.showNpcLabels);
+    if (showLabel && marker.label) {
+      fontPx = isDoorPin ? sizes.doorFontPx : sizes.npcFontPx;
       ctx.font = `700 ${fontPx}px ui-sans-serif, system-ui, sans-serif`;
-      const maxW = isDoorPin
-        ? compact
-          ? Math.max(44, Math.min(canvasW - 4, 58))
-          : Math.max(120, Math.min(canvasW - 16, 260))
-        : compact
-        ? Math.max(42, Math.min(canvasW - 4, 58))
-        : Math.max(80, Math.min(canvasW - 16, 220));
-      labelLines = wrapMarkerLabel(ctx, marker.label, maxW, isDoorPin && !compact ? 2 : 1);
-      labelGap = pinR + (compact ? 4 : 7);
+      const maxW = isDoorPin ? sizes.doorMaxLabelW : sizes.npcMaxLabelW;
+      labelLines = wrapMarkerLabel(ctx, marker.label, maxW, isDoorPin ? sizes.doorLabelLines : 1);
+      labelGap = pinR + (compact ? 4 : Math.max(4, 7 * Math.min(1, sizes.zoom)));
     }
 
     let skinTopY = py;
@@ -405,11 +451,13 @@ function drawMarkers(
       const srcTop = skinPaint.contentTop;
       const srcBottom = Math.max(srcTop + 1, skinPaint.contentBottom);
       const srcH = srcBottom - srcTop;
-      let scale = compact
-        ? Math.max(1.05, Math.min(1.5, 1.3 * Math.max(cssScale, 0.55)))
-        : Math.max(1.6, Math.min(2.8, 2.1 * Math.max(cssScale, 0.7)));
+      let scale = sizes.spriteScale;
       const chipH = marker.label ? fontPx + Math.max(6, fontPx * 0.45) : 0;
-      const labelGapAbove = marker.label ? (compact ? 8 : 8) : 0;
+      const labelGapAbove = marker.label
+        ? compact
+          ? 8
+          : Math.max(4, 8 * Math.min(1, sizes.zoom))
+        : 0;
       const labelRoom = chipH + labelGapAbove;
       const maxDrawH = Math.max(8, py - labelRoom);
       if (srcH * scale > maxDrawH) {
@@ -454,7 +502,7 @@ function drawMarkers(
     if (marker.label && labelLines.length > 0) {
       const textX = Math.min(canvasW - 4, Math.max(4, px));
       if (skinPaint) {
-        const gap = compact ? 6 : 8;
+        const gap = compact ? 6 : Math.max(4, 8 * Math.min(1, sizes.zoom));
         const chipH = fontPx + Math.max(6, fontPx * 0.45);
         // Keep chip fully above the drawn sprite (and inside the frame).
         const labelY = Math.max(chipH, Math.min(skinTopY - gap, canvasH - 2));
