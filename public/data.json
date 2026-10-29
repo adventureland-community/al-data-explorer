@@ -1,5 +1,5 @@
 {
-  "version": 18183,
+  "version": 18285,
   "achievements": {
     "reach40": { "name": "Become Level 40", "item": "gem1" },
     "reach50": { "name": "Become Level 50", "shells": 50 },
@@ -2357,6 +2357,7 @@
       "mp": 600000
     },
     "jackowalker": {
+      "cooperative": true,
       "name": "Jack-o Walker",
       "speed": 30,
       "charge": 60,
@@ -5887,7 +5888,7 @@
       "matrix": [["ghoul"]]
     },
     "gargoyle": {
-      "file": "/images/tiles/monsters/gargoyle_1.png",
+      "file": "/images/tiles/monsters/gargoyle_shadow.png",
       "rows": 1,
       "columns": 1,
       "matrix": [["gargoyle"]]
@@ -8613,6 +8614,7 @@
       "npcs": [
         { "id": "transporter", "position": [-14, -477] },
         { "id": "locksmith", "position": [316, -270] },
+        { "id": "titlekeeper", "position": [282, -312] },
         { "id": "scrollsmith", "position": [606, -1590] },
         { "id": "citizen17", "position": [48, 24] }
       ],
@@ -140652,6 +140654,18 @@
       "name": "Cue",
       "id": "newupgrade"
     },
+    "titlekeeper": {
+      "name": "Neris",
+      "role": "titlekeeper",
+      "skin": "marmor7h",
+      "cx": { "head": "nfmakeup04", "hair": "hairdo519" },
+      "type": "fullstatic",
+      "color": "#C6B382",
+      "modal": "item-titles",
+      "cost": 1000,
+      "says": "Old names endure.",
+      "id": "titlekeeper"
+    },
     "locksmith": {
       "role": "locksmith",
       "skin": "asoldier",
@@ -161140,7 +161154,7 @@
       "width": 78,
       "type": "png"
     },
-    "/images/tiles/monsters/gargoyle_1.png": {
+    "/images/tiles/monsters/gargoyle_shadow.png": {
       "height": 192,
       "width": 144,
       "type": "png"
@@ -161845,6 +161859,7 @@
       "set_button_onclick",
       "set_button_value",
       "set_home",
+      "set_item_title",
       "set_keymap",
       "set_message",
       "set_skillbar",
@@ -162065,6 +162080,7 @@
       "set_button_onclick",
       "set_button_value",
       "set_home",
+      "set_item_title",
       "set_keymap",
       "set_message",
       "set_skillbar",
@@ -162505,6 +162521,13 @@
         "functions": ["craft", "auto_craft", "dismantle"],
         "proximity": true
       },
+      "item_titles": {
+        "title": "Item Titles",
+        "article": "item-titles",
+        "summary": "Neris stands beside Smith in Desertland. She can switch an item between its saved titles.",
+        "functions": ["set_item_title"],
+        "proximity": true
+      },
       "item_maintenance": {
         "title": "Item Safety & De-statting",
         "article": "item-maintenance",
@@ -162780,6 +162803,7 @@
         "gemmerchant": "exchanges",
         "leathermerchant": "exchanges",
         "locksmith": "item_maintenance",
+        "titlekeeper": "item_titles",
         "lostandfound": "markets",
         "mcollector": "crafting",
         "monsterhunter": "monster_hunts",
@@ -162821,6 +162845,7 @@
         "items": "banking",
         "jailer": "jail",
         "locksmith": "item_maintenance",
+        "titlekeeper": "item_titles",
         "lostandfound": "markets",
         "lottery": "prototype",
         "mcollector": "crafting",
@@ -162942,7 +162967,8 @@
             "Item Safety & De-statting",
             "lock,seal,unlock,destat,scrollsmith",
             "#7B9BC8"
-          ]
+          ],
+          ["item-titles", "Item Titles", "title,neris,shiny,lucky", "#C6B382"]
         ]
       ],
       [
@@ -166240,5 +166266,5 @@
       [0.001, "cave_ambercoat"]
     ]
   },
-  "timestamp": "2026-10-21T11:15:10.958Z"
+  "timestamp": "2026-10-29T12:22:25.387Z"
 }
