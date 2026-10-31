@@ -9,15 +9,23 @@ export function GearPaperDoll({
   onSlotClick,
   onRemoveSlot,
   dhConflict,
+  highlightedSlot = null,
 }: {
   gear: { [slot in SlotType]?: ItemInfo };
   onSlotClick: (slot: SlotType) => void;
   onRemoveSlot?: (slot: SlotType) => void;
   dhConflict: boolean;
+  highlightedSlot?: SlotType | null;
 }) {
   const slotBox = (slot: SlotType, invalid = false) => (
     <Box sx={{ position: "relative", display: "inline-block" }}>
-      <GearSlot gear={gear} onClick={onSlotClick} slot={slot} invalid={invalid} />
+      <GearSlot
+        gear={gear}
+        onClick={onSlotClick}
+        slot={slot}
+        invalid={invalid}
+        highlighted={highlightedSlot === slot}
+      />
       {onRemoveSlot && gear[slot] ? (
         <Tooltip title="Remove item">
           <IconButton
