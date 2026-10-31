@@ -882,7 +882,7 @@ export function StatsPanel({
             />
           </Grid>
         </Grid>
-      </Box>
+      {/* Keep dialog inside this grid area so it does not become an extra CSS-grid item. */}
       <StatDetailDialog
         open={detailStat != null}
         onClose={() => {
@@ -925,6 +925,7 @@ export function StatsPanel({
           G.conditions as Record<string, { name?: string; defense?: string; debuff?: boolean }>
         }
       />
+    </Box>
     </>
   );
 }
