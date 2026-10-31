@@ -22,7 +22,7 @@ import { useContext, useState } from "react";
 import { ATTRIBUTES } from "../constants";
 import { GDataContext, CustomGData, MainStatType } from "../GDataContext";
 import { getItemEffects } from "../gameData/itemEffects";
-import { computeLoadoutStats } from "../gameData/loadoutStats";
+import { computeLoadoutStats, contributionsForStat } from "../gameData/loadoutStats";
 import { formatCharacterStatValue } from "../gameData/prettyNumbers";
 import { SelectedCharacterClass } from "./types";
 import {
@@ -573,6 +573,18 @@ export function StatsPanel({
         monsterName={String(monsterName)}
         playerStats={stats}
         hitDirection={detailHitDirection}
+        contributions={
+          detailStat != null &&
+          detailStat !== "effectiveDefense" &&
+          detailStat !== "damageMultiplier"
+            ? contributionsForStat({
+                stat: detailStat as StatType,
+                gear,
+                G,
+                classKey: selectedCharacterClass?.className,
+              })
+            : []
+        }
         conditions={
           G.conditions as Record<string, { name?: string; defense?: string; debuff?: boolean }>
         }

@@ -8,8 +8,14 @@ import {
   List,
   ListItem,
   ListItemText,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   Typography,
 } from "@mui/material";
+import { StatContribution } from "../gameData/loadoutStats";
 import { Combatant, DamageType, mitigationBreakdown } from "./calculations";
 import {
   ConditionDefenseDef,
@@ -24,6 +30,55 @@ import {
   statusDurationCurve,
   statusResistInsight,
 } from "./statInsights";
+
+function ContributionTable({
+  rows,
+  sheetTotal,
+}: {
+  rows: StatContribution[];
+  sheetTotal?: number;
+}) {
+  if (rows.length === 0) return null;
+  const gearSum = rows.reduce((sum, r) => sum + r.value, 0);
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Typography variant="subtitle2">Where this number comes from</Typography>
+      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+        Equipped pieces (and set bonuses) that add this stat
+        {sheetTotal != null ? ` · sheet total ${sheetTotal}` : ""}
+        {sheetTotal != null && Math.abs(sheetTotal - gearSum) > 0.05
+          ? ` · gear/set sum ${gearSum.toFixed(1)} (rest is class / attributes)`
+          : ""}
+        .
+      </Typography>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Source</TableCell>
+            <TableCell align="right">Value</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow
+              key={row.kind === "gear" ? `${row.slot}-${row.itemKey}` : `set-${row.setKey}`}
+            >
+              <TableCell>
+                {row.kind === "gear"
+                  ? `${row.itemName}${row.level > 0 ? ` +${row.level}` : ""} (${row.slot})`
+                  : `Set: ${row.setName}`}
+              </TableCell>
+              <TableCell align="right">
+                {row.value > 0 ? "+" : ""}
+                {Number.isInteger(row.value) ? row.value : row.value.toFixed(2)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Box>
+  );
+}
 
 function FalloffChart({
   points,
@@ -350,6 +405,7 @@ export type StatDetailDialogProps = {
   playerStats: Record<string, number | undefined>;
   conditions?: Record<string, ConditionDefenseDef | undefined>;
   hitDirection?: HitDirection;
+  contributions?: StatContribution[];
 };
 
 export function StatDetailDialog({
@@ -362,6 +418,7 @@ export function StatDetailDialog({
   playerStats,
   conditions,
   hitDirection = "youHit",
+  contributions = [],
 }: StatDetailDialogProps) {
   if (!stat) return null;
 
@@ -371,6 +428,9 @@ export function StatDetailDialog({
       : stat === "damageMultiplier"
       ? "Damage multiplier"
       : stat;
+
+  const sheetTotal =
+    stat === "effectiveDefense" || stat === "damageMultiplier" ? undefined : playerStats[stat];
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -386,6 +446,9 @@ export function StatDetailDialog({
             monsterName={monsterName}
             hitDirection={hitDirection}
           />
+        )}
+        {contributions.length > 0 && (
+          <ContributionTable rows={contributions} sheetTotal={sheetTotal} />
         )}
       </DialogContent>
     </Dialog>

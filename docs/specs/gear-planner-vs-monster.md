@@ -56,6 +56,7 @@ Home: Target monster block in `StatsPanel` (Gear Planner + Character panels).
 
 - SVG falloff graphs (mult vs pierce, mult vs effective defense; status chance / duration curves)
 - Waste hints: wrong-type pierce, hard 1.32 cap, status ≥ 100
+- Gear/set contribution table for the open sheet stat (item name + level + slot) so large totals are auditable
 - Inline warning chips above Attack/Defense tables
 
 ### DEFENSE sheet

@@ -99,6 +99,80 @@ export function mapEquippedPieceStats(args: {
   return out;
 }
 
+/** Gear (and set) lines that add a single sheet stat — for Stat Detail provenance. */
+export type GearStatContribution = {
+  kind: "gear";
+  slot: SlotType;
+  itemKey: string;
+  itemName: string;
+  level: number;
+  value: number;
+};
+
+export type SetStatContribution = {
+  kind: "set";
+  setKey: string;
+  setName: string;
+  value: number;
+};
+
+export type StatContribution = GearStatContribution | SetStatContribution;
+
+export function contributionsForStat(args: {
+  stat: StatType;
+  gear: { [slot in SlotType]?: ItemInfo };
+  G: CustomGData;
+  classKey?: string;
+}): StatContribution[] {
+  const { stat, gear, G, classKey } = args;
+  const rows: StatContribution[] = [];
+
+  for (const piece of mapEquippedPieceStats({ gear, G, classKey })) {
+    const value = piece.stats[stat];
+    if (typeof value !== "number" || value === 0) continue;
+    const def = G.items[piece.itemInfo.name];
+    rows.push({
+      kind: "gear",
+      slot: piece.slot,
+      itemKey: piece.itemInfo.name,
+      itemName: def?.name ?? piece.itemInfo.name,
+      level: piece.itemInfo.level ?? 0,
+      value,
+    });
+  }
+
+  const equippedSetCount: Partial<Record<SetKey, number>> = {};
+  for (const [, itemInfo] of objectEntries(gear)) {
+    if (!itemInfo) continue;
+    const gItem = G.items[itemInfo.name];
+    if (gItem?.set) {
+      equippedSetCount[gItem.set] = (equippedSetCount[gItem.set] ?? 0) + 1;
+    }
+  }
+  for (const [setKey, equippedCount] of objectEntries(equippedSetCount)) {
+    if (typeof equippedCount !== "number") continue;
+    const gSet = G.sets[setKey];
+    if (!gSet) continue;
+    let setTotal = 0;
+    for (let index = 1; index <= 16; index += 1) {
+      if (equippedCount < index) continue;
+      const setStats = gSet[index];
+      const v = setStats?.[stat];
+      if (typeof v === "number") setTotal += v;
+    }
+    if (setTotal === 0) continue;
+    rows.push({
+      kind: "set",
+      setKey,
+      setName: gSet.name ?? setKey,
+      value: setTotal,
+    });
+  }
+
+  rows.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+  return rows;
+}
+
 function applySlotMods(
   stats: { [T in StatType]?: number },
   mods: Partial<Record<string, number>> | undefined,
