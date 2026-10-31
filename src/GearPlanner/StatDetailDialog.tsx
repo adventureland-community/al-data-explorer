@@ -17,7 +17,13 @@ import {
 } from "@mui/material";
 import { SlotType } from "typed-adventureland";
 import { StatContribution } from "../gameData/loadoutStats";
-import { Combatant, DamageType, MitigationOptions, mitigationBreakdown } from "./calculations";
+import {
+  Combatant,
+  DamageType,
+  MitigationOptions,
+  damageMultiplier,
+  mitigationBreakdown,
+} from "./calculations";
 import {
   ConditionDefenseDef,
   CurvePoint,
@@ -25,7 +31,9 @@ import {
   StatusResistStat,
   attributeSoftcapCurve,
   armorFromStr,
+  fortitudeMultCurve,
   isStatusResistStat,
+  landChanceCurve,
   mitigationCurveByEffectiveDefense,
   mitigationCurveByPierce,
   pierceWaste,
@@ -34,6 +42,8 @@ import {
   statusDurationCurve,
   statusResistInsight,
 } from "./statInsights";
+
+export type HitDirection = "youHit" | "theyHit";
 
 function ContributionTable({
   rows,
@@ -326,7 +336,74 @@ function AttributeSoftcapBody({ stat, value }: { stat: "str" | "int"; value: num
   );
 }
 
-export type HitDirection = "youHit" | "theyHit";
+function LandChanceBody({
+  stat,
+  value,
+  monsterName,
+  hitDirection,
+}: {
+  stat: "evasion" | "reflection";
+  value: number;
+  monsterName: string;
+  hitDirection: HitDirection;
+}) {
+  const miss = Math.max(0, Math.min(100, value));
+  const land = 100 - miss;
+  const against =
+    hitDirection === "youHit"
+      ? stat === "evasion"
+        ? `their evasion vs your physical hits`
+        : `their reflection vs your magical hits`
+      : stat === "evasion"
+      ? `your evasion vs ${monsterName}'s physical hits`
+      : `your reflection vs ${monsterName}'s magical hits`;
+
+  return (
+    <Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        {against}. Current {stat}: {miss.toFixed(1)}% → land chance {land.toFixed(1)}%. Server roll:{" "}
+        <code>random × 100 &lt; {stat}</code> fully negates the hit
+        {stat === "reflection" ? " (and may bounce a projectile back)" : ""}.
+      </Typography>
+      <Typography variant="subtitle2">Land chance vs {stat}</Typography>
+      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+        Orange = current {stat}. Y is expected % of hits that deal damage.
+      </Typography>
+      <FalloffChart points={landChanceCurve()} markerX={miss} xLabel={stat} yLabel="land %" />
+    </Box>
+  );
+}
+
+function FortitudeBody({
+  value,
+  monsterName,
+  hitDirection,
+}: {
+  value: number;
+  monsterName: string;
+  hitDirection: HitDirection;
+}) {
+  const mult = damageMultiplier(value * 5);
+  const who =
+    hitDirection === "youHit"
+      ? `${monsterName}'s fortitude (for) vs your hits`
+      : `your fortitude (for) vs ${monsterName}`;
+
+  return (
+    <Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        {who}. Only applies when the attacker is a player. Current for {value} → mult{" "}
+        {(mult * 100).toFixed(1)}% via <code>damage_multiplier(for × 5)</code> ={" "}
+        <code>damage_multiplier({(value * 5).toFixed(0)})</code>.
+      </Typography>
+      <Typography variant="subtitle2">Damage mult vs fortitude (for)</Typography>
+      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+        Orange = current for. Higher for softens player damage through the same mitigation curve.
+      </Typography>
+      <FalloffChart points={fortitudeMultCurve()} markerX={value} xLabel="for" yLabel="mult %" />
+    </Box>
+  );
+}
 
 function MitigationBody({
   stat,
@@ -539,10 +616,39 @@ export function StatDetailDialog({
       ? "Effective defense"
       : stat === "damageMultiplier"
       ? "Damage multiplier"
+      : stat === "for"
+      ? "Fortitude (for)"
       : stat;
 
   const sheetTotal =
-    stat === "effectiveDefense" || stat === "damageMultiplier" ? undefined : playerStats[stat];
+    stat === "effectiveDefense" || stat === "damageMultiplier"
+      ? undefined
+      : stat === "for"
+      ? hitDirection === "youHit"
+        ? monster.for
+        : player.for
+      : stat === "evasion"
+      ? hitDirection === "youHit"
+        ? monster.evasion
+        : player.evasion
+      : stat === "reflection"
+      ? hitDirection === "youHit"
+        ? monster.reflection
+        : player.reflection
+      : playerStats[stat];
+
+  const gateValue =
+    stat === "evasion"
+      ? hitDirection === "youHit"
+        ? monster.evasion ?? 0
+        : player.evasion ?? 0
+      : stat === "reflection"
+      ? hitDirection === "youHit"
+        ? monster.reflection ?? 0
+        : player.reflection ?? 0
+      : 0;
+
+  const fortValue = hitDirection === "youHit" ? monster.for ?? 0 : player.for ?? 0;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -550,6 +656,15 @@ export function StatDetailDialog({
       <DialogContent dividers sx={{ maxHeight: { xs: "80vh", sm: "70vh" }, overflow: "auto" }}>
         {stat === "str" || stat === "int" ? (
           <AttributeSoftcapBody stat={stat} value={playerStats[stat] ?? 0} />
+        ) : stat === "evasion" || stat === "reflection" ? (
+          <LandChanceBody
+            stat={stat}
+            value={gateValue}
+            monsterName={monsterName}
+            hitDirection={hitDirection}
+          />
+        ) : stat === "for" ? (
+          <FortitudeBody value={fortValue} monsterName={monsterName} hitDirection={hitDirection} />
         ) : isStatusResistStat(stat) ? (
           <StatusResistBody stat={stat} value={playerStats[stat] ?? 0} conditions={conditions} />
         ) : (
@@ -566,7 +681,7 @@ export function StatDetailDialog({
         {contributions.length > 0 && (
           <ContributionTable
             rows={contributions}
-            sheetTotal={sheetTotal}
+            sheetTotal={typeof sheetTotal === "number" ? sheetTotal : undefined}
             onContributionSlot={onContributionSlot}
           />
         )}

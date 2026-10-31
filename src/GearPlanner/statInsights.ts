@@ -32,6 +32,9 @@ export type InsightStat =
   | "resistance"
   | "str"
   | "int"
+  | "evasion"
+  | "reflection"
+  | "for"
   | StatusResistStat
   | "effectiveDefense"
   | "damageMultiplier";
@@ -337,10 +340,34 @@ export function isInsightStat(stat: string): stat is InsightStat {
     stat === "resistance" ||
     stat === "str" ||
     stat === "int" ||
+    stat === "evasion" ||
+    stat === "reflection" ||
+    stat === "for" ||
     stat === "effectiveDefense" ||
     stat === "damageMultiplier" ||
     isStatusResistStat(stat)
   );
+}
+
+/** Land chance % (y) vs evasion/reflection % (x). Server gates at random*100 < chance. */
+export function landChanceCurve(from = 0, to = 100, steps = 50): CurvePoint[] {
+  const points: CurvePoint[] = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const x = from + ((to - from) * i) / steps;
+    const miss = Math.max(0, Math.min(100, x));
+    points.push({ x, y: 100 - miss });
+  }
+  return points;
+}
+
+/** Fortitude damage mult % (y) vs defender `for` (x). Live: damage_multiplier(for × 5). */
+export function fortitudeMultCurve(from = 0, to = 80, steps = 80): CurvePoint[] {
+  const points: CurvePoint[] = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const x = from + ((to - from) * i) / steps;
+    points.push({ x, y: damageMultiplier(x * 5) * 100 });
+  }
+  return points;
 }
 
 /** Armor from STR (server softcap at 160). */

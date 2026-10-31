@@ -64,6 +64,7 @@ Home: Target monster block in `StatsPanel` (Gear Planner + Character panels).
 
 - SVG falloff graphs (mult vs pierce with you + hard-cap markers; mult vs effective defense; status chance / duration curves)
 - STR/INT: attribute softcap curve (160 / 180) with current marker
+- Evasion / reflection: land-chance graph; fortitude (`for`): mult vs for graph (click Attack/Defense rows or sheet stats)
 - Waste hints: wrong-type pierce, hard 1.32 cap (trim copy + top gear line when contributions exist), status ≥ 100
 - Gear/set contribution table (gear rows click → slot highlight)
 - Inline warning chips above Attack/Defense tables
@@ -71,7 +72,3 @@ Home: Target monster block in `StatsPanel` (Gear Planner + Character panels).
 ### DEFENSE sheet
 
 Surfaces `pnresistance`, `firesistance`, `fzresistance`, `phresistance`, `stresistance` (clickable).
-
-## Out of scope (TODO)
-
-- Dedicated evasion / reflection / fortitude falloff graphs (values appear in Attack/Defense tables today)

@@ -2,6 +2,8 @@ import { damageMultiplier, effectiveDefense } from "./calculations";
 import {
   armorFromStr,
   attributeSoftcapCurve,
+  fortitudeMultCurve,
+  landChanceCurve,
   mitigationCurveByPierce,
   pierceToHardCap,
   pierceWaste,
@@ -169,6 +171,17 @@ describe("status curves", () => {
     const dur = statusDurationCurve(0, 150, 15);
     const at100 = dur.find((p) => Math.abs(p.x - 100) < 1);
     expect(at100?.y).toBeCloseTo(0);
+  });
+});
+
+describe("landChanceCurve / fortitudeMultCurve", () => {
+  it("land chance falls linearly with evasion/reflection", () => {
+    const pts = landChanceCurve(0, 100, 4);
+    expect(pts[0]?.y).toBe(100);
+    expect(pts[pts.length - 1]?.y).toBe(0);
+    const fort = fortitudeMultCurve(0, 40, 8);
+    expect(fort[0]?.y).toBeCloseTo(100);
+    expect(fort[fort.length - 1]?.y).toBeLessThan(100);
   });
 });
 

@@ -153,17 +153,25 @@ function MitigationRows({
           </TableCell>
           <TableCell align="right">{breakdown.effectiveDefense.toFixed(1)}</TableCell>
         </TableRow>
-        {breakdown.fortitudeMult !== 1 && hitDirection === "youHit" ? (
-          <TableRow>
-            <TableCell title="Target fortitude × damage_multiplier(for × 5)">
-              fortitude mult
-            </TableCell>
-            <TableCell align="right">{formatMult(breakdown.fortitudeMult)}</TableCell>
-          </TableRow>
-        ) : null}
-        {breakdown.missChance > 0 ? (
-          <TableRow>
-            <TableCell title="Expected land chance = 1 − miss%">
+        <TableRow hover onClick={() => onOpenStat("for", hitDirection)} sx={{ cursor: "pointer" }}>
+          <TableCell title="Target fortitude × damage_multiplier(for × 5)" sx={clickableCellSx}>
+            fortitude mult
+          </TableCell>
+          <TableCell align="right">{formatMult(breakdown.fortitudeMult)}</TableCell>
+        </TableRow>
+        {(breakdown.damageType === "physical" || breakdown.damageType === "magical") &&
+        breakdown.path === "basic" ? (
+          <TableRow
+            hover
+            onClick={() =>
+              onOpenStat(
+                breakdown.damageType === "physical" ? "evasion" : "reflection",
+                hitDirection,
+              )
+            }
+            sx={{ cursor: "pointer" }}
+          >
+            <TableCell title="Expected land chance = 1 − miss%" sx={clickableCellSx}>
               {breakdown.damageType === "physical" ? "evasion" : "reflection"} / land
             </TableCell>
             <TableCell align="right">
@@ -560,7 +568,13 @@ export function StatsPanel({
   const renderStatRow = (stat: StatType) => {
     const clickable = isInsightStat(stat);
     const sheetDirection: HitDirection =
-      stat === "armor" || stat === "resistance" ? "theyHit" : "youHit";
+      stat === "armor" ||
+      stat === "resistance" ||
+      stat === "for" ||
+      stat === "evasion" ||
+      stat === "reflection"
+        ? "theyHit"
+        : "youHit";
     return (
       <TableRow
         key={`stat_${stat}`}
