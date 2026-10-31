@@ -196,7 +196,11 @@ export function mitigationBreakdown(
   };
 }
 
-/** Mean hit damage including crit EV, fortitude, and evade/reflect land chance. */
+/**
+ * Mean hit damage including crit EV, fortitude, and evade/reflect land chance.
+ * Live crit: `attack *= 2 + critdamage/100` on a successful roll
+ * (`node/server.js` complete_attack) → EV factor `1 + p*(cmult − 1)`.
+ */
 export function expectedHitDamage(
   source: Combatant,
   target: Combatant,
@@ -204,9 +208,11 @@ export function expectedHitDamage(
 ): number {
   const b = mitigationBreakdown(source, target, options);
   let damage = b.multiplier * b.fortitudeMult * (source.attack ?? 0);
-  let critMult = 2;
-  if (source.critdamage) critMult += source.critdamage / 100;
-  if (source.crit) damage += damage * (source.crit / 100) * critMult;
+  const critChance = Math.max(0, Math.min(100, source.crit ?? 0)) / 100;
+  if (critChance > 0) {
+    const critMult = 2 + (source.critdamage ?? 0) / 100;
+    damage *= 1 + critChance * (critMult - 1);
+  }
   return damage * b.landChance;
 }
 
@@ -218,7 +224,7 @@ export function hitDamageRange(
 ): { low: number; high: number } {
   const b = mitigationBreakdown(source, target, options);
   const attack = source.attack ?? 0;
-  const scale = b.multiplier * b.fortitudeMult * b.landChance;
+  const scale = b.multiplier * b.fortitudeMult;
   return { low: attack * 0.9 * scale, high: attack * 1.1 * scale };
 }
 

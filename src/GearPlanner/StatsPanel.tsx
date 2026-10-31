@@ -420,10 +420,12 @@ export function StatsPanel({
 
   const attackMitigation: MitigationOptions = {
     path: hitPath,
-    skillPierce: skillPierce > 0 ? skillPierce : undefined,
+    // Skill pierce is info-only on basic attacks; heal/splash ignore it live.
+    skillPierce: hitPath === "basic" && skillPierce > 0 ? skillPierce : undefined,
     attackerIsPlayer: true,
   };
-  const defenseMitigation: MitigationOptions = { path: hitPath };
+  // Inbound monster hits always use basic complete_attack (heal/splash are outbound paths).
+  const defenseMitigation: MitigationOptions = { path: "basic" };
 
   const mainStatTypes: MainStatType[] = ["dex", "int", "vit", "str", "for"];
   const defenseStatTypes: StatType[] = [
@@ -511,6 +513,7 @@ export function StatsPanel({
     if (typeof v === "number") statusResists[s] = v;
   }
 
+  const chipSkillPierce = hitPath === "basic" && skillPierce > 0 ? skillPierce : undefined;
   const chips = wasteChipsForLoadout({
     damageType: fakePlayer.damage_type,
     apiercing: fakePlayer.apiercing,
@@ -518,7 +521,7 @@ export function StatsPanel({
     monsterArmor: monster.armor,
     monsterResistance: monster.resistance,
     statusResists,
-    skillPierce: skillPierce > 0 ? skillPierce : undefined,
+    skillPierce: chipSkillPierce,
   });
 
   const compareChips =
@@ -530,7 +533,7 @@ export function StatsPanel({
       monsterArmor: compareMob.armor,
       monsterResistance: compareMob.resistance,
       statusResists,
-      skillPierce: skillPierce > 0 ? skillPierce : undefined,
+      skillPierce: chipSkillPierce,
     });
 
   const getStatsDescription = (key: StatType | MainStatType) => {

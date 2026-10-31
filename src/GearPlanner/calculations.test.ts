@@ -158,9 +158,15 @@ describe("expectedHitDamage / theo_dps / hitDamageRange", () => {
     expect(high).toBeCloseTo(110);
   });
 
-  it("folds crit into expected hit", () => {
+  it("folds crit into expected hit as 2× base (live complete_attack)", () => {
     const withCrit = { ...source, crit: 100, critdamage: 0 };
-    // 100% crit → damage += damage * 1 * 2 → 3×
-    expect(expectedHitDamage(withCrit, target)).toBeCloseTo(300);
+    // 100% crit × cmult 2 → EV = base × (1 + 1*(2−1)) = 2×
+    expect(expectedHitDamage(withCrit, target)).toBeCloseTo(200);
+  });
+
+  it("adds critdamage onto the crit multiplier", () => {
+    const withCrit = { ...source, crit: 50, critdamage: 50 };
+    // p=0.5, cmult=2.5 → EV = base × (1 + 0.5*1.5) = 1.75×
+    expect(expectedHitDamage(withCrit, target)).toBeCloseTo(175);
   });
 });

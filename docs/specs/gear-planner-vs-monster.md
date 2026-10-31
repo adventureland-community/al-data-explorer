@@ -31,7 +31,11 @@ Mainhand item `damage_type` overrides class default; `heal` weapons pair as magi
 
 Fortitude on the **defender** when the attacker is the player: multiply by `damage_multiplier(for × 5)`.
 
+Crit EV: live `attack *= 2 + critdamage/100` on roll → expected factor `1 + p×(cmult − 1)` (base crit is 2×, not 3×).
+
 Evasion (physical) / reflection (magical): expected damage scales by land chance `1 − miss%/100`.
+
+Hit path (basic / heal / splash) and skill pierce apply to **ATTACK** (you → monster) only; DEFENSE always uses basic.
 
 ### Status resists
 
