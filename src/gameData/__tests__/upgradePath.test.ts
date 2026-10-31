@@ -254,6 +254,17 @@ describe("upgradePath", () => {
     expect(on!.totalExpectedCost).toBeLessThanOrEqual(off!.totalExpectedCost + 1e-6);
   });
 
+  it("allowFailstack false yields a plan with no failstack", () => {
+    const plan = planUpgradePath(ctx(), "fireblade" as ItemKey, 160000, 5, {
+      stacks: defaultStacks,
+      allowFailstack: false,
+      allowOgrace: false,
+    });
+    expect(plan).not.toBeNull();
+    expect(plan!.steps.every((s) => (s.failstack ?? 0) === 0)).toBe(true);
+    expect(plan!.steps.every((s) => (s.ograce ?? 0) === 0)).toBe(true);
+  });
+
   it("stat scroll grace is unused when disabled", () => {
     const plan = planUpgradePath(ctx(), "helmet" as ItemKey, 3200, 3, {
       stacks: defaultStacks,

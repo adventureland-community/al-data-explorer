@@ -127,6 +127,8 @@ export type StepRecipeEdit = {
   offerings: OfferingChoice[];
   allowPrimstacking: boolean;
   allowStatScrollGrace: boolean;
+  allowFailstack: boolean;
+  allowOgrace: boolean;
   overrides: Record<string, UpgradeStepOverride>;
   onPatch: (fromLevel: number, toLevel: number, patch: UpgradeStepOverride) => void;
   onReset: (fromLevel: number, toLevel: number) => void;
@@ -417,25 +419,25 @@ export function StepPlanCards({
                     }
                   />
                 ) : null}
-                {stepEdit.costModel === "cheapest" ? (
-                  <>
-                    <TinyNum
-                      label="Failstack"
-                      value={s.failstack}
-                      min={0}
-                      max={18}
-                      onChange={(failstack) =>
-                        stepEdit.onPatch(s.fromLevel, s.toLevel, { failstack })
-                      }
-                    />
-                    <TinyNum
-                      label="Ograce"
-                      value={s.ograce}
-                      min={0}
-                      max={30}
-                      onChange={(ograce) => stepEdit.onPatch(s.fromLevel, s.toLevel, { ograce })}
-                    />
-                  </>
+                {stepEdit.costModel === "cheapest" && stepEdit.allowFailstack ? (
+                  <TinyNum
+                    label="Failstack"
+                    value={s.failstack}
+                    min={0}
+                    max={18}
+                    onChange={(failstack) =>
+                      stepEdit.onPatch(s.fromLevel, s.toLevel, { failstack })
+                    }
+                  />
+                ) : null}
+                {stepEdit.costModel === "cheapest" && stepEdit.allowOgrace ? (
+                  <TinyNum
+                    label="Ograce"
+                    value={s.ograce}
+                    min={0}
+                    max={30}
+                    onChange={(ograce) => stepEdit.onPatch(s.fromLevel, s.toLevel, { ograce })}
+                  />
                 ) : null}
                 {overridden ? (
                   <Button size="small" onClick={() => stepEdit.onReset(s.fromLevel, s.toLevel)}>
@@ -475,8 +477,12 @@ export function StepPlanTable({
   const showStatScroll = editable
     ? Boolean(stepEdit?.allowStatScrollGrace)
     : steps.some((s) => s.statScrollGrace);
-  const showFail = editable ? stepEdit?.costModel === "cheapest" : steps.some((s) => s.failstack);
-  const showPrimeStk = editable ? stepEdit?.costModel === "cheapest" : steps.some((s) => s.ograce);
+  const showFail = editable
+    ? stepEdit?.costModel === "cheapest" && Boolean(stepEdit?.allowFailstack)
+    : steps.some((s) => s.failstack);
+  const showPrimeStk = editable
+    ? stepEdit?.costModel === "cheapest" && Boolean(stepEdit?.allowOgrace)
+    : steps.some((s) => s.ograce);
   const hasOverrides = Boolean(stepEdit && Object.keys(stepEdit.overrides).length);
 
   const headSx = {

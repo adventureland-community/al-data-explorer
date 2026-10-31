@@ -1192,14 +1192,15 @@ function planCompoundCheapest(
   itemName: ItemKey,
   itemValue: number,
   targetLevel: number,
-  stacksOverride?: StackTables,
+  options: { stacks?: StackTables; allowOgrace?: boolean } = {},
 ): CompoundPathPlan | null {
   const def = ctx.lookup(itemName);
   if (!def) return null;
 
-  const stacks = stacksOverride ?? computeStacksForPlanner(ctx);
+  const stacks = options.stacks ?? computeStacksForPlanner(ctx);
   const offerings = offeringChoices(ctx.toolkit);
-  const maxOgraceIdx = Math.min(MAX_OGRACE_STEPS, stacks.ograce.length - 1);
+  const allowOgrace = options.allowOgrace !== false;
+  const maxOgraceIdx = allowOgrace ? Math.min(MAX_OGRACE_STEPS, stacks.ograce.length - 1) : 0;
   const grades = ((def.grades as number[] | undefined) ?? [9, 10, 11, 12]) as number[];
   const target = Math.min(targetLevel, grades[3] ?? 10, 10);
 
@@ -1292,13 +1293,13 @@ export function planCompoundPath(
   itemValue: number,
   targetLevel: number,
   strategyOrOptimize: UpgradeStepStrategy | boolean = false,
-  options: { stacks?: StackTables } = {},
+  options: { stacks?: StackTables; allowOgrace?: boolean } = {},
 ): CompoundPathPlan | null {
   if (!ctx.lookup(itemName)) return null;
   const strategy = resolveCompoundStrategy(strategyOrOptimize);
 
   if (strategy === "costOptimal") {
-    return planCompoundCheapest(ctx, itemName, itemValue, targetLevel, options.stacks);
+    return planCompoundCheapest(ctx, itemName, itemValue, targetLevel, options);
   }
 
   const offerings = offeringChoices(ctx.toolkit);

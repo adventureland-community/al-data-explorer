@@ -29,6 +29,15 @@ export type UpgradeCalcParams = {
    */
   useMarketPrices: boolean;
   luckySlot: boolean;
+  /**
+   * Cheapest may bank personal ugrace via helmet failstacks.
+   * Off = no failstack at all (Discord: failstack off).
+   */
+  failstack: boolean;
+  /**
+   * When failstack is on, fold server `S.ugrace` from the same fail count into chance.
+   * Discord: failstack `on_with_server_grace`.
+   */
   serverUgrace: boolean;
   /** Property scroll + offering for +1 item grace (items with a `stat` pool). */
   statScrollGrace: boolean;
@@ -36,7 +45,13 @@ export type UpgradeCalcParams = {
   wantShiny: boolean;
   /** Polish material key; empty = cheapest valid EV. */
   polish: string;
+  /**
+   * Allow Primling primstacking (+0.5 item.grace each).
+   * With `statScrollGrace`, Cheapest may fold pscrolls into primstack spend (on_with_scrolls).
+   */
   primstacking: boolean;
+  /** Cheapest/compound may bank `player.p.ograce` via offering fails. */
+  ograce: boolean;
   scroll4: boolean;
   offeringp: boolean;
   offering: boolean;
@@ -63,11 +78,13 @@ const DEFAULTS: UpgradeCalcParams = {
   acquire: "buy",
   useMarketPrices: true,
   luckySlot: false,
+  failstack: true,
   serverUgrace: false,
   statScrollGrace: false,
   wantShiny: false,
   polish: "",
   primstacking: true,
+  ograce: true,
   scroll4: false,
   offeringp: true,
   offering: true,
@@ -216,6 +233,8 @@ function appendPriceOverrides(sp: URLSearchParams, overrides: PriceTable): void 
 export function parseUpgradeCalcParams(searchParams: URLSearchParams): UpgradeCalcParams {
   const mode = parseMode(searchParams.get("mode"));
   const target = parseTarget(searchParams.get("target"), mode);
+  const failstack = parseBool(searchParams.get("fs"), DEFAULTS.failstack);
+  const serverUgrace = failstack && parseBool(searchParams.get("sugrace"), DEFAULTS.serverUgrace);
   return {
     mode,
     item: searchParams.get("item") ?? "",
@@ -225,11 +244,13 @@ export function parseUpgradeCalcParams(searchParams: URLSearchParams): UpgradeCa
     acquire: parseAcquire(searchParams.get("acquire")),
     useMarketPrices: parseBool(searchParams.get("mkt"), DEFAULTS.useMarketPrices),
     luckySlot: parseBool(searchParams.get("lucky"), DEFAULTS.luckySlot),
-    serverUgrace: parseBool(searchParams.get("sugrace"), DEFAULTS.serverUgrace),
+    failstack,
+    serverUgrace,
     statScrollGrace: parseBool(searchParams.get("ssgrace"), DEFAULTS.statScrollGrace),
     wantShiny: parseBool(searchParams.get("shiny"), DEFAULTS.wantShiny),
     polish: searchParams.get("polish") ?? DEFAULTS.polish,
     primstacking: parseBool(searchParams.get("prim"), DEFAULTS.primstacking),
+    ograce: parseBool(searchParams.get("ograce"), DEFAULTS.ograce),
     scroll4: parseBool(searchParams.get("s4"), DEFAULTS.scroll4),
     offeringp: parseBool(searchParams.get("op"), DEFAULTS.offeringp),
     offering: parseBool(searchParams.get("o"), DEFAULTS.offering),
@@ -265,11 +286,13 @@ function writeParams(params: UpgradeCalcParams, priceOverrides: PriceTable = {})
   if (params.acquire !== DEFAULTS.acquire) sp.set("acquire", params.acquire);
   if (!params.useMarketPrices) sp.set("mkt", "0");
   if (params.luckySlot) sp.set("lucky", "1");
+  if (!params.failstack) sp.set("fs", "0");
   if (params.serverUgrace) sp.set("sugrace", "1");
   if (params.statScrollGrace) sp.set("ssgrace", "1");
   if (params.wantShiny) sp.set("shiny", "1");
   if (params.wantShiny && params.polish) sp.set("polish", params.polish);
   if (!params.primstacking) sp.set("prim", "0");
+  if (!params.ograce) sp.set("ograce", "0");
   if (params.scroll4) sp.set("s4", "1");
   if (!params.offeringp) sp.set("op", "0");
   if (!params.offering) sp.set("o", "0");
@@ -297,6 +320,9 @@ function normalizePatch(
     next.polish = "";
   }
   if (!next.wantShiny) next.polish = "";
+  // Server ugrace needs a failstack count; keep the Discord failstack tri-state coherent.
+  if (!next.failstack) next.serverUgrace = false;
+  if (partial.serverUgrace === true) next.failstack = true;
   if (next.mode === "greed") next.acquire = "buy";
   if (next.acquire !== "buy" && next.acquire !== "craft") {
     next.acquire = "buy";

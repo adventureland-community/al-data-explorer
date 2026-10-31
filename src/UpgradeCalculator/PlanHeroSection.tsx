@@ -395,9 +395,23 @@ export function PlanHero({
   );
 }
 
+type ModifierChipKey =
+  | "luckySlot"
+  | "failstack"
+  | "serverUgrace"
+  | "statScrollGrace"
+  | "wantShiny"
+  | "primstacking"
+  | "ograce"
+  | "scroll4"
+  | "offeringp"
+  | "offering"
+  | "offeringx";
+
 /** Active toolkit / chance knobs — click to toggle. */
 export function PlanModifiersChips({
   luckySlot,
+  failstack,
   serverUgrace,
   statScrollGrace,
   wantShiny = false,
@@ -405,6 +419,7 @@ export function PlanModifiersChips({
   shinyAvailable = true,
   statScrollAvailable = true,
   primstacking,
+  ograce,
   scroll4,
   offeringp,
   offering,
@@ -413,6 +428,7 @@ export function PlanModifiersChips({
   onToggle,
 }: {
   luckySlot: boolean;
+  failstack: boolean;
   serverUgrace: boolean;
   statScrollGrace: boolean;
   wantShiny?: boolean;
@@ -421,42 +437,29 @@ export function PlanModifiersChips({
   /** False when the selected item has no `stat` pool. */
   statScrollAvailable?: boolean;
   primstacking: boolean;
+  ograce: boolean;
   scroll4: boolean;
   offeringp: boolean;
   offering: boolean;
   offeringx: boolean;
   mode: Exclude<CalcMode, "greed">;
-  onToggle: (
-    key:
-      | "luckySlot"
-      | "serverUgrace"
-      | "statScrollGrace"
-      | "wantShiny"
-      | "primstacking"
-      | "scroll4"
-      | "offeringp"
-      | "offering"
-      | "offeringx",
-  ) => void;
+  onToggle: (key: ModifierChipKey) => void;
 }) {
   const chips: {
-    key:
-      | "luckySlot"
-      | "serverUgrace"
-      | "statScrollGrace"
-      | "wantShiny"
-      | "primstacking"
-      | "scroll4"
-      | "offeringp"
-      | "offering"
-      | "offeringx";
+    key: ModifierChipKey;
     label: string;
     on: boolean;
     show: boolean;
     disabled?: boolean;
   }[] = [
     { key: "luckySlot", label: "Lucky Slot", on: luckySlot, show: mode === "upgrade" },
-    { key: "serverUgrace", label: "Server ugrace", on: serverUgrace, show: mode === "upgrade" },
+    { key: "failstack", label: "Failstack", on: failstack, show: mode === "upgrade" },
+    {
+      key: "serverUgrace",
+      label: "Server ugrace",
+      on: serverUgrace,
+      show: mode === "upgrade" && failstack,
+    },
     {
       key: "statScrollGrace",
       label: "Stat scroll grace",
@@ -480,6 +483,7 @@ export function PlanModifiersChips({
     },
     { key: "offering", label: "Offering", on: offering, show: true },
     { key: "offeringx", label: "Offering X", on: offeringx, show: true },
+    { key: "ograce", label: "Ograce", on: ograce, show: true },
     { key: "scroll4", label: "Scroll 4", on: scroll4, show: true },
   ];
 
