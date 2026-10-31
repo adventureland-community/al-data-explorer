@@ -219,7 +219,7 @@ export function UpgradeCalculator() {
       lookup: (name) => G.items[name],
       prices,
       tables,
-      useServerUgrace: params.serverUgrace,
+      useServerUgrace: params.failstack && params.serverUgrace,
       toolkit: {
         allowPrimstacking: params.primstacking,
         allowScroll4: params.scroll4,
@@ -269,9 +269,11 @@ export function UpgradeCalculator() {
     params.acquire,
     itemValue,
     params.luckySlot,
+    params.failstack,
     params.serverUgrace,
     params.statScrollGrace,
     params.primstacking,
+    params.ograce,
     params.scroll4,
     params.offeringp,
     params.offering,
@@ -293,18 +295,24 @@ export function UpgradeCalculator() {
     if (craftBlocksPlan || !ctx || !gItem || !itemKey || params.mode === "greed") return null;
     if (midPathStart) return null;
     if (params.mode === "compound") {
-      return planCompoundPath(ctx, itemKey, itemValue, params.target, "costOptimal");
+      return planCompoundPath(ctx, itemKey, itemValue, params.target, "costOptimal", {
+        allowOgrace: params.ograce,
+      });
     }
     return planUpgradePath(ctx, itemKey, itemValue, params.target, {
       luckySlot: params.luckySlot,
       startLevel: params.from,
+      allowFailstack: params.failstack,
+      allowOgrace: params.ograce,
     });
   }, [craftBlocksPlan, midPathStart, ctx, gItem, itemKey, itemValue, params]);
 
   const fewest = useMemo(() => {
     if (craftBlocksPlan || !ctx || !gItem || !itemKey || params.mode === "greed") return null;
     if (params.mode === "compound") {
-      return planCompoundPath(ctx, itemKey, itemValue, params.target, "bestOdds");
+      return planCompoundPath(ctx, itemKey, itemValue, params.target, "bestOdds", {
+        allowOgrace: params.ograce,
+      });
     }
     return planUpgradePathBestOdds(ctx, itemKey, itemValue, params.target, {
       luckySlot: params.luckySlot,
@@ -1015,67 +1023,92 @@ export function UpgradeCalculator() {
               />
             )}
 
-            {params.mode === "upgrade" ? (
+            {params.mode === "upgrade" || params.mode === "compound" ? (
               <SidebarSection title="Chance modifiers">
                 <Stack spacing={0.25}>
+                  {params.mode === "upgrade" ? (
+                    <>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            size="small"
+                            checked={params.luckySlot}
+                            onChange={(e) => patch({ luckySlot: e.target.checked })}
+                          />
+                        }
+                        label="Lucky Slot"
+                      />
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            size="small"
+                            checked={params.failstack}
+                            onChange={(e) => patch({ failstack: e.target.checked })}
+                          />
+                        }
+                        label="Failstack"
+                      />
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            size="small"
+                            checked={params.serverUgrace}
+                            disabled={!params.failstack}
+                            onChange={(e) => patch({ serverUgrace: e.target.checked })}
+                          />
+                        }
+                        label="Server ugrace"
+                      />
+                      <Tooltip
+                        title={
+                          gItem && !itemAcceptsStatScroll(gItem)
+                            ? "This item has no stat pool — property scrolls cannot apply"
+                            : "Apply a property scroll with an offering for +1 item grace (server)"
+                        }
+                      >
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              size="small"
+                              checked={params.statScrollGrace}
+                              disabled={Boolean(gItem && !itemAcceptsStatScroll(gItem))}
+                              onChange={(e) => patch({ statScrollGrace: e.target.checked })}
+                            />
+                          }
+                          label="Stat scroll grace"
+                        />
+                      </Tooltip>
+                      <Tooltip
+                        title={
+                          params.from > 0
+                            ? "Shiny polish is only valid at +0 — set From to +0 to enable"
+                            : "Polish the +0 copy with an ingot/nugget for Shiny (server allows polish only at level 0; fail keeps the item)"
+                        }
+                      >
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              size="small"
+                              checked={params.wantShiny}
+                              disabled={params.from > 0}
+                              onChange={(e) => patch({ wantShiny: e.target.checked })}
+                            />
+                          }
+                          label="Polish Shiny"
+                        />
+                      </Tooltip>
+                    </>
+                  ) : null}
                   <FormControlLabel
                     control={
                       <Switch
                         size="small"
-                        checked={params.luckySlot}
-                        onChange={(e) => patch({ luckySlot: e.target.checked })}
+                        checked={params.ograce}
+                        onChange={(e) => patch({ ograce: e.target.checked })}
                       />
                     }
-                    label="Lucky Slot"
+                    label="Ograce"
                   />
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        size="small"
-                        checked={params.serverUgrace}
-                        onChange={(e) => patch({ serverUgrace: e.target.checked })}
-                      />
-                    }
-                    label="Server ugrace"
-                  />
-                  <Tooltip
-                    title={
-                      gItem && !itemAcceptsStatScroll(gItem)
-                        ? "This item has no stat pool — property scrolls cannot apply"
-                        : "Apply a property scroll with an offering for +1 item grace (server)"
-                    }
-                  >
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          size="small"
-                          checked={params.statScrollGrace}
-                          disabled={Boolean(gItem && !itemAcceptsStatScroll(gItem))}
-                          onChange={(e) => patch({ statScrollGrace: e.target.checked })}
-                        />
-                      }
-                      label="Stat scroll grace"
-                    />
-                  </Tooltip>
-                  <Tooltip
-                    title={
-                      params.from > 0
-                        ? "Shiny polish is only valid at +0 — set From to +0 to enable"
-                        : "Polish the +0 copy with an ingot/nugget for Shiny (server allows polish only at level 0; fail keeps the item)"
-                    }
-                  >
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          size="small"
-                          checked={params.wantShiny}
-                          disabled={params.from > 0}
-                          onChange={(e) => patch({ wantShiny: e.target.checked })}
-                        />
-                      }
-                      label="Polish Shiny"
-                    />
-                  </Tooltip>
                 </Stack>
               </SidebarSection>
             ) : null}
@@ -1381,6 +1414,7 @@ export function UpgradeCalculator() {
                   />
                   <PlanModifiersChips
                     luckySlot={params.luckySlot}
+                    failstack={params.failstack}
                     serverUgrace={params.serverUgrace}
                     statScrollGrace={params.statScrollGrace}
                     wantShiny={params.wantShiny}
@@ -1395,6 +1429,7 @@ export function UpgradeCalculator() {
                     }
                     statScrollAvailable={!gItem || itemAcceptsStatScroll(gItem)}
                     primstacking={params.primstacking}
+                    ograce={params.ograce}
                     scroll4={params.scroll4}
                     offeringp={params.offeringp}
                     offering={params.offering}
@@ -1443,6 +1478,8 @@ export function UpgradeCalculator() {
                             allowPrimstacking: params.primstacking,
                             allowStatScrollGrace:
                               params.statScrollGrace && itemAcceptsStatScroll(gItem),
+                            allowFailstack: params.failstack,
+                            allowOgrace: params.ograce,
                             overrides: stepOverrides,
                             onPatch: patchStepOverride,
                             onReset: clearStepOverride,

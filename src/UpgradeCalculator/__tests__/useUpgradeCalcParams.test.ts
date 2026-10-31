@@ -35,6 +35,15 @@ describe("useUpgradeCalcParams URL codec", () => {
     );
   });
 
+  it("defaults failstack and ograce on; parses fs=0 and ograce=0", () => {
+    const defaults = parseUpgradeCalcParams(new URLSearchParams("item=rod"));
+    expect(defaults.failstack).toBe(true);
+    expect(defaults.ograce).toBe(true);
+    const off = parseUpgradeCalcParams(new URLSearchParams("item=rod&fs=0&ograce=0"));
+    expect(off.failstack).toBe(false);
+    expect(off.ograce).toBe(false);
+  });
+
   it("parses tax percent into a fraction and defaults to 2.5%", () => {
     expect(parseUpgradeCalcParams(new URLSearchParams()).taxRate).toBe(DEFAULT_MERCHANT_TAX);
     expect(parseUpgradeCalcParams(new URLSearchParams("tax=4")).taxRate).toBe(0.04);

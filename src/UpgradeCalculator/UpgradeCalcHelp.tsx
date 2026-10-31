@@ -237,8 +237,9 @@ function HelpBody() {
         primstacking when one Primling + scrolls is cheaper than two Primlings. The Stat scroll
         grace toggle is a separate path: property scroll + offering for +1 item grace. Shrine time
         assumes Mass Production++ on every click (indicative). Stack columns appear only when the
-        plan uses them (Cheapest may failstack helmets even though Fewest never does). Use Copy link
-        to share the current item, levels, toolkit, and price overrides.
+        plan uses them (Cheapest may failstack helmets even though Fewest never does — turn
+        Failstack / Ograce off to exclude those banks). Use Copy link to share the current item,
+        levels, toolkit, and price overrides.
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
