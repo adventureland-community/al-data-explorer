@@ -690,7 +690,19 @@ export function StatsPanel({
           </Grid>
         </Grid>
       </Box>
-      <Box sx={{ gridArea: "vs", minWidth: 0, mt: 2 }}>
+      <Box
+        sx={{
+          gridArea: "vs",
+          minWidth: 0,
+          mt: { xs: 2, lg: 0 },
+          // Keep combat panel in view while scrolling sheet stats on wide desktops.
+          position: { lg: "sticky" },
+          top: { lg: 8 },
+          maxHeight: { lg: "calc(100vh - 16px)" },
+          overflow: { lg: "auto" },
+          pr: { lg: 0.5 },
+        }}
+      >
         {favorites.length > 0 ? (
           <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mb: 1 }}>
             {favorites.map((key) => (
@@ -854,7 +866,8 @@ export function StatsPanel({
           </Stack>
         ) : null}
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
-          <Grid item xs={12} md={6}>
+          {/* md full-width row: side-by-side. lg side column: stack. */}
+          <Grid item xs={12} md={6} lg={12}>
             <Divider textAlign="left">ATTACK vs {monsterName}</Divider>
             <MitigationRows
               source={fakePlayer}
@@ -865,7 +878,7 @@ export function StatsPanel({
               mitigationOptions={attackMitigation}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={6} lg={12}>
             <Divider textAlign="left">DEFENSE vs {monsterName}</Divider>
             <MitigationRows
               source={monster}
@@ -882,50 +895,50 @@ export function StatsPanel({
             />
           </Grid>
         </Grid>
-      {/* Keep dialog inside this grid area so it does not become an extra CSS-grid item. */}
-      <StatDetailDialog
-        open={detailStat != null}
-        onClose={() => {
-          setDetailStat(null);
-          onHighlightSlot?.(null);
-        }}
-        stat={detailStat}
-        player={fakePlayer}
-        monster={monster}
-        monsterName={String(monsterName)}
-        playerStats={stats}
-        hitDirection={detailHitDirection}
-        mitigationOptions={detailHitDirection === "youHit" ? attackMitigation : defenseMitigation}
-        onContributionSlot={(slot) => {
-          onHighlightSlot?.(slot);
-          setDetailStat(null);
-        }}
-        contributions={
-          detailStat != null &&
-          detailStat !== "effectiveDefense" &&
-          detailStat !== "damageMultiplier"
-            ? contributionsForStat({
-                stat: detailStat as StatType,
-                gear,
-                G,
-                classKey: selectedCharacterClass?.className,
-                characterClass: selectedCharacterClass
-                  ? {
-                      className: selectedCharacterClass.className,
-                      stats: selectedCharacterClass.stats ?? {},
-                      lstats: selectedCharacterClass.lstats ?? {},
-                      mainhand: selectedCharacterClass.mainhand,
-                      doublehand: selectedCharacterClass.doublehand,
-                    }
-                  : undefined,
-              })
-            : []
-        }
-        conditions={
-          G.conditions as Record<string, { name?: string; defense?: string; debuff?: boolean }>
-        }
-      />
-    </Box>
+        {/* Keep dialog inside this grid area so it does not become an extra CSS-grid item. */}
+        <StatDetailDialog
+          open={detailStat != null}
+          onClose={() => {
+            setDetailStat(null);
+            onHighlightSlot?.(null);
+          }}
+          stat={detailStat}
+          player={fakePlayer}
+          monster={monster}
+          monsterName={String(monsterName)}
+          playerStats={stats}
+          hitDirection={detailHitDirection}
+          mitigationOptions={detailHitDirection === "youHit" ? attackMitigation : defenseMitigation}
+          onContributionSlot={(slot) => {
+            onHighlightSlot?.(slot);
+            setDetailStat(null);
+          }}
+          contributions={
+            detailStat != null &&
+            detailStat !== "effectiveDefense" &&
+            detailStat !== "damageMultiplier"
+              ? contributionsForStat({
+                  stat: detailStat as StatType,
+                  gear,
+                  G,
+                  classKey: selectedCharacterClass?.className,
+                  characterClass: selectedCharacterClass
+                    ? {
+                        className: selectedCharacterClass.className,
+                        stats: selectedCharacterClass.stats ?? {},
+                        lstats: selectedCharacterClass.lstats ?? {},
+                        mainhand: selectedCharacterClass.mainhand,
+                        doublehand: selectedCharacterClass.doublehand,
+                      }
+                    : undefined,
+                })
+              : []
+          }
+          conditions={
+            G.conditions as Record<string, { name?: string; defense?: string; debuff?: boolean }>
+          }
+        />
+      </Box>
     </>
   );
 }

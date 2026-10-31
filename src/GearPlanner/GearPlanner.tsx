@@ -185,9 +185,11 @@ export function GearPlanner() {
         display: "grid",
         gap: { xs: 2, md: 2.5 },
         alignItems: "start",
+        // md: doll | sheet, vs below. lg+: doll | sheet | vs (no scroll for combat).
         gridTemplateColumns: {
           xs: "1fr",
           md: "minmax(260px, 340px) minmax(0, 1fr)",
+          lg: "minmax(240px, 300px) minmax(0, 1fr) minmax(340px, 440px)",
         },
         gridTemplateAreas: {
           xs: `
@@ -204,6 +206,12 @@ export function GearPlanner() {
             "vs vs"
             "equipped equipped"
             "info info"
+          `,
+          lg: `
+            "controls controls controls"
+            "doll sheet vs"
+            "equipped equipped equipped"
+            "info info info"
           `,
         },
       }}
