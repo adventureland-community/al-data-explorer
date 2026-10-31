@@ -333,6 +333,13 @@ function toCombatant(entity: Record<string, unknown> | Combatant): Combatant {
   };
 }
 
+function optionalNumber(entity: object, key: string): number | undefined {
+  // GMonster typings omit some live fields (e.g. `for`); read without asserting the whole type.
+  if (!(key in entity)) return undefined;
+  const value = (entity as Record<string, unknown>)[key];
+  return typeof value === "number" ? value : undefined;
+}
+
 function buildMonsterCombatant(G: CustomGData, key: MonsterKey): Combatant {
   const gMonster = G.monsters[key];
   return toCombatant({
@@ -345,7 +352,7 @@ function buildMonsterCombatant(G: CustomGData, key: MonsterKey): Combatant {
     frequency: gMonster.frequency,
     crit: gMonster.crit,
     hp: gMonster.hp,
-    for: gMonster.for,
+    for: optionalNumber(gMonster, "for"),
     evasion: gMonster.evasion,
     reflection: gMonster.reflection,
   });
