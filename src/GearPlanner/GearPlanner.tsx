@@ -22,8 +22,6 @@ import {
   Box,
   Card,
   CardContent,
-  Container,
-  Grid,
   Slider,
   Stack,
   Table,
@@ -177,78 +175,113 @@ export function GearPlanner() {
   };
 
   return (
-    <Container sx={{ px: { xs: 1.5, sm: 2 } }}>
-      <Grid container spacing={{ xs: 2, md: 3 }}>
-        <Grid item xs={12}>
-          <Typography gutterBottom>Level {level}</Typography>
-          <Slider
-            aria-label="Level"
-            value={level}
-            valueLabelDisplay="on"
-            step={1}
-            marks
-            min={1}
-            max={200}
-            onChange={onLevelSliderChange}
-            sx={{ mt: 3, mb: 1 }}
-          />
-          <Stack direction="row" flexWrap="wrap" sx={{ gap: 0.5 }}>
-            <SaveLinkButton gear={gear} characterClass={selectedClass} level={level} />
-            <LoadLinkButton load={onLoadSavedLoadout} />
-            <ImportLinkButton load={onLoadSavedLoadout} />
-            <ShareLinkButton gear={gear} characterClass={selectedClass} level={level} />
-          </Stack>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Box sx={{ overflowX: "auto", WebkitOverflowScrolling: "touch", pb: 0.5 }}>
-            <LoadoutPickerShell
-              gear={gear}
-              onGearChange={setGear}
-              selectedClass={selectedClass}
-              onSelectClass={setSelectedClass}
-              onClearClass={() => setSelectedClass(undefined)}
-              classes={classes}
-              items={G.items}
-              variant="planner"
-              highlightedSlot={highlightedSlot}
-              hint="Click a slot to pick or edit · set Title / Stat scroll in the picker · ✕ to remove"
-            />
-          </Box>
-        </Grid>
-        <Grid item xs={12} md={8}>
-          <StatsPanel
-            selectedCharacterClass={selectedClass}
-            level={level}
-            gear={gear}
-            onHighlightSlot={setHighlightedSlot}
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <Table size="small" aria-label="a dense table">
-            <TableBody>
-              {Object.entries(gear).map(([slot, itemInfo]) => {
-                if (!itemInfo) {
-                  return <React.Fragment key={`list${slot}`} />;
-                }
-                return (
-                  <TableRow hover key={`list${slot}`}>
-                    <TableCell width={25}>
-                      <DeleteIcon
-                        style={{ cursor: "pointer" }}
-                        onClick={() => onRemoveGear(slot as SlotType)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <ItemInstanceLabel itemInfo={itemInfo} includeLevel linkToDetail={false} />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Grid>
-      </Grid>
-      <Info />
-    </Container>
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: 1920,
+        mx: "auto",
+        px: { xs: 1.5, sm: 2, lg: 3, xl: 4 },
+        pb: 3,
+        display: "grid",
+        gap: { xs: 2, md: 2.5 },
+        alignItems: "start",
+        gridTemplateColumns: {
+          xs: "1fr",
+          md: "minmax(260px, 340px) minmax(0, 1fr)",
+        },
+        gridTemplateAreas: {
+          xs: `
+            "controls"
+            "doll"
+            "sheet"
+            "vs"
+            "equipped"
+            "info"
+          `,
+          md: `
+            "controls controls"
+            "doll sheet"
+            "vs vs"
+            "equipped equipped"
+            "info info"
+          `,
+        },
+      }}
+    >
+      <Box sx={{ gridArea: "controls" }}>
+        <Typography gutterBottom>Level {level}</Typography>
+        <Slider
+          aria-label="Level"
+          value={level}
+          valueLabelDisplay="on"
+          step={1}
+          marks
+          min={1}
+          max={200}
+          onChange={onLevelSliderChange}
+          sx={{ mt: 3, mb: 1 }}
+        />
+        <Stack direction="row" flexWrap="wrap" sx={{ gap: 0.5 }}>
+          <SaveLinkButton gear={gear} characterClass={selectedClass} level={level} />
+          <LoadLinkButton load={onLoadSavedLoadout} />
+          <ImportLinkButton load={onLoadSavedLoadout} />
+          <ShareLinkButton gear={gear} characterClass={selectedClass} level={level} />
+        </Stack>
+      </Box>
+      <Box
+        sx={{
+          gridArea: "doll",
+          overflowX: "auto",
+          WebkitOverflowScrolling: "touch",
+          pb: 0.5,
+        }}
+      >
+        <LoadoutPickerShell
+          gear={gear}
+          onGearChange={setGear}
+          selectedClass={selectedClass}
+          onSelectClass={setSelectedClass}
+          onClearClass={() => setSelectedClass(undefined)}
+          classes={classes}
+          items={G.items}
+          variant="planner"
+          highlightedSlot={highlightedSlot}
+          hint="Click a slot to pick or edit · set Title / Stat scroll in the picker · ✕ to remove"
+        />
+      </Box>
+      <StatsPanel
+        selectedCharacterClass={selectedClass}
+        level={level}
+        gear={gear}
+        onHighlightSlot={setHighlightedSlot}
+      />
+      <Box sx={{ gridArea: "equipped" }}>
+        <Table size="small" aria-label="a dense table">
+          <TableBody>
+            {Object.entries(gear).map(([slot, itemInfo]) => {
+              if (!itemInfo) {
+                return <React.Fragment key={`list${slot}`} />;
+              }
+              return (
+                <TableRow hover key={`list${slot}`}>
+                  <TableCell width={25}>
+                    <DeleteIcon
+                      style={{ cursor: "pointer" }}
+                      onClick={() => onRemoveGear(slot as SlotType)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <ItemInstanceLabel itemInfo={itemInfo} includeLevel linkToDetail={false} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Box>
+      <Box sx={{ gridArea: "info" }}>
+        <Info />
+      </Box>
+    </Box>
   );
 }

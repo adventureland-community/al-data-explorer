@@ -612,76 +612,85 @@ export function StatsPanel({
   };
 
   return (
-    <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-      <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
-        <Divider textAlign="left">GENERAL</Divider>
-        <Table size="small" aria-label="a dense table">
-          <TableBody>
-            <TableRow>
-              <TableCell title={getStatsDescription("hp")}>hp</TableCell>
-              <TableCell align="right" title={stats.hp?.toString() ?? ""} sx={valueSx("hp")}>
-                {Math.round(stats.hp ?? 0)}
-              </TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell title={getStatsDescription("mp")}>mp</TableCell>
-              <TableCell align="right" title={stats.mp?.toString() ?? ""} sx={valueSx("mp")}>
-                {Math.round(stats.mp ?? 0)}
-              </TableCell>
-            </TableRow>
-            {mainStatTypes.map((stat) => {
-              const clickable = isInsightStat(stat);
-              return (
-                <TableRow
-                  key={`stat_${stat}`}
-                  hover={clickable}
-                  onClick={clickable ? () => openStat(stat, "youHit") : undefined}
-                  sx={clickable ? { cursor: "pointer" } : undefined}
-                >
-                  <TableCell
-                    title={
-                      clickable
-                        ? `${getStatsDescription(stat)} (click for falloff / waste)`
-                        : getStatsDescription(stat)
-                    }
-                    sx={{
-                      fontWeight: selectedCharacterClass?.main_stat === stat ? "bold" : "normal",
-                      ...(clickable ? clickableCellSx : undefined),
-                    }}
-                  >
-                    {stat}
-                  </TableCell>
-                  <TableCell align="right" title={stats[stat]?.toString() ?? ""} sx={valueSx(stat)}>
-                    {Math.round(stats[stat] ?? 0)}
+    <>
+      <Box sx={{ gridArea: "sheet", minWidth: 0 }}>
+        <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+          <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
+            <Divider textAlign="left">GENERAL</Divider>
+            <Table size="small" aria-label="a dense table">
+              <TableBody>
+                <TableRow>
+                  <TableCell title={getStatsDescription("hp")}>hp</TableCell>
+                  <TableCell align="right" title={stats.hp?.toString() ?? ""} sx={valueSx("hp")}>
+                    {Math.round(stats.hp ?? 0)}
                   </TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </Grid>
-      <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
-        <Divider textAlign="left">OFFENSE</Divider>
-        <Table size="small">
-          <TableBody>{offenseStatTypes.map((stat) => renderStatRow(stat))}</TableBody>
-        </Table>
-      </Grid>
-      <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
-        <Divider textAlign="left">DEFENSE</Divider>
-        <Table size="small">
-          <TableBody>{defenseStatTypes.map((stat) => renderStatRow(stat))}</TableBody>
-        </Table>
-      </Grid>
-      <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
-        <Divider textAlign="left">OTHER</Divider>
-        <Table size="small">
-          <TableBody>
-            {otherStatTypes.filter((stat) => stats[stat]).map((stat) => renderStatRow(stat))}
-          </TableBody>
-        </Table>
-        <AbilityLines gear={gear} G={G} />
-      </Grid>
-      <Grid item xs={12}>
+                <TableRow>
+                  <TableCell title={getStatsDescription("mp")}>mp</TableCell>
+                  <TableCell align="right" title={stats.mp?.toString() ?? ""} sx={valueSx("mp")}>
+                    {Math.round(stats.mp ?? 0)}
+                  </TableCell>
+                </TableRow>
+                {mainStatTypes.map((stat) => {
+                  const clickable = isInsightStat(stat);
+                  return (
+                    <TableRow
+                      key={`stat_${stat}`}
+                      hover={clickable}
+                      onClick={clickable ? () => openStat(stat, "youHit") : undefined}
+                      sx={clickable ? { cursor: "pointer" } : undefined}
+                    >
+                      <TableCell
+                        title={
+                          clickable
+                            ? `${getStatsDescription(stat)} (click for falloff / waste)`
+                            : getStatsDescription(stat)
+                        }
+                        sx={{
+                          fontWeight:
+                            selectedCharacterClass?.main_stat === stat ? "bold" : "normal",
+                          ...(clickable ? clickableCellSx : undefined),
+                        }}
+                      >
+                        {stat}
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        title={stats[stat]?.toString() ?? ""}
+                        sx={valueSx(stat)}
+                      >
+                        {Math.round(stats[stat] ?? 0)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
+            <Divider textAlign="left">OFFENSE</Divider>
+            <Table size="small">
+              <TableBody>{offenseStatTypes.map((stat) => renderStatRow(stat))}</TableBody>
+            </Table>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
+            <Divider textAlign="left">DEFENSE</Divider>
+            <Table size="small">
+              <TableBody>{defenseStatTypes.map((stat) => renderStatRow(stat))}</TableBody>
+            </Table>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
+            <Divider textAlign="left">OTHER</Divider>
+            <Table size="small">
+              <TableBody>
+                {otherStatTypes.filter((stat) => stats[stat]).map((stat) => renderStatRow(stat))}
+              </TableBody>
+            </Table>
+            <AbilityLines gear={gear} G={G} />
+          </Grid>
+        </Grid>
+      </Box>
+      <Box sx={{ gridArea: "vs", minWidth: 0, mt: 2 }}>
         {favorites.length > 0 ? (
           <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mb: 1 }}>
             {favorites.map((key) => (
@@ -873,7 +882,7 @@ export function StatsPanel({
             />
           </Grid>
         </Grid>
-      </Grid>
+      </Box>
       <StatDetailDialog
         open={detailStat != null}
         onClose={() => {
@@ -916,6 +925,6 @@ export function StatsPanel({
           G.conditions as Record<string, { name?: string; defense?: string; debuff?: boolean }>
         }
       />
-    </Grid>
+    </>
   );
 }
