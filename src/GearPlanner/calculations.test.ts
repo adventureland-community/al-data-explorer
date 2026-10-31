@@ -1,6 +1,7 @@
 import {
   damageMultiplier,
   effectiveDefense,
+  expectedHitBreakdown,
   expectedHitDamage,
   hitDamageRange,
   mitigationBreakdown,
@@ -181,5 +182,20 @@ describe("expectedHitDamage / theo_dps / hitDamageRange", () => {
     const withCrit = { ...source, crit: 50, critdamage: 50 };
     // p=0.5, cmult=2.5 → EV = base × (1 + 0.5*1.5) = 1.75×
     expect(expectedHitDamage(withCrit, target)).toBeCloseTo(175);
+  });
+
+  it("expectedHitBreakdown exposes the full stack", () => {
+    const withAll = {
+      ...source,
+      crit: 50,
+      critdamage: 0,
+    };
+    const targetEvasion = { armor: 100, evasion: 20 };
+    const b = expectedHitBreakdown(withAll, targetEvasion);
+    // base 100 × crit EV 1.5 × land 0.8 = 120
+    expect(b.critEv).toBeCloseTo(1.5);
+    expect(b.landChance).toBeCloseTo(0.8);
+    expect(b.expected).toBeCloseTo(120);
+    expect(b.theoDps).toBeCloseTo(120);
   });
 });

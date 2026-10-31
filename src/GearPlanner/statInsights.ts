@@ -37,7 +37,12 @@ export type InsightStat =
   | "for"
   | StatusResistStat
   | "effectiveDefense"
-  | "damageMultiplier";
+  | "damageMultiplier"
+  | "expectedHit"
+  | "crit"
+  | "critdamage"
+  | "attack"
+  | "frequency";
 
 export type CurvePoint = { x: number; y: number };
 
@@ -345,8 +350,93 @@ export function isInsightStat(stat: string): stat is InsightStat {
     stat === "for" ||
     stat === "effectiveDefense" ||
     stat === "damageMultiplier" ||
+    stat === "expectedHit" ||
+    stat === "crit" ||
+    stat === "critdamage" ||
+    stat === "attack" ||
+    stat === "frequency" ||
     isStatusResistStat(stat)
   );
+}
+
+/** Stats that are derived fight metrics (no gear contribution table). */
+export function isDerivedInsightStat(stat: string): boolean {
+  return (
+    stat === "effectiveDefense" ||
+    stat === "damageMultiplier" ||
+    stat === "expectedHit" ||
+    stat === "crit" ||
+    stat === "critdamage" ||
+    stat === "attack" ||
+    stat === "frequency"
+  );
+}
+
+/** Ability id → condition key when the ability name is the apply hook. */
+const ABILITY_CONDITION_ALIASES: Record<string, string> = {
+  burn: "burned",
+  multi_burn: "burned",
+  deepfreeze: "deepfreezed",
+  multi_freeze: "frozen",
+  stone: "stunned",
+};
+
+export type MonsterAbilityDef = {
+  condition?: string;
+  aura?: boolean;
+};
+
+export type MonsterStatusSource = {
+  poisonous?: boolean;
+  abilities?: Record<string, MonsterAbilityDef | undefined>;
+};
+
+export type MonsterConditionThreat = {
+  conditionKey: string;
+  name: string;
+  /** Typed resist that chance-blocks this condition, if any. */
+  defenseStat: StatusResistStat | null;
+  /** Why we think this monster applies it. */
+  source: string;
+  debuff: boolean;
+};
+
+/**
+ * Conditions this monster is likely to apply (poisonous flag + ability hooks).
+ * Used so status-resist modals answer "does this matter vs my target?".
+ */
+export function monsterConditionThreats(
+  monster: MonsterStatusSource | undefined,
+  conditions?: Record<string, ConditionDefenseDef | undefined>,
+): MonsterConditionThreat[] {
+  if (!monster) return [];
+  const byKey = new Map<string, MonsterConditionThreat>();
+
+  const add = (conditionKey: string, source: string) => {
+    if (byKey.has(conditionKey)) return;
+    const def = conditions?.[conditionKey];
+    const defenseRaw = def?.defense;
+    const defenseStat = defenseRaw && isStatusResistStat(defenseRaw) ? defenseRaw : null;
+    byKey.set(conditionKey, {
+      conditionKey,
+      name: def?.name ?? conditionKey,
+      defenseStat,
+      source,
+      debuff: Boolean(def?.debuff),
+    });
+  };
+
+  if (monster.poisonous) add("poisoned", "poisonous");
+
+  if (monster.abilities) {
+    for (const [abilityId, ability] of Object.entries(monster.abilities)) {
+      if (ability?.condition) add(ability.condition, abilityId);
+      const alias = ABILITY_CONDITION_ALIASES[abilityId];
+      if (alias) add(alias, abilityId);
+    }
+  }
+
+  return [...byKey.values()];
 }
 
 /** Land chance % (y) vs evasion/reflection % (x). Server gates at random*100 < chance. */

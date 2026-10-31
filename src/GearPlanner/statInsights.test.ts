@@ -4,6 +4,7 @@ import {
   attributeSoftcapCurve,
   fortitudeMultCurve,
   landChanceCurve,
+  monsterConditionThreats,
   mitigationCurveByPierce,
   pierceToHardCap,
   pierceWaste,
@@ -159,6 +160,31 @@ describe("statusResistInsight", () => {
     const s = statusResistInsight("stresistance", 25, conditions);
     expect(s.notes.some((n) => /debuff/i.test(n))).toBe(true);
     expect(s.durationRemainingFraction).toBeCloseTo(0.75);
+  });
+});
+
+describe("monsterConditionThreats", () => {
+  const conditions = {
+    poisoned: { name: "Poison", defense: "pnresistance", debuff: true },
+    burned: { name: "Burned", defense: "firesistance", debuff: true },
+    weakness: { name: "Weakness", debuff: true },
+  };
+
+  it("maps poisonous and ability condition/burn aliases", () => {
+    const threats = monsterConditionThreats(
+      {
+        poisonous: true,
+        abilities: {
+          weakness_aura: { condition: "weakness", aura: true },
+          burn: {},
+        },
+      },
+      conditions,
+    );
+    expect(threats.map((t) => t.conditionKey).sort()).toEqual(
+      ["burned", "poisoned", "weakness"].sort(),
+    );
+    expect(threats.find((t) => t.conditionKey === "poisoned")?.defenseStat).toBe("pnresistance");
   });
 });
 

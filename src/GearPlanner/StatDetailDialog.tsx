@@ -27,20 +27,25 @@ import {
   DamageType,
   MitigationOptions,
   damageMultiplier,
+  expectedHitBreakdown,
   mitigationBreakdown,
 } from "./calculations";
 import {
   ConditionDefenseDef,
   CurvePoint,
   InsightStat,
+  MonsterConditionThreat,
+  MonsterStatusSource,
   StatusResistStat,
   attributeSoftcapCurve,
   armorFromStr,
   fortitudeMultCurve,
+  isDerivedInsightStat,
   isStatusResistStat,
   landChanceCurve,
   mitigationCurveByEffectiveDefense,
   mitigationCurveByPierce,
+  monsterConditionThreats,
   pierceWaste,
   resistanceFromInt,
   statusChanceCurve,
@@ -468,12 +473,21 @@ function StatusResistBody({
   stat,
   value,
   conditions,
+  monsterName,
+  monsterStatus,
 }: {
   stat: StatusResistStat;
   value: number;
   conditions?: Record<string, ConditionDefenseDef | undefined>;
+  monsterName: string;
+  monsterStatus?: MonsterStatusSource;
 }) {
   const insight = statusResistInsight(stat, value, conditions);
+  const threats = monsterConditionThreats(monsterStatus, conditions);
+  const relevant =
+    stat === "stresistance"
+      ? threats.filter((t) => t.debuff)
+      : threats.filter((t) => t.defenseStat === stat);
   const showChance = stat !== "stresistance";
   const showDuration =
     stat === "stresistance" || stat === "pnresistance" || stat === "firesistance";
@@ -497,8 +511,22 @@ function StatusResistBody({
     legend.push({ symbol: "δ", meaning: "duration / intensity remaining" });
   }
 
+  const vsMonsterLead =
+    relevant.length > 0
+      ? `${monsterName} can apply: ${relevant
+          .map((t: MonsterConditionThreat) => `${t.name} (${t.source})`)
+          .join(", ")}. This resist matters for that fight.`
+      : threats.length > 0
+      ? `${monsterName}'s known status hooks don't use ${stat} for a chance roll${
+          stat === "stresistance" ? " (and none look like timed debuffs here)." : "."
+        }`
+      : `No status hooks found on ${monsterName} in data — this resist may still matter vs other monsters or player skills.`;
+
   return (
     <Box>
+      <Alert severity={relevant.length > 0 ? "info" : "success"} sx={{ mb: 1.5 }}>
+        {vsMonsterLead}
+      </Alert>
       <FormulaExplain
         symbolicLines={symbolicLines}
         legend={legend}
@@ -511,31 +539,31 @@ function StatusResistBody({
       />
       {showChance && (
         <Box id={STAT_DETAIL_GRAPH_ID}>
-          <Typography variant="subtitle2">Chance resist (capped at 100%)</Typography>
+          <Typography variant="subtitle2">c vs r (chance resist, cap 100%)</Typography>
           <FalloffChart
             points={statusChanceCurve()}
             markerX={value}
-            xLabel={stat}
-            yLabel="chance %"
+            xLabel={`r (${stat})`}
+            yLabel="c (%)"
           />
         </Box>
       )}
       {showDuration && (
         <Box id={showChance ? undefined : STAT_DETAIL_GRAPH_ID}>
           <Typography variant="subtitle2" sx={{ mt: showChance ? 1 : 0 }}>
-            Duration / intensity remaining
+            δ vs r (duration / intensity remaining)
           </Typography>
           <FalloffChart
             points={statusDurationCurve()}
             markerX={value}
-            xLabel={stat}
-            yLabel="remaining %"
+            xLabel={`r (${stat})`}
+            yLabel="δ (%)"
           />
         </Box>
       )}
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 1 }}>
         Current value: {value}
-        {insight.overcap ? " (overcap)" : ""}
+        {insight.overcap ? " (overcap — trim points above 100)" : ""}
       </Typography>
       {insight.hints.map((h) => (
         <Alert key={h} severity="warning" sx={{ mb: 1 }}>
@@ -552,25 +580,61 @@ function StatusResistBody({
       </List>
       {insight.chanceConditions.length > 0 && (
         <Typography variant="caption" color="text.secondary">
-          Conditions using this defense: {insight.chanceConditions.map((c) => c.name).join(", ")}
+          All conditions using this defense:{" "}
+          {insight.chanceConditions.map((c) => c.name).join(", ")}
         </Typography>
       )}
     </Box>
   );
 }
 
-function AttributeSoftcapBody({ stat, value }: { stat: "str" | "int"; value: number }) {
+function AttributeSoftcapBody({
+  stat,
+  value,
+  player,
+  monster,
+  monsterName,
+}: {
+  stat: "str" | "int";
+  value: number;
+  player: Combatant;
+  monster: Combatant;
+  monsterName: string;
+}) {
   const threshold = stat === "str" ? 160 : 180;
   const derived = stat === "str" ? "armor" : "resistance";
-  const derivedLabel = stat === "str" ? "armor from STR" : "resistance from INT";
   const result = stat === "str" ? armorFromStr(value) : resistanceFromInt(value);
+  const nextResult = stat === "str" ? armorFromStr(value + 1) : resistanceFromInt(value + 1);
   const curve = attributeSoftcapCurve({ kind: stat, from: 0, to: 280, steps: 70 });
 
   const attrSym = stat === "str" ? "S" : "I";
   const outSym = stat === "str" ? "A" : "R";
 
+  // Chain into mitigation vs this monster (defense sheet: they hit you).
+  const base = mitigationBreakdown(monster, player, { path: "basic" });
+  const usesDerived =
+    (stat === "str" && base.defenseStat === "armor") ||
+    (stat === "int" && base.defenseStat === "resistance");
+  const deltaDerived = nextResult - result;
+  const playerPlus: Combatant =
+    stat === "str"
+      ? { ...player, armor: (player.armor ?? 0) + deltaDerived }
+      : { ...player, resistance: (player.resistance ?? 0) + deltaDerived };
+  const plus = mitigationBreakdown(monster, playerPlus, { path: "basic" });
+  const marginalM = usesDerived ? (plus.multiplier - base.multiplier) * 100 : null;
+
   return (
     <Box>
+      <Alert severity="info" sx={{ mb: 1.5 }}>
+        {stat.toUpperCase()} softcaps into {derived}. Past {threshold}, each +1 {stat} adds only
+        +0.25 {derived}
+        {usesDerived && marginalM != null
+          ? ` · vs ${monsterName}, +1 ${stat} ≈ ${marginalM >= 0 ? "+" : ""}${marginalM.toFixed(
+              4,
+            )}% m on their hits`
+          : ` · ${monsterName}'s hits are ${base.damageType}, so ${derived} is not the active defense`}
+        .
+      </Alert>
       <FormulaExplain
         symbolicLines={[
           `${outSym} &= \\min(${attrSym}, ${threshold}) + \\max(0, ${attrSym} - ${threshold}) \\times 0.25`,
@@ -589,12 +653,17 @@ function AttributeSoftcapBody({ stat, value }: { stat: "str" | "int"; value: num
             ],
           },
         ]}
-        note={`Full value only up to the ${threshold} softcap; each point above adds 25%.`}
+        note={`Full value only up to the ${threshold} softcap; each point above adds 25%. Sheet ${derived} also includes gear — this curve is the attribute piece only.`}
       />
       <Typography variant="subtitle2" id={STAT_DETAIL_GRAPH_ID}>
-        {derivedLabel} vs {stat}
+        {outSym} vs {attrSym}
       </Typography>
-      <FalloffChart points={curve} markerX={value} xLabel={stat} yLabel={derivedLabel} />
+      <FalloffChart
+        points={curve}
+        markerX={value}
+        xLabel={`${attrSym} (${stat})`}
+        yLabel={`${outSym} (${derived})`}
+      />
     </Box>
   );
 }
@@ -602,13 +671,19 @@ function AttributeSoftcapBody({ stat, value }: { stat: "str" | "int"; value: num
 function LandChanceBody({
   stat,
   value,
+  player,
+  monster,
   monsterName,
   hitDirection,
+  mitigationOptions,
 }: {
   stat: "evasion" | "reflection";
   value: number;
+  player: Combatant;
+  monster: Combatant;
   monsterName: string;
   hitDirection: HitDirection;
+  mitigationOptions?: MitigationOptions;
 }) {
   const miss = Math.max(0, Math.min(100, value));
   const land = 100 - miss;
@@ -621,9 +696,50 @@ function LandChanceBody({
       ? `your evasion vs ${monsterName}'s physical hits`
       : `your reflection vs ${monsterName}'s magical hits`;
 
+  const source = hitDirection === "youHit" ? player : monster;
+  const target = hitDirection === "youHit" ? monster : player;
+  const opts = mitigationOptions ?? {};
+  const now = expectedHitBreakdown(source, target, opts);
+  const gateApplies =
+    now.mitigation.path === "basic" &&
+    ((stat === "evasion" && now.mitigation.damageType === "physical") ||
+      (stat === "reflection" && now.mitigation.damageType === "magical"));
+  const bumpedTarget: Combatant =
+    hitDirection === "youHit"
+      ? {
+          ...monster,
+          [stat]: Math.min(100, (monster[stat] ?? 0) + 1),
+        }
+      : {
+          ...player,
+          [stat]: Math.min(100, (player[stat] ?? 0) + 1),
+        };
+  const plus = expectedHitBreakdown(source, bumpedTarget, opts);
+  const landDelta = gateApplies ? (plus.landChance - now.landChance) * 100 : 0;
+  const dmgDeltaPct =
+    gateApplies && now.expected > 0
+      ? ((plus.expected - now.expected) / now.expected) * 100
+      : gateApplies
+      ? (plus.landChance - now.landChance) * 100
+      : 0;
+
   return (
     <Box>
+      <Alert severity="info" sx={{ mb: 1.5 }}>
+        {against}. {land.toFixed(1)}% of hits deal damage
+        {gateApplies
+          ? ` · +1 ${stat}: ${landDelta >= 0 ? "+" : ""}${landDelta.toFixed(2)}% land ≈ ${
+              dmgDeltaPct >= 0 ? "+" : ""
+            }${dmgDeltaPct.toFixed(3)}% expected damage`
+          : ` · not gating this path (${now.mitigation.damageType} / ${now.mitigation.path})`}
+        .{stat === "reflection" ? " Reflection can also bounce a projectile back." : ""}
+      </Alert>
       <FormulaExplain
+        context={
+          hitDirection === "youHit"
+            ? `Attack · You → ${monsterName}`
+            : `Defense · ${monsterName} → you`
+        }
         symbolicLines={[
           `e &= \\min\\bigl(100,\\,\\max(0,\\,${stat === "evasion" ? "E" : "R"})\\bigr)`,
           `\\ell &= 100 - e`,
@@ -644,39 +760,77 @@ function LandChanceBody({
             ],
           },
         ]}
-        note={`${against}. Miss when random × 100 < ${stat}. A successful roll fully negates the hit${
-          stat === "reflection" ? " (and may bounce a projectile back)" : ""
-        }.`}
+        note={`Miss when random × 100 < ${stat}. Expected hit damage scales by ℓ/100 (see expected hit).`}
       />
       <Typography variant="subtitle2" id={STAT_DETAIL_GRAPH_ID}>
-        Land chance vs {stat}
+        ℓ vs {stat === "evasion" ? "E" : "R"}
       </Typography>
       <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-        Orange = current {stat}. Y is expected % of hits that deal damage.
+        Orange = current. Y is expected % of hits that deal damage.
       </Typography>
-      <FalloffChart points={landChanceCurve()} markerX={miss} xLabel={stat} yLabel="land %" />
+      <FalloffChart
+        points={landChanceCurve()}
+        markerX={miss}
+        xLabel={`${stat === "evasion" ? "E" : "R"} (${stat})`}
+        yLabel="ℓ (%)"
+      />
     </Box>
   );
 }
 
 function FortitudeBody({
   value,
+  player,
+  monster,
   monsterName,
   hitDirection,
+  mitigationOptions,
 }: {
   value: number;
+  player: Combatant;
+  monster: Combatant;
   monsterName: string;
   hitDirection: HitDirection;
+  mitigationOptions?: MitigationOptions;
 }) {
   const mult = damageMultiplier(value * 5);
+  const nextMult = damageMultiplier((value + 1) * 5);
   const who =
     hitDirection === "youHit"
       ? `${monsterName}'s fortitude (for) vs your hits`
       : `your fortitude (for) vs ${monsterName}`;
+  // Fortitude only multiplies when the attacker is a player (Attack direction).
+  const applies = hitDirection === "youHit";
+  const source = player;
+  const target = monster;
+  const opts = { ...(mitigationOptions ?? {}), attackerIsPlayer: true };
+  const now = applies ? expectedHitBreakdown(source, target, opts) : null;
+  const plusTarget = { ...monster, for: value + 1 };
+  const plus = applies ? expectedHitBreakdown(source, plusTarget, opts) : null;
+  const dmgDeltaPct =
+    now && plus && now.expected > 0
+      ? ((plus.expected - now.expected) / now.expected) * 100
+      : applies
+      ? (nextMult - mult) * 100
+      : 0;
 
   return (
     <Box>
+      <Alert severity={applies ? "info" : "success"} sx={{ mb: 1.5 }}>
+        {who}. f = {(mult * 100).toFixed(1)}%
+        {applies
+          ? ` · +1 for → f ${(nextMult * 100).toFixed(1)}% ≈ ${
+              dmgDeltaPct >= 0 ? "+" : ""
+            }${dmgDeltaPct.toFixed(3)}% expected damage`
+          : " · only scales player→monster hits, so it does not soften monster damage to you"}
+        .
+      </Alert>
       <FormulaExplain
+        context={
+          hitDirection === "youHit"
+            ? `Attack · You → ${monsterName}`
+            : `Defense · ${monsterName} → you`
+        }
         symbolicLines={[
           `\\mathrm{f} &= \\mathrm{M}(\\mathrm{F} \\times 5)`,
           `\\mathrm{damage} &= \\mathrm{damage} \\times \\mathrm{f}`,
@@ -696,15 +850,161 @@ function FortitudeBody({
             ],
           },
         ]}
-        note={`${who}. Only applies when the attacker is a player. M is the same soft curve as armor/resist (clamped 5%–132%).`}
+        note="M is the same soft curve as armor/resist (clamped 5%–132%)."
       />
       <Typography variant="subtitle2" id={STAT_DETAIL_GRAPH_ID}>
         f vs F
       </Typography>
       <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-        Orange = current F (for). f = M(F × 5), same curve as armor/resist mitigation.
+        Orange = current F (for). f = M(F × 5).
       </Typography>
       <FalloffChart points={fortitudeMultCurve()} markerX={value} xLabel="F (for)" yLabel="f (%)" />
+    </Box>
+  );
+}
+
+function UnusedPierceBody({
+  unusedStat,
+  unusedValue,
+  activeStat,
+  activeValue,
+  damageType,
+}: {
+  unusedStat: "apiercing" | "rpiercing";
+  unusedValue: number;
+  activeStat: "apiercing" | "rpiercing" | "none";
+  activeValue: number;
+  damageType: DamageType;
+}) {
+  return (
+    <Box>
+      <Alert severity="warning" sx={{ mb: 1.5 }}>
+        {unusedStat} ({unusedValue}) does not pierce {damageType} hits.{" "}
+        {activeStat === "none"
+          ? "Pure damage ignores pierce entirely."
+          : `This fight uses ${activeStat} (currently ${activeValue}).`}
+      </Alert>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Stack {activeStat === "none" ? "something else" : activeStat} for this target, or switch
+        damage type (weapon / heal path) if you want {unusedStat} to matter.
+      </Typography>
+      <Typography variant="caption" color="text.secondary" display="block">
+        Open the active pierce row for the m vs p curve and hard-cap trim.
+      </Typography>
+    </Box>
+  );
+}
+
+function ExpectedHitBody({
+  focusStat,
+  player,
+  monster,
+  monsterName,
+  hitDirection,
+  mitigationOptions,
+}: {
+  focusStat: "expectedHit" | "crit" | "critdamage" | "attack" | "frequency";
+  player: Combatant;
+  monster: Combatant;
+  monsterName: string;
+  hitDirection: HitDirection;
+  mitigationOptions?: MitigationOptions;
+}) {
+  const youHitFocus = hitDirection === "youHit";
+  const source = youHitFocus ? player : monster;
+  const target = youHitFocus ? monster : player;
+  const opts = mitigationOptions ?? {};
+  const ev = expectedHitBreakdown(source, target, opts);
+  const focusLabel = youHitFocus ? `You → ${monsterName}` : `${monsterName} → you`;
+  const contextLabel = youHitFocus ? `Attack · ${focusLabel}` : `Defense · ${focusLabel}`;
+
+  const lead =
+    focusStat === "crit" || focusStat === "critdamage"
+      ? `Crit EV is ×${ev.critEv.toFixed(3)} (p=${(ev.critChance * 100).toFixed(
+          1,
+        )}%, crit mult=${ev.critMult.toFixed(2)}). This is only one step of expected hit.`
+      : focusStat === "frequency"
+      ? `Theo DPS = expected hit × frequency = ${ev.expected.toFixed(1)} × ${ev.frequency.toFixed(
+          2,
+        )} = ${ev.theoDps.toFixed(1)}.`
+      : focusStat === "attack"
+      ? `Attack ${ev.attack} is the base before mitigation, fortitude, crit EV, and land chance.`
+      : `Expected hit stacks mitigation → fortitude → crit EV → land chance. Raw roll range ignores crit/land.`;
+
+  const A = "\\mathrm{A}";
+  const m = "\\mathrm{m}";
+  const f = "\\mathrm{f}";
+  const c = "\\mathrm{c}";
+  const ell = "\\ell";
+  const E = "\\mathrm{E}";
+
+  return (
+    <Box>
+      <Alert severity="info" sx={{ mb: 1.5 }}>
+        {lead}
+      </Alert>
+      <FormulaExplain
+        context={contextLabel}
+        symbolicLines={[
+          `${E} &= ${A} \\times ${m} \\times ${f} \\times ${c} \\times ${ell}`,
+          `\\mathrm{DPS} &= ${E} \\times \\mathrm{freq}`,
+        ]}
+        legend={[
+          { symbol: "A", meaning: "attack" },
+          { symbol: "m", meaning: "mitigation mult (armor/resist/pierce)" },
+          { symbol: "f", meaning: "fortitude mult (player hits only)" },
+          { symbol: "c", meaning: "crit EV = 1 + p(cmult−1)" },
+          { symbol: "ℓ", meaning: "land chance (1 − miss)" },
+          { symbol: "E", meaning: "expected hit" },
+        ]}
+        examples={[
+          {
+            label: focusLabel,
+            lines: [
+              `${E} &= ${ev.attack} \\times ${ev.mitigationMult.toFixed(
+                3,
+              )} \\times ${ev.fortitudeMult.toFixed(3)} \\times ${ev.critEv.toFixed(
+                3,
+              )} \\times ${ev.landChance.toFixed(3)} = ${ev.expected.toFixed(1)}`,
+              `\\mathrm{DPS} &= ${ev.expected.toFixed(1)} \\times ${ev.frequency.toFixed(
+                2,
+              )} = ${ev.theoDps.toFixed(1)}`,
+            ],
+          },
+        ]}
+        note="Mitigation m alone is the 'damage multiplier' row. Crit uses live 2 + critdamage/100 on a successful roll."
+      />
+      <Typography variant="subtitle2" sx={{ mt: 1 }}>
+        Stack for {focusLabel}
+      </Typography>
+      <Table size="small" sx={{ mb: 1 }}>
+        <TableBody>
+          <TableRow>
+            <TableCell>attack (A)</TableCell>
+            <TableCell align="right">{ev.attack}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>after mitigation (×m)</TableCell>
+            <TableCell align="right">{ev.afterMitigation.toFixed(1)}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>after fortitude (×f)</TableCell>
+            <TableCell align="right">{ev.afterFortitude.toFixed(1)}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>after crit EV (×c = {ev.critEv.toFixed(3)})</TableCell>
+            <TableCell align="right">{ev.afterCrit.toFixed(1)}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>expected hit (×ℓ = {(ev.landChance * 100).toFixed(1)}%)</TableCell>
+            <TableCell align="right">{ev.expected.toFixed(1)}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>theo DPS</TableCell>
+            <TableCell align="right">{ev.theoDps.toFixed(1)}</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     </Box>
   );
 }
@@ -726,7 +1026,7 @@ function MitigationBody({
 }) {
   const opts = mitigationOptions ?? {};
   const youHit = mitigationBreakdown(player, monster, opts);
-  const theyHit = mitigationBreakdown(monster, player, { path: opts.path ?? "basic" });
+  const theyHit = mitigationBreakdown(monster, player, { path: "basic" });
   const focus = hitDirection === "theyHit" ? theyHit : youHit;
   const skillPierce = opts.skillPierce ?? 0;
   const waste = pierceWaste({
@@ -746,14 +1046,47 @@ function MitigationBody({
     monsterResistance: player.resistance,
   });
 
+  const focusWaste = hitDirection === "youHit" ? waste : theyWaste;
+  const clickedPierce = stat === "apiercing" || stat === "rpiercing" ? stat : null;
+  if (
+    hitDirection === "youHit" &&
+    clickedPierce &&
+    waste.unusedPierceStat === clickedPierce &&
+    waste.unusedPierce > 0
+  ) {
+    return (
+      <UnusedPierceBody
+        unusedStat={clickedPierce}
+        unusedValue={waste.unusedPierce}
+        activeStat={waste.activePierceStat}
+        activeValue={waste.activePierce}
+        damageType={waste.damageType}
+      />
+    );
+  }
+  if (
+    hitDirection === "theyHit" &&
+    clickedPierce &&
+    theyWaste.unusedPierceStat === clickedPierce &&
+    theyWaste.unusedPierce > 0
+  ) {
+    return (
+      <UnusedPierceBody
+        unusedStat={clickedPierce}
+        unusedValue={theyWaste.unusedPierce}
+        activeStat={theyWaste.activePierceStat}
+        activeValue={theyWaste.activePierce}
+        damageType={theyWaste.damageType}
+      />
+    );
+  }
+
   const defenseForCurve = focus.defense;
   const pierceMarker = focus.pierce;
   const pierceStatLabel = focus.pierceStat === "none" ? "pierce" : focus.pierceStat;
   const defenseStatLabel = focus.defenseStat === "none" ? "defense" : focus.defenseStat;
-  const hardCapPierce =
-    hitDirection === "theyHit" ? theyWaste.pierceAtHardCap : waste.pierceAtHardCap;
-  const marginal =
-    hitDirection === "theyHit" ? theyWaste.marginalMultFromPlusOne : waste.marginalMultFromPlusOne;
+  const hardCapPierce = focusWaste.pierceAtHardCap;
+  const marginal = focusWaste.marginalMultFromPlusOne;
 
   const pierceCurve = mitigationCurveByPierce({
     defense: defenseForCurve,
@@ -762,22 +1095,22 @@ function MitigationBody({
   });
   const effCurve = mitigationCurveByEffectiveDefense({});
 
+  const entry: "pierce" | "defense" | "effectiveDefense" | "damageMultiplier" =
+    stat === "apiercing" || stat === "rpiercing"
+      ? "pierce"
+      : stat === "armor" || stat === "resistance"
+      ? "defense"
+      : stat === "effectiveDefense"
+      ? "effectiveDefense"
+      : "damageMultiplier";
+
   const showPierceChart =
     focus.damageType !== "pure" &&
-    (stat === "apiercing" ||
-      stat === "rpiercing" ||
-      stat === "damageMultiplier" ||
-      stat === "effectiveDefense");
-
+    (entry === "pierce" || entry === "damageMultiplier" || entry === "effectiveDefense");
   const showEffChart =
-    stat === "armor" ||
-    stat === "resistance" ||
-    stat === "effectiveDefense" ||
-    stat === "damageMultiplier";
+    entry === "defense" || entry === "effectiveDefense" || entry === "damageMultiplier";
 
-  const focusHints = hitDirection === "youHit" ? waste.hints : theyWaste.hints;
-  const focusWaste = hitDirection === "youHit" ? waste : theyWaste;
-
+  const focusHints = focusWaste.hints;
   const youHitFocus = hitDirection === "youHit";
   const focusPath = youHitFocus ? youHit.path : "basic";
   const focusSkillPierce = youHitFocus ? youHit.skillPierce : 0;
@@ -792,7 +1125,6 @@ function MitigationBody({
       : "Basic: gear pierce counted twice."
     : "Defense uses basic attacks (gear pierce counted twice).";
 
-  // Upright \mathrm ids — italic Computer Modern is thin/hard on dark UI.
   const De = "d_{\\mathrm{eff}}";
   const D = "\\mathrm{D}";
   const P = "\\mathrm{p}";
@@ -865,8 +1197,36 @@ function MitigationBody({
   const focusLabel = youHitFocus ? `You → ${monsterName}` : `${monsterName} → you`;
   const contextLabel = youHitFocus ? `Attack · ${focusLabel}` : `Defense · ${focusLabel}`;
 
+  // +1 defense → d_eff shift depends on path.
+  const defenseDeltaEff = focusPath === "heal" ? 0.5 : focusPath === "splash" ? 1 : 1;
+  const mPlusDefense =
+    damageMultiplier(focus.effectiveDefense + defenseDeltaEff) - focus.multiplier;
+
+  const lead =
+    entry === "pierce"
+      ? `Is more ${pierceStatLabel} worth it? Marginal +1 p: ${marginal >= 0 ? "+" : ""}${(
+          marginal * 100
+        ).toFixed(4)}% m vs this D (${defenseForCurve}).`
+      : entry === "defense"
+      ? `How much does ${defenseStatLabel} matter here? +1 D ≈ ${mPlusDefense >= 0 ? "+" : ""}${(
+          mPlusDefense * 100
+        ).toFixed(4)}% m (path ${focusPath}).`
+      : entry === "effectiveDefense"
+      ? `d_eff is what actually enters M. Current d_eff = ${focus.effectiveDefense.toFixed(
+          1,
+        )} → m = ${(focus.multiplier * 100).toFixed(1)}%.`
+      : `Damage multiplier here is mitigation m only (${(focus.multiplier * 100).toFixed(
+          1,
+        )}%) — not crit EV or land chance. Open expected hit for the full stack.`;
+
+  const pierceFirst = entry === "pierce";
+  const effFirst = entry === "defense" || (entry === "effectiveDefense" && !showPierceChart);
+
   return (
     <Box>
+      <Alert severity="info" sx={{ mb: 1.5 }}>
+        {lead}
+      </Alert>
       <FormulaExplain
         context={contextLabel}
         symbolicLines={symbolicLines}
@@ -879,7 +1239,7 @@ function MitigationBody({
         ]}
         note={`${pathNote} M is soft-banded and clamped to 5%–132%.`}
       />
-      {showPierceChart && (
+      {pierceFirst && showPierceChart && (
         <Box id={STAT_DETAIL_GRAPH_ID} sx={{ mb: 1 }}>
           <Typography variant="subtitle2">m vs p</Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
@@ -897,7 +1257,7 @@ function MitigationBody({
         </Box>
       )}
       {showEffChart && (
-        <Box id={showPierceChart ? undefined : STAT_DETAIL_GRAPH_ID} sx={{ mb: 1 }}>
+        <Box id={effFirst ? STAT_DETAIL_GRAPH_ID : undefined} sx={{ mb: 1 }}>
           <Typography variant="subtitle2">m vs d_eff</Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
             Orange = current d_eff for {focusLabel}
@@ -910,7 +1270,24 @@ function MitigationBody({
           />
         </Box>
       )}
-      {hardCapPierce != null && focus.damageType !== "pure" && (
+      {!pierceFirst && showPierceChart && (
+        <Box id={undefined} sx={{ mb: 1 }}>
+          <Typography variant="subtitle2">m vs p</Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+            D ({defenseStatLabel}) fixed at {defenseForCurve}. Orange = current p (
+            {youHitFocus ? "your" : `${monsterName}'s`} {pierceStatLabel}).
+            {hardCapPierce != null ? " Green dashed = m hard cap at 132%." : ""}
+          </Typography>
+          <FalloffChart
+            points={pierceCurve}
+            markerX={pierceMarker}
+            capX={hardCapPierce ?? undefined}
+            xLabel={`p (${pierceStatLabel})`}
+            yLabel="m (%)"
+          />
+        </Box>
+      )}
+      {hardCapPierce != null && focus.damageType !== "pure" && entry !== "defense" && (
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
           m hard cap (132%) at p ≈ {hardCapPierce} vs this D. Marginal +1 p: +
           {(marginal * 100).toFixed(4)}% m.
@@ -937,6 +1314,8 @@ export type StatDetailDialogProps = {
   monsterName: string;
   playerStats: Record<string, number | undefined>;
   conditions?: Record<string, ConditionDefenseDef | undefined>;
+  /** Monster poisonous / abilities — status-resist vs-target lead. */
+  monsterStatus?: MonsterStatusSource;
   hitDirection?: HitDirection;
   contributions?: StatContribution[];
   mitigationOptions?: MitigationOptions;
@@ -952,6 +1331,7 @@ export function StatDetailDialog({
   monsterName,
   playerStats,
   conditions,
+  monsterStatus,
   hitDirection = "youHit",
   contributions = [],
   mitigationOptions,
@@ -972,6 +1352,8 @@ export function StatDetailDialog({
       ? "Effective defense"
       : stat === "damageMultiplier"
       ? "Damage multiplier"
+      : stat === "expectedHit"
+      ? "Expected hit"
       : stat === "for"
       ? "Fortitude (for)"
       : stat;
@@ -983,6 +1365,11 @@ export function StatDetailDialog({
     stat === "resistance" ||
     stat === "effectiveDefense" ||
     stat === "damageMultiplier" ||
+    stat === "expectedHit" ||
+    stat === "crit" ||
+    stat === "critdamage" ||
+    stat === "attack" ||
+    stat === "frequency" ||
     stat === "for" ||
     stat === "evasion" ||
     stat === "reflection";
@@ -991,22 +1378,21 @@ export function StatDetailDialog({
     ? `${baseTitle} · ${hitDirection === "youHit" ? "Attack" : "Defense"}`
     : baseTitle;
 
-  const sheetTotal =
-    stat === "effectiveDefense" || stat === "damageMultiplier"
-      ? undefined
-      : stat === "for"
-      ? hitDirection === "youHit"
-        ? monster.for
-        : player.for
-      : stat === "evasion"
-      ? hitDirection === "youHit"
-        ? monster.evasion
-        : player.evasion
-      : stat === "reflection"
-      ? hitDirection === "youHit"
-        ? monster.reflection
-        : player.reflection
-      : playerStats[stat];
+  const sheetTotal = isDerivedInsightStat(stat)
+    ? undefined
+    : stat === "for"
+    ? hitDirection === "youHit"
+      ? monster.for
+      : player.for
+    : stat === "evasion"
+    ? hitDirection === "youHit"
+      ? monster.evasion
+      : player.evasion
+    : stat === "reflection"
+    ? hitDirection === "youHit"
+      ? monster.reflection
+      : player.reflection
+    : playerStats[stat];
 
   const gateValue =
     stat === "evasion"
@@ -1074,18 +1460,53 @@ export function StatDetailDialog({
         }}
       >
         {stat === "str" || stat === "int" ? (
-          <AttributeSoftcapBody stat={stat} value={playerStats[stat] ?? 0} />
+          <AttributeSoftcapBody
+            stat={stat}
+            value={playerStats[stat] ?? 0}
+            player={player}
+            monster={monster}
+            monsterName={monsterName}
+          />
         ) : stat === "evasion" || stat === "reflection" ? (
           <LandChanceBody
             stat={stat}
             value={gateValue}
+            player={player}
+            monster={monster}
             monsterName={monsterName}
             hitDirection={hitDirection}
+            mitigationOptions={mitigationOptions}
           />
         ) : stat === "for" ? (
-          <FortitudeBody value={fortValue} monsterName={monsterName} hitDirection={hitDirection} />
+          <FortitudeBody
+            value={fortValue}
+            player={player}
+            monster={monster}
+            monsterName={monsterName}
+            hitDirection={hitDirection}
+            mitigationOptions={mitigationOptions}
+          />
         ) : isStatusResistStat(stat) ? (
-          <StatusResistBody stat={stat} value={playerStats[stat] ?? 0} conditions={conditions} />
+          <StatusResistBody
+            stat={stat}
+            value={playerStats[stat] ?? 0}
+            conditions={conditions}
+            monsterName={monsterName}
+            monsterStatus={monsterStatus}
+          />
+        ) : stat === "expectedHit" ||
+          stat === "crit" ||
+          stat === "critdamage" ||
+          stat === "attack" ||
+          stat === "frequency" ? (
+          <ExpectedHitBody
+            focusStat={stat}
+            player={player}
+            monster={monster}
+            monsterName={monsterName}
+            hitDirection={hitDirection}
+            mitigationOptions={mitigationOptions}
+          />
         ) : (
           <MitigationBody
             stat={stat}
@@ -1096,7 +1517,7 @@ export function StatDetailDialog({
             mitigationOptions={mitigationOptions}
           />
         )}
-        {contributions.length > 0 && (
+        {contributions.length > 0 && !isDerivedInsightStat(stat) && (
           <ContributionTable
             rows={contributions}
             sheetTotal={typeof sheetTotal === "number" ? sheetTotal : undefined}

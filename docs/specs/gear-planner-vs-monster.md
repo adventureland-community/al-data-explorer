@@ -67,9 +67,12 @@ Home: Target monster block in `StatsPanel` (Gear Planner + Character panels).
 
 - Stat Detail tabs: **Your numbers** (default) then **Formula** (equation + legend side by side); single dialog scroller only
 - Attack-panel clicks focus You → monster; Defense-panel clicks focus Monster → you (title includes Attack/Defense)
+- Entry-specialized mitigation: pierce leads with m vs p + marginal; armor/resist with m vs d_eff + marginal D; damage multiplier clarifies “mitigation only”; wrong-type pierce opens an unused-pierce panel
+- Expected hit / crit / attack / frequency / theo DPS: full EV stack (A × m × f × c × ℓ)
 - SVG falloff graphs (mult vs pierce with you + hard-cap markers; mult vs effective defense; status chance / duration curves)
-- STR/INT: attribute softcap curve (160 / 180) with current marker
-- Evasion / reflection: land-chance graph; fortitude (`for`): mult vs for graph (click Attack/Defense rows or sheet stats)
+- STR/INT: softcap + chain into vs-monster mitigation marginal when the derived defense is active
+- Evasion / reflection: land-chance + expected-damage marginal; fortitude (`for`): f vs F + Attack-only marginal
+- Status resists: lead with conditions **this monster** applies (poisonous / abilities); overcap warnings
 - Waste hints: wrong-type pierce, hard 1.32 cap (trim copy + top gear line when contributions exist), status ≥ 100
 - Gear/set contribution table (gear rows click → slot highlight)
 - Inline warning chips above Attack/Defense tables

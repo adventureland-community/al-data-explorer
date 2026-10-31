@@ -199,24 +199,74 @@ export function mitigationBreakdown(
   };
 }
 
+/** Full EV stack for one expected hit (before frequency). */
+export type ExpectedHitBreakdown = {
+  attack: number;
+  mitigationMult: number;
+  fortitudeMult: number;
+  /** Crit chance 0–1. */
+  critChance: number;
+  /** Live crit multiplier: 2 + critdamage/100. */
+  critMult: number;
+  /** Expected crit factor: 1 + p×(cmult − 1). */
+  critEv: number;
+  landChance: number;
+  frequency: number;
+  afterMitigation: number;
+  afterFortitude: number;
+  afterCrit: number;
+  expected: number;
+  theoDps: number;
+  mitigation: MitigationBreakdown;
+};
+
 /**
- * Mean hit damage including crit EV, fortitude, and evade/reflect land chance.
+ * Crit EV and land-chance stack on top of mitigation × fortitude.
  * Live crit: `attack *= 2 + critdamage/100` on a successful roll
  * (`node/server.js` complete_attack) → EV factor `1 + p*(cmult − 1)`.
+ */
+export function expectedHitBreakdown(
+  source: Combatant,
+  target: Combatant,
+  options: MitigationOptions = {},
+): ExpectedHitBreakdown {
+  const mitigation = mitigationBreakdown(source, target, options);
+  const attack = source.attack ?? 0;
+  const afterMitigation = attack * mitigation.multiplier;
+  const afterFortitude = afterMitigation * mitigation.fortitudeMult;
+  const critChance = Math.max(0, Math.min(100, source.crit ?? 0)) / 100;
+  const critMult = 2 + (source.critdamage ?? 0) / 100;
+  const critEv = 1 + critChance * (critMult - 1);
+  const afterCrit = afterFortitude * critEv;
+  const expected = afterCrit * mitigation.landChance;
+  const frequency = source.frequency ?? 0;
+  return {
+    attack,
+    mitigationMult: mitigation.multiplier,
+    fortitudeMult: mitigation.fortitudeMult,
+    critChance,
+    critMult,
+    critEv,
+    landChance: mitigation.landChance,
+    frequency,
+    afterMitigation,
+    afterFortitude,
+    afterCrit,
+    expected,
+    theoDps: expected * frequency,
+    mitigation,
+  };
+}
+
+/**
+ * Mean hit damage including crit EV, fortitude, and evade/reflect land chance.
  */
 export function expectedHitDamage(
   source: Combatant,
   target: Combatant,
   options: MitigationOptions = {},
 ): number {
-  const b = mitigationBreakdown(source, target, options);
-  let damage = b.multiplier * b.fortitudeMult * (source.attack ?? 0);
-  const critChance = Math.max(0, Math.min(100, source.crit ?? 0)) / 100;
-  if (critChance > 0) {
-    const critMult = 2 + (source.critdamage ?? 0) / 100;
-    damage *= 1 + critChance * (critMult - 1);
-  }
-  return damage * b.landChance;
+  return expectedHitBreakdown(source, target, options).expected;
 }
 
 /** Hit damage at the low/high ends of the 0.9–1.1 attack roll (no crit; before land chance). */

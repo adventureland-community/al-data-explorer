@@ -45,8 +45,10 @@ import {
 import { HitDirection, StatDetailDialog } from "./StatDetailDialog";
 import {
   InsightStat,
+  MonsterStatusSource,
   STATUS_RESIST_STATS,
   StatusResistStat,
+  isDerivedInsightStat,
   isInsightStat,
   wasteChipsForLoadout,
 } from "./statInsights";
@@ -188,8 +190,15 @@ function MitigationRows({
           <TableCell sx={clickableCellSx}>damage multiplier</TableCell>
           <TableCell align="right">{formatMult(breakdown.multiplier)}</TableCell>
         </TableRow>
-        <TableRow>
-          <TableCell title="Mean of 0.9–1.1 attack roll, including expected crit">
+        <TableRow
+          hover
+          onClick={() => onOpenStat("expectedHit", hitDirection)}
+          sx={{ cursor: "pointer" }}
+        >
+          <TableCell
+            title="Full EV: mitigation × fortitude × crit × land (click for stack)"
+            sx={clickableCellSx}
+          >
             expected hit
           </TableCell>
           <TableCell align="right">
@@ -199,8 +208,14 @@ function MitigationRows({
             </Typography>
           </TableCell>
         </TableRow>
-        <TableRow>
-          <TableCell>theo DPS</TableCell>
+        <TableRow
+          hover
+          onClick={() => onOpenStat("frequency", hitDirection)}
+          sx={{ cursor: "pointer" }}
+        >
+          <TableCell title="expected hit × frequency" sx={clickableCellSx}>
+            theo DPS
+          </TableCell>
           <TableCell align="right">{dps.toFixed(1)}</TableCell>
         </TableRow>
         <TableRow>
@@ -886,9 +901,7 @@ export function StatsPanel({
             setDetailStat(null);
           }}
           contributions={
-            detailStat != null &&
-            detailStat !== "effectiveDefense" &&
-            detailStat !== "damageMultiplier"
+            detailStat != null && !isDerivedInsightStat(detailStat)
               ? contributionsForStat({
                   stat: detailStat as StatType,
                   gear,
@@ -908,6 +921,18 @@ export function StatsPanel({
           }
           conditions={
             G.conditions as Record<string, { name?: string; defense?: string; debuff?: boolean }>
+          }
+          monsterStatus={
+            {
+              poisonous: Boolean(
+                (G.monsters[targetMonster] as { poisonous?: boolean } | undefined)?.poisonous,
+              ),
+              abilities: (
+                G.monsters[targetMonster] as
+                  | { abilities?: MonsterStatusSource["abilities"] }
+                  | undefined
+              )?.abilities,
+            } as MonsterStatusSource
           }
         />
       </Box>
