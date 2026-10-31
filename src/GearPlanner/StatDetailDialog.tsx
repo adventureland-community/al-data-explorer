@@ -412,7 +412,6 @@ function MitigationBody({
   monsterName,
   hitDirection,
   mitigationOptions,
-  contributions = [],
 }: {
   stat: InsightStat;
   player: Combatant;
@@ -420,7 +419,6 @@ function MitigationBody({
   monsterName: string;
   hitDirection: HitDirection;
   mitigationOptions?: MitigationOptions;
-  contributions?: StatContribution[];
 }) {
   const opts = mitigationOptions ?? {};
   const youHit = mitigationBreakdown(player, monster, opts);
@@ -475,15 +473,6 @@ function MitigationBody({
 
   const focusHints = hitDirection === "youHit" ? waste.hints : theyWaste.hints;
   const focusWaste = hitDirection === "youHit" ? waste : theyWaste;
-  const topGearTrim =
-    focusWaste.piercePastHardCap > 0 && focusWaste.activePierceStat !== "none"
-      ? contributions
-          .filter(
-            (row): row is StatContribution & { kind: "gear" } =>
-              row.kind === "gear" && stat === focusWaste.activePierceStat,
-          )
-          .sort((a, b) => b.value - a.value)[0]
-      : undefined;
 
   const pathNote =
     opts.path === "heal"
@@ -565,13 +554,7 @@ function MitigationBody({
           {focusWaste.piercePastHardCap > 0 ? (
             <>
               {" "}
-              Trim ~{focusWaste.piercePastHardCap.toFixed(0)} {pierceStatLabel} that does nothing
-              {topGearTrim
-                ? ` (e.g. ${topGearTrim.itemName}${
-                    topGearTrim.level > 0 ? ` +${topGearTrim.level}` : ""
-                  } +${topGearTrim.value})`
-                : ""}
-              .
+              Trim ~{focusWaste.piercePastHardCap.toFixed(0)} {pierceStatLabel} that does nothing.
             </>
           ) : null}
         </Typography>
@@ -651,9 +634,36 @@ export function StatDetailDialog({
   const fortValue = hitDirection === "youHit" ? monster.for ?? 0 : player.for ?? 0;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent dividers sx={{ maxHeight: { xs: "80vh", sm: "70vh" }, overflow: "auto" }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      // Skip fade so backdrop/paper never sit mid-opacity while the graph is open.
+      transitionDuration={0}
+      BackdropProps={{
+        sx: { bgcolor: "rgba(0, 0, 0, 0.75)", opacity: "1 !important" },
+        transitionDuration: 0,
+      }}
+      PaperProps={{
+        elevation: 12,
+        sx: {
+          bgcolor: "background.paper",
+          backgroundImage: "none",
+          opacity: 1,
+        },
+      }}
+    >
+      <DialogTitle sx={{ bgcolor: "background.paper" }}>{title}</DialogTitle>
+      <DialogContent
+        dividers
+        sx={{
+          maxHeight: { xs: "80vh", sm: "70vh" },
+          overflow: "auto",
+          bgcolor: "background.paper",
+          backgroundImage: "none",
+        }}
+      >
         {stat === "str" || stat === "int" ? (
           <AttributeSoftcapBody stat={stat} value={playerStats[stat] ?? 0} />
         ) : stat === "evasion" || stat === "reflection" ? (
@@ -675,7 +685,6 @@ export function StatDetailDialog({
             monsterName={monsterName}
             hitDirection={hitDirection}
             mitigationOptions={mitigationOptions}
-            contributions={contributions}
           />
         )}
         {contributions.length > 0 && (
