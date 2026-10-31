@@ -4,6 +4,7 @@ import {
   expectedHitDamage,
   hitDamageRange,
   mitigationBreakdown,
+  resolveDamageType,
   theo_dps,
 } from "./calculations";
 
@@ -78,6 +79,60 @@ describe("mitigationBreakdown", () => {
     const b = mitigationBreakdown({ apiercing: 0 }, { armor: 0 });
     expect(b.damageType).toBe("physical");
     expect(b.multiplier).toBe(1);
+  });
+
+  it("applies skill pierce once on basic attacks", () => {
+    const b = mitigationBreakdown(
+      { damage_type: "physical", apiercing: 10 },
+      { armor: 100 },
+      { skillPierce: 30 },
+    );
+    expect(b.effectiveDefense).toBe(100 - 20 - 30);
+    expect(b.skillPierce).toBe(30);
+  });
+
+  it("uses heal half-defense path", () => {
+    const b = mitigationBreakdown(
+      { damage_type: "magical", rpiercing: 20 },
+      { resistance: 100 },
+      { path: "heal" },
+    );
+    expect(b.effectiveDefense).toBe((100 - 20) / 2);
+  });
+
+  it("uses splash without pierce", () => {
+    const b = mitigationBreakdown(
+      { damage_type: "physical", apiercing: 50 },
+      { armor: 80 },
+      { path: "splash" },
+    );
+    expect(b.effectiveDefense).toBe(80);
+    expect(b.multiplier).toBeCloseTo(damageMultiplier(80));
+  });
+
+  it("applies fortitude when attacker is player", () => {
+    const b = mitigationBreakdown(
+      { damage_type: "physical", attack: 100 },
+      { armor: 0, for: 10 },
+      { attackerIsPlayer: true },
+    );
+    expect(b.fortitudeMult).toBeCloseTo(damageMultiplier(50));
+  });
+
+  it("reduces land chance from evasion on physical", () => {
+    const b = mitigationBreakdown(
+      { damage_type: "physical" },
+      { armor: 0, evasion: 25 },
+      { path: "basic" },
+    );
+    expect(b.missChance).toBe(25);
+    expect(b.landChance).toBeCloseTo(0.75);
+  });
+});
+
+describe("resolveDamageType", () => {
+  it("maps heal mainhand to magical", () => {
+    expect(resolveDamageType({ damage_type: "physical" }, "heal")).toBe("magical");
   });
 });
 

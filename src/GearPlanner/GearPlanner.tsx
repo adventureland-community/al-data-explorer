@@ -87,6 +87,7 @@ export function GearPlanner() {
   const [gear, setGear] = useState<{ [slot in SlotType]?: ItemInfo }>({});
   const [selectedClass, setSelectedClass] = useState<SelectedCharacterClass>();
   const [level, setLevel] = useState(1);
+  const [highlightedSlot, setHighlightedSlot] = useState<SlotType | null>(null);
   const appliedPending = useRef(false);
   const skipNextUrlWrite = useRef(false);
 
@@ -135,7 +136,14 @@ export function GearPlanner() {
     });
     const current = searchParams.get("gear");
     if (current === encoded) return;
-    setSearchParams({ gear: encoded }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("gear", encoded);
+        return next;
+      },
+      { replace: true },
+    );
   }, [G, gear, selectedClass, level, searchParams, setSearchParams]);
 
   if (!G) {
@@ -202,12 +210,18 @@ export function GearPlanner() {
               classes={classes}
               items={G.items}
               variant="planner"
+              highlightedSlot={highlightedSlot}
               hint="Click a slot to pick or edit · set Title / Stat scroll in the picker · ✕ to remove"
             />
           </Box>
         </Grid>
         <Grid item xs={12} md={8}>
-          <StatsPanel selectedCharacterClass={selectedClass} level={level} gear={gear} />
+          <StatsPanel
+            selectedCharacterClass={selectedClass}
+            level={level}
+            gear={gear}
+            onHighlightSlot={setHighlightedSlot}
+          />
         </Grid>
         <Grid item xs={12}>
           <Table size="small" aria-label="a dense table">

@@ -1,8 +1,11 @@
 import { damageMultiplier, effectiveDefense } from "./calculations";
 import {
+  armorFromStr,
+  attributeSoftcapCurve,
   mitigationCurveByPierce,
   pierceToHardCap,
   pierceWaste,
+  resistanceFromInt,
   statusChanceCurve,
   statusDurationCurve,
   statusResistInsight,
@@ -58,6 +61,20 @@ describe("pierceWaste", () => {
     expect(w.piercePastHardCap).toBe(20);
     expect(w.multiplier).toBeCloseTo(1.32);
     expect(w.marginalMultFromPlusOne).toBeCloseTo(0);
+    expect(w.hints.some((h) => /past the 1\.32/.test(h.text))).toBe(true);
+  });
+
+  it("accounts for skill pierce in hard cap trim", () => {
+    const defense = 100;
+    const skill = 40;
+    const cap = pierceToHardCap(defense - skill);
+    const w = pierceWaste({
+      damageType: "physical",
+      apiercing: cap + 5,
+      monsterArmor: defense,
+      skillPierce: skill,
+    });
+    expect(w.piercePastHardCap).toBe(5);
   });
 
   it("pure ignores both pierces", () => {
@@ -83,6 +100,24 @@ describe("pierceWaste", () => {
       /Overpiercing|past the 1\.32|adds no multiplier/i.test(h.text),
     );
     expect(soft?.openStat).toBe("rpiercing");
+  });
+});
+
+describe("attribute softcaps", () => {
+  it("armorFromStr softcaps at 160", () => {
+    expect(armorFromStr(160)).toBe(160);
+    expect(armorFromStr(200)).toBe(160 + 40 * 0.25);
+  });
+
+  it("resistanceFromInt softcaps at 180", () => {
+    expect(resistanceFromInt(180)).toBe(180);
+    expect(resistanceFromInt(200)).toBe(180 + 20 * 0.25);
+  });
+
+  it("attributeSoftcapCurve samples str", () => {
+    const pts = attributeSoftcapCurve({ kind: "str", from: 150, to: 170, steps: 4 });
+    expect(pts[0]?.y).toBe(150);
+    expect(pts[pts.length - 1]?.y).toBeCloseTo(162.5);
   });
 });
 

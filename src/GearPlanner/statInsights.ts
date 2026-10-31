@@ -6,8 +6,6 @@
  * + design/conditions.js `defense` fields.
  *
  * TODO: evasion / reflection / fortitude graphs
- * TODO: skill pierce on the curve
- * TODO: STR/INT softcap waste graphs (armor/resist from attributes)
  */
 
 import { DamageType, damageMultiplier, effectiveDefense } from "./calculations";
@@ -32,6 +30,8 @@ export type InsightStat =
   | "rpiercing"
   | "armor"
   | "resistance"
+  | "str"
+  | "int"
   | StatusResistStat
   | "effectiveDefense"
   | "damageMultiplier";
@@ -106,6 +106,8 @@ export function pierceWaste(args: {
   rpiercing?: number;
   monsterArmor?: number;
   monsterResistance?: number;
+  /** Skill pierce on info only — reduces effective defense once (basic path). */
+  skillPierce?: number;
 }): PierceWaste {
   const raw = args.damageType;
   const damageType: DamageType =
@@ -142,11 +144,12 @@ export function pierceWaste(args: {
   const activePierce = damageType === "magical" ? rp : ap;
   const unusedPierce = damageType === "magical" ? ap : rp;
   const defense = damageType === "magical" ? args.monsterResistance ?? 0 : args.monsterArmor ?? 0;
-  const eff = effectiveDefense(defense, activePierce);
+  const skillPierce = Math.max(0, args.skillPierce ?? 0);
+  const eff = effectiveDefense(defense, activePierce) - skillPierce;
   const mult = damageMultiplier(eff);
-  const pierceAtHardCap = pierceToHardCap(defense);
+  const pierceAtHardCap = pierceToHardCap(defense - skillPierce);
   const piercePastHardCap = Math.max(0, activePierce - pierceAtHardCap);
-  const multPlus = damageMultiplier(effectiveDefense(defense, activePierce + 1));
+  const multPlus = damageMultiplier(effectiveDefense(defense, activePierce + 1) - skillPierce);
   const marginalMultFromPlusOne = multPlus - mult;
 
   if (unusedPierce > 0) {
@@ -157,9 +160,9 @@ export function pierceWaste(args: {
   }
   if (piercePastHardCap > 0) {
     hints.push({
-      text: `${activePierceStat} is past the 1.32 damage-multiplier cap — about ${piercePastHardCap.toFixed(
+      text: `${activePierceStat} is past the 1.32 damage-multiplier cap — drop ~${piercePastHardCap.toFixed(
         0,
-      )} pierce does nothing vs this defense.`,
+      )} pierce (does nothing vs this defense).`,
       openStat: activePierceStat,
     });
   } else if (marginalMultFromPlusOne < 1e-6 && activePierce > 0) {
@@ -198,14 +201,16 @@ export function mitigationCurveByPierce(args: {
   pierceFrom?: number;
   pierceTo?: number;
   steps?: number;
+  skillPierce?: number;
 }): CurvePoint[] {
   const from = args.pierceFrom ?? 0;
   const to = Math.max(from + 1, args.pierceTo ?? Math.max(pierceToHardCap(args.defense) + 20, 200));
   const steps = args.steps ?? 80;
+  const skillPierce = Math.max(0, args.skillPierce ?? 0);
   const points: CurvePoint[] = [];
   for (let i = 0; i <= steps; i += 1) {
     const pierce = from + ((to - from) * i) / steps;
-    const mult = damageMultiplier(effectiveDefense(args.defense, pierce));
+    const mult = damageMultiplier(effectiveDefense(args.defense, pierce) - skillPierce);
     points.push({ x: pierce, y: mult * 100 });
   }
   return points;
@@ -330,10 +335,41 @@ export function isInsightStat(stat: string): stat is InsightStat {
     stat === "rpiercing" ||
     stat === "armor" ||
     stat === "resistance" ||
+    stat === "str" ||
+    stat === "int" ||
     stat === "effectiveDefense" ||
     stat === "damageMultiplier" ||
     isStatusResistStat(stat)
   );
+}
+
+/** Armor from STR (server softcap at 160). */
+export function armorFromStr(str: number): number {
+  return Math.min(str, 160) + Math.max(0, str - 160) * 0.25;
+}
+
+/** Resistance from INT (server softcap at 180). */
+export function resistanceFromInt(int: number): number {
+  return Math.min(int, 180) + Math.max(0, int - 180) * 0.25;
+}
+
+/** Attribute → derived defense softcap curve (y = derived points). */
+export function attributeSoftcapCurve(args: {
+  kind: "str" | "int";
+  from?: number;
+  to?: number;
+  steps?: number;
+}): CurvePoint[] {
+  const from = args.from ?? 0;
+  const to = args.to ?? 300;
+  const steps = args.steps ?? 60;
+  const points: CurvePoint[] = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const x = from + ((to - from) * i) / steps;
+    const y = args.kind === "str" ? armorFromStr(x) : resistanceFromInt(x);
+    points.push({ x, y });
+  }
+  return points;
 }
 
 export type WasteChip = WasteHint;
@@ -346,6 +382,7 @@ export function wasteChipsForLoadout(args: {
   monsterArmor?: number;
   monsterResistance?: number;
   statusResists?: Partial<Record<StatusResistStat, number>>;
+  skillPierce?: number;
 }): WasteChip[] {
   const chips: WasteChip[] = [];
   const pierce = pierceWaste(args);

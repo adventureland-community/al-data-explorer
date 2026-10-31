@@ -9,16 +9,17 @@
  * attacker[pierce] and info[pierce]. See Discord
  * https://discord.com/channels/238332476743745536/238332476743745536/947945565046579270
  *
- * TODO: skill pierce bonuses (e.g. piercingshot info.apiercing = 500) — counted once via info
- * TODO: heal path uses ((def - pierce) / 2) half-effect, pierce only once
- * TODO: splash uses damage_multiplier(target[defense]) with no pierce
- * TODO: fortitude (for * 5) extra mult when attacker is a player
- * TODO: evasion / reflection RNG outcomes
- * TODO: mainhand damage_type override (item can change class default)
+ * Skill pierce (e.g. piercingshot `info.apiercing = 500`) is counted once via info.
+ * Heal: `damage_multiplier((def - pierce) / 2)` with pierce once.
+ * Splash: `damage_multiplier(def)` with no pierce.
+ * Fortitude: player→target with `for` multiplies by `damage_multiplier(for * 5)`.
+ * Evasion (physical) / reflection (magical) gate whether the hit lands.
  * Status resists (pn/fire/fz/ph/st) are not hit mitigation — see statInsights.ts.
  */
 
 export type DamageType = "physical" | "magical" | "pure";
+
+export type HitPath = "basic" | "heal" | "splash";
 
 export type Combatant = {
   damage_type?: string;
@@ -31,17 +32,37 @@ export type Combatant = {
   crit?: number;
   critdamage?: number;
   hp?: number;
+  /** Fortitude attribute on the defender (player or monster). */
+  for?: number;
+  evasion?: number;
+  reflection?: number;
+};
+
+export type MitigationOptions = {
+  /** Extra pierce on `info` only (skill) — counted once, not doubled. */
+  skillPierce?: number;
+  path?: HitPath;
+  /** When true, apply fortitude mult if the target has `for`. */
+  attackerIsPlayer?: boolean;
 };
 
 export type MitigationBreakdown = {
   damageType: DamageType;
+  path: HitPath;
   defenseStat: "armor" | "resistance" | "none";
   pierceStat: "apiercing" | "rpiercing" | "none";
   defense: number;
+  /** Gear pierce (attacker sheet). */
   pierce: number;
-  /** `defense - 2 * pierce` for physical/magical basic attacks; 0 for pure. */
+  skillPierce: number;
+  /** Defense fed into `damage_multiplier` after pierce rules for this path. */
   effectiveDefense: number;
   multiplier: number;
+  fortitudeMult: number;
+  /** Chance the hit is fully negated (evasion or reflection). */
+  missChance: number;
+  /** Expected fraction of hits that deal damage: 1 − missChance/100. */
+  landChance: number;
 };
 
 /** Upstream `damage_multiplier(defense)` — pass effective defense (may be negative). */
@@ -73,72 +94,142 @@ export function effectiveDefense(defense: number, pierce: number): number {
   return defense - 2 * pierce;
 }
 
-function resolveDamageType(source: Combatant): DamageType {
-  const raw = source.damage_type;
-  if (raw === "magical" || raw === "pure" || raw === "physical") return raw;
+/**
+ * Resolve outbound damage type: mainhand `damage_type` wins over class default.
+ * `heal` weapons (e.g. cupid) are treated as magical for resist/pierce pairing;
+ * use `path: "heal"` for the heal half-defense formula.
+ */
+export function resolveDamageType(
+  source: Combatant,
+  mainhandDamageType?: string | null,
+): DamageType {
+  const raw = mainhandDamageType || source.damage_type;
+  if (raw === "heal" || raw === "magical") return "magical";
+  if (raw === "pure" || raw === "physical") return raw;
   return "physical";
 }
 
+function mitigationPair(damageType: DamageType): {
+  defenseStat: "armor" | "resistance" | "none";
+  pierceStat: "apiercing" | "rpiercing" | "none";
+} {
+  if (damageType === "pure") return { defenseStat: "none", pierceStat: "none" };
+  if (damageType === "magical") {
+    return { defenseStat: "resistance", pierceStat: "rpiercing" };
+  }
+  return { defenseStat: "armor", pierceStat: "apiercing" };
+}
+
 /**
- * How much of `source`'s basic attack lands on `target` after armor/resist pierce.
- * Pure skips mitigation (multiplier 1).
+ * How much of `source`'s hit lands on `target` after armor/resist pierce.
  */
-export function mitigationBreakdown(source: Combatant, target: Combatant): MitigationBreakdown {
+export function mitigationBreakdown(
+  source: Combatant,
+  target: Combatant,
+  options: MitigationOptions = {},
+): MitigationBreakdown {
+  const path = options.path ?? "basic";
+  const skillPierce = Math.max(0, options.skillPierce ?? 0);
   const damageType = resolveDamageType(source);
 
-  if (damageType === "pure") {
+  if (damageType === "pure" && path !== "heal" && path !== "splash") {
     return {
       damageType,
+      path,
       defenseStat: "none",
       pierceStat: "none",
       defense: 0,
       pierce: 0,
+      skillPierce: 0,
       effectiveDefense: 0,
       multiplier: 1,
+      fortitudeMult: 1,
+      missChance: 0,
+      landChance: 1,
     };
   }
 
-  const defenseStat = damageType === "magical" ? "resistance" : "armor";
-  const pierceStat = damageType === "magical" ? "rpiercing" : "apiercing";
-  const defense = target[defenseStat] ?? 0;
-  const pierce = source[pierceStat] ?? 0;
-  const effective = effectiveDefense(defense, pierce);
+  const pairType: DamageType =
+    path === "heal" ? "magical" : damageType === "pure" ? "physical" : damageType;
+  const { defenseStat, pierceStat } = mitigationPair(pairType);
+  const defense = defenseStat === "none" ? 0 : target[defenseStat] ?? 0;
+  const pierce = pierceStat === "none" ? 0 : source[pierceStat] ?? 0;
+
+  let effective: number;
+  let multiplier: number;
+  if (path === "splash") {
+    effective = defense;
+    multiplier = damageMultiplier(defense);
+  } else if (path === "heal") {
+    // Heal: pierce once, half the remaining defense.
+    effective = (defense - pierce) / 2;
+    multiplier = damageMultiplier(effective);
+  } else {
+    // Basic: gear pierce doubled + skill pierce once.
+    effective = defense - 2 * pierce - skillPierce;
+    multiplier = damageMultiplier(effective);
+  }
+
+  const fortitudeMult =
+    options.attackerIsPlayer && (target.for ?? 0) > 0 ? damageMultiplier((target.for ?? 0) * 5) : 1;
+
+  let missChance = 0;
+  if (path === "basic" && damageType === "physical") {
+    missChance = Math.max(0, Math.min(100, target.evasion ?? 0));
+  } else if (path === "basic" && damageType === "magical") {
+    missChance = Math.max(0, Math.min(100, target.reflection ?? 0));
+  }
 
   return {
     damageType,
+    path,
     defenseStat,
     pierceStat,
     defense,
     pierce,
+    skillPierce,
     effectiveDefense: effective,
-    multiplier: damageMultiplier(effective),
+    multiplier,
+    fortitudeMult,
+    missChance,
+    landChance: 1 - missChance / 100,
   };
 }
 
-/** Mean hit damage (attack roll averages to 1.0) including expected crit contribution. */
-export function expectedHitDamage(source: Combatant, target: Combatant): number {
-  const { multiplier } = mitigationBreakdown(source, target);
-  let damage = multiplier * (source.attack ?? 0);
+/** Mean hit damage including crit EV, fortitude, and evade/reflect land chance. */
+export function expectedHitDamage(
+  source: Combatant,
+  target: Combatant,
+  options: MitigationOptions = {},
+): number {
+  const b = mitigationBreakdown(source, target, options);
+  let damage = b.multiplier * b.fortitudeMult * (source.attack ?? 0);
   let critMult = 2;
   if (source.critdamage) critMult += source.critdamage / 100;
   if (source.crit) damage += damage * (source.crit / 100) * critMult;
-  return damage;
+  return damage * b.landChance;
 }
 
-/** Hit damage at the low/high ends of the 0.9–1.1 attack roll (no crit). */
+/** Hit damage at the low/high ends of the 0.9–1.1 attack roll (no crit; before land chance). */
 export function hitDamageRange(
   source: Combatant,
   target: Combatant,
+  options: MitigationOptions = {},
 ): { low: number; high: number } {
-  const { multiplier } = mitigationBreakdown(source, target);
+  const b = mitigationBreakdown(source, target, options);
   const attack = source.attack ?? 0;
-  return { low: attack * 0.9 * multiplier, high: attack * 1.1 * multiplier };
+  const scale = b.multiplier * b.fortitudeMult * b.landChance;
+  return { low: attack * 0.9 * scale, high: attack * 1.1 * scale };
 }
 
 /** Theoretical DPS: expected hit × frequency. */
-export function theo_dps(source: Combatant, target: Combatant): number {
+export function theo_dps(
+  source: Combatant,
+  target: Combatant,
+  options: MitigationOptions = {},
+): number {
   const freq = source.frequency ?? 0;
-  return expectedHitDamage(source, target) * freq;
+  return expectedHitDamage(source, target, options) * freq;
 }
 
 /** @deprecated Prefer `damageMultiplier` — kept for call sites that used the old name. */

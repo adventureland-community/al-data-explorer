@@ -30,6 +30,7 @@ export function LoadoutPickerShell({
   items,
   variant,
   hint,
+  highlightedSlot = null,
 }: {
   gear: { [slot in SlotType]?: ItemInfo };
   onGearChange: (gear: { [slot in SlotType]?: ItemInfo }) => void;
@@ -40,6 +41,7 @@ export function LoadoutPickerShell({
   items?: GItems;
   variant: LoadoutPickerVariant;
   hint?: string;
+  highlightedSlot?: SlotType | null;
 }) {
   const G = useContext(GDataContext);
   const [selectedSlot, setSelectedSlot] = useState<SlotType | false>(false);
@@ -86,6 +88,7 @@ export function LoadoutPickerShell({
       onSlotClick={setSelectedSlot}
       onRemoveSlot={removeFromSlot}
       dhConflict={dhConflict}
+      highlightedSlot={highlightedSlot}
     />
   );
 

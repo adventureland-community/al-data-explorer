@@ -19,17 +19,19 @@ Feature contract for Attack / Defense tables against a selected monster in Gear 
 | magical | `resistance` | `rpiercing` |
 | pure | none | ignored |
 
-### Effective defense (basic attack)
+Mainhand item `damage_type` overrides class default; `heal` weapons pair as magical (use hit path **heal** for half-defense formula).
 
-1. `commence_attack` does `info[pierce] += attacker[pierce]`
-2. `complete_attack` applies `damage_multiplier(target[defense] - attacker[pierce] - info[pierce])`
+### Effective defense
 
-So for a basic attack with no skill pierce bonus:
+| Hit path | Formula |
+| --- | --- |
+| basic | `def − 2×gear pierce − skill pierce` (skill once on `info`) |
+| heal | `(def − pierce) / 2` |
+| splash | `def` (no pierce) |
 
-```text
-effective_defense = def - 2 * pierce
-multiplier = damage_multiplier(effective_defense)
-```
+Fortitude on the **defender** when the attacker is the player: multiply by `damage_multiplier(for × 5)`.
+
+Evasion (physical) / reflection (magical): expected damage scales by land chance `1 − miss%/100`.
 
 ### Status resists
 
@@ -47,16 +49,23 @@ Chance path: `random < resist / 100` — values ≥ 100 are overcap for the roll
 
 Home: Target monster block in `StatsPanel` (Gear Planner + Character panels).
 
+- Monster + optional compare monster: Autocomplete, URL `?monster=` / `?compareMonster=`, localStorage last pick, favorite chips
+- Hit path (basic / heal / splash), skill pierce field
+- Link to Drop Simulator `/drops?monster=<key>`
+- Optional compare row of waste chips labeled with compare monster name
+- Click gear contribution row in Stat Detail → highlight paper-doll slot (Gear Planner)
+
 ### Attack / Defense tables
 
-- Pierce, defense, effective defense, multiplier, expected hit, theo DPS, hits-to-kill
+- Pierce (incl. skill pierce note), defense, effective defense, multiplier, fortitude / land chance when relevant, expected hit, theo DPS, hits-to-kill
 - Click pierce / defense / effective / multiplier → Stat Detail dialog
 
 ### Stat Detail (clickable sheet + vs-monster rows)
 
-- SVG falloff graphs (mult vs pierce, mult vs effective defense; status chance / duration curves)
-- Waste hints: wrong-type pierce, hard 1.32 cap, status ≥ 100
-- Gear/set contribution table for the open sheet stat (item name + level + slot) so large totals are auditable
+- SVG falloff graphs (mult vs pierce with you + hard-cap markers; mult vs effective defense; status chance / duration curves)
+- STR/INT: attribute softcap curve (160 / 180) with current marker
+- Waste hints: wrong-type pierce, hard 1.32 cap (trim copy + top gear line when contributions exist), status ≥ 100
+- Gear/set contribution table (gear rows click → slot highlight)
 - Inline warning chips above Attack/Defense tables
 
 ### DEFENSE sheet
@@ -65,10 +74,4 @@ Surfaces `pnresistance`, `firesistance`, `fzresistance`, `phresistance`, `stresi
 
 ## Out of scope (TODO)
 
-- Skill pierce bonuses (`piercingshot` +500) — counted once via `info`
-- Heal half-defense path; splash without pierce
-- Fortitude (`for * 5`) when attacker is a player
-- Evasion / reflection RNG tables
-- Mainhand `damage_type` override
-- Sharing monster selection with Drop Simulator `?monster=`
-- STR/INT softcap waste graphs
+- Dedicated evasion / reflection / fortitude falloff graphs (values appear in Attack/Defense tables today)

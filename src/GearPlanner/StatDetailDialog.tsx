@@ -15,17 +15,21 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import { SlotType } from "typed-adventureland";
 import { StatContribution } from "../gameData/loadoutStats";
-import { Combatant, DamageType, mitigationBreakdown } from "./calculations";
+import { Combatant, DamageType, MitigationOptions, mitigationBreakdown } from "./calculations";
 import {
   ConditionDefenseDef,
   CurvePoint,
   InsightStat,
   StatusResistStat,
+  attributeSoftcapCurve,
+  armorFromStr,
   isStatusResistStat,
   mitigationCurveByEffectiveDefense,
   mitigationCurveByPierce,
   pierceWaste,
+  resistanceFromInt,
   statusChanceCurve,
   statusDurationCurve,
   statusResistInsight,
@@ -34,9 +38,11 @@ import {
 function ContributionTable({
   rows,
   sheetTotal,
+  onContributionSlot,
 }: {
   rows: StatContribution[];
   sheetTotal?: number;
+  onContributionSlot?: (slot: SlotType) => void;
 }) {
   if (rows.length === 0) return null;
   const gearSum = rows.reduce((sum, r) => sum + r.value, 0);
@@ -68,6 +74,17 @@ function ContributionTable({
                   ? `set-${row.setKey}`
                   : `slotMod-${row.table}-${row.wtype}`
               }
+              hover={row.kind === "gear" && Boolean(onContributionSlot)}
+              onClick={
+                row.kind === "gear" && onContributionSlot
+                  ? () => onContributionSlot(row.slot)
+                  : undefined
+              }
+              sx={
+                row.kind === "gear" && onContributionSlot
+                  ? { cursor: "pointer", "&:hover": { bgcolor: "action.hover" } }
+                  : undefined
+              }
             >
               <TableCell>
                 {row.kind === "gear"
@@ -91,6 +108,7 @@ function ContributionTable({
 function FalloffChart({
   points,
   markerX,
+  capX,
   xLabel,
   yLabel,
   width = 420,
@@ -98,6 +116,7 @@ function FalloffChart({
 }: {
   points: CurvePoint[];
   markerX?: number;
+  capX?: number;
   xLabel: string;
   yLabel: string;
   width?: number;
@@ -144,6 +163,17 @@ function FalloffChart({
           opacity={0.3}
         />
         <path d={d} fill="none" stroke="#1976d2" strokeWidth={2} />
+        {capX != null && capX >= minX && capX <= maxX && (
+          <line
+            x1={sx(capX)}
+            y1={padT}
+            x2={sx(capX)}
+            y2={height - padB}
+            stroke="#2e7d32"
+            strokeDasharray="6 4"
+            strokeWidth={1.5}
+          />
+        )}
         {markerX != null && markerX >= minX && markerX <= maxX && markerPoint && (
           <>
             <line
@@ -276,6 +306,26 @@ function StatusResistBody({
   );
 }
 
+function AttributeSoftcapBody({ stat, value }: { stat: "str" | "int"; value: number }) {
+  const threshold = stat === "str" ? 160 : 180;
+  const derivedLabel = stat === "str" ? "armor from STR" : "resistance from INT";
+  const curve = attributeSoftcapCurve({ kind: stat, from: 0, to: 280, steps: 70 });
+
+  return (
+    <Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Current {stat}: {value} → {derivedLabel}{" "}
+        {stat === "str" ? armorFromStr(value).toFixed(1) : resistanceFromInt(value).toFixed(1)}.
+        Full value only up to the {threshold} softcap; each point above adds 25%.
+      </Typography>
+      <Typography variant="subtitle2">
+        {derivedLabel} vs {stat}
+      </Typography>
+      <FalloffChart points={curve} markerX={value} xLabel={stat} yLabel={derivedLabel} />
+    </Box>
+  );
+}
+
 export type HitDirection = "youHit" | "theyHit";
 
 function MitigationBody({
@@ -284,22 +334,29 @@ function MitigationBody({
   monster,
   monsterName,
   hitDirection,
+  mitigationOptions,
+  contributions = [],
 }: {
   stat: InsightStat;
   player: Combatant;
   monster: Combatant;
   monsterName: string;
   hitDirection: HitDirection;
+  mitigationOptions?: MitigationOptions;
+  contributions?: StatContribution[];
 }) {
-  const youHit = mitigationBreakdown(player, monster);
-  const theyHit = mitigationBreakdown(monster, player);
+  const opts = mitigationOptions ?? {};
+  const youHit = mitigationBreakdown(player, monster, opts);
+  const theyHit = mitigationBreakdown(monster, player, { path: opts.path ?? "basic" });
   const focus = hitDirection === "theyHit" ? theyHit : youHit;
+  const skillPierce = opts.skillPierce ?? 0;
   const waste = pierceWaste({
     damageType: player.damage_type as DamageType | undefined,
     apiercing: player.apiercing,
     rpiercing: player.rpiercing,
     monsterArmor: monster.armor,
     monsterResistance: monster.resistance,
+    skillPierce: hitDirection === "youHit" ? skillPierce : 0,
   });
 
   const theyWaste = pierceWaste({
@@ -322,6 +379,7 @@ function MitigationBody({
   const pierceCurve = mitigationCurveByPierce({
     defense: defenseForCurve,
     pierceTo: Math.max(hardCapPierce ?? 200, pierceMarker + 40, 80),
+    skillPierce: hitDirection === "youHit" ? skillPierce : 0,
   });
   const effCurve = mitigationCurveByEffectiveDefense({});
 
@@ -339,22 +397,50 @@ function MitigationBody({
     stat === "damageMultiplier";
 
   const focusHints = hitDirection === "youHit" ? waste.hints : theyWaste.hints;
+  const focusWaste = hitDirection === "youHit" ? waste : theyWaste;
+  const topGearTrim =
+    focusWaste.piercePastHardCap > 0 && focusWaste.activePierceStat !== "none"
+      ? contributions
+          .filter(
+            (row): row is StatContribution & { kind: "gear" } =>
+              row.kind === "gear" && stat === focusWaste.activePierceStat,
+          )
+          .sort((a, b) => b.value - a.value)[0]
+      : undefined;
+
+  const pathNote =
+    opts.path === "heal"
+      ? "Heal path: (def − pierce) / 2."
+      : opts.path === "splash"
+      ? "Splash: no pierce."
+      : skillPierce > 0
+      ? `Basic + ${skillPierce} skill pierce on info.`
+      : "Basic: gear pierce counted twice.";
 
   return (
     <Box>
       <Typography variant="body2" color="text.secondary" paragraph>
         vs {monsterName} — focus {hitDirection === "youHit" ? "you → monster" : "monster → you"} (
-        {focus.damageType}). Uses {pierceStatLabel} against {defenseStatLabel}.
+        {focus.damageType}). Uses {pierceStatLabel} against {defenseStatLabel}. {pathNote}
       </Typography>
       <Typography variant="body2" sx={{ mb: 1 }}>
-        You → monster: effective = {youHit.defense} − 2 × {youHit.pierce} ={" "}
-        <strong>{youHit.effectiveDefense.toFixed(1)}</strong> →{" "}
+        You → monster: effective = {youHit.defense}
+        {youHit.path === "heal"
+          ? ` − ${youHit.pierce} → /2`
+          : youHit.path === "splash"
+          ? ""
+          : ` − 2 × ${youHit.pierce}${youHit.skillPierce ? ` − ${youHit.skillPierce}` : ""}`}{" "}
+        = <strong>{youHit.effectiveDefense.toFixed(1)}</strong> →{" "}
         <strong>{(youHit.multiplier * 100).toFixed(1)}%</strong>
+        {youHit.fortitudeMult !== 1 ? ` × fort ${(youHit.fortitudeMult * 100).toFixed(1)}%` : ""}
       </Typography>
       <Typography variant="body2" sx={{ mb: 1 }}>
         Monster → you: effective = {theyHit.defense} − 2 × {theyHit.pierce} ={" "}
         <strong>{theyHit.effectiveDefense.toFixed(1)}</strong> →{" "}
         <strong>{(theyHit.multiplier * 100).toFixed(1)}%</strong>
+        {theyHit.missChance > 0
+          ? ` · ${theyHit.landChance * 100}% land (${theyHit.missChance}% miss)`
+          : ""}
       </Typography>
       {focusHints.map((h) => (
         <Alert key={h.text} severity="warning" sx={{ mb: 1 }}>
@@ -368,10 +454,12 @@ function MitigationBody({
           </Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
             {defenseStatLabel} fixed at {defenseForCurve}. Orange = {pierceStatLabel}.
+            {hardCapPierce != null ? " Green dashed = 132% mult cap." : ""}
           </Typography>
           <FalloffChart
             points={pierceCurve}
             markerX={pierceMarker}
+            capX={hardCapPierce ?? undefined}
             xLabel={pierceStatLabel}
             yLabel="mult %"
           />
@@ -397,6 +485,18 @@ function MitigationBody({
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
           Hard cap (132% mult) at ~{hardCapPierce} {pierceStatLabel} vs this defense. Marginal +1
           pierce: +{(marginal * 100).toFixed(4)}% mult.
+          {focusWaste.piercePastHardCap > 0 ? (
+            <>
+              {" "}
+              Trim ~{focusWaste.piercePastHardCap.toFixed(0)} {pierceStatLabel} that does nothing
+              {topGearTrim
+                ? ` (e.g. ${topGearTrim.itemName}${
+                    topGearTrim.level > 0 ? ` +${topGearTrim.level}` : ""
+                  } +${topGearTrim.value})`
+                : ""}
+              .
+            </>
+          ) : null}
         </Typography>
       )}
     </Box>
@@ -414,6 +514,8 @@ export type StatDetailDialogProps = {
   conditions?: Record<string, ConditionDefenseDef | undefined>;
   hitDirection?: HitDirection;
   contributions?: StatContribution[];
+  mitigationOptions?: MitigationOptions;
+  onContributionSlot?: (slot: SlotType) => void;
 };
 
 export function StatDetailDialog({
@@ -427,6 +529,8 @@ export function StatDetailDialog({
   conditions,
   hitDirection = "youHit",
   contributions = [],
+  mitigationOptions,
+  onContributionSlot,
 }: StatDetailDialogProps) {
   if (!stat) return null;
 
@@ -443,8 +547,10 @@ export function StatDetailDialog({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>{title}</DialogTitle>
-      <DialogContent dividers>
-        {isStatusResistStat(stat) ? (
+      <DialogContent dividers sx={{ maxHeight: { xs: "80vh", sm: "70vh" }, overflow: "auto" }}>
+        {stat === "str" || stat === "int" ? (
+          <AttributeSoftcapBody stat={stat} value={playerStats[stat] ?? 0} />
+        ) : isStatusResistStat(stat) ? (
           <StatusResistBody stat={stat} value={playerStats[stat] ?? 0} conditions={conditions} />
         ) : (
           <MitigationBody
@@ -453,10 +559,16 @@ export function StatDetailDialog({
             monster={monster}
             monsterName={monsterName}
             hitDirection={hitDirection}
+            mitigationOptions={mitigationOptions}
+            contributions={contributions}
           />
         )}
         {contributions.length > 0 && (
-          <ContributionTable rows={contributions} sheetTotal={sheetTotal} />
+          <ContributionTable
+            rows={contributions}
+            sheetTotal={sheetTotal}
+            onContributionSlot={onContributionSlot}
+          />
         )}
       </DialogContent>
     </Dialog>
