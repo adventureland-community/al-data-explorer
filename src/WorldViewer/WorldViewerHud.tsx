@@ -130,6 +130,7 @@ export function WorldTopBar({
         }}
       >
         <ToggleButton value="map">Single map</ToggleButton>
+        <ToggleButton value="plan">Plan</ToggleButton>
         <ToggleButton value="world">World</ToggleButton>
       </ToggleButtonGroup>
       <Autocomplete
@@ -294,6 +295,7 @@ interface WorldOverlayPanelProps {
   onFogDensity: (value: number) => void;
   soloBand: MapBand | null;
   onSoloBand: (band: MapBand | null) => void;
+  plansSlot?: ReactNode;
 }
 
 export function WorldOverlayPanel({
@@ -317,6 +319,7 @@ export function WorldOverlayPanel({
   onFogDensity,
   soloBand,
   onSoloBand,
+  plansSlot,
 }: WorldOverlayPanelProps) {
   const [monsterAnchor, setMonsterAnchor] = useState<HTMLElement | null>(null);
   const hiddenCount = hiddenMonsterTypes.size;
@@ -326,7 +329,7 @@ export function WorldOverlayPanel({
       elevation={0}
       sx={{
         ...panelSx,
-        width: 220,
+        width: plansSlot ? 260 : 220,
         flexShrink: 0,
         padding: 1.5,
         display: "flex",
@@ -335,8 +338,22 @@ export function WorldOverlayPanel({
         overflow: "auto",
       }}
     >
+      {plansSlot ? (
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+            paddingBottom: 1.25,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          {plansSlot}
+        </Box>
+      ) : null}
       <Typography variant="overline" sx={{ lineHeight: 1, opacity: 0.7 }}>
-        Overlays
+        {viewMode === "plan" ? "Map data" : "Overlays"}
       </Typography>
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
         {overlayKinds.map((kind) => {
@@ -469,6 +486,7 @@ interface WorldStatusBarProps {
   cursorMapName: string | undefined;
   dataVersion: number;
   dataTimestamp: string;
+  planHint?: string | null;
 }
 
 export function WorldStatusBar({
@@ -477,6 +495,7 @@ export function WorldStatusBar({
   cursorMapName,
   dataVersion,
   dataTimestamp,
+  planHint = null,
 }: WorldStatusBarProps) {
   const [helpAnchor, setHelpAnchor] = useState<HTMLElement | null>(null);
   const captionSx = { lineHeight: 1.4, whiteSpace: "nowrap" } as const;
@@ -506,7 +525,10 @@ export function WorldStatusBar({
         </>
       )}
       <Typography variant="caption" sx={{ ...captionSx, opacity: 0.75 }}>
-        Click a door to travel · click overlays to inspect
+        {viewMode === "plan"
+          ? planHint ||
+            "Place party ghosts, zones, and pull order · draw for callouts · Share when ready"
+          : "Click a door to travel · click overlays to inspect"}
       </Typography>
       <Button size="small" onClick={(event) => setHelpAnchor(event.currentTarget)}>
         Camera help

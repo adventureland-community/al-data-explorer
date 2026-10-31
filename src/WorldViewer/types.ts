@@ -14,8 +14,8 @@ export type OverlayKind =
   | "animatables"
   | "traps";
 
-/** Single-map top-down (default) vs full 3D world layout. */
-export type ViewerMode = "map" | "world";
+/** Single-map top-down, full 3D world, or strategy plan board (single-map). */
+export type ViewerMode = "map" | "world" | "plan";
 
 export type OverlayVisibility = Record<OverlayKind, boolean>;
 

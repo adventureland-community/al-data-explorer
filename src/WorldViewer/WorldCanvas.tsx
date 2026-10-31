@@ -45,6 +45,9 @@ import {
   updateWorldCameraResetPose,
   WorldCameraControls,
 } from "./worldCameraControls";
+import { hitTestPlan } from "./plan/planHitTest";
+import { packCentersFromMap, syncPlanLayer } from "./plan/planScene";
+import { PlanCanvasBridge } from "./plan/planCanvasTypes";
 
 function applyMapFocus(
   navigation: WorldCameraControls,
@@ -87,6 +90,7 @@ interface WorldCanvasProps {
   monsterDefs?: Record<string, GMonster>;
   fogDensity: number;
   soloBand?: MapBand | null;
+  plan?: PlanCanvasBridge | null;
 }
 
 interface WorldRefs {
@@ -217,11 +221,14 @@ export function WorldCanvas({
   monsterDefs,
   fogDensity,
   soloBand,
+  plan = null,
 }: WorldCanvasProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<WorldRefs | null>(null);
   const mapsRef = useRef(maps);
   mapsRef.current = maps;
+  const planRef = useRef(plan);
+  planRef.current = plan;
   const fogDensityRef = useRef(fogDensity);
   fogDensityRef.current = fogDensity;
   const viewportBoundsRef = useRef<ViewportBounds | null>(null);
@@ -433,8 +440,80 @@ export function WorldCanvas({
       navigation.focusOnPoint(new THREE.Vector3(point.x, point.y, point.z), distance);
     };
 
+    const resolvePlanPoint = (
+      event: MouseEvent,
+    ): {
+      point: { x: number; y: number };
+      mapKey: string;
+      packIndex?: number;
+      pickKind?: string;
+    } | null => {
+      const hit = hitFromPointer(
+        event,
+        renderer,
+        camera,
+        mapsRoot,
+        worldRef.current?.connections ?? null,
+        raycaster,
+        pointer,
+      );
+      if (!hit) {
+        return null;
+      }
+      const coords = mapCoordsFromHit(hit);
+      if (!coords) {
+        return null;
+      }
+      const pick = objectPick(hit.object);
+      let packIndex: number | undefined;
+      if (pick?.kind === "monster") {
+        const index = mapsRef.current[coords.mapId]?.monsters.findIndex(
+          (monster) => monster === pick.monster,
+        );
+        packIndex = index != null && index >= 0 ? index : undefined;
+      }
+      return {
+        point: { x: coords.x, y: coords.y },
+        mapKey: coords.mapId,
+        packIndex,
+        pickKind: pick?.kind,
+      };
+    };
+
+    const onPlanPointer = (phase: "down" | "move" | "up", event: MouseEvent) => {
+      const bridge = planRef.current;
+      if (!bridge?.active || !bridge.document) {
+        return false;
+      }
+      const resolved = resolvePlanPoint(event);
+      if (!resolved) {
+        if (phase === "down") {
+          bridge.onSelectIds(new Set());
+        }
+        return bridge.capturePointer;
+      }
+      if (phase === "down" && bridge.tool === "select") {
+        const centers = packCentersFromMap(mapsRef.current[resolved.mapKey]);
+        const hitObject = hitTestPlan(bridge.document, resolved.point, centers);
+        bridge.onSelectIds(hitObject ? new Set([hitObject.id]) : new Set());
+      }
+      if (phase === "down" && bridge.tool === "packMarker" && resolved.packIndex == null) {
+        // require clicking a monster pack overlay
+      }
+      bridge.onPointer({
+        phase,
+        point: resolved.point,
+        mapKey: resolved.mapKey,
+        packIndex: resolved.packIndex,
+      });
+      return bridge.capturePointer || bridge.tool === "select";
+    };
+
     const onClick = (event: MouseEvent) => {
       if (navigation.isDragging() || navigation.wasDragging()) {
+        return;
+      }
+      if (planRef.current?.active) {
         return;
       }
       const hit = hitFromPointer(
@@ -460,6 +539,28 @@ export function WorldCanvas({
       );
     };
 
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) {
+        return;
+      }
+      onPlanPointer("down", event);
+    };
+    const onPointerMovePlan = (event: PointerEvent) => {
+      if (event.buttons !== 1) {
+        return;
+      }
+      if (!planRef.current?.active) {
+        return;
+      }
+      onPlanPointer("move", event);
+    };
+    const onPointerUp = (event: PointerEvent) => {
+      if (!planRef.current?.active) {
+        return;
+      }
+      onPlanPointer("up", event);
+    };
+
     const onDoubleClick = (event: MouseEvent) => {
       const hit = hitFromPointer(
         event,
@@ -477,6 +578,9 @@ export function WorldCanvas({
     };
 
     renderer.domElement.addEventListener("pointermove", onPointerMove);
+    renderer.domElement.addEventListener("pointermove", onPointerMovePlan);
+    renderer.domElement.addEventListener("pointerdown", onPointerDown);
+    renderer.domElement.addEventListener("pointerup", onPointerUp);
     renderer.domElement.addEventListener("click", onClick);
     renderer.domElement.addEventListener("dblclick", onDoubleClick);
 
@@ -522,6 +626,9 @@ export function WorldCanvas({
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
+      renderer.domElement.removeEventListener("pointermove", onPointerMovePlan);
+      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
+      renderer.domElement.removeEventListener("pointerup", onPointerUp);
       renderer.domElement.removeEventListener("click", onClick);
       renderer.domElement.removeEventListener("dblclick", onDoubleClick);
       navigation.dispose();
@@ -623,6 +730,55 @@ export function WorldCanvas({
     }
     applyFog(world.threeScene, viewMode, fogDensity);
   }, [fogDensity, viewMode]);
+
+  useEffect(() => {
+    const world = worldRef.current;
+    if (!world) {
+      return;
+    }
+    world.navigation.setLeftPanEnabled(!(plan?.active && plan.capturePointer));
+  }, [plan?.active, plan?.capturePointer]);
+
+  useEffect(() => {
+    const world = worldRef.current;
+    if (!world || !selectedMap) {
+      return;
+    }
+    const mapGroup = world.mapsRoot.children.find(
+      (child) => child.userData.mapId === selectedMap,
+    ) as THREE.Group | undefined;
+    if (!mapGroup) {
+      return;
+    }
+    const map = maps[selectedMap];
+    syncPlanLayer({
+      mapGroup,
+      mapId: selectedMap,
+      doc: plan?.active ? plan.document : null,
+      G: plan?.G ?? null,
+      selectedIds: plan?.selectedIds ?? new Set(),
+      packCenters: packCentersFromMap(map),
+      playback:
+        plan?.playbackRouteId && plan.playbackPoint
+          ? {
+              routeId: plan.playbackRouteId,
+              point: plan.playbackPoint,
+              trail: plan.trailPoints,
+            }
+          : null,
+    });
+  }, [
+    plan,
+    plan?.document,
+    plan?.selectedIds,
+    plan?.playbackPoint,
+    plan?.playbackRouteId,
+    plan?.trailPoints,
+    plan?.active,
+    selectedMap,
+    maps,
+    scene,
+  ]);
 
   /** Consolidated scene-state sync: applies all scene-graph mutations that depend on props. */
   useEffect(() => {
