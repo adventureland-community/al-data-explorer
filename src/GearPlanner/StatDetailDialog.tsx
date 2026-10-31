@@ -44,10 +44,10 @@ function ContributionTable({
     <Box sx={{ mt: 2 }}>
       <Typography variant="subtitle2">Where this number comes from</Typography>
       <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-        Equipped pieces (and set bonuses) that add this stat
+        Equipped pieces, set bonuses, and class weapon-slot mods for this stat
         {sheetTotal != null ? ` · sheet total ${sheetTotal}` : ""}
         {sheetTotal != null && Math.abs(sheetTotal - gearSum) > 0.05
-          ? ` · gear/set sum ${gearSum.toFixed(1)} (rest is class / attributes)`
+          ? ` · listed sum ${gearSum.toFixed(1)} (rest is class base / attributes)`
           : ""}
         .
       </Typography>
@@ -61,12 +61,20 @@ function ContributionTable({
         <TableBody>
           {rows.map((row) => (
             <TableRow
-              key={row.kind === "gear" ? `${row.slot}-${row.itemKey}` : `set-${row.setKey}`}
+              key={
+                row.kind === "gear"
+                  ? `${row.slot}-${row.itemKey}`
+                  : row.kind === "set"
+                  ? `set-${row.setKey}`
+                  : `slotMod-${row.table}-${row.wtype}`
+              }
             >
               <TableCell>
                 {row.kind === "gear"
                   ? `${row.itemName}${row.level > 0 ? ` +${row.level}` : ""} (${row.slot})`
-                  : `Set: ${row.setName}`}
+                  : row.kind === "set"
+                  ? `Set: ${row.setName}`
+                  : `Class ${row.table} (${row.wtype})`}
               </TableCell>
               <TableCell align="right">
                 {row.value > 0 ? "+" : ""}
@@ -349,8 +357,8 @@ function MitigationBody({
         <strong>{(theyHit.multiplier * 100).toFixed(1)}%</strong>
       </Typography>
       {focusHints.map((h) => (
-        <Alert key={h} severity="warning" sx={{ mb: 1 }}>
-          {h}
+        <Alert key={h.text} severity="warning" sx={{ mb: 1 }}>
+          {h.text}
         </Alert>
       ))}
       {showPierceChart && (

@@ -105,4 +105,27 @@ describe("computeLoadoutStats titles and scrolls", () => {
     expect(sheet.apiercing).toBe(857);
     expect(gearAp).toBe(857);
   });
+
+  it("includes class doublehand slot-table mods in contributions", () => {
+    const warrior = {
+      className: "warrior",
+      ...(data.classes.warrior as object),
+    } as never;
+    const gear = {
+      mainhand: { name: "axe3" as ItemKey, level: 0 },
+    };
+    const rows = contributionsForStat({
+      stat: "frequency",
+      gear,
+      G,
+      characterClass: warrior,
+    });
+    const slot = rows.find((r) => r.kind === "slotMod");
+    expect(slot).toMatchObject({
+      kind: "slotMod",
+      table: "doublehand",
+      wtype: "axe",
+      value: -0.1,
+    });
+  });
 });

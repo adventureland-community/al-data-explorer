@@ -521,21 +521,12 @@ export function StatsPanel({
           <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 1.5 }}>
             {chips.map((chip) => (
               <Chip
-                key={chip}
+                key={`${chip.openStat}:${chip.text}`}
                 size="small"
                 color="warning"
                 variant="outlined"
-                label={chip}
-                onClick={() => {
-                  if (chip.includes("rpiercing")) openStat("rpiercing");
-                  else if (chip.includes("apiercing")) openStat("apiercing");
-                  else if (chip.includes("pnresistance")) openStat("pnresistance");
-                  else if (chip.includes("firesistance")) openStat("firesistance");
-                  else if (chip.includes("fzresistance")) openStat("fzresistance");
-                  else if (chip.includes("phresistance")) openStat("phresistance");
-                  else if (chip.includes("stresistance")) openStat("stresistance");
-                  else openStat("apiercing");
-                }}
+                label={chip.text}
+                onClick={() => openStat(chip.openStat)}
               />
             ))}
           </Stack>
@@ -582,6 +573,15 @@ export function StatsPanel({
                 gear,
                 G,
                 classKey: selectedCharacterClass?.className,
+                characterClass: selectedCharacterClass
+                  ? {
+                      className: selectedCharacterClass.className,
+                      stats: selectedCharacterClass.stats ?? {},
+                      lstats: selectedCharacterClass.lstats ?? {},
+                      mainhand: selectedCharacterClass.mainhand,
+                      doublehand: selectedCharacterClass.doublehand,
+                    }
+                  : undefined,
               })
             : []
         }

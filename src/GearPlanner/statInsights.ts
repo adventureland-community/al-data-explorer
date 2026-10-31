@@ -45,6 +45,12 @@ export type ConditionDefenseDef = {
   explanation?: string;
 };
 
+/** Hint shown in Stat Detail / waste chips, with a click target stat. */
+export type WasteHint = {
+  text: string;
+  openStat: InsightStat;
+};
+
 export type PierceWaste = {
   damageType: DamageType;
   activePierceStat: "apiercing" | "rpiercing" | "none";
@@ -60,7 +66,7 @@ export type PierceWaste = {
   piercePastHardCap: number;
   /** Mult gain from +1 active pierce at current value. */
   marginalMultFromPlusOne: number;
-  hints: string[];
+  hints: WasteHint[];
 };
 
 export type StatusResistInsight = {
@@ -106,11 +112,14 @@ export function pierceWaste(args: {
     raw === "magical" || raw === "pure" || raw === "physical" ? raw : "physical";
   const ap = args.apiercing ?? 0;
   const rp = args.rpiercing ?? 0;
-  const hints: string[] = [];
+  const hints: WasteHint[] = [];
 
   if (damageType === "pure") {
     if (ap > 0 || rp > 0) {
-      hints.push("Pure damage ignores armor, resistance, and both pierces.");
+      hints.push({
+        text: "Pure damage ignores armor, resistance, and both pierces.",
+        openStat: "damageMultiplier",
+      });
     }
     return {
       damageType,
@@ -141,24 +150,30 @@ export function pierceWaste(args: {
   const marginalMultFromPlusOne = multPlus - mult;
 
   if (unusedPierce > 0) {
-    hints.push(
-      `${unusedPierceStat} ${unusedPierce} is unused vs this target (${damageType} hits use ${activePierceStat}).`,
-    );
+    hints.push({
+      text: `${unusedPierceStat} ${unusedPierce} is unused vs this target (${damageType} hits use ${activePierceStat}).`,
+      openStat: unusedPierceStat,
+    });
   }
   if (piercePastHardCap > 0) {
-    hints.push(
-      `${activePierceStat} is past the 1.32 damage-multiplier cap — about ${piercePastHardCap.toFixed(
+    hints.push({
+      text: `${activePierceStat} is past the 1.32 damage-multiplier cap — about ${piercePastHardCap.toFixed(
         0,
       )} pierce does nothing vs this defense.`,
-    );
+      openStat: activePierceStat,
+    });
   } else if (marginalMultFromPlusOne < 1e-6 && activePierce > 0) {
-    hints.push(`+1 ${activePierceStat} adds no multiplier at this point.`);
+    hints.push({
+      text: `+1 ${activePierceStat} adds no multiplier at this point.`,
+      openStat: activePierceStat,
+    });
   } else if (eff < 0 && marginalMultFromPlusOne < 0.001) {
-    hints.push(
-      `Overpiercing: returns are soft (marginal +${(marginalMultFromPlusOne * 100).toFixed(
+    hints.push({
+      text: `Overpiercing: returns are soft (marginal +${(marginalMultFromPlusOne * 100).toFixed(
         3,
       )}% mult per pierce).`,
-    );
+      openStat: activePierceStat,
+    });
   }
 
   return {
@@ -234,7 +249,8 @@ export function statusResistInsight(
 ): StatusResistInsight {
   const chanceConditions = conditionsUsingDefense(conditions, stat);
   const chanceResistPercent = Math.max(0, Math.min(100, value));
-  const overcap = value >= 100;
+  // Exactly 100 is at-cap (roll/duration already maxed); only >100 is wasted overcap.
+  const overcap = value > 100;
   const durationRemainingFraction = Math.max(0, (100 - value) / 100);
   const notes: string[] = [];
   const hints: string[] = [];
@@ -264,7 +280,7 @@ export function statusResistInsight(
 
   if (overcap) {
     hints.push(
-      `${stat} ≥ 100 — chance resist is capped at 100%; extra points do nothing for the roll${
+      `${stat} > 100 — chance resist is capped at 100%; extra points do nothing for the roll${
         stat === "stresistance" || stat === "pnresistance" || stat === "firesistance"
           ? ", and duration/intensity scale is already ≤ 0."
           : "."
@@ -320,7 +336,9 @@ export function isInsightStat(stat: string): stat is InsightStat {
   );
 }
 
-/** Short chips for the vs-monster panel. */
+export type WasteChip = WasteHint;
+
+/** Short chips for the vs-monster panel (label + Stat Detail open target). */
 export function wasteChipsForLoadout(args: {
   damageType: DamageType | string | undefined;
   apiercing?: number;
@@ -328,15 +346,18 @@ export function wasteChipsForLoadout(args: {
   monsterArmor?: number;
   monsterResistance?: number;
   statusResists?: Partial<Record<StatusResistStat, number>>;
-}): string[] {
-  const chips: string[] = [];
+}): WasteChip[] {
+  const chips: WasteChip[] = [];
   const pierce = pierceWaste(args);
   for (const h of pierce.hints) chips.push(h);
   if (args.statusResists) {
     for (const stat of STATUS_RESIST_STATS) {
       const v = args.statusResists[stat];
-      if (v == null || v < 100) continue;
-      chips.push(`${stat} ≥ 100 (overcap)`);
+      if (v == null || v <= 100) continue;
+      chips.push({
+        text: `${stat} > 100 (overcap)`,
+        openStat: stat,
+      });
     }
   }
   return chips;

@@ -31,7 +31,9 @@ describe("pierceWaste", () => {
     expect(w.activePierceStat).toBe("apiercing");
     expect(w.unusedPierceStat).toBe("rpiercing");
     expect(w.unusedPierce).toBe(40);
-    expect(w.hints.some((h) => h.includes("rpiercing"))).toBe(true);
+    expect(w.hints.some((h) => h.text.includes("rpiercing") && h.openStat === "rpiercing")).toBe(
+      true,
+    );
   });
 
   it("flags unused apiercing on magical", () => {
@@ -66,7 +68,21 @@ describe("pierceWaste", () => {
       monsterArmor: 500,
     });
     expect(w.multiplier).toBe(1);
-    expect(w.hints.some((h) => /pure/i.test(h))).toBe(true);
+    expect(w.hints.some((h) => /pure/i.test(h.text) && h.openStat === "damageMultiplier")).toBe(
+      true,
+    );
+  });
+
+  it("soft-overpierce hint opens the active pierce stat (magical)", () => {
+    const w = pierceWaste({
+      damageType: "magical",
+      rpiercing: 200,
+      monsterResistance: 50,
+    });
+    const soft = w.hints.find((h) =>
+      /Overpiercing|past the 1\.32|adds no multiplier/i.test(h.text),
+    );
+    expect(soft?.openStat).toBe("rpiercing");
   });
 });
 
@@ -87,12 +103,16 @@ describe("statusResistInsight", () => {
     cursed: { name: "Cursed", debuff: true },
   };
 
-  it("lists chance conditions and overcap at 100+", () => {
+  it("lists chance conditions; overcap only above 100", () => {
     const at50 = statusResistInsight("pnresistance", 50, conditions);
     expect(at50.chanceResistPercent).toBe(50);
     expect(at50.durationRemainingFraction).toBeCloseTo(0.5);
     expect(at50.overcap).toBe(false);
     expect(at50.chanceConditions.map((c) => c.key)).toContain("poisoned");
+
+    const at100 = statusResistInsight("pnresistance", 100, conditions);
+    expect(at100.chanceResistPercent).toBe(100);
+    expect(at100.overcap).toBe(false);
 
     const at120 = statusResistInsight("pnresistance", 120, conditions);
     expect(at120.chanceResistPercent).toBe(100);
@@ -118,15 +138,37 @@ describe("status curves", () => {
 });
 
 describe("wasteChipsForLoadout", () => {
-  it("includes unused pierce and status overcap chips", () => {
+  it("includes unused pierce and status overcap chips with openStat", () => {
     const chips = wasteChipsForLoadout({
       damageType: "physical",
       apiercing: 0,
       rpiercing: 12,
       monsterArmor: 50,
+      statusResists: { pnresistance: 120 },
+    });
+    expect(chips.some((c) => c.text.includes("rpiercing") && c.openStat === "rpiercing")).toBe(
+      true,
+    );
+    expect(
+      chips.some((c) => c.text.includes("pnresistance") && c.openStat === "pnresistance"),
+    ).toBe(true);
+  });
+
+  it("does not chip status resist at exactly 100", () => {
+    const chips = wasteChipsForLoadout({
+      damageType: "physical",
       statusResists: { pnresistance: 100 },
     });
-    expect(chips.some((c) => c.includes("rpiercing"))).toBe(true);
-    expect(chips.some((c) => c.includes("pnresistance"))).toBe(true);
+    expect(chips.some((c) => c.openStat === "pnresistance")).toBe(false);
+  });
+
+  it("soft-overpierce chip opens active pierce on magical", () => {
+    const chips = wasteChipsForLoadout({
+      damageType: "magical",
+      rpiercing: 400,
+      monsterResistance: 40,
+    });
+    const soft = chips.find((c) => /Overpiercing|past the 1\.32|adds no multiplier/i.test(c.text));
+    expect(soft?.openStat).toBe("rpiercing");
   });
 });

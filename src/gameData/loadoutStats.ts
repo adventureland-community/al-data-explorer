@@ -116,15 +116,24 @@ export type SetStatContribution = {
   value: number;
 };
 
-export type StatContribution = GearStatContribution | SetStatContribution;
+export type SlotModContribution = {
+  kind: "slotMod";
+  wtype: string;
+  table: "mainhand" | "doublehand";
+  value: number;
+};
+
+export type StatContribution = GearStatContribution | SetStatContribution | SlotModContribution;
 
 export function contributionsForStat(args: {
   stat: StatType;
   gear: { [slot in SlotType]?: ItemInfo };
   G: CustomGData;
   classKey?: string;
+  characterClass?: LoadoutClassDef;
 }): StatContribution[] {
-  const { stat, gear, G, classKey } = args;
+  const { stat, gear, G, characterClass } = args;
+  const classKey = args.classKey ?? characterClass?.className;
   const rows: StatContribution[] = [];
 
   for (const piece of mapEquippedPieceStats({ gear, G, classKey })) {
@@ -167,6 +176,33 @@ export function contributionsForStat(args: {
       setName: gSet.name ?? setKey,
       value: setTotal,
     });
+  }
+
+  if (characterClass) {
+    const main = gear.mainhand;
+    if (main) {
+      const gItem = G.items[main.name];
+      const wtype = gItem?.wtype;
+      if (wtype) {
+        const fromDouble = characterClass.doublehand?.[wtype];
+        const fromMain = characterClass.mainhand?.[wtype];
+        const table: "mainhand" | "doublehand" | null = fromDouble
+          ? "doublehand"
+          : fromMain
+          ? "mainhand"
+          : null;
+        const mods = fromDouble ?? fromMain;
+        if (table && mods) {
+          let value = mods[stat];
+          if (typeof value === "number") {
+            if (stat === "frequency") value /= 100;
+            if (value !== 0) {
+              rows.push({ kind: "slotMod", wtype, table, value });
+            }
+          }
+        }
+      }
+    }
   }
 
   rows.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
