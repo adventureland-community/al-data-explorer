@@ -53,10 +53,9 @@ Chance path: `random < resist / 100` — values ≥ 100 are overcap for the roll
 
 Home: Target monster block in `StatsPanel` (Gear Planner + Character panels).
 
-- Monster + optional compare monster: Autocomplete, URL `?monster=` / `?compareMonster=`, localStorage last pick, favorite chips
+- Monster: Autocomplete, URL `?monster=`, localStorage last pick, favorite chips
 - Hit path (basic / heal / splash), skill pierce field
 - Link to Drop Simulator `/drops?monster=<key>`
-- Optional compare row of waste chips labeled with compare monster name
 - Click gear contribution row in Stat Detail → highlight paper-doll slot (Gear Planner)
 
 ### Attack / Defense tables

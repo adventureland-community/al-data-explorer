@@ -376,7 +376,6 @@ export function StatsPanel({
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
-  const [compareMonster, setCompareMonster] = useState<MonsterKey | null>(null);
   const [favorites, setFavorites] = useState<MonsterKey[]>(() => loadMonsterFavorites());
   const [hitPath, setHitPath] = useState<HitPath>("basic");
   const [skillPierce, setSkillPierce] = useState(0);
@@ -395,11 +394,18 @@ export function StatsPanel({
       const last = loadLastMonster();
       if (last && G.monsters[last]) setTargetMonster(last);
     }
-    const urlCompare = searchParams.get("compareMonster");
-    if (urlCompare && G.monsters[urlCompare as MonsterKey]) {
-      setCompareMonster(urlCompare as MonsterKey);
+    // Drop legacy compare param if present.
+    if (searchParams.has("compareMonster")) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("compareMonster");
+          return next;
+        },
+        { replace: true },
+      );
     }
-  }, [G, searchParams]);
+  }, [G, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!G || !monsterPrefsInit.current) return;
@@ -408,13 +414,12 @@ export function StatsPanel({
       (prev) => {
         const next = new URLSearchParams(prev);
         next.set("monster", targetMonster);
-        if (compareMonster) next.set("compareMonster", compareMonster);
-        else next.delete("compareMonster");
+        next.delete("compareMonster");
         return next;
       },
       { replace: true },
     );
-  }, [G, targetMonster, compareMonster, setSearchParams]);
+  }, [G, targetMonster, setSearchParams]);
 
   const monsterOptions = useMemo(
     () => (G ? Object.keys(G.monsters).sort((a, b) => a.localeCompare(b)) : []),
@@ -512,7 +517,6 @@ export function StatsPanel({
   });
 
   const monster = buildMonsterCombatant(G, targetMonster);
-  const compareMob = compareMonster ? buildMonsterCombatant(G, compareMonster) : null;
 
   const statusResists = {} as Partial<Record<StatusResistStat, number>>;
   for (const s of STATUS_RESIST_STATS) {
@@ -532,18 +536,6 @@ export function StatsPanel({
     statusResists,
     skillPierce: chipSkillPierce,
   });
-
-  const compareChips =
-    compareMob &&
-    wasteChipsForLoadout({
-      damageType: chipDamageType,
-      apiercing: fakePlayer.apiercing,
-      rpiercing: fakePlayer.rpiercing,
-      monsterArmor: compareMob.armor,
-      monsterResistance: compareMob.resistance,
-      statusResists,
-      skillPierce: chipSkillPierce,
-    });
 
   const getStatsDescription = (key: StatType | MainStatType) => {
     const attr = ATTRIBUTES[key];
@@ -767,36 +759,6 @@ export function StatsPanel({
                 {favorites.includes(targetMonster) ? <StarIcon /> : <StarBorderIcon />}
               </IconButton>
             </Stack>
-            <Box sx={{ mt: 1.5 }}>
-              <SimEntityAutocomplete
-                fullWidth
-                options={monsterOptions as MonsterKey[]}
-                value={compareMonster}
-                label="Compare vs (optional)"
-                onChange={(value) => setCompareMonster(value)}
-                getOptionLabel={(option) => {
-                  const name = G.monsters[option]?.name;
-                  return name ? `${name} (${option})` : option;
-                }}
-                getPrimaryLabel={(option) => G.monsters[option]?.name ?? option}
-                getSecondaryLabel={(option) => option}
-                filterOption={(key, q) => {
-                  if (key.toLowerCase().includes(q)) return true;
-                  const name = G.monsters[key as MonsterKey]?.name;
-                  return Boolean(name && name.toLowerCase().includes(q));
-                }}
-                renderListIcon={(option) => (
-                  <Box sx={{ width: 40, height: 40, flexShrink: 0 }}>
-                    <MonsterImage
-                      monsterName={option as MonsterKey}
-                      opacity={1}
-                      scale={1.2}
-                      tooltip={false}
-                    />
-                  </Box>
-                )}
-              />
-            </Box>
             <Stack direction="row" flexWrap="wrap" gap={1.5} sx={{ mt: 1.5 }}>
               <FormControl size="small" sx={{ minWidth: 120, flex: 1 }}>
                 <InputLabel id="hit-path-label">Hit path</InputLabel>
@@ -838,20 +800,6 @@ export function StatsPanel({
                 ))}
               </Stack>
             )}
-            {compareChips && compareChips.length > 0 && compareMonster ? (
-              <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 1 }}>
-                {compareChips.map((chip) => (
-                  <Chip
-                    key={`cmp-${compareMonster}-${chip.openStat}:${chip.text}`}
-                    size="small"
-                    color="info"
-                    variant="outlined"
-                    label={`${G.monsters[compareMonster]?.name ?? compareMonster}: ${chip.text}`}
-                    onClick={() => openStat(chip.openStat)}
-                  />
-                ))}
-              </Stack>
-            ) : null}
           </Grid>
           <Grid item xs={12} md={4}>
             <Divider textAlign="left">ATTACK vs {monsterName}</Divider>
