@@ -65,11 +65,14 @@ type FormulaLegendEntry = { symbol: string; meaning: string };
  * substitutions. Labels stay in UI chrome; only the equations go through KaTeX.
  */
 function FormulaExplain({
+  context,
   symbolicLines,
   legend = [],
   examples,
   note,
 }: {
+  /** Which fight direction this dialog is teaching, e.g. "Attack · You → Black Scorpion". */
+  context?: string;
   symbolicLines: string[];
   /** Symbol key shown under the equation (not inside KaTeX). */
   legend?: FormulaLegendEntry[];
@@ -78,6 +81,11 @@ function FormulaExplain({
 }) {
   return (
     <Box id={STAT_DETAIL_FORMULA_ID} sx={{ mb: 2 }}>
+      {context ? (
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+          {context}
+        </Typography>
+      ) : null}
       <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }}>
         Formula
       </Typography>
@@ -688,92 +696,95 @@ function MitigationBody({
   const focusHints = hitDirection === "youHit" ? waste.hints : theyWaste.hints;
   const focusWaste = hitDirection === "youHit" ? waste : theyWaste;
 
-  const pathNote =
-    opts.path === "heal"
-      ? "Heal path: (def − pierce) / 2."
-      : opts.path === "splash"
-      ? "Splash: no pierce."
-      : skillPierce > 0
-      ? `Basic + ${skillPierce} skill pierce on info.`
-      : "Basic: gear pierce counted twice.";
+  const youHitFocus = hitDirection === "youHit";
+  const focusPath = youHitFocus ? youHit.path : "basic";
+  const focusSkillPierce = youHitFocus ? youHit.skillPierce : 0;
 
-  const youPath = youHit.path;
-  const youEffSymbolic =
-    youPath === "heal"
+  const pathNote = youHitFocus
+    ? focusPath === "heal"
+      ? "Heal path: (def − pierce) / 2."
+      : focusPath === "splash"
+      ? "Splash: no pierce."
+      : focusSkillPierce > 0
+      ? `Basic + ${focusSkillPierce} skill pierce on info.`
+      : "Basic: gear pierce counted twice."
+    : "Defense uses basic attacks (gear pierce counted twice).";
+
+  const focusEffSymbolic =
+    focusPath === "heal"
       ? `d_{\\mathrm{eff}} &= \\dfrac{D - p}{2}`
-      : youPath === "splash"
+      : focusPath === "splash"
       ? `d_{\\mathrm{eff}} &= D`
-      : skillPierce > 0
+      : focusSkillPierce > 0
       ? `d_{\\mathrm{eff}} &= D - 2p - s`
       : `d_{\\mathrm{eff}} &= D - 2p`;
-  const youEffPlugged =
-    youPath === "heal"
-      ? `d_{\\mathrm{eff}} &= \\dfrac{${youHit.defense} - ${
-          youHit.pierce
-        }}{2} = ${youHit.effectiveDefense.toFixed(1)}`
-      : youPath === "splash"
-      ? `d_{\\mathrm{eff}} &= ${youHit.defense} = ${youHit.effectiveDefense.toFixed(1)}`
-      : youHit.skillPierce > 0
-      ? `d_{\\mathrm{eff}} &= ${youHit.defense} - 2\\times${youHit.pierce} - ${
-          youHit.skillPierce
-        } = ${youHit.effectiveDefense.toFixed(1)}`
-      : `d_{\\mathrm{eff}} &= ${youHit.defense} - 2\\times${
-          youHit.pierce
-        } = ${youHit.effectiveDefense.toFixed(1)}`;
-  const theyEffPlugged = `d_{\\mathrm{eff}} &= ${theyHit.defense} - 2\\times${
-    theyHit.pierce
-  } = ${theyHit.effectiveDefense.toFixed(1)}`;
 
-  const symbolicLines = [youEffSymbolic, `m &= M(d_{\\mathrm{eff}})`];
-  if (youHit.fortitudeMult !== 1) {
+  const focusEffPlugged =
+    focusPath === "heal"
+      ? `d_{\\mathrm{eff}} &= \\dfrac{${focus.defense} - ${
+          focus.pierce
+        }}{2} = ${focus.effectiveDefense.toFixed(1)}`
+      : focusPath === "splash"
+      ? `d_{\\mathrm{eff}} &= ${focus.defense} = ${focus.effectiveDefense.toFixed(1)}`
+      : focusSkillPierce > 0
+      ? `d_{\\mathrm{eff}} &= ${focus.defense} - 2\\times${
+          focus.pierce
+        } - ${focusSkillPierce} = ${focus.effectiveDefense.toFixed(1)}`
+      : `d_{\\mathrm{eff}} &= ${focus.defense} - 2\\times${
+          focus.pierce
+        } = ${focus.effectiveDefense.toFixed(1)}`;
+
+  const symbolicLines = [focusEffSymbolic, `m &= M(d_{\\mathrm{eff}})`];
+  if (youHitFocus && youHit.fortitudeMult !== 1) {
     symbolicLines.push(`m' &= m \\times M(F \\times 5)`);
   }
 
-  const youMultLine =
-    youHit.fortitudeMult !== 1
-      ? `m' &= M(${youHit.effectiveDefense.toFixed(1)}) \\times M(F\\times 5) = ${(
-          youHit.multiplier *
+  const focusMultLine =
+    youHitFocus && youHit.fortitudeMult !== 1
+      ? `m' &= M(${focus.effectiveDefense.toFixed(1)}) \\times M(F\\times 5) = ${(
+          focus.multiplier *
           youHit.fortitudeMult *
           100
         ).toFixed(1)}\\%`
-      : `m &= M(${youHit.effectiveDefense.toFixed(1)}) = ${(youHit.multiplier * 100).toFixed(
-          1,
-        )}\\%`;
+      : `m &= M(${focus.effectiveDefense.toFixed(1)}) = ${(focus.multiplier * 100).toFixed(1)}\\%`;
 
   const pierceName = focus.pierceStat === "none" ? "pierce" : focus.pierceStat;
   const defName = focus.defenseStat === "none" ? "defense" : focus.defenseStat;
   const legend: FormulaLegendEntry[] = [
-    { symbol: "D", meaning: defName },
-    { symbol: "p", meaning: pierceName },
+    {
+      symbol: "D",
+      meaning: youHitFocus ? `${monsterName}'s ${defName}` : `your ${defName}`,
+    },
+    {
+      symbol: "p",
+      meaning: youHitFocus ? `your ${pierceName}` : `${monsterName}'s ${pierceName}`,
+    },
   ];
-  if (skillPierce > 0) legend.push({ symbol: "s", meaning: "skill pierce" });
+  if (youHitFocus && focusSkillPierce > 0) {
+    legend.push({ symbol: "s", meaning: "skill pierce" });
+  }
   legend.push(
     { symbol: "M", meaning: "damage_multiplier" },
     { symbol: "d_eff", meaning: "effective defense" },
     { symbol: "m", meaning: "damage mult" },
   );
 
+  const focusLabel = youHitFocus ? `You → ${monsterName}` : `${monsterName} → you`;
+  const contextLabel = youHitFocus ? `Attack · ${focusLabel}` : `Defense · ${focusLabel}`;
+
   return (
     <Box>
       <FormulaExplain
+        context={contextLabel}
         symbolicLines={symbolicLines}
         legend={legend}
         examples={[
           {
-            label: `You → ${monsterName}`,
-            lines: [youEffPlugged, youMultLine],
-          },
-          {
-            label: "Monster → you",
-            lines: [
-              theyEffPlugged,
-              `m &= M(${theyHit.effectiveDefense.toFixed(1)}) = ${(
-                theyHit.multiplier * 100
-              ).toFixed(1)}\\%`,
-            ],
+            label: focusLabel,
+            lines: [focusEffPlugged, focusMultLine],
           },
         ]}
-        note={`${pathNote} Defense always uses basic. M is soft-banded and clamped to 5%–132%.`}
+        note={`${pathNote} M is soft-banded and clamped to 5%–132%.`}
       />
       {showPierceChart && (
         <Box id={STAT_DETAIL_GRAPH_ID} sx={{ mb: 1 }}>
@@ -867,7 +878,7 @@ export function StatDetailDialog({
 
   if (!stat) return null;
 
-  const title =
+  const baseTitle =
     stat === "effectiveDefense"
       ? "Effective defense"
       : stat === "damageMultiplier"
@@ -875,6 +886,21 @@ export function StatDetailDialog({
       : stat === "for"
       ? "Fortitude (for)"
       : stat;
+
+  const directionSensitive =
+    stat === "apiercing" ||
+    stat === "rpiercing" ||
+    stat === "armor" ||
+    stat === "resistance" ||
+    stat === "effectiveDefense" ||
+    stat === "damageMultiplier" ||
+    stat === "for" ||
+    stat === "evasion" ||
+    stat === "reflection";
+
+  const title = directionSensitive
+    ? `${baseTitle} · ${hitDirection === "youHit" ? "Attack" : "Defense"}`
+    : baseTitle;
 
   const sheetTotal =
     stat === "effectiveDefense" || stat === "damageMultiplier"
