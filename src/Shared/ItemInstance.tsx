@@ -7,7 +7,7 @@ import { ItemTooltip } from "./EntityTooltip";
 import type { EntityTooltipLine } from "../gameData/entityTooltip";
 import { CURRENCY_SKINS, ItemImage } from "../ItemImage";
 import { getLevelString } from "../Utils";
-import { cxJarData, getItemData } from "../gameData/itemInstanceData";
+import { cxJarData, getItemData, ItemInfoWithData } from "../gameData/itemInstanceData";
 import { CxJarItemSprite } from "./CxJarItemSprite";
 import { abbreviateNumber } from "./utils";
 
@@ -22,7 +22,8 @@ export function ItemInstance({
   forceShowQuantity,
   tooltipExtraLines,
 }: {
-  itemInfo: ItemInfo;
+  /** Prefer `ItemInfoWithData` so sealed CX Jar `data` is not dropped at the type boundary. */
+  itemInfo: ItemInfo | ItemInfoWithData;
   showQuantity?: boolean;
   showTitleBorder?: boolean;
   /** Pixel size of the item sprite (default 40). */
@@ -201,16 +202,21 @@ export function ItemInstance({
     <ItemImage itemName={itemName} size={size} />
   );
 
+  // Title chrome via inset shadow so layout size stays `size`×`size` (teller slots are tight;
+  // border+padding was clipping the top edge and shifting the frame up a few pixels).
+  const titleShadow =
+    showTitleBorder && titleBorderColor ? `inset 0 0 0 2px ${titleBorderColor}` : undefined;
+
   const sprite = (
     <div
       style={{
         position: "relative",
-        display: "inline-block",
-        verticalAlign: "middle",
-        borderWidth: 2,
-        borderStyle: "solid",
-        borderColor: showTitleBorder && titleBorderColor ? titleBorderColor : "transparent",
-        padding: 1,
+        display: "block",
+        width: size,
+        height: size,
+        lineHeight: 0,
+        boxSizing: "border-box",
+        boxShadow: titleShadow,
       }}
     >
       {mainSprite}

@@ -41,18 +41,18 @@ function jarCosmeticZoom(sheetType: string | undefined): number {
 /** Sealed cosmetic / emote art only (official `cx_sprite` resolution), fitted to `size`. */
 export function CxJarContentSprite({ data, size }: { data: string; size: number }) {
   const G = useContext(GDataContext);
-  // typed-adventureland GSkill omits `emote`; runtime G.skills has it for emote jars.
+  // typed-adventureland GSkill types `emote` poorly; runtime uses string id or truthy flag.
   const skillEntry =
     G?.skills && Object.prototype.hasOwnProperty.call(G.skills, data)
-      ? (G.skills as Record<string, { emote?: boolean; skin?: string }>)[data]
+      ? (G.skills as Record<string, { emote?: boolean | string; skin?: string }>)[data]
       : undefined;
 
-  const packSkin =
-    skillEntry?.emote && skillEntry.skin
+  const emoteSkin =
+    skillEntry && skillEntry.emote && typeof skillEntry.skin === "string" && skillEntry.skin
       ? skillEntry.skin
-      : G?.positions?.[data]
-      ? data
       : undefined;
+
+  const packSkin = emoteSkin ?? (G?.positions?.[data] ? data : undefined);
 
   const sheetScale = useMemo(() => {
     if (!G || packSkin) return null;

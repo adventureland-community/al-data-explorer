@@ -47,6 +47,53 @@ type BankRenderProps = {
   ownerId: string;
 };
 
+type BankSortMode = "category" | "quantity" | "stack";
+
+function aggregatedItemInfo(item: AggregatedBankItem) {
+  return {
+    name: item.name,
+    level: item.level,
+    q: item.q,
+    ...(item.p ? { p: item.p } : {}),
+    ...(item.data ? { data: item.data } : {}),
+  };
+}
+
+function compareAggregatedBankItems(
+  a: AggregatedBankItem,
+  b: AggregatedBankItem,
+  sortMode: BankSortMode,
+  sortedGroupKeys: string[],
+): number {
+  if (sortMode === "stack" && a.stack !== b.stack) {
+    return b.stack - a.stack;
+  }
+
+  if (sortMode === "quantity" && a.q !== b.q) {
+    return b.q - a.q;
+  }
+
+  if (a.category !== b.category) {
+    return sortedGroupKeys.indexOf(a.category) - sortedGroupKeys.indexOf(b.category);
+  }
+
+  if (a.type && b.type && a.type !== b.type) {
+    return a.type.localeCompare(b.type);
+  }
+
+  if (a.name && a.name !== b.name) {
+    return a.name.localeCompare(b.name);
+  }
+
+  // Group CX Jar (and other instance) variants by sealed data before level.
+  const dataCmp = (a.data ?? "").localeCompare(b.data ?? "");
+  if (dataCmp !== 0) {
+    return dataCmp;
+  }
+
+  return b.level - a.level;
+}
+
 const types: { [key in ItemType | "exchange" | "other"]?: string } = {
   helmet: "Helmets",
   chest: "Armors",
@@ -123,7 +170,7 @@ function BankTableView({ items }: { items: AggregatedBankItem[] }) {
               </TableCell>
               <TableCell component="td">
                 <div style={{ display: "inline-block" }}>
-                  <ItemInstance itemInfo={itemInfo as never} linkToDetail />
+                  <ItemInstance itemInfo={aggregatedItemInfo(itemInfo)} linkToDetail />
                 </div>
                 <div style={{ marginLeft: "10px", display: "inline-block" }}>
                   <div>
@@ -158,7 +205,7 @@ function BankGridViewItemRow({ items }: { items: AggregatedBankItem[] }) {
 
         return (
           <div key={getUniqueItemKey(itemInfo)}>
-            <ItemInstance showQuantity itemInfo={itemInfo as never} linkToDetail />
+            <ItemInstance showQuantity itemInfo={aggregatedItemInfo(itemInfo)} linkToDetail />
           </div>
         );
       })}
@@ -218,7 +265,7 @@ export function BankRender(props: BankRenderProps) {
   const [renderMode, setRenderMode] = useState<"list" | "grid" | "gridCompact" | "packs">(
     "gridCompact",
   );
-  const [sortMode, setSortMode] = useState<"category" | "quantity" | "stack">("category");
+  const [sortMode, setSortMode] = useState<BankSortMode>("category");
   const [search, setSearch] = useState("");
   const [visitSummary, setVisitSummary] = useState<BankRefreshSummary | undefined>(undefined);
   const [changeFilter, setChangeFilter] = useState<"all" | "gear" | "quantity">("all");
@@ -323,31 +370,7 @@ export function BankRender(props: BankRenderProps) {
   const items = useMemo(() => {
     const sortedGroupKeys = [...new Set(Object.values(types))];
     const nextItems = [...filteredItems];
-
-    nextItems.sort((a, b) => {
-      if (sortMode === "stack" && a.stack !== b.stack) {
-        return b.stack - a.stack;
-      }
-
-      if (sortMode === "quantity" && a.q !== b.q) {
-        return b.q - a.q;
-      }
-
-      if (a.category !== b.category) {
-        return sortedGroupKeys.indexOf(a.category) - sortedGroupKeys.indexOf(b.category);
-      }
-
-      if (a.type && b.type && a.type !== b.type) {
-        return a.type.localeCompare(b.type);
-      }
-
-      if (a.name && a.name !== b.name) {
-        return a.name.localeCompare(b.name);
-      }
-
-      return b.level - a.level;
-    });
-
+    nextItems.sort((a, b) => compareAggregatedBankItems(a, b, sortMode, sortedGroupKeys));
     return nextItems;
   }, [filteredItems, sortMode]);
 
@@ -357,11 +380,13 @@ export function BankRender(props: BankRenderProps) {
     for (const category of sortedGroupKeys) {
       const categoryItems = filteredItemsByCategory[category];
       if (categoryItems?.length) {
-        sorted[category] = categoryItems;
+        sorted[category] = [...categoryItems].sort((a, b) =>
+          compareAggregatedBankItems(a, b, sortMode, sortedGroupKeys),
+        );
       }
     }
     return sorted;
-  }, [filteredItemsByCategory]);
+  }, [filteredItemsByCategory, sortMode]);
 
   const searchLocations = useMemo(() => {
     if (!search.trim()) return [];
@@ -401,7 +426,7 @@ export function BankRender(props: BankRenderProps) {
 
   const onSortModeChange = (_event: React.MouseEvent<HTMLElement>, value: string | null) => {
     if (value) {
-      setSortMode(value as "category" | "quantity" | "stack");
+      setSortMode(value as BankSortMode);
     }
   };
 
