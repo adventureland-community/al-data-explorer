@@ -65,7 +65,7 @@ Home: Target monster block in `StatsPanel` (Gear Planner + Character panels).
 
 ### Stat Detail (clickable sheet + vs-monster rows)
 
-- Formula block first: short-symbol KaTeX (`aligned`) + plain-language legend, then labeled substitution cards (direction outside the math)
+- Formula block first: short-symbol KaTeX (`aligned`) + plain-language legend beside labeled substitution cards (wider dialog; formula left / numbers right on sm+)
 - Attack-panel clicks focus You → monster; Defense-panel clicks focus Monster → you (title includes Attack/Defense)
 - SVG falloff graphs (mult vs pierce with you + hard-cap markers; mult vs effective defense; status chance / duration curves)
 - STR/INT: attribute softcap curve (160 / 180) with current marker

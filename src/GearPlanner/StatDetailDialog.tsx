@@ -79,6 +79,16 @@ function FormulaExplain({
   examples: FormulaExample[];
   note?: string;
 }) {
+  const cardSx = {
+    px: 1.5,
+    py: 1.25,
+    borderRadius: 1,
+    border: 1,
+    borderColor: "divider",
+    height: "100%",
+    boxSizing: "border-box" as const,
+  };
+
   return (
     <Box id={STAT_DETAIL_FORMULA_ID} sx={{ mb: 2 }}>
       {context ? (
@@ -86,80 +96,80 @@ function FormulaExplain({
           {context}
         </Typography>
       ) : null}
-      <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }}>
-        Formula
-      </Typography>
       <Box
         sx={{
-          mt: 0.5,
-          px: 1.5,
-          py: 1.25,
-          borderRadius: 1,
-          border: 1,
-          borderColor: "divider",
-          bgcolor: "background.default",
+          display: "grid",
+          gap: 1.5,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+          alignItems: "stretch",
         }}
       >
-        <MathTeX tex={alignedTex(symbolicLines)} />
-        {legend.length > 0 ? (
-          <Box
-            component="dl"
-            sx={{
-              m: 0,
-              mt: 1.25,
-              pt: 1,
-              borderTop: 1,
-              borderColor: "divider",
-              display: "grid",
-              gridTemplateColumns: "auto 1fr",
-              columnGap: 1.5,
-              rowGap: 0.5,
-            }}
+        <Box>
+          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }}>
+            Formula
+          </Typography>
+          <Box sx={{ ...cardSx, mt: 0.5, bgcolor: "background.default" }}>
+            <MathTeX tex={alignedTex(symbolicLines)} />
+            {legend.length > 0 ? (
+              <Box
+                component="dl"
+                sx={{
+                  m: 0,
+                  mt: 1.25,
+                  pt: 1,
+                  borderTop: 1,
+                  borderColor: "divider",
+                  display: "grid",
+                  gridTemplateColumns: "auto 1fr",
+                  columnGap: 1.5,
+                  rowGap: 0.5,
+                }}
+              >
+                {legend.map((entry) => (
+                  <Box key={entry.symbol} sx={{ display: "contents" }}>
+                    <Typography
+                      component="dt"
+                      variant="caption"
+                      sx={{ fontFamily: "KaTeX_Main, Times New Roman, serif", fontWeight: 600 }}
+                    >
+                      {entry.symbol}
+                    </Typography>
+                    <Typography
+                      component="dd"
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ m: 0 }}
+                    >
+                      {entry.meaning}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            ) : null}
+          </Box>
+        </Box>
+
+        <Box>
+          <Typography
+            variant="overline"
+            color="text.secondary"
+            sx={{ letterSpacing: 1, display: "block" }}
           >
-            {legend.map((entry) => (
-              <Box key={entry.symbol} sx={{ display: "contents" }}>
-                <Typography
-                  component="dt"
-                  variant="caption"
-                  sx={{ fontFamily: "KaTeX_Main, Times New Roman, serif", fontWeight: 600 }}
-                >
-                  {entry.symbol}
+            With your numbers
+          </Typography>
+          <Box
+            sx={{ display: "flex", flexDirection: "column", gap: 1.25, mt: 0.5, height: "100%" }}
+          >
+            {examples.map((ex) => (
+              <Box key={ex.label} sx={{ ...cardSx, bgcolor: "action.hover", flex: 1 }}>
+                <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+                  {ex.label}
                 </Typography>
-                <Typography component="dd" variant="caption" color="text.secondary" sx={{ m: 0 }}>
-                  {entry.meaning}
-                </Typography>
+                <MathTeX tex={alignedTex(ex.lines)} />
               </Box>
             ))}
           </Box>
-        ) : null}
-      </Box>
-
-      <Typography
-        variant="overline"
-        color="text.secondary"
-        sx={{ letterSpacing: 1, display: "block", mt: 2 }}
-      >
-        With your numbers
-      </Typography>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, mt: 0.5 }}>
-        {examples.map((ex) => (
-          <Box
-            key={ex.label}
-            sx={{
-              px: 1.5,
-              py: 1.25,
-              borderRadius: 1,
-              border: 1,
-              borderColor: "divider",
-              bgcolor: "action.hover",
-            }}
-          >
-            <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
-              {ex.label}
-            </Typography>
-            <MathTeX tex={alignedTex(ex.lines)} />
-          </Box>
-        ))}
+        </Box>
       </Box>
 
       {note ? (
@@ -936,7 +946,7 @@ export function StatDetailDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="sm"
+      maxWidth="md"
       fullWidth
       // Skip fade so backdrop/paper never sit mid-opacity while the graph is open.
       transitionDuration={0}
@@ -950,6 +960,8 @@ export function StatDetailDialog({
           bgcolor: "background.paper",
           backgroundImage: "none",
           opacity: 1,
+          width: "100%",
+          maxWidth: { xs: "100%", sm: 720, md: 860 },
         },
       }}
     >
