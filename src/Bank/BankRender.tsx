@@ -205,11 +205,7 @@ function BankGridViewItemRow({ items }: { items: AggregatedBankItem[] }) {
 
         return (
           <div key={getUniqueItemKey(itemInfo)}>
-            <ItemInstance
-              showQuantity
-              itemInfo={aggregatedItemInfo(itemInfo)}
-              linkToDetail
-            />
+            <ItemInstance showQuantity itemInfo={aggregatedItemInfo(itemInfo)} linkToDetail />
           </div>
         );
       })}
