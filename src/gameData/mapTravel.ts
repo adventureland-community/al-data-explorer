@@ -320,7 +320,9 @@ export function travelPathDirections(
     legs.push({
       mapKey,
       mapName: mapName(G, mapKey),
-      role: isStart ? "start" : isEnd ? "end" : "via",
+      // Prefer `end` when start===end (trivial same-map path): NPC map markers
+      // key off role==="end" for skin sprites; `start` first would paint a bare pin.
+      role: isEnd ? "end" : isStart ? "start" : "via",
       action,
       worldHref: worldFocusHref(mapKey, focusX, focusY),
       focusX,

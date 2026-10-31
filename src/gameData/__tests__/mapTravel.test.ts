@@ -110,4 +110,16 @@ describe("mapTravel", () => {
       hops: [],
     });
   });
+
+  it("marks the sole same-map leg as end so NPC focus keeps its skin marker", () => {
+    const G = travelFixture();
+    const path = findTravelPath(buildTravelEdges(G), "main", "main");
+    expect(path).not.toBeNull();
+    const directions = travelPathDirections(G, path!, { x: 303, y: -87 });
+    expect(directions).toHaveLength(1);
+    expect(directions[0]?.role).toBe("end");
+    expect(directions[0]?.focusX).toBe(303);
+    expect(directions[0]?.focusY).toBe(-87);
+    expect(directions[0]?.action).toBeUndefined();
+  });
 });
