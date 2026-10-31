@@ -30,6 +30,7 @@ import { computeLoadoutStats, contributionsForStat } from "../gameData/loadoutSt
 import { formatCharacterStatValue } from "../gameData/prettyNumbers";
 import { SimEntityAutocomplete } from "../DropSimulator/SimEntityAutocomplete";
 import { MonsterImage } from "../Shared/SpriteSkin";
+import { formatFightDuration, formatHitCount } from "../Shared/utils";
 import { SelectedCharacterClass } from "./types";
 import {
   Combatant,
@@ -204,11 +205,20 @@ function MitigationRows({
         </TableRow>
         <TableRow>
           <TableCell>{targetHpLabel}</TableCell>
-          <TableCell align="right">
+          <TableCell
+            align="right"
+            title={
+              hitsToDefeat == null
+                ? undefined
+                : `${hitsToDefeat.toLocaleString()} hits${
+                    secondsToDefeat != null ? ` · ${secondsToDefeat.toFixed(1)}s` : ""
+                  }`
+            }
+          >
             {hitsToDefeat == null
               ? "—"
-              : `${hitsToDefeat} hit${hitsToDefeat === 1 ? "" : "s"}${
-                  secondsToDefeat != null ? ` ≈ ${secondsToDefeat.toFixed(1)}s` : ""
+              : `${formatHitCount(hitsToDefeat)} hit${hitsToDefeat === 1 ? "" : "s"}${
+                  secondsToDefeat != null ? ` ≈ ${formatFightDuration(secondsToDefeat)}` : ""
                 }`}
           </TableCell>
         </TableRow>
@@ -246,16 +256,15 @@ function DamageVisualization({
   const healthLeft = Math.max(0, maxHealth - damage);
   const hitsToDefeat = Math.ceil(maxHealth / damage);
 
+  const hitsLabel = `${formatHitCount(hitsToDefeat)} hit${hitsToDefeat === 1 ? "" : "s"}`;
   const summary =
     direction === "outbound"
       ? `Will do ${damage.toFixed(2)} damage to ${targetLabel} with ${healthLeft.toFixed(
           2,
-        )} health left. Defeated in ${hitsToDefeat} hit${hitsToDefeat === 1 ? "" : "s"}`
+        )} health left. Defeated in ${hitsLabel}`
       : `Will do ${damage.toFixed(2)} damage to you with ${healthLeft.toFixed(
           2,
-        )} health left. You will be defeated in ${hitsToDefeat} hit${
-          hitsToDefeat === 1 ? "" : "s"
-        }`;
+        )} health left. You will be defeated in ${hitsLabel}`;
 
   return (
     <Box sx={{ mt: 1 }}>

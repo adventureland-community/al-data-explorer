@@ -48,6 +48,30 @@ export function msToTime(ms: number) {
   if (hours < 24) return `${hours.toFixed(1)} H`;
   return `${days.toFixed(1)} D`;
 }
+
+/** Compact fight duration for Gear Planner TTK (input is seconds). */
+export function formatFightDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "—";
+  if (seconds < 60) return `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)}s`;
+
+  const totalSec = Math.round(seconds);
+  const days = Math.floor(totalSec / 86400);
+  const hours = Math.floor((totalSec % 86400) / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const secs = totalSec % 60;
+
+  if (days > 0) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`;
+}
+
+/** Hit counts stay plain until 1k+, then SI (60.5k hits). */
+export function formatHitCount(hits: number): string {
+  if (!Number.isFinite(hits) || hits < 0) return "—";
+  const n = Math.round(hits);
+  if (n < 1000) return String(n);
+  return String(abbreviateNumber(n));
+}
 /**
  *
  * @param duration Renders duration as a string HH:MM:SS:MS
