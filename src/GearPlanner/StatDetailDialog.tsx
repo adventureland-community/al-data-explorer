@@ -19,6 +19,7 @@ import { useEffect } from "react";
 import { ItemKey, SlotType } from "typed-adventureland";
 import { StatContribution } from "../gameData/loadoutStats";
 import { ItemInstanceLabel } from "../Shared/ItemInstanceLabel";
+import { MathTeX } from "../Shared/MathTeX";
 import {
   Combatant,
   DamageType,
@@ -50,12 +51,23 @@ const STAT_DETAIL_GRAPH_ID = "stat-detail-graph";
 
 export type HitDirection = "youHit" | "theyHit";
 
-/** Symbolic formula first, then the same line with current numbers plugged in. */
+/** Escape a plain identifier for KaTeX `\mathrm{...}`. */
+function texId(name: string): string {
+  return `\\mathrm{${name.replace(/_/g, "\\_")}}`;
+}
+
+/** Escape free text (monster names, etc.) for KaTeX `\text{...}`. */
+function texText(value: string): string {
+  return `\\text{${value.replace(/[{}\\]/g, "")}}`;
+}
+
+/** Symbolic KaTeX first, then the same equations with current numbers. */
 function FormulaExplain({
   symbolic,
   pluggedIn,
   note,
 }: {
+  /** LaTeX math lines (no `$` delimiters). */
   symbolic: string | string[];
   pluggedIn: string | string[];
   note?: string;
@@ -66,38 +78,36 @@ function FormulaExplain({
     <Box id={STAT_DETAIL_FORMULA_ID} sx={{ mb: 1.5 }}>
       <Typography variant="subtitle2">Formula</Typography>
       <Box
-        component="pre"
         sx={{
-          m: 0,
           mt: 0.5,
-          p: 1,
+          p: 1.25,
           borderRadius: 1,
           bgcolor: "action.hover",
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-          fontSize: 13,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.75,
         }}
       >
-        {symbolicLines.join("\n")}
+        {symbolicLines.map((tex) => (
+          <MathTeX key={tex} tex={tex} />
+        ))}
       </Box>
       <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1, mb: 0.5 }}>
         With current numbers
       </Typography>
       <Box
-        component="pre"
         sx={{
-          m: 0,
-          p: 1,
+          p: 1.25,
           borderRadius: 1,
           bgcolor: "action.selected",
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-          fontSize: 13,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.75,
         }}
       >
-        {pluggedLines.join("\n")}
+        {pluggedLines.map((tex) => (
+          <MathTeX key={tex} tex={tex} />
+        ))}
       </Box>
       {note ? (
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
@@ -340,15 +350,27 @@ function StatusResistBody({
   const symbolic: string[] = [];
   const pluggedIn: string[] = [];
   if (showChance) {
-    symbolic.push(`chance_resist% = min(100, max(0, ${stat}))`);
-    pluggedIn.push(`chance_resist% = min(100, max(0, ${value})) = ${chancePlugged}%`);
+    symbolic.push(
+      `${texId("chance_resist")}\\% = \\min\\bigl(100,\\,\\max(0,\\,${texId(stat)})\\bigr)`,
+    );
+    pluggedIn.push(
+      `${texId(
+        "chance_resist",
+      )}\\% = \\min\\bigl(100,\\,\\max(0,\\,${value})\\bigr) = ${chancePlugged}\\%`,
+    );
   }
   if (showDuration) {
-    symbolic.push(`duration_remaining = max(0, (100 − ${stat}) / 100)`);
+    symbolic.push(
+      `${texId("duration_remaining")} = \\max\\!\\left(0,\\,\\dfrac{100 - ${texId(
+        stat,
+      )}}{100}\\right)`,
+    );
     pluggedIn.push(
-      `duration_remaining = max(0, (100 − ${value}) / 100) = ${(durationPlugged * 100).toFixed(
-        1,
-      )}%`,
+      `${texId(
+        "duration_remaining",
+      )} = \\max\\!\\left(0,\\,\\dfrac{100 - ${value}}{100}\\right) = ${(
+        durationPlugged * 100
+      ).toFixed(1)}\\%`,
     );
   }
 
@@ -423,8 +445,12 @@ function AttributeSoftcapBody({ stat, value }: { stat: "str" | "int"; value: num
   return (
     <Box>
       <FormulaExplain
-        symbolic={`${derived} = min(${stat}, ${threshold}) + max(0, ${stat} − ${threshold}) × 0.25`}
-        pluggedIn={`${derived} = min(${value}, ${threshold}) + max(0, ${value} − ${threshold}) × 0.25 = ${result.toFixed(
+        symbolic={`${texId(derived)} = \\min(${texId(stat)}, ${threshold}) + \\max(0, ${texId(
+          stat,
+        )} - ${threshold}) \\times 0.25`}
+        pluggedIn={`${texId(
+          derived,
+        )} = \\min(${value}, ${threshold}) + \\max(0, ${value} - ${threshold}) \\times 0.25 = ${result.toFixed(
           1,
         )}`}
         note={`Full value only up to the ${threshold} softcap; each point above adds 25%.`}
@@ -463,13 +489,15 @@ function LandChanceBody({
     <Box>
       <FormulaExplain
         symbolic={[
-          `miss% = min(100, max(0, ${stat}))`,
-          `land% = 100 − miss%`,
-          `miss if random × 100 < ${stat}`,
+          `${texId("miss")}\\% = \\min\\bigl(100,\\,\\max(0,\\,${texId(stat)})\\bigr)`,
+          `${texId("land")}\\% = 100 - ${texId("miss")}\\%`,
+          `${texText("miss if")}\\; \\mathrm{random} \\times 100 < ${texId(stat)}`,
         ]}
         pluggedIn={[
-          `miss% = min(100, max(0, ${miss.toFixed(1)})) = ${miss.toFixed(1)}%`,
-          `land% = 100 − ${miss.toFixed(1)} = ${land.toFixed(1)}%`,
+          `${texId("miss")}\\% = \\min\\bigl(100,\\,\\max(0,\\,${miss.toFixed(
+            1,
+          )})\\bigr) = ${miss.toFixed(1)}\\%`,
+          `${texId("land")}\\% = 100 - ${miss.toFixed(1)} = ${land.toFixed(1)}\\%`,
         ]}
         note={`${against}. A successful roll fully negates the hit${
           stat === "reflection" ? " (and may bounce a projectile back)" : ""
@@ -504,11 +532,14 @@ function FortitudeBody({
   return (
     <Box>
       <FormulaExplain
-        symbolic={["fort_mult = damage_multiplier(for × 5)", "final_damage *= fort_mult"]}
+        symbolic={[
+          `${texId("fort_mult")} = ${texId("damage_multiplier")}(${texId("for")} \\times 5)`,
+          `${texId("final_damage")} = ${texId("final_damage")} \\times ${texId("fort_mult")}`,
+        ]}
         pluggedIn={[
-          `fort_mult = damage_multiplier(${value} × 5) = damage_multiplier(${(value * 5).toFixed(
-            0,
-          )}) = ${(mult * 100).toFixed(1)}%`,
+          `${texId("fort_mult")} = ${texId("damage_multiplier")}(${value} \\times 5) = ${texId(
+            "damage_multiplier",
+          )}(${(value * 5).toFixed(0)}) = ${(mult * 100).toFixed(1)}\\%`,
         ]}
         note={`${who}. Only applies when the attacker is a player. damage_multiplier is the same soft curve as armor/resist (clamped 5%–132%).`}
       />
@@ -604,50 +635,58 @@ function MitigationBody({
   const youPath = youHit.path;
   const youEffSymbolic =
     youPath === "heal"
-      ? "effective = (defense − pierce) / 2"
+      ? `${texId("effective")} = \\dfrac{${texId("defense")} - ${texId("pierce")}}{2}`
       : youPath === "splash"
-      ? "effective = defense"
+      ? `${texId("effective")} = ${texId("defense")}`
       : skillPierce > 0
-      ? "effective = defense − 2 × gear_pierce − skill_pierce"
-      : "effective = defense − 2 × gear_pierce";
+      ? `${texId("effective")} = ${texId("defense")} - 2 \\times ${texId("gear_pierce")} - ${texId(
+          "skill_pierce",
+        )}`
+      : `${texId("effective")} = ${texId("defense")} - 2 \\times ${texId("gear_pierce")}`;
   const youEffPlugged =
     youPath === "heal"
-      ? `effective = (${youHit.defense} − ${youHit.pierce}) / 2 = ${youHit.effectiveDefense.toFixed(
-          1,
-        )}`
+      ? `${texId("effective")} = \\dfrac{${youHit.defense} - ${
+          youHit.pierce
+        }}{2} = ${youHit.effectiveDefense.toFixed(1)}`
       : youPath === "splash"
-      ? `effective = ${youHit.defense} = ${youHit.effectiveDefense.toFixed(1)}`
+      ? `${texId("effective")} = ${youHit.defense} = ${youHit.effectiveDefense.toFixed(1)}`
       : youHit.skillPierce > 0
-      ? `effective = ${youHit.defense} − 2 × ${youHit.pierce} − ${
+      ? `${texId("effective")} = ${youHit.defense} - 2 \\times ${youHit.pierce} - ${
           youHit.skillPierce
         } = ${youHit.effectiveDefense.toFixed(1)}`
-      : `effective = ${youHit.defense} − 2 × ${youHit.pierce} = ${youHit.effectiveDefense.toFixed(
-          1,
-        )}`;
-  const theyEffPlugged = `effective = ${theyHit.defense} − 2 × ${
+      : `${texId("effective")} = ${youHit.defense} - 2 \\times ${
+          youHit.pierce
+        } = ${youHit.effectiveDefense.toFixed(1)}`;
+  const theyEffPlugged = `${texId("effective")} = ${theyHit.defense} - 2 \\times ${
     theyHit.pierce
   } = ${theyHit.effectiveDefense.toFixed(1)}`;
 
   const formulaSymbolic = [
     youEffSymbolic,
-    "mult = damage_multiplier(effective)",
-    "damage_multiplier is soft-banded and clamped to 5%…132%",
+    `${texId("mult")} = ${texId("damage_multiplier")}(${texId("effective")})`,
   ];
   if (youHit.fortitudeMult !== 1) {
-    formulaSymbolic.push("final_mult = mult × damage_multiplier(for × 5)");
+    formulaSymbolic.push(
+      `${texId("final_mult")} = ${texId("mult")} \\times ${texId("damage_multiplier")}(${texId(
+        "for",
+      )} \\times 5)`,
+    );
   }
 
+  const youMultPlugged = `${texId("mult")} = ${texId(
+    "damage_multiplier",
+  )}(${youHit.effectiveDefense.toFixed(1)}) = ${(youHit.multiplier * 100).toFixed(1)}\\%${
+    youHit.fortitudeMult !== 1
+      ? ` \\times ${texId("fort")}\\,${(youHit.fortitudeMult * 100).toFixed(1)}\\%`
+      : ""
+  }`;
   const formulaPlugged = [
-    `You → ${monsterName}: ${youEffPlugged}`,
-    `mult = damage_multiplier(${youHit.effectiveDefense.toFixed(1)}) = ${(
-      youHit.multiplier * 100
-    ).toFixed(1)}%${
-      youHit.fortitudeMult !== 1 ? ` × fort ${(youHit.fortitudeMult * 100).toFixed(1)}%` : ""
-    }`,
-    `Monster → you: ${theyEffPlugged}`,
-    `mult = damage_multiplier(${theyHit.effectiveDefense.toFixed(1)}) = ${(
+    `${texText(`You → ${monsterName}`)}:\\; ${youEffPlugged}`,
+    youMultPlugged,
+    `${texText("Monster → you")}:\\; ${theyEffPlugged}`,
+    `${texId("mult")} = ${texId("damage_multiplier")}(${theyHit.effectiveDefense.toFixed(1)}) = ${(
       theyHit.multiplier * 100
-    ).toFixed(1)}%`,
+    ).toFixed(1)}\\%`,
   ];
 
   return (
@@ -657,7 +696,9 @@ function MitigationBody({
         pluggedIn={formulaPlugged}
         note={`vs ${monsterName} — ${
           hitDirection === "youHit" ? "you → monster" : "monster → you"
-        } (${focus.damageType}). ${pathNote} Defense always uses basic.`}
+        } (${
+          focus.damageType
+        }). ${pathNote} Defense always uses basic. damage_multiplier is soft-banded and clamped to 5%–132%.`}
       />
       {showPierceChart && (
         <Box id={STAT_DETAIL_GRAPH_ID} sx={{ mb: 1 }}>
