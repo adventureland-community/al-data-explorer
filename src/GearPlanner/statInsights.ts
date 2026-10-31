@@ -163,21 +163,21 @@ export function pierceWaste(args: {
   }
   if (piercePastHardCap > 0) {
     hints.push({
-      text: `${activePierceStat} is past the 1.32 damage-multiplier cap — drop ~${piercePastHardCap.toFixed(
+      text: `${activePierceStat} is past the m = 132% hard cap — drop ~${piercePastHardCap.toFixed(
         0,
-      )} pierce (does nothing vs this defense).`,
+      )} p (does nothing vs this D).`,
       openStat: activePierceStat,
     });
   } else if (marginalMultFromPlusOne < 1e-6 && activePierce > 0) {
     hints.push({
-      text: `+1 ${activePierceStat} adds no multiplier at this point.`,
+      text: `+1 p (${activePierceStat}) adds no m at this point.`,
       openStat: activePierceStat,
     });
   } else if (eff < 0 && marginalMultFromPlusOne < 0.001) {
     hints.push({
       text: `Overpiercing: returns are soft (marginal +${(marginalMultFromPlusOne * 100).toFixed(
         3,
-      )}% mult per pierce).`,
+      )}% m per p).`,
       openStat: activePierceStat,
     });
   }

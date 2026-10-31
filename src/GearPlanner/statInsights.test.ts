@@ -63,7 +63,7 @@ describe("pierceWaste", () => {
     expect(w.piercePastHardCap).toBe(20);
     expect(w.multiplier).toBeCloseTo(1.32);
     expect(w.marginalMultFromPlusOne).toBeCloseTo(0);
-    expect(w.hints.some((h) => /past the 1\.32/.test(h.text))).toBe(true);
+    expect(w.hints.some((h) => /past the m = 132%/.test(h.text))).toBe(true);
   });
 
   it("accounts for skill pierce in hard cap trim", () => {
@@ -98,9 +98,7 @@ describe("pierceWaste", () => {
       rpiercing: 200,
       monsterResistance: 50,
     });
-    const soft = w.hints.find((h) =>
-      /Overpiercing|past the 1\.32|adds no multiplier/i.test(h.text),
-    );
+    const soft = w.hints.find((h) => /Overpiercing|past the m = 132%|adds no m/i.test(h.text));
     expect(soft?.openStat).toBe("rpiercing");
   });
 });
@@ -216,7 +214,7 @@ describe("wasteChipsForLoadout", () => {
       rpiercing: 400,
       monsterResistance: 40,
     });
-    const soft = chips.find((c) => /Overpiercing|past the 1\.32|adds no multiplier/i.test(c.text));
+    const soft = chips.find((c) => /Overpiercing|past the m = 132%|adds no m/i.test(c.text));
     expect(soft?.openStat).toBe("rpiercing");
   });
 });

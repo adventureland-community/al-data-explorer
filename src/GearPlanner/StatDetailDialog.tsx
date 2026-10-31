@@ -336,9 +336,9 @@ function FalloffChart({
   height?: number;
 }) {
   if (points.length < 2) return null;
-  const padL = 40;
+  const padL = 36;
   const padR = 12;
-  const padT = 12;
+  const padT = 10;
   const padB = 28;
   const xs = points.map((p) => p.x);
   const ys = points.map((p) => p.y);
@@ -357,103 +357,109 @@ function FalloffChart({
         );
 
   return (
-    <Box sx={{ width: "100%", maxWidth: width, lineHeight: 0 }}>
-      <svg
-        width="100%"
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="xMidYMid meet"
-        role="img"
-        aria-label={`${yLabel} vs ${xLabel}`}
+    <Box sx={{ width: "100%", maxWidth: width }}>
+      {/* Horizontal axis titles — rotated SVG Y labels are hard to read. */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          mb: 0.5,
+          gap: 1,
+        }}
       >
-        <line
-          x1={padL}
-          y1={height - padB}
-          x2={width - padR}
-          y2={height - padB}
-          stroke="currentColor"
-          opacity={0.3}
-        />
-        <line
-          x1={padL}
-          y1={padT}
-          x2={padL}
-          y2={height - padB}
-          stroke="currentColor"
-          opacity={0.3}
-        />
-        <path d={d} fill="none" stroke="#1976d2" strokeWidth={2} />
-        {capX != null && capX >= minX && capX <= maxX && (
-          <line
-            x1={sx(capX)}
-            y1={padT}
-            x2={sx(capX)}
-            y2={height - padB}
-            stroke="#2e7d32"
-            strokeDasharray="6 4"
-            strokeWidth={1.5}
-          />
-        )}
-        {markerX != null && markerX >= minX && markerX <= maxX && markerPoint && (
-          <>
-            <line
-              x1={sx(markerX)}
-              y1={padT}
-              x2={sx(markerX)}
-              y2={height - padB}
-              stroke="#ed6c02"
-              strokeDasharray="4 3"
-            />
-            <circle cx={sx(markerX)} cy={sy(markerPoint.y)} r={4} fill="#ed6c02" />
-          </>
-        )}
-        <text x={width / 2} y={height - 4} textAnchor="middle" fontSize={11} fill="currentColor">
-          {xLabel}
-        </text>
-        <text
-          x={12}
-          y={height / 2}
-          textAnchor="middle"
-          fontSize={11}
-          fill="currentColor"
-          transform={`rotate(-90 12 ${height / 2})`}
-        >
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
           {yLabel}
-        </text>
-        <text x={padL} y={height - padB + 14} fontSize={10} fill="currentColor" opacity={0.7}>
-          {minX.toFixed(0)}
-        </text>
-        <text
-          x={width - padR}
-          y={height - padB + 14}
-          textAnchor="end"
-          fontSize={10}
-          fill="currentColor"
-          opacity={0.7}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {xLabel} →
+        </Typography>
+      </Box>
+      <Box sx={{ lineHeight: 0 }}>
+        <svg
+          width="100%"
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="xMidYMid meet"
+          role="img"
+          aria-label={`${yLabel} vs ${xLabel}`}
         >
-          {maxX.toFixed(0)}
-        </text>
-        <text
-          x={padL - 4}
-          y={padT + 4}
-          textAnchor="end"
-          fontSize={10}
-          fill="currentColor"
-          opacity={0.7}
-        >
-          {maxY.toFixed(0)}
-        </text>
-        <text
-          x={padL - 4}
-          y={height - padB}
-          textAnchor="end"
-          fontSize={10}
-          fill="currentColor"
-          opacity={0.7}
-        >
-          {minY.toFixed(0)}
-        </text>
-      </svg>
+          <line
+            x1={padL}
+            y1={height - padB}
+            x2={width - padR}
+            y2={height - padB}
+            stroke="currentColor"
+            opacity={0.3}
+          />
+          <line
+            x1={padL}
+            y1={padT}
+            x2={padL}
+            y2={height - padB}
+            stroke="currentColor"
+            opacity={0.3}
+          />
+          <path d={d} fill="none" stroke="#1976d2" strokeWidth={2} />
+          {capX != null && capX >= minX && capX <= maxX && (
+            <line
+              x1={sx(capX)}
+              y1={padT}
+              x2={sx(capX)}
+              y2={height - padB}
+              stroke="#2e7d32"
+              strokeDasharray="6 4"
+              strokeWidth={1.5}
+            />
+          )}
+          {markerX != null && markerX >= minX && markerX <= maxX && markerPoint && (
+            <>
+              <line
+                x1={sx(markerX)}
+                y1={padT}
+                x2={sx(markerX)}
+                y2={height - padB}
+                stroke="#ed6c02"
+                strokeDasharray="4 3"
+              />
+              <circle cx={sx(markerX)} cy={sy(markerPoint.y)} r={4} fill="#ed6c02" />
+            </>
+          )}
+          <text x={padL} y={height - padB + 14} fontSize={10} fill="currentColor" opacity={0.7}>
+            {minX.toFixed(0)}
+          </text>
+          <text
+            x={width - padR}
+            y={height - padB + 14}
+            textAnchor="end"
+            fontSize={10}
+            fill="currentColor"
+            opacity={0.7}
+          >
+            {maxX.toFixed(0)}
+          </text>
+          <text
+            x={padL - 4}
+            y={padT + 4}
+            textAnchor="end"
+            fontSize={10}
+            fill="currentColor"
+            opacity={0.7}
+          >
+            {maxY.toFixed(0)}
+          </text>
+          <text
+            x={padL - 4}
+            y={height - padB}
+            textAnchor="end"
+            fontSize={10}
+            fill="currentColor"
+            opacity={0.7}
+          >
+            {minY.toFixed(0)}
+          </text>
+        </svg>
+      </Box>
     </Box>
   );
 }
@@ -693,12 +699,12 @@ function FortitudeBody({
         note={`${who}. Only applies when the attacker is a player. M is the same soft curve as armor/resist (clamped 5%–132%).`}
       />
       <Typography variant="subtitle2" id={STAT_DETAIL_GRAPH_ID}>
-        Damage mult vs fortitude (for)
+        f vs F
       </Typography>
       <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-        Orange = current for. Higher for softens player damage through the same mitigation curve.
+        Orange = current F (for). f = M(F × 5), same curve as armor/resist mitigation.
       </Typography>
-      <FalloffChart points={fortitudeMultCurve()} markerX={value} xLabel="for" yLabel="mult %" />
+      <FalloffChart points={fortitudeMultCurve()} markerX={value} xLabel="F (for)" yLabel="f (%)" />
     </Box>
   );
 }
@@ -875,45 +881,41 @@ function MitigationBody({
       />
       {showPierceChart && (
         <Box id={STAT_DETAIL_GRAPH_ID} sx={{ mb: 1 }}>
-          <Typography variant="subtitle2">
-            Damage multiplier vs {hitDirection === "youHit" ? "your" : "their"} pierce
-          </Typography>
+          <Typography variant="subtitle2">m vs p</Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-            {defenseStatLabel} fixed at {defenseForCurve}. Orange = {pierceStatLabel}.
-            {hardCapPierce != null ? " Green dashed = 132% mult cap." : ""}
+            D ({defenseStatLabel}) fixed at {defenseForCurve}. Orange = current p (
+            {youHitFocus ? "your" : `${monsterName}'s`} {pierceStatLabel}).
+            {hardCapPierce != null ? " Green dashed = m hard cap at 132%." : ""}
           </Typography>
           <FalloffChart
             points={pierceCurve}
             markerX={pierceMarker}
             capX={hardCapPierce ?? undefined}
-            xLabel={pierceStatLabel}
-            yLabel="mult %"
+            xLabel={`p (${pierceStatLabel})`}
+            yLabel="m (%)"
           />
         </Box>
       )}
       {showEffChart && (
         <Box id={showPierceChart ? undefined : STAT_DETAIL_GRAPH_ID} sx={{ mb: 1 }}>
-          <Typography variant="subtitle2">Damage multiplier vs effective defense</Typography>
+          <Typography variant="subtitle2">m vs d_eff</Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-            Orange marker: {hitDirection === "youHit" ? "you → monster" : "monster → you"}
+            Orange = current d_eff for {focusLabel}
           </Typography>
           <FalloffChart
             points={effCurve}
             markerX={focus.effectiveDefense}
-            xLabel="effective defense"
-            yLabel="mult %"
+            xLabel="d_eff"
+            yLabel="m (%)"
           />
         </Box>
       )}
       {hardCapPierce != null && focus.damageType !== "pure" && (
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-          Hard cap (132% mult) at ~{hardCapPierce} {pierceStatLabel} vs this defense. Marginal +1
-          pierce: +{(marginal * 100).toFixed(4)}% mult.
+          m hard cap (132%) at p ≈ {hardCapPierce} vs this D. Marginal +1 p: +
+          {(marginal * 100).toFixed(4)}% m.
           {focusWaste.piercePastHardCap > 0 ? (
-            <>
-              {" "}
-              Trim ~{focusWaste.piercePastHardCap.toFixed(0)} {pierceStatLabel} that does nothing.
-            </>
+            <> Trim ~{focusWaste.piercePastHardCap.toFixed(0)} p that does nothing past the cap.</>
           ) : null}
         </Typography>
       )}
