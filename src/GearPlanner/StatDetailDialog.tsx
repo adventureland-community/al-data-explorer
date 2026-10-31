@@ -15,8 +15,9 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import { SlotType } from "typed-adventureland";
+import { ItemKey, SlotType } from "typed-adventureland";
 import { StatContribution } from "../gameData/loadoutStats";
+import { ItemInstanceLabel } from "../Shared/ItemInstanceLabel";
 import {
   Combatant,
   DamageType,
@@ -96,12 +97,23 @@ function ContributionTable({
                   : undefined
               }
             >
-              <TableCell>
-                {row.kind === "gear"
-                  ? `${row.itemName}${row.level > 0 ? ` +${row.level}` : ""} (${row.slot})`
-                  : row.kind === "set"
-                  ? `Set: ${row.setName}`
-                  : `Class ${row.table} (${row.wtype})`}
+              <TableCell sx={{ py: 0.75 }}>
+                {row.kind === "gear" ? (
+                  <ItemInstanceLabel
+                    itemInfo={{
+                      name: row.itemKey as ItemKey,
+                      ...(row.level > 0 ? { level: row.level } : {}),
+                    }}
+                    size={28}
+                    includeLevel={row.level > 0}
+                    linkToDetail={false}
+                    caption={row.slot}
+                  />
+                ) : row.kind === "set" ? (
+                  `Set: ${row.setName}`
+                ) : (
+                  `Class ${row.table} (${row.wtype})`
+                )}
               </TableCell>
               <TableCell align="right">
                 {row.value > 0 ? "+" : ""}
