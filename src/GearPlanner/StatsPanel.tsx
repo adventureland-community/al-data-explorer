@@ -14,6 +14,8 @@ import {
   LinearProgress,
   Alert,
   Box,
+  Chip,
+  Stack,
 } from "@mui/material";
 import { ItemInfo, MonsterKey, SlotType, StatType } from "typed-adventureland";
 import { useContext, useState } from "react";
@@ -23,11 +25,142 @@ import { getItemEffects } from "../gameData/itemEffects";
 import { computeLoadoutStats } from "../gameData/loadoutStats";
 import { formatCharacterStatValue } from "../gameData/prettyNumbers";
 import { SelectedCharacterClass } from "./types";
-import { theo_dps } from "./calculations";
+import {
+  Combatant,
+  expectedHitDamage,
+  hitDamageRange,
+  mitigationBreakdown,
+  theo_dps,
+} from "./calculations";
+import { StatDetailDialog } from "./StatDetailDialog";
+import {
+  InsightStat,
+  STATUS_RESIST_STATS,
+  StatusResistStat,
+  isInsightStat,
+  wasteChipsForLoadout,
+} from "./statInsights";
 
-function DamageVisualization({ source, target }: { source: any; target: any }) {
-  const damage = theo_dps(source, target);
-  const maxHealth = target.hp;
+function formatMult(mult: number): string {
+  return `${(mult * 100).toFixed(1)}%`;
+}
+
+const clickableCellSx = {
+  cursor: "pointer",
+  textDecoration: "underline",
+  textDecorationStyle: "dotted" as const,
+  textUnderlineOffset: "2px",
+  "&:hover": { color: "primary.main" },
+};
+
+function MitigationRows({
+  source,
+  target,
+  targetHpLabel,
+  onOpenStat,
+}: {
+  source: Combatant;
+  target: Combatant;
+  targetHpLabel: string;
+  onOpenStat: (stat: InsightStat) => void;
+}) {
+  const breakdown = mitigationBreakdown(source, target);
+  const expected = expectedHitDamage(source, target);
+  const range = hitDamageRange(source, target);
+  const dps = theo_dps(source, target);
+  const targetHp = target.hp ?? 0;
+  const hitsToDefeat = expected > 0 && targetHp > 0 ? Math.ceil(targetHp / expected) : null;
+  const freq = source.frequency ?? 0;
+  const secondsToDefeat = hitsToDefeat != null && freq > 0 ? hitsToDefeat / freq : null;
+
+  const defenseLabel = breakdown.defenseStat === "none" ? "defense" : breakdown.defenseStat;
+  const pierceLabel = breakdown.pierceStat === "none" ? "pierce" : breakdown.pierceStat;
+
+  return (
+    <Table size="small" sx={{ mt: 0.5 }}>
+      <TableBody>
+        <TableRow>
+          <TableCell>damage type</TableCell>
+          <TableCell align="right">{breakdown.damageType}</TableCell>
+        </TableRow>
+        <TableRow
+          hover={breakdown.pierceStat !== "none"}
+          onClick={() => {
+            if (breakdown.pierceStat !== "none") onOpenStat(breakdown.pierceStat);
+          }}
+          sx={breakdown.pierceStat !== "none" ? { cursor: "pointer" } : undefined}
+        >
+          <TableCell sx={breakdown.pierceStat !== "none" ? clickableCellSx : undefined}>
+            {pierceLabel}
+          </TableCell>
+          <TableCell align="right">
+            {formatCharacterStatValue(pierceLabel as StatType, breakdown.pierce)}
+          </TableCell>
+        </TableRow>
+        <TableRow
+          hover={breakdown.defenseStat !== "none"}
+          onClick={() => {
+            if (breakdown.defenseStat !== "none") onOpenStat(breakdown.defenseStat);
+          }}
+          sx={breakdown.defenseStat !== "none" ? { cursor: "pointer" } : undefined}
+        >
+          <TableCell sx={breakdown.defenseStat !== "none" ? clickableCellSx : undefined}>
+            {defenseLabel}
+          </TableCell>
+          <TableCell align="right">
+            {formatCharacterStatValue(defenseLabel as StatType, breakdown.defense)}
+          </TableCell>
+        </TableRow>
+        <TableRow hover onClick={() => onOpenStat("effectiveDefense")} sx={{ cursor: "pointer" }}>
+          <TableCell title="defense − 2 × pierce (basic attack)" sx={clickableCellSx}>
+            effective defense
+          </TableCell>
+          <TableCell align="right">{breakdown.effectiveDefense.toFixed(1)}</TableCell>
+        </TableRow>
+        <TableRow hover onClick={() => onOpenStat("damageMultiplier")} sx={{ cursor: "pointer" }}>
+          <TableCell sx={clickableCellSx}>damage multiplier</TableCell>
+          <TableCell align="right">{formatMult(breakdown.multiplier)}</TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell title="Mean of 0.9–1.1 attack roll, including expected crit">
+            expected hit
+          </TableCell>
+          <TableCell align="right">
+            {expected.toFixed(1)}
+            <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+              ({range.low.toFixed(0)}–{range.high.toFixed(0)} raw)
+            </Typography>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell>theo DPS</TableCell>
+          <TableCell align="right">{dps.toFixed(1)}</TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell>{targetHpLabel}</TableCell>
+          <TableCell align="right">
+            {hitsToDefeat == null
+              ? "—"
+              : `${hitsToDefeat} hit${hitsToDefeat === 1 ? "" : "s"}${
+                  secondsToDefeat != null ? ` ≈ ${secondsToDefeat.toFixed(1)}s` : ""
+                }`}
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
+function DamageVisualization({ source, target }: { source: Combatant; target: Combatant }) {
+  const damage = expectedHitDamage(source, target);
+  const maxHealth = target.hp ?? 0;
+  if (maxHealth <= 0 || damage <= 0) {
+    return (
+      <Typography sx={{ mt: 1 }} color="text.secondary">
+        No damage estimate (missing attack or HP).
+      </Typography>
+    );
+  }
 
   const percent = Math.min((damage / maxHealth) * 100, 100);
   const excess = Math.max(damage - maxHealth, 0);
@@ -108,6 +241,21 @@ function statCellColor(
   return better ? "success.main" : "error.main";
 }
 
+function toCombatant(entity: Record<string, unknown> | Combatant): Combatant {
+  return {
+    damage_type: typeof entity.damage_type === "string" ? entity.damage_type : undefined,
+    attack: typeof entity.attack === "number" ? entity.attack : undefined,
+    armor: typeof entity.armor === "number" ? entity.armor : undefined,
+    resistance: typeof entity.resistance === "number" ? entity.resistance : undefined,
+    apiercing: typeof entity.apiercing === "number" ? entity.apiercing : undefined,
+    rpiercing: typeof entity.rpiercing === "number" ? entity.rpiercing : undefined,
+    frequency: typeof entity.frequency === "number" ? entity.frequency : undefined,
+    crit: typeof entity.crit === "number" ? entity.crit : undefined,
+    critdamage: typeof entity.critdamage === "number" ? entity.critdamage : undefined,
+    hp: typeof entity.hp === "number" ? entity.hp : undefined,
+  };
+}
+
 export function StatsPanel({
   selectedCharacterClass,
   level,
@@ -123,6 +271,7 @@ export function StatsPanel({
   compareSide?: "left" | "right";
 }) {
   const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
+  const [detailStat, setDetailStat] = useState<InsightStat | null>(null);
   const G = useContext(GDataContext);
 
   if (!G) {
@@ -133,6 +282,11 @@ export function StatsPanel({
   const defenseStatTypes: StatType[] = [
     "resistance",
     "armor",
+    "pnresistance",
+    "firesistance",
+    "fzresistance",
+    "phresistance",
+    "stresistance",
     "mcourage",
     "pcourage",
     "courage",
@@ -160,32 +314,62 @@ export function StatsPanel({
     G,
   });
 
-  Object.entries(stats)
-    .filter(
-      ([stat, value]) =>
-        !mainStatTypes.some((x) => x === stat) &&
-        !defenseStatTypes.some((x) => x === stat) &&
-        !offenseStatTypes.some((x) => x === stat) &&
-        !otherStatTypes.some((x) => x === stat) &&
-        stat !== "hp" &&
-        stat !== "mp" &&
-        stat !== "g" &&
-        stat !== "s" &&
-        stat !== "tier" &&
-        stat !== "a" &&
-        stat !== "e" &&
-        stat !== "attr0" &&
-        stat !== "attr1" &&
-        typeof value === "number",
-    )
-    .forEach(([stat]) => otherStatTypes.push(stat as unknown as StatType));
+  for (const [stat, value] of Object.entries(stats)) {
+    if (
+      !mainStatTypes.some((x) => x === stat) &&
+      !defenseStatTypes.some((x) => x === stat) &&
+      !offenseStatTypes.some((x) => x === stat) &&
+      !otherStatTypes.some((x) => x === stat) &&
+      stat !== "hp" &&
+      stat !== "mp" &&
+      stat !== "g" &&
+      stat !== "s" &&
+      stat !== "tier" &&
+      stat !== "a" &&
+      stat !== "e" &&
+      stat !== "attr0" &&
+      stat !== "attr1" &&
+      typeof value === "number"
+    ) {
+      otherStatTypes.push(stat as unknown as StatType);
+    }
+  }
 
-  const fakePlayer = {
+  // TODO: mainhand damage_type override (weapon can change class default)
+  const fakePlayer = toCombatant({
     ...stats,
     damage_type: selectedCharacterClass
       ? G.classes[selectedCharacterClass.className].damage_type
       : "physical",
-  };
+  });
+
+  const gMonster = G.monsters[targetMonster];
+  const monster = toCombatant({
+    damage_type: gMonster.damage_type,
+    attack: gMonster.attack,
+    armor: gMonster.armor,
+    resistance: gMonster.resistance,
+    apiercing: gMonster.apiercing,
+    rpiercing: gMonster.rpiercing,
+    frequency: gMonster.frequency,
+    crit: gMonster.crit,
+    hp: gMonster.hp,
+  });
+
+  const statusResists = {} as Partial<Record<StatusResistStat, number>>;
+  for (const s of STATUS_RESIST_STATS) {
+    const v = stats[s as StatType];
+    if (typeof v === "number") statusResists[s] = v;
+  }
+
+  const chips = wasteChipsForLoadout({
+    damageType: fakePlayer.damage_type,
+    apiercing: fakePlayer.apiercing,
+    rpiercing: fakePlayer.rpiercing,
+    monsterArmor: monster.armor,
+    monsterResistance: monster.resistance,
+    statusResists,
+  });
 
   const getStatsDescription = (key: StatType | MainStatType) => {
     const attr = ATTRIBUTES[key];
@@ -194,6 +378,10 @@ export function StatsPanel({
 
   const handleChange = (event: SelectChangeEvent) => {
     setTargetMonster(event.target.value as MonsterKey);
+  };
+
+  const openStat = (stat: string) => {
+    if (isInsightStat(stat)) setDetailStat(stat);
   };
 
   const valueSx = (key: StatType | MainStatType) => ({
@@ -209,6 +397,34 @@ export function StatsPanel({
       fontSize: { xs: "0.8125rem", sm: "0.875rem" },
       wordBreak: "break-word" as const,
     },
+  };
+
+  const monsterName = G.monsters[targetMonster].name ?? targetMonster;
+
+  const renderStatRow = (stat: StatType) => {
+    const clickable = isInsightStat(stat);
+    return (
+      <TableRow
+        key={`stat_${stat}`}
+        hover={clickable}
+        onClick={clickable ? () => openStat(stat) : undefined}
+        sx={clickable ? { cursor: "pointer" } : undefined}
+      >
+        <TableCell
+          title={
+            clickable
+              ? `${getStatsDescription(stat)} (click for falloff / waste)`
+              : getStatsDescription(stat)
+          }
+          sx={clickable ? clickableCellSx : undefined}
+        >
+          {stat}
+        </TableCell>
+        <TableCell align="right" title={stats[stat]?.toString() ?? ""} sx={valueSx(stat)}>
+          {formatCharacterStatValue(stat, stats[stat] ?? 0)}
+        </TableCell>
+      </TableRow>
+    );
   };
 
   return (
@@ -250,47 +466,20 @@ export function StatsPanel({
       <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
         <Divider textAlign="left">OFFENSE</Divider>
         <Table size="small">
-          <TableBody>
-            {offenseStatTypes.map((stat) => (
-              <TableRow key={`stat_${stat}`}>
-                <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                <TableCell align="right" title={stats[stat]?.toString() ?? ""} sx={valueSx(stat)}>
-                  {formatCharacterStatValue(stat, stats[stat] ?? 0)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
+          <TableBody>{offenseStatTypes.map((stat) => renderStatRow(stat))}</TableBody>
         </Table>
       </Grid>
       <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
         <Divider textAlign="left">DEFENSE</Divider>
         <Table size="small">
-          <TableBody>
-            {defenseStatTypes.map((stat) => (
-              <TableRow key={`stat_${stat}`}>
-                <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                <TableCell align="right" title={stats[stat]?.toString() ?? ""} sx={valueSx(stat)}>
-                  {formatCharacterStatValue(stat, stats[stat] ?? 0)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
+          <TableBody>{defenseStatTypes.map((stat) => renderStatRow(stat))}</TableBody>
         </Table>
       </Grid>
       <Grid item xs={12} sm={6} md={3} sx={statColumnSx}>
         <Divider textAlign="left">OTHER</Divider>
         <Table size="small">
           <TableBody>
-            {otherStatTypes
-              .filter((stat) => stats[stat])
-              .map((stat) => (
-                <TableRow key={`stat_${stat}`}>
-                  <TableCell title={getStatsDescription(stat)}>{stat}</TableCell>
-                  <TableCell align="right" title={stats[stat]?.toString() ?? ""} sx={valueSx(stat)}>
-                    {formatCharacterStatValue(stat, stats[stat] ?? 0)}
-                  </TableCell>
-                </TableRow>
-              ))}
+            {otherStatTypes.filter((stat) => stats[stat]).map((stat) => renderStatRow(stat))}
           </TableBody>
         </Table>
         <AbilityLines gear={gear} G={G} />
@@ -311,8 +500,65 @@ export function StatsPanel({
             ))}
           </Select>
         </FormControl>
-        <DamageVisualization source={G.monsters[targetMonster]} target={fakePlayer} />
+        {/* TODO: share Target monster with Drop Simulator ?monster= URL */}
+        {/* TODO: skill pierce (piercingshot), evasion/reflection RNG, fortitude */}
+        {chips.length > 0 && (
+          <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 1.5 }}>
+            {chips.map((chip) => (
+              <Chip
+                key={chip}
+                size="small"
+                color="warning"
+                variant="outlined"
+                label={chip}
+                onClick={() => {
+                  if (chip.includes("rpiercing")) openStat("rpiercing");
+                  else if (chip.includes("apiercing")) openStat("apiercing");
+                  else if (chip.includes("pnresistance")) openStat("pnresistance");
+                  else if (chip.includes("firesistance")) openStat("firesistance");
+                  else if (chip.includes("fzresistance")) openStat("fzresistance");
+                  else if (chip.includes("phresistance")) openStat("phresistance");
+                  else if (chip.includes("stresistance")) openStat("stresistance");
+                  else openStat("apiercing");
+                }}
+              />
+            ))}
+          </Stack>
+        )}
+        <Grid container spacing={2} sx={{ mt: 0.5 }}>
+          <Grid item xs={12} md={6}>
+            <Divider textAlign="left">ATTACK vs {monsterName}</Divider>
+            <MitigationRows
+              source={fakePlayer}
+              target={monster}
+              targetHpLabel="hits to kill"
+              onOpenStat={openStat}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Divider textAlign="left">DEFENSE vs {monsterName}</Divider>
+            <MitigationRows
+              source={monster}
+              target={fakePlayer}
+              targetHpLabel="hits to defeat you"
+              onOpenStat={openStat}
+            />
+            <DamageVisualization source={monster} target={fakePlayer} />
+          </Grid>
+        </Grid>
       </Grid>
+      <StatDetailDialog
+        open={detailStat != null}
+        onClose={() => setDetailStat(null)}
+        stat={detailStat}
+        player={fakePlayer}
+        monster={monster}
+        monsterName={String(monsterName)}
+        playerStats={stats}
+        conditions={
+          G.conditions as Record<string, { name?: string; defense?: string; debuff?: boolean }>
+        }
+      />
     </Grid>
   );
 }

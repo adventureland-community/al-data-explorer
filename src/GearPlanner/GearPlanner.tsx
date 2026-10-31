@@ -3,8 +3,7 @@
 // TODO: level slider G.levels has 200 entries in it https://mui.com/material-ui/react-slider/
 // TODO: gear selector
 // TODO: Stats
-// TODO: Attack table against specific mobs
-// TODO: Defense table against specific mobs
+// Attack / Defense vs monster: see StatsPanel + docs/specs/gear-planner-vs-monster.md
 // TODO: TrackTrix
 // TODO: source - where does it drop?
 // TODO: quality filter?
