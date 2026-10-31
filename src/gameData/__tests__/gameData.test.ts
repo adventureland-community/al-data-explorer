@@ -11,8 +11,9 @@ import {
   parseMonsterDropTable,
 } from "../drops";
 import { getSetBonusTiers } from "../itemSets";
-import { itemMatchesSearch, matchesItemSearch } from "../itemFilters";
+import { itemMatchesSearch, matchesItemSearch, resolveItemKeyFromQuery } from "../itemFilters";
 import { getRelatedItemGroups } from "../related-items";
+import type { GItems } from "../types";
 
 describe("drops", () => {
   it("parses monster drop table tuples", () => {
@@ -308,6 +309,25 @@ describe("itemFilters", () => {
     expect(itemMatchesSearch("firestaff", staff, "weapon")).toBe(true);
     expect(itemMatchesSearch("firestaff", staff, "bow")).toBe(false);
     expect(matchesItemSearch("firestaff", staff, "staff")).toBe(true);
+  });
+
+  it("resolves item key or display name queries", () => {
+    const items = {
+      firestaff: { name: "Fiery Staff" },
+      canopener: { name: "The Can Opener" },
+      staff: { name: "Staff" },
+    } as unknown as GItems;
+
+    expect(resolveItemKeyFromQuery("firestaff", items)).toBe("firestaff");
+    expect(resolveItemKeyFromQuery("FireStaff", items)).toBe("firestaff");
+    expect(resolveItemKeyFromQuery("Fiery Staff", items)).toBe("firestaff");
+    expect(resolveItemKeyFromQuery("the can opener", items)).toBe("canopener");
+    expect(resolveItemKeyFromQuery("can opener", items)).toBe("canopener");
+    expect(resolveItemKeyFromQuery("staff", items)).toBe("staff");
+    expect(resolveItemKeyFromQuery("fiery", items)).toBe("firestaff");
+    expect(resolveItemKeyFromQuery("zzz", items)).toBeUndefined();
+    expect(resolveItemKeyFromQuery("staffy", items)).toBeUndefined();
+    expect(resolveItemKeyFromQuery("", items)).toBeUndefined();
   });
 });
 

@@ -228,3 +228,43 @@ export function matchesItemSearch(
     sets,
   });
 }
+
+/**
+ * Resolve a typed list/picker query to an item key.
+ * Prefers exact key, then exact display name (case-insensitive), then a unique
+ * key/name substring match. Returns undefined when empty or ambiguous.
+ */
+export function resolveItemKeyFromQuery(
+  query: string,
+  items: GItems | Record<string, GItem>,
+): ItemKey | undefined {
+  const trimmed = query.trim();
+  if (!trimmed) return undefined;
+
+  if (trimmed in items) {
+    return trimmed as ItemKey;
+  }
+
+  const q = trimmed.toLowerCase();
+  const entries = Object.entries(items) as [ItemKey, GItem][];
+
+  for (const [key] of entries) {
+    if (key.toLowerCase() === q) return key;
+  }
+
+  const exactName: ItemKey[] = [];
+  for (const [key, gItem] of entries) {
+    if (gItem.name.toLowerCase() === q) exactName.push(key);
+  }
+  if (exactName.length === 1) return exactName[0];
+  if (exactName.length > 1) return undefined;
+
+  const partial: ItemKey[] = [];
+  for (const [key, gItem] of entries) {
+    if (key.toLowerCase().includes(q) || gItem.name.toLowerCase().includes(q)) {
+      partial.push(key);
+    }
+  }
+  if (partial.length === 1) return partial[0];
+  return undefined;
+}
