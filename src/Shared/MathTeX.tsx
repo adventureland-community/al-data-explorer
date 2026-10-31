@@ -9,9 +9,9 @@ export type MathTeXProps = {
   display?: boolean;
 };
 
-/** Wrap lines as a left-aligned KaTeX `aligned` block. */
+/** Wrap lines as a left-aligned KaTeX `aligned` block with extra row gap. */
 export function alignedTex(lines: string[]): string {
-  return `\\begin{aligned}\n${lines.join(" \\\\\n")}\n\\end{aligned}`;
+  return `\\begin{aligned}\n${lines.join(" \\\\[0.45em]\n")}\n\\end{aligned}`;
 }
 
 /** Renders one LaTeX expression with KaTeX. */
@@ -28,17 +28,27 @@ export function MathTeX({ tex, display = true }: MathTeXProps) {
       sx={{
         color: "text.primary",
         overflowX: "auto",
+        overflowY: "visible",
         textAlign: "left",
+        // Dark UI + KaTeX's thin Computer Modern reads soft; bump size and smooth.
+        WebkitFontSmoothing: "antialiased",
+        MozOsxFontSmoothing: "grayscale",
         "& .katex": {
           color: "inherit",
-          fontSize: display ? "1.15em" : "1em",
+          fontSize: display ? "1.35em" : "1.1em",
+          lineHeight: 1.65,
         },
         "& .katex-display": {
-          margin: "0.15em 0",
+          margin: "0.35em 0",
           textAlign: "left",
         },
         "& .katex-display > .katex": {
           textAlign: "left",
+        },
+        // Prefer upright roman for identifiers we mark with \mathrm.
+        "& .katex .mathrm": {
+          fontStyle: "normal",
+          fontWeight: 600,
         },
       }}
       dangerouslySetInnerHTML={{ __html: html }}

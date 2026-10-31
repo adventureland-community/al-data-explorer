@@ -80,66 +80,73 @@ function FormulaExplain({
   note?: string;
 }) {
   const cardSx = {
-    px: 1.5,
-    py: 1.25,
+    px: 2,
+    py: 1.75,
     borderRadius: 1,
     border: 1,
     borderColor: "divider",
-    height: "100%",
     boxSizing: "border-box" as const,
+    overflow: "visible" as const,
   };
 
   return (
     <Box id={STAT_DETAIL_FORMULA_ID} sx={{ mb: 2 }}>
       {context ? (
-        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
           {context}
         </Typography>
       ) : null}
       <Box
         sx={{
           display: "grid",
-          gap: 1.5,
+          gap: 2,
           gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
           alignItems: "stretch",
         }}
       >
-        <Box>
+        <Box sx={{ minWidth: 0 }}>
           <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }}>
             Formula
           </Typography>
-          <Box sx={{ ...cardSx, mt: 0.5, bgcolor: "background.default" }}>
+          <Box sx={{ ...cardSx, mt: 0.75, bgcolor: "background.default" }}>
             <MathTeX tex={alignedTex(symbolicLines)} />
             {legend.length > 0 ? (
               <Box
                 component="dl"
                 sx={{
                   m: 0,
-                  mt: 1.25,
-                  pt: 1,
+                  mt: 1.75,
+                  pt: 1.5,
                   borderTop: 1,
                   borderColor: "divider",
-                  display: "grid",
-                  gridTemplateColumns: "auto 1fr",
-                  columnGap: 1.5,
-                  rowGap: 0.5,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.75,
                 }}
               >
                 {legend.map((entry) => (
-                  <Box key={entry.symbol} sx={{ display: "contents" }}>
+                  <Box
+                    key={entry.symbol}
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: "5.5rem 1fr",
+                      columnGap: 1.5,
+                      alignItems: "baseline",
+                    }}
+                  >
                     <Typography
                       component="dt"
-                      variant="caption"
-                      sx={{ fontFamily: "KaTeX_Main, Times New Roman, serif", fontWeight: 600 }}
+                      variant="body2"
+                      sx={{
+                        m: 0,
+                        fontWeight: 700,
+                        fontVariantNumeric: "tabular-nums",
+                        whiteSpace: "nowrap",
+                      }}
                     >
                       {entry.symbol}
                     </Typography>
-                    <Typography
-                      component="dd"
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ m: 0 }}
-                    >
+                    <Typography component="dd" variant="body2" color="text.secondary" sx={{ m: 0 }}>
                       {entry.meaning}
                     </Typography>
                   </Box>
@@ -149,7 +156,7 @@ function FormulaExplain({
           </Box>
         </Box>
 
-        <Box>
+        <Box sx={{ minWidth: 0 }}>
           <Typography
             variant="overline"
             color="text.secondary"
@@ -157,12 +164,10 @@ function FormulaExplain({
           >
             With your numbers
           </Typography>
-          <Box
-            sx={{ display: "flex", flexDirection: "column", gap: 1.25, mt: 0.5, height: "100%" }}
-          >
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, mt: 0.75 }}>
             {examples.map((ex) => (
-              <Box key={ex.label} sx={{ ...cardSx, bgcolor: "action.hover", flex: 1 }}>
-                <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+              <Box key={ex.label} sx={{ ...cardSx, bgcolor: "action.hover" }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
                   {ex.label}
                 </Typography>
                 <MathTeX tex={alignedTex(ex.lines)} />
@@ -173,7 +178,7 @@ function FormulaExplain({
       </Box>
 
       {note ? (
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+        <Typography variant="body2" color="text.secondary" display="block" sx={{ mt: 1.25 }}>
           {note}
         </Typography>
       ) : null}
@@ -608,7 +613,10 @@ function FortitudeBody({
   return (
     <Box>
       <FormulaExplain
-        symbolicLines={[`f &= M(F \\times 5)`, `\\mathrm{damage} &= \\mathrm{damage} \\times f`]}
+        symbolicLines={[
+          `\\mathrm{f} &= \\mathrm{M}(\\mathrm{F} \\times 5)`,
+          `\\mathrm{damage} &= \\mathrm{damage} \\times \\mathrm{f}`,
+        ]}
         legend={[
           { symbol: "F", meaning: "fortitude (for)" },
           { symbol: "M", meaning: "damage_multiplier" },
@@ -618,9 +626,9 @@ function FortitudeBody({
           {
             label: `Current for = ${value}`,
             lines: [
-              `f &= M(${value} \\times 5) = M(${(value * 5).toFixed(0)}) = ${(mult * 100).toFixed(
-                1,
-              )}\\%`,
+              `\\mathrm{f} &= \\mathrm{M}(${value} \\times 5) = \\mathrm{M}(${(value * 5).toFixed(
+                0,
+              )}) = ${(mult * 100).toFixed(1)}\\%`,
             ],
           },
         ]}
@@ -720,43 +728,54 @@ function MitigationBody({
       : "Basic: gear pierce counted twice."
     : "Defense uses basic attacks (gear pierce counted twice).";
 
+  // Upright \mathrm ids — italic Computer Modern is thin/hard on dark UI.
+  const De = "d_{\\mathrm{eff}}";
+  const D = "\\mathrm{D}";
+  const P = "\\mathrm{p}";
+  const S = "\\mathrm{s}";
+  const M = "\\mathrm{M}";
+  const m = "\\mathrm{m}";
+  const F = "\\mathrm{F}";
+
   const focusEffSymbolic =
     focusPath === "heal"
-      ? `d_{\\mathrm{eff}} &= \\dfrac{D - p}{2}`
+      ? `${De} &= \\dfrac{${D} - ${P}}{2}`
       : focusPath === "splash"
-      ? `d_{\\mathrm{eff}} &= D`
+      ? `${De} &= ${D}`
       : focusSkillPierce > 0
-      ? `d_{\\mathrm{eff}} &= D - 2p - s`
-      : `d_{\\mathrm{eff}} &= D - 2p`;
+      ? `${De} &= ${D} - 2${P} - ${S}`
+      : `${De} &= ${D} - 2${P}`;
 
   const focusEffPlugged =
     focusPath === "heal"
-      ? `d_{\\mathrm{eff}} &= \\dfrac{${focus.defense} - ${
-          focus.pierce
-        }}{2} = ${focus.effectiveDefense.toFixed(1)}`
+      ? `${De} &= \\dfrac{${focus.defense} - ${focus.pierce}}{2} = ${focus.effectiveDefense.toFixed(
+          1,
+        )}`
       : focusPath === "splash"
-      ? `d_{\\mathrm{eff}} &= ${focus.defense} = ${focus.effectiveDefense.toFixed(1)}`
+      ? `${De} &= ${focus.defense} = ${focus.effectiveDefense.toFixed(1)}`
       : focusSkillPierce > 0
-      ? `d_{\\mathrm{eff}} &= ${focus.defense} - 2\\times${
+      ? `${De} &= ${focus.defense} - 2\\times ${
           focus.pierce
         } - ${focusSkillPierce} = ${focus.effectiveDefense.toFixed(1)}`
-      : `d_{\\mathrm{eff}} &= ${focus.defense} - 2\\times${
-          focus.pierce
-        } = ${focus.effectiveDefense.toFixed(1)}`;
+      : `${De} &= ${focus.defense} - 2\\times ${focus.pierce} = ${focus.effectiveDefense.toFixed(
+          1,
+        )}`;
 
-  const symbolicLines = [focusEffSymbolic, `m &= M(d_{\\mathrm{eff}})`];
+  const symbolicLines = [focusEffSymbolic, `${m} &= ${M}(${De})`];
   if (youHitFocus && youHit.fortitudeMult !== 1) {
-    symbolicLines.push(`m' &= m \\times M(F \\times 5)`);
+    symbolicLines.push(`${m}' &= ${m} \\times ${M}(${F} \\times 5)`);
   }
 
   const focusMultLine =
     youHitFocus && youHit.fortitudeMult !== 1
-      ? `m' &= M(${focus.effectiveDefense.toFixed(1)}) \\times M(F\\times 5) = ${(
+      ? `${m}' &= ${M}(${focus.effectiveDefense.toFixed(1)}) \\times ${M}(${F}\\times 5) = ${(
           focus.multiplier *
           youHit.fortitudeMult *
           100
         ).toFixed(1)}\\%`
-      : `m &= M(${focus.effectiveDefense.toFixed(1)}) = ${(focus.multiplier * 100).toFixed(1)}\\%`;
+      : `${m} &= ${M}(${focus.effectiveDefense.toFixed(1)}) = ${(focus.multiplier * 100).toFixed(
+          1,
+        )}\\%`;
 
   const pierceName = focus.pierceStat === "none" ? "pierce" : focus.pierceStat;
   const defName = focus.defenseStat === "none" ? "defense" : focus.defenseStat;
@@ -965,7 +984,17 @@ export function StatDetailDialog({
         },
       }}
     >
-      <DialogTitle sx={{ bgcolor: "background.paper" }}>{title}</DialogTitle>
+      <DialogTitle
+        sx={{
+          bgcolor: "background.paper",
+          px: { xs: 2, sm: 3 },
+          pt: 2.5,
+          pb: 1.5,
+          lineHeight: 1.35,
+        }}
+      >
+        {title}
+      </DialogTitle>
       <DialogContent
         dividers
         sx={{
@@ -973,6 +1002,8 @@ export function StatDetailDialog({
           overflow: "auto",
           bgcolor: "background.paper",
           backgroundImage: "none",
+          px: { xs: 2, sm: 3 },
+          py: 2,
         }}
       >
         {stat === "str" || stat === "int" ? (
