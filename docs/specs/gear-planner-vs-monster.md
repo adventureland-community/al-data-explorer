@@ -65,6 +65,7 @@ Home: Target monster block in `StatsPanel` (Gear Planner + Character panels).
 
 ### Stat Detail (clickable sheet + vs-monster rows)
 
+- Formula block first: symbolic game formula, then the same line with current numbers plugged in
 - SVG falloff graphs (mult vs pierce with you + hard-cap markers; mult vs effective defense; status chance / duration curves)
 - STR/INT: attribute softcap curve (160 / 180) with current marker
 - Evasion / reflection: land-chance graph; fortitude (`for`): mult vs for graph (click Attack/Defense rows or sheet stats)

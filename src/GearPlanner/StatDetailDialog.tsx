@@ -45,9 +45,68 @@ import {
   statusResistInsight,
 } from "./statInsights";
 
+const STAT_DETAIL_FORMULA_ID = "stat-detail-formula";
 const STAT_DETAIL_GRAPH_ID = "stat-detail-graph";
 
 export type HitDirection = "youHit" | "theyHit";
+
+/** Symbolic formula first, then the same line with current numbers plugged in. */
+function FormulaExplain({
+  symbolic,
+  pluggedIn,
+  note,
+}: {
+  symbolic: string | string[];
+  pluggedIn: string | string[];
+  note?: string;
+}) {
+  const symbolicLines = Array.isArray(symbolic) ? symbolic : [symbolic];
+  const pluggedLines = Array.isArray(pluggedIn) ? pluggedIn : [pluggedIn];
+  return (
+    <Box id={STAT_DETAIL_FORMULA_ID} sx={{ mb: 1.5 }}>
+      <Typography variant="subtitle2">Formula</Typography>
+      <Box
+        component="pre"
+        sx={{
+          m: 0,
+          mt: 0.5,
+          p: 1,
+          borderRadius: 1,
+          bgcolor: "action.hover",
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+          fontSize: 13,
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+        }}
+      >
+        {symbolicLines.join("\n")}
+      </Box>
+      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1, mb: 0.5 }}>
+        With current numbers
+      </Typography>
+      <Box
+        component="pre"
+        sx={{
+          m: 0,
+          p: 1,
+          borderRadius: 1,
+          bgcolor: "action.selected",
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+          fontSize: 13,
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+        }}
+      >
+        {pluggedLines.join("\n")}
+      </Box>
+      {note ? (
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
+          {note}
+        </Typography>
+      ) : null}
+    </Box>
+  );
+}
 
 function ContributionTable({
   rows,
@@ -276,9 +335,34 @@ function StatusResistBody({
   const showChance = stat !== "stresistance";
   const showDuration =
     stat === "stresistance" || stat === "pnresistance" || stat === "firesistance";
+  const chancePlugged = Math.max(0, Math.min(100, value));
+  const durationPlugged = Math.max(0, (100 - value) / 100);
+  const symbolic: string[] = [];
+  const pluggedIn: string[] = [];
+  if (showChance) {
+    symbolic.push(`chance_resist% = min(100, max(0, ${stat}))`);
+    pluggedIn.push(`chance_resist% = min(100, max(0, ${value})) = ${chancePlugged}%`);
+  }
+  if (showDuration) {
+    symbolic.push(`duration_remaining = max(0, (100 − ${stat}) / 100)`);
+    pluggedIn.push(
+      `duration_remaining = max(0, (100 − ${value}) / 100) = ${(durationPlugged * 100).toFixed(
+        1,
+      )}%`,
+    );
+  }
 
   return (
     <Box>
+      <FormulaExplain
+        symbolic={symbolic}
+        pluggedIn={pluggedIn}
+        note={
+          showChance
+            ? "Server chance roll: random < resist / 100. Values above 100 are overcap for the roll."
+            : "Applies to debuff duration scaling only (no chance resist)."
+        }
+      />
       {showChance && (
         <Box id={STAT_DETAIL_GRAPH_ID}>
           <Typography variant="subtitle2">Chance resist (capped at 100%)</Typography>
@@ -331,20 +415,24 @@ function StatusResistBody({
 
 function AttributeSoftcapBody({ stat, value }: { stat: "str" | "int"; value: number }) {
   const threshold = stat === "str" ? 160 : 180;
+  const derived = stat === "str" ? "armor" : "resistance";
   const derivedLabel = stat === "str" ? "armor from STR" : "resistance from INT";
+  const result = stat === "str" ? armorFromStr(value) : resistanceFromInt(value);
   const curve = attributeSoftcapCurve({ kind: stat, from: 0, to: 280, steps: 70 });
 
   return (
     <Box>
+      <FormulaExplain
+        symbolic={`${derived} = min(${stat}, ${threshold}) + max(0, ${stat} − ${threshold}) × 0.25`}
+        pluggedIn={`${derived} = min(${value}, ${threshold}) + max(0, ${value} − ${threshold}) × 0.25 = ${result.toFixed(
+          1,
+        )}`}
+        note={`Full value only up to the ${threshold} softcap; each point above adds 25%.`}
+      />
       <Typography variant="subtitle2" id={STAT_DETAIL_GRAPH_ID}>
         {derivedLabel} vs {stat}
       </Typography>
       <FalloffChart points={curve} markerX={value} xLabel={stat} yLabel={derivedLabel} />
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-        Current {stat}: {value} → {derivedLabel}{" "}
-        {stat === "str" ? armorFromStr(value).toFixed(1) : resistanceFromInt(value).toFixed(1)}.
-        Full value only up to the {threshold} softcap; each point above adds 25%.
-      </Typography>
     </Box>
   );
 }
@@ -373,6 +461,20 @@ function LandChanceBody({
 
   return (
     <Box>
+      <FormulaExplain
+        symbolic={[
+          `miss% = min(100, max(0, ${stat}))`,
+          `land% = 100 − miss%`,
+          `miss if random × 100 < ${stat}`,
+        ]}
+        pluggedIn={[
+          `miss% = min(100, max(0, ${miss.toFixed(1)})) = ${miss.toFixed(1)}%`,
+          `land% = 100 − ${miss.toFixed(1)} = ${land.toFixed(1)}%`,
+        ]}
+        note={`${against}. A successful roll fully negates the hit${
+          stat === "reflection" ? " (and may bounce a projectile back)" : ""
+        }.`}
+      />
       <Typography variant="subtitle2" id={STAT_DETAIL_GRAPH_ID}>
         Land chance vs {stat}
       </Typography>
@@ -380,11 +482,6 @@ function LandChanceBody({
         Orange = current {stat}. Y is expected % of hits that deal damage.
       </Typography>
       <FalloffChart points={landChanceCurve()} markerX={miss} xLabel={stat} yLabel="land %" />
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-        {against}. Current {stat}: {miss.toFixed(1)}% → land chance {land.toFixed(1)}%. Server roll:{" "}
-        <code>random × 100 &lt; {stat}</code> fully negates the hit
-        {stat === "reflection" ? " (and may bounce a projectile back)" : ""}.
-      </Typography>
     </Box>
   );
 }
@@ -406,6 +503,15 @@ function FortitudeBody({
 
   return (
     <Box>
+      <FormulaExplain
+        symbolic={["fort_mult = damage_multiplier(for × 5)", "final_damage *= fort_mult"]}
+        pluggedIn={[
+          `fort_mult = damage_multiplier(${value} × 5) = damage_multiplier(${(value * 5).toFixed(
+            0,
+          )}) = ${(mult * 100).toFixed(1)}%`,
+        ]}
+        note={`${who}. Only applies when the attacker is a player. damage_multiplier is the same soft curve as armor/resist (clamped 5%–132%).`}
+      />
       <Typography variant="subtitle2" id={STAT_DETAIL_GRAPH_ID}>
         Damage mult vs fortitude (for)
       </Typography>
@@ -413,11 +519,6 @@ function FortitudeBody({
         Orange = current for. Higher for softens player damage through the same mitigation curve.
       </Typography>
       <FalloffChart points={fortitudeMultCurve()} markerX={value} xLabel="for" yLabel="mult %" />
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-        {who}. Only applies when the attacker is a player. Current for {value} → mult{" "}
-        {(mult * 100).toFixed(1)}% via <code>damage_multiplier(for × 5)</code> ={" "}
-        <code>damage_multiplier({(value * 5).toFixed(0)})</code>.
-      </Typography>
     </Box>
   );
 }
@@ -500,12 +601,64 @@ function MitigationBody({
       ? `Basic + ${skillPierce} skill pierce on info.`
       : "Basic: gear pierce counted twice.";
 
+  const youPath = youHit.path;
+  const youEffSymbolic =
+    youPath === "heal"
+      ? "effective = (defense − pierce) / 2"
+      : youPath === "splash"
+      ? "effective = defense"
+      : skillPierce > 0
+      ? "effective = defense − 2 × gear_pierce − skill_pierce"
+      : "effective = defense − 2 × gear_pierce";
+  const youEffPlugged =
+    youPath === "heal"
+      ? `effective = (${youHit.defense} − ${youHit.pierce}) / 2 = ${youHit.effectiveDefense.toFixed(
+          1,
+        )}`
+      : youPath === "splash"
+      ? `effective = ${youHit.defense} = ${youHit.effectiveDefense.toFixed(1)}`
+      : youHit.skillPierce > 0
+      ? `effective = ${youHit.defense} − 2 × ${youHit.pierce} − ${
+          youHit.skillPierce
+        } = ${youHit.effectiveDefense.toFixed(1)}`
+      : `effective = ${youHit.defense} − 2 × ${youHit.pierce} = ${youHit.effectiveDefense.toFixed(
+          1,
+        )}`;
+  const theyEffPlugged = `effective = ${theyHit.defense} − 2 × ${
+    theyHit.pierce
+  } = ${theyHit.effectiveDefense.toFixed(1)}`;
+
+  const formulaSymbolic = [
+    youEffSymbolic,
+    "mult = damage_multiplier(effective)",
+    "damage_multiplier is soft-banded and clamped to 5%…132%",
+  ];
+  if (youHit.fortitudeMult !== 1) {
+    formulaSymbolic.push("final_mult = mult × damage_multiplier(for × 5)");
+  }
+
+  const formulaPlugged = [
+    `You → ${monsterName}: ${youEffPlugged}`,
+    `mult = damage_multiplier(${youHit.effectiveDefense.toFixed(1)}) = ${(
+      youHit.multiplier * 100
+    ).toFixed(1)}%${
+      youHit.fortitudeMult !== 1 ? ` × fort ${(youHit.fortitudeMult * 100).toFixed(1)}%` : ""
+    }`,
+    `Monster → you: ${theyEffPlugged}`,
+    `mult = damage_multiplier(${theyHit.effectiveDefense.toFixed(1)}) = ${(
+      theyHit.multiplier * 100
+    ).toFixed(1)}%`,
+  ];
+
   return (
     <Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        vs {monsterName} — {hitDirection === "youHit" ? "you → monster" : "monster → you"} (
-        {focus.damageType}). {pathNote}
-      </Typography>
+      <FormulaExplain
+        symbolic={formulaSymbolic}
+        pluggedIn={formulaPlugged}
+        note={`vs ${monsterName} — ${
+          hitDirection === "youHit" ? "you → monster" : "monster → you"
+        } (${focus.damageType}). ${pathNote} Defense always uses basic.`}
+      />
       {showPierceChart && (
         <Box id={STAT_DETAIL_GRAPH_ID} sx={{ mb: 1 }}>
           <Typography variant="subtitle2">
@@ -555,25 +708,6 @@ function MitigationBody({
           {h.text}
         </Alert>
       ))}
-      <Typography variant="body2" sx={{ mb: 1 }}>
-        You → monster: effective = {youHit.defense}
-        {youHit.path === "heal"
-          ? ` − ${youHit.pierce} → /2`
-          : youHit.path === "splash"
-          ? ""
-          : ` − 2 × ${youHit.pierce}${youHit.skillPierce ? ` − ${youHit.skillPierce}` : ""}`}{" "}
-        = <strong>{youHit.effectiveDefense.toFixed(1)}</strong> →{" "}
-        <strong>{(youHit.multiplier * 100).toFixed(1)}%</strong>
-        {youHit.fortitudeMult !== 1 ? ` × fort ${(youHit.fortitudeMult * 100).toFixed(1)}%` : ""}
-      </Typography>
-      <Typography variant="body2" sx={{ mb: 1 }}>
-        Monster → you: effective = {theyHit.defense} − 2 × {theyHit.pierce} ={" "}
-        <strong>{theyHit.effectiveDefense.toFixed(1)}</strong> →{" "}
-        <strong>{(theyHit.multiplier * 100).toFixed(1)}%</strong>
-        {theyHit.missChance > 0
-          ? ` · ${theyHit.landChance * 100}% land (${theyHit.missChance}% miss)`
-          : ""}
-      </Typography>
     </Box>
   );
 }
@@ -610,7 +744,7 @@ export function StatDetailDialog({
   useEffect(() => {
     if (!open || !stat) return;
     const id = window.setTimeout(() => {
-      document.getElementById(STAT_DETAIL_GRAPH_ID)?.scrollIntoView({ block: "nearest" });
+      document.getElementById(STAT_DETAIL_FORMULA_ID)?.scrollIntoView({ block: "nearest" });
     }, 0);
     return () => window.clearTimeout(id);
   }, [open, stat, hitDirection]);
