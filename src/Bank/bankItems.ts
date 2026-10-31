@@ -49,13 +49,17 @@ export type AggregatedBankData = {
 };
 
 export function getUniqueItemKey(item: {
-  p?: string;
-  data?: string;
-  level: number;
+  p?: string | null;
+  data?: unknown;
+  level?: number;
   name: ItemKey | string;
 }) {
   // Keep jars with different cosmetics separate (server stacks by matching data).
-  return `${item.p ?? ""}${item.level}${item.name}\0${item.data ?? ""}`;
+  // Normalize level/`p` so raw bank slots (often missing level) match aggregated rows.
+  const title = typeof item.p === "string" ? item.p : "";
+  const level = item.level ?? 0;
+  const data = getItemData(item) ?? "";
+  return `${title}${level}${item.name}\0${data}`;
 }
 
 export function aggregateBankData(bankData: BankDataProps, G?: GData): AggregatedBankData {
@@ -92,9 +96,9 @@ export function aggregateBankData(bankData: BankDataProps, G?: GData): Aggregate
         const category = getBankItemCategory(item.name, G);
 
         data = {
-          p: item.p,
+          p: typeof item.p === "string" ? item.p : undefined,
           data: getItemData(item),
-          level: item.level,
+          level: item.level ?? 0,
           name: item.name,
           q: 0,
           stack: 0,

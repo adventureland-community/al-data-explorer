@@ -33,6 +33,30 @@ describe("aggregateBankData", () => {
     expect(aggregated.items.find((item) => item.name === "blade")?.q).toBe(1);
     expect(aggregated.items.find((item) => item.name === "hpot0")?.q).toBe(8);
   });
+
+  it("keeps CX Jar stacks separate by sealed data and preserves data on the row", () => {
+    const aggregated = aggregateBankData({
+      items17: [
+        { name: "cxjar", q: 2, data: "makeawish" },
+        { name: "cxjar", q: 11, data: "hearts_single" },
+        { name: "cxjar", q: 2, data: "makeawish" },
+      ],
+      items19: [{ name: "cxjar", q: 1, data: "sinisterlaugh" }],
+    });
+
+    const jars = aggregated.items.filter((item) => item.name === "cxjar");
+    expect(jars).toHaveLength(3);
+    expect(jars.find((item) => item.data === "makeawish")).toMatchObject({
+      q: 4,
+      stack: 2,
+      level: 0,
+    });
+    expect(jars.find((item) => item.data === "hearts_single")).toMatchObject({ q: 11, stack: 1 });
+    expect(jars.find((item) => item.data === "sinisterlaugh")).toMatchObject({ q: 1, stack: 1 });
+    expect(getUniqueItemKey({ name: "cxjar", data: "makeawish" })).toBe(
+      getUniqueItemKey({ name: "cxjar", level: 0, data: "makeawish" }),
+    );
+  });
 });
 
 describe("compareBankItems", () => {
@@ -77,6 +101,9 @@ describe("getUniqueItemKey", () => {
     expect(getUniqueItemKey({ level: 0, name: "cxjar", data: "bathat" })).not.toBe(
       getUniqueItemKey({ level: 0, name: "cxjar", data: "breyes" }),
     );
+    // Raw bank slots often omit level; treat missing like 0 so locations match aggregates.
+    expect(getUniqueItemKey({ name: "cxjar", data: "makeawish" })).toBe("0cxjar\0makeawish");
+    expect(getUniqueItemKey({ p: null, name: "hpot0" })).toBe("0hpot0\0");
   });
 });
 

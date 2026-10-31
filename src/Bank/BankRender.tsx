@@ -123,7 +123,16 @@ function BankTableView({ items }: { items: AggregatedBankItem[] }) {
               </TableCell>
               <TableCell component="td">
                 <div style={{ display: "inline-block" }}>
-                  <ItemInstance itemInfo={itemInfo as never} linkToDetail />
+                  <ItemInstance
+                    itemInfo={{
+                      name: itemInfo.name,
+                      level: itemInfo.level,
+                      q: itemInfo.q,
+                      ...(itemInfo.p ? { p: itemInfo.p } : {}),
+                      ...(itemInfo.data ? { data: itemInfo.data } : {}),
+                    }}
+                    linkToDetail
+                  />
                 </div>
                 <div style={{ marginLeft: "10px", display: "inline-block" }}>
                   <div>
@@ -158,7 +167,17 @@ function BankGridViewItemRow({ items }: { items: AggregatedBankItem[] }) {
 
         return (
           <div key={getUniqueItemKey(itemInfo)}>
-            <ItemInstance showQuantity itemInfo={itemInfo as never} linkToDetail />
+            <ItemInstance
+              showQuantity
+              itemInfo={{
+                name: itemInfo.name,
+                level: itemInfo.level,
+                q: itemInfo.q,
+                ...(itemInfo.p ? { p: itemInfo.p } : {}),
+                ...(itemInfo.data ? { data: itemInfo.data } : {}),
+              }}
+              linkToDetail
+            />
           </div>
         );
       })}
@@ -343,6 +362,12 @@ export function BankRender(props: BankRenderProps) {
 
       if (a.name && a.name !== b.name) {
         return a.name.localeCompare(b.name);
+      }
+
+      // Group CX Jar (and other instance) variants by sealed data before level.
+      const dataCmp = (a.data ?? "").localeCompare(b.data ?? "");
+      if (dataCmp !== 0) {
+        return dataCmp;
       }
 
       return b.level - a.level;

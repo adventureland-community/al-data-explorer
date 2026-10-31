@@ -56,13 +56,15 @@ function BankPackSlot({
 }) {
   const G = useContext(GDataContext);
   const gItem = itemInfo && G ? G.items[itemInfo.name as ItemKey] : undefined;
+  // Leave room for the 1px slot border; ItemInstance is exactly `size` (title uses inset shadow).
+  const itemSize = SLOT_SIZE - 2;
 
   return (
     <Box
       sx={{
         width: SLOT_SIZE,
         height: SLOT_SIZE,
-        border: highlighted ? 2 : 1,
+        border: 1,
         borderColor: highlighted ? "primary.main" : "divider",
         boxShadow: highlighted ? (theme) => `0 0 0 2px ${theme.palette.primary.main}33` : undefined,
         display: "flex",
@@ -70,11 +72,15 @@ function BankPackSlot({
         justifyContent: "center",
         boxSizing: "border-box",
         bgcolor: highlighted ? "action.selected" : "action.hover",
-        overflow: "hidden",
+        // Avoid clipping title chrome / CX Jar badge; slot size already matches the sprite.
+        overflow: "visible",
+        lineHeight: 0,
         opacity: dimmed ? 0.25 : 1,
       }}
     >
-      {itemInfo && gItem ? <ItemInstance showQuantity itemInfo={itemInfo} linkToDetail /> : null}
+      {itemInfo && gItem ? (
+        <ItemInstance showQuantity itemInfo={itemInfo} size={itemSize} linkToDetail />
+      ) : null}
       {itemInfo && !gItem ? (
         <Typography
           variant="caption"
