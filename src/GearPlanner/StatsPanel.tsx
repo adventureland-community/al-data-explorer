@@ -32,7 +32,7 @@ import {
   mitigationBreakdown,
   theo_dps,
 } from "./calculations";
-import { StatDetailDialog } from "./StatDetailDialog";
+import { HitDirection, StatDetailDialog } from "./StatDetailDialog";
 import {
   InsightStat,
   STATUS_RESIST_STATS,
@@ -57,12 +57,14 @@ function MitigationRows({
   source,
   target,
   targetHpLabel,
+  hitDirection,
   onOpenStat,
 }: {
   source: Combatant;
   target: Combatant;
   targetHpLabel: string;
-  onOpenStat: (stat: InsightStat) => void;
+  hitDirection: HitDirection;
+  onOpenStat: (stat: InsightStat, hitDirection: HitDirection) => void;
 }) {
   const breakdown = mitigationBreakdown(source, target);
   const expected = expectedHitDamage(source, target);
@@ -86,7 +88,7 @@ function MitigationRows({
         <TableRow
           hover={breakdown.pierceStat !== "none"}
           onClick={() => {
-            if (breakdown.pierceStat !== "none") onOpenStat(breakdown.pierceStat);
+            if (breakdown.pierceStat !== "none") onOpenStat(breakdown.pierceStat, hitDirection);
           }}
           sx={breakdown.pierceStat !== "none" ? { cursor: "pointer" } : undefined}
         >
@@ -100,7 +102,7 @@ function MitigationRows({
         <TableRow
           hover={breakdown.defenseStat !== "none"}
           onClick={() => {
-            if (breakdown.defenseStat !== "none") onOpenStat(breakdown.defenseStat);
+            if (breakdown.defenseStat !== "none") onOpenStat(breakdown.defenseStat, hitDirection);
           }}
           sx={breakdown.defenseStat !== "none" ? { cursor: "pointer" } : undefined}
         >
@@ -111,13 +113,21 @@ function MitigationRows({
             {formatCharacterStatValue(defenseLabel as StatType, breakdown.defense)}
           </TableCell>
         </TableRow>
-        <TableRow hover onClick={() => onOpenStat("effectiveDefense")} sx={{ cursor: "pointer" }}>
+        <TableRow
+          hover
+          onClick={() => onOpenStat("effectiveDefense", hitDirection)}
+          sx={{ cursor: "pointer" }}
+        >
           <TableCell title="defense − 2 × pierce (basic attack)" sx={clickableCellSx}>
             effective defense
           </TableCell>
           <TableCell align="right">{breakdown.effectiveDefense.toFixed(1)}</TableCell>
         </TableRow>
-        <TableRow hover onClick={() => onOpenStat("damageMultiplier")} sx={{ cursor: "pointer" }}>
+        <TableRow
+          hover
+          onClick={() => onOpenStat("damageMultiplier", hitDirection)}
+          sx={{ cursor: "pointer" }}
+        >
           <TableCell sx={clickableCellSx}>damage multiplier</TableCell>
           <TableCell align="right">{formatMult(breakdown.multiplier)}</TableCell>
         </TableRow>
@@ -272,6 +282,7 @@ export function StatsPanel({
 }) {
   const [targetMonster, setTargetMonster] = useState<MonsterKey>("ent");
   const [detailStat, setDetailStat] = useState<InsightStat | null>(null);
+  const [detailHitDirection, setDetailHitDirection] = useState<HitDirection>("youHit");
   const G = useContext(GDataContext);
 
   if (!G) {
@@ -380,8 +391,10 @@ export function StatsPanel({
     setTargetMonster(event.target.value as MonsterKey);
   };
 
-  const openStat = (stat: string) => {
-    if (isInsightStat(stat)) setDetailStat(stat);
+  const openStat = (stat: string, hitDirection: HitDirection = "youHit") => {
+    if (!isInsightStat(stat)) return;
+    setDetailHitDirection(hitDirection);
+    setDetailStat(stat);
   };
 
   const valueSx = (key: StatType | MainStatType) => ({
@@ -403,11 +416,13 @@ export function StatsPanel({
 
   const renderStatRow = (stat: StatType) => {
     const clickable = isInsightStat(stat);
+    const sheetDirection: HitDirection =
+      stat === "armor" || stat === "resistance" ? "theyHit" : "youHit";
     return (
       <TableRow
         key={`stat_${stat}`}
         hover={clickable}
-        onClick={clickable ? () => openStat(stat) : undefined}
+        onClick={clickable ? () => openStat(stat, sheetDirection) : undefined}
         sx={clickable ? { cursor: "pointer" } : undefined}
       >
         <TableCell
@@ -532,6 +547,7 @@ export function StatsPanel({
               source={fakePlayer}
               target={monster}
               targetHpLabel="hits to kill"
+              hitDirection="youHit"
               onOpenStat={openStat}
             />
           </Grid>
@@ -541,6 +557,7 @@ export function StatsPanel({
               source={monster}
               target={fakePlayer}
               targetHpLabel="hits to defeat you"
+              hitDirection="theyHit"
               onOpenStat={openStat}
             />
             <DamageVisualization source={monster} target={fakePlayer} />
@@ -555,6 +572,7 @@ export function StatsPanel({
         monster={monster}
         monsterName={String(monsterName)}
         playerStats={stats}
+        hitDirection={detailHitDirection}
         conditions={
           G.conditions as Record<string, { name?: string; defense?: string; debuff?: boolean }>
         }

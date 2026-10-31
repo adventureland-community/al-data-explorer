@@ -213,19 +213,24 @@ function StatusResistBody({
   );
 }
 
+export type HitDirection = "youHit" | "theyHit";
+
 function MitigationBody({
   stat,
   player,
   monster,
   monsterName,
+  hitDirection,
 }: {
   stat: InsightStat;
   player: Combatant;
   monster: Combatant;
   monsterName: string;
+  hitDirection: HitDirection;
 }) {
   const youHit = mitigationBreakdown(player, monster);
   const theyHit = mitigationBreakdown(monster, player);
+  const focus = hitDirection === "theyHit" ? theyHit : youHit;
   const waste = pierceWaste({
     damageType: player.damage_type as DamageType | undefined,
     apiercing: player.apiercing,
@@ -234,16 +239,31 @@ function MitigationBody({
     monsterResistance: monster.resistance,
   });
 
-  const defenseForCurve =
-    youHit.damageType === "magical" ? monster.resistance ?? 0 : monster.armor ?? 0;
+  const theyWaste = pierceWaste({
+    damageType: monster.damage_type as DamageType | undefined,
+    apiercing: monster.apiercing,
+    rpiercing: monster.rpiercing,
+    monsterArmor: player.armor,
+    monsterResistance: player.resistance,
+  });
+
+  const defenseForCurve = focus.defense;
+  const pierceMarker = focus.pierce;
+  const pierceStatLabel = focus.pierceStat === "none" ? "pierce" : focus.pierceStat;
+  const defenseStatLabel = focus.defenseStat === "none" ? "defense" : focus.defenseStat;
+  const hardCapPierce =
+    hitDirection === "theyHit" ? theyWaste.pierceAtHardCap : waste.pierceAtHardCap;
+  const marginal =
+    hitDirection === "theyHit" ? theyWaste.marginalMultFromPlusOne : waste.marginalMultFromPlusOne;
+
   const pierceCurve = mitigationCurveByPierce({
     defense: defenseForCurve,
-    pierceTo: Math.max(waste.pierceAtHardCap ?? 200, waste.activePierce + 40, 80),
+    pierceTo: Math.max(hardCapPierce ?? 200, pierceMarker + 40, 80),
   });
   const effCurve = mitigationCurveByEffectiveDefense({});
 
   const showPierceChart =
-    youHit.damageType !== "pure" &&
+    focus.damageType !== "pure" &&
     (stat === "apiercing" ||
       stat === "rpiercing" ||
       stat === "damageMultiplier" ||
@@ -255,15 +275,13 @@ function MitigationBody({
     stat === "effectiveDefense" ||
     stat === "damageMultiplier";
 
-  const effMarker =
-    stat === "armor" || stat === "resistance" ? theyHit.effectiveDefense : youHit.effectiveDefense;
+  const focusHints = hitDirection === "youHit" ? waste.hints : theyWaste.hints;
 
   return (
     <Box>
       <Typography variant="body2" color="text.secondary" paragraph>
-        vs {monsterName} — your damage type {youHit.damageType}. You → monster uses{" "}
-        {youHit.pierceStat === "none" ? "no pierce" : youHit.pierceStat} against{" "}
-        {youHit.defenseStat === "none" ? "no defense" : `their ${youHit.defenseStat}`}.
+        vs {monsterName} — focus {hitDirection === "youHit" ? "you → monster" : "monster → you"} (
+        {focus.damageType}). Uses {pierceStatLabel} against {defenseStatLabel}.
       </Typography>
       <Typography variant="body2" sx={{ mb: 1 }}>
         You → monster: effective = {youHit.defense} − 2 × {youHit.pierce} ={" "}
@@ -275,22 +293,23 @@ function MitigationBody({
         <strong>{theyHit.effectiveDefense.toFixed(1)}</strong> →{" "}
         <strong>{(theyHit.multiplier * 100).toFixed(1)}%</strong>
       </Typography>
-      {waste.hints.map((h) => (
+      {focusHints.map((h) => (
         <Alert key={h} severity="warning" sx={{ mb: 1 }}>
           {h}
         </Alert>
       ))}
       {showPierceChart && (
         <>
-          <Typography variant="subtitle2">Damage multiplier vs your pierce</Typography>
+          <Typography variant="subtitle2">
+            Damage multiplier vs {hitDirection === "youHit" ? "your" : "their"} pierce
+          </Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-            Their {youHit.defenseStat} fixed at {defenseForCurve}. Orange = your {youHit.pierceStat}
-            .
+            {defenseStatLabel} fixed at {defenseForCurve}. Orange = {pierceStatLabel}.
           </Typography>
           <FalloffChart
             points={pierceCurve}
-            markerX={waste.activePierce}
-            xLabel={youHit.pierceStat === "none" ? "pierce" : youHit.pierceStat}
+            markerX={pierceMarker}
+            xLabel={pierceStatLabel}
             yLabel="mult %"
           />
         </>
@@ -301,23 +320,20 @@ function MitigationBody({
             Damage multiplier vs effective defense
           </Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-            Orange marker:{" "}
-            {stat === "armor" || stat === "resistance"
-              ? "monster → you (your armor/resist after their pierce)"
-              : "you → monster"}
+            Orange marker: {hitDirection === "youHit" ? "you → monster" : "monster → you"}
           </Typography>
           <FalloffChart
             points={effCurve}
-            markerX={effMarker}
+            markerX={focus.effectiveDefense}
             xLabel="effective defense"
             yLabel="mult %"
           />
         </>
       )}
-      {waste.pierceAtHardCap != null && youHit.damageType !== "pure" && (
+      {hardCapPierce != null && focus.damageType !== "pure" && (
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-          Hard cap (132% mult) at ~{waste.pierceAtHardCap} {waste.activePierceStat} vs this defense.
-          Marginal +1 pierce: +{(waste.marginalMultFromPlusOne * 100).toFixed(4)}% mult.
+          Hard cap (132% mult) at ~{hardCapPierce} {pierceStatLabel} vs this defense. Marginal +1
+          pierce: +{(marginal * 100).toFixed(4)}% mult.
         </Typography>
       )}
     </Box>
@@ -333,6 +349,7 @@ export type StatDetailDialogProps = {
   monsterName: string;
   playerStats: Record<string, number | undefined>;
   conditions?: Record<string, ConditionDefenseDef | undefined>;
+  hitDirection?: HitDirection;
 };
 
 export function StatDetailDialog({
@@ -344,6 +361,7 @@ export function StatDetailDialog({
   monsterName,
   playerStats,
   conditions,
+  hitDirection = "youHit",
 }: StatDetailDialogProps) {
   if (!stat) return null;
 
@@ -361,7 +379,13 @@ export function StatDetailDialog({
         {isStatusResistStat(stat) ? (
           <StatusResistBody stat={stat} value={playerStats[stat] ?? 0} conditions={conditions} />
         ) : (
-          <MitigationBody stat={stat} player={player} monster={monster} monsterName={monsterName} />
+          <MitigationBody
+            stat={stat}
+            player={player}
+            monster={monster}
+            monsterName={monsterName}
+            hitDirection={hitDirection}
+          />
         )}
       </DialogContent>
     </Dialog>
