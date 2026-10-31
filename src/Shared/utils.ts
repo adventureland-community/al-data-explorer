@@ -37,16 +37,23 @@ export function abbreviateNumber(number?: number) {
  * @param ms
  * @returns
  */
+/** Compact duration from milliseconds (e.g. 6775s → "1h 53m"). */
 export function msToTime(ms: number) {
-  const seconds = ms / 1000;
-  const minutes = ms / (1000 * 60);
-  const hours = ms / (1000 * 60 * 60);
-  const days = ms / (1000 * 60 * 60 * 24);
-  // TODO: could render the "rest" as welll e.g. "1 day, 1 hour, 1 minute, 1 second"
-  if (seconds < 60) return `${seconds.toFixed(1)} s`;
-  if (minutes < 60) return `${minutes.toFixed(1)} m`;
-  if (hours < 24) return `${hours.toFixed(1)} H`;
-  return `${days.toFixed(1)} D`;
+  if (!Number.isFinite(ms) || ms < 0) return "—";
+  const totalSec = ms / 1000;
+  if (totalSec < 60) {
+    return `${totalSec < 10 ? totalSec.toFixed(1) : Math.round(totalSec)}s`;
+  }
+
+  const rounded = Math.round(totalSec);
+  const days = Math.floor(rounded / 86400);
+  const hours = Math.floor((rounded % 86400) / 3600);
+  const minutes = Math.floor((rounded % 3600) / 60);
+  const secs = rounded % 60;
+
+  if (days > 0) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`;
 }
 /**
  *

@@ -12,11 +12,13 @@ export function GearSlot({
   onClick,
   gear,
   invalid = false,
+  highlighted = false,
 }: {
   slot: SlotType;
   onClick: (slot: SlotType) => void;
   gear: { [slot in SlotType]?: ItemInfo };
   invalid?: boolean;
+  highlighted?: boolean;
 }) {
   const itemInfo = gear[slot];
   let itemName: ItemKey;
@@ -44,7 +46,9 @@ export function GearSlot({
         width: SLOT_SIZE,
         height: SLOT_SIZE,
         boxSizing: "border-box",
-        border: invalid ? "2px solid #d32f2f" : "1px solid black",
+        border: invalid ? "2px solid #d32f2f" : highlighted ? "2px solid" : "1px solid black",
+        borderColor: highlighted ? "primary.main" : undefined,
+        boxShadow: highlighted ? (theme) => `0 0 0 2px ${theme.palette.primary.main}` : undefined,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
