@@ -37,40 +37,23 @@ export function abbreviateNumber(number?: number) {
  * @param ms
  * @returns
  */
+/** Compact duration from milliseconds (e.g. 6775s → "1h 53m"). */
 export function msToTime(ms: number) {
-  const seconds = ms / 1000;
-  const minutes = ms / (1000 * 60);
-  const hours = ms / (1000 * 60 * 60);
-  const days = ms / (1000 * 60 * 60 * 24);
-  // TODO: could render the "rest" as welll e.g. "1 day, 1 hour, 1 minute, 1 second"
-  if (seconds < 60) return `${seconds.toFixed(1)} s`;
-  if (minutes < 60) return `${minutes.toFixed(1)} m`;
-  if (hours < 24) return `${hours.toFixed(1)} H`;
-  return `${days.toFixed(1)} D`;
-}
+  if (!Number.isFinite(ms) || ms < 0) return "—";
+  const totalSec = ms / 1000;
+  if (totalSec < 60) {
+    return `${totalSec < 10 ? totalSec.toFixed(1) : Math.round(totalSec)}s`;
+  }
 
-/** Compact fight duration for Gear Planner TTK (input is seconds). */
-export function formatFightDuration(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return "—";
-  if (seconds < 60) return `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)}s`;
-
-  const totalSec = Math.round(seconds);
-  const days = Math.floor(totalSec / 86400);
-  const hours = Math.floor((totalSec % 86400) / 3600);
-  const minutes = Math.floor((totalSec % 3600) / 60);
-  const secs = totalSec % 60;
+  const rounded = Math.round(totalSec);
+  const days = Math.floor(rounded / 86400);
+  const hours = Math.floor((rounded % 86400) / 3600);
+  const minutes = Math.floor((rounded % 3600) / 60);
+  const secs = rounded % 60;
 
   if (days > 0) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
   if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
   return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`;
-}
-
-/** Hit counts stay plain until 1k+, then SI (60.5k hits). */
-export function formatHitCount(hits: number): string {
-  if (!Number.isFinite(hits) || hits < 0) return "—";
-  const n = Math.round(hits);
-  if (n < 1000) return String(n);
-  return String(abbreviateNumber(n));
 }
 /**
  *
