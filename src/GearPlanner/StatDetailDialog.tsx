@@ -8,6 +8,8 @@ import {
   List,
   ListItem,
   ListItemText,
+  Tab,
+  Tabs,
   Table,
   TableBody,
   TableCell,
@@ -15,7 +17,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ItemKey, SlotType } from "typed-adventureland";
 import { StatContribution } from "../gameData/loadoutStats";
 import { ItemInstanceLabel } from "../Shared/ItemInstanceLabel";
@@ -60,9 +62,52 @@ type FormulaExample = {
 
 type FormulaLegendEntry = { symbol: string; meaning: string };
 
+function FormulaLegendList({ legend }: { legend: FormulaLegendEntry[] }) {
+  if (legend.length === 0) return null;
+  return (
+    <Box
+      component="dl"
+      sx={{
+        m: 0,
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+      }}
+    >
+      {legend.map((entry) => (
+        <Box
+          key={entry.symbol}
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "5.5rem 1fr",
+            columnGap: 1.5,
+            alignItems: "baseline",
+          }}
+        >
+          <Typography
+            component="dt"
+            variant="body2"
+            sx={{
+              m: 0,
+              fontWeight: 700,
+              fontVariantNumeric: "tabular-nums",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {entry.symbol}
+          </Typography>
+          <Typography component="dd" variant="body2" color="text.secondary" sx={{ m: 0 }}>
+            {entry.meaning}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
 /**
- * Teach the formula first (short symbols + legend), then show labeled
- * substitutions. Labels stay in UI chrome; only the equations go through KaTeX.
+ * Default: plugged-in numbers. Optional Formula tab puts the equation
+ * beside the legend. One dialog scroller only — no nested overflow.
  */
 function FormulaExplain({
   context,
@@ -79,109 +124,115 @@ function FormulaExplain({
   examples: FormulaExample[];
   note?: string;
 }) {
-  const cardSx = {
-    px: 2,
-    py: 1.75,
-    borderRadius: 1,
-    border: 1,
-    borderColor: "divider",
-    boxSizing: "border-box" as const,
-    overflow: "visible" as const,
-  };
+  const [tab, setTab] = useState(0);
+
+  useEffect(() => {
+    setTab(0);
+  }, [context]);
 
   return (
     <Box id={STAT_DETAIL_FORMULA_ID} sx={{ mb: 2 }}>
       {context ? (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           {context}
         </Typography>
       ) : null}
-      <Box
+      <Tabs
+        value={tab}
+        onChange={(_e, next: number) => setTab(next)}
         sx={{
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-          alignItems: "stretch",
+          minHeight: 36,
+          mb: 1.5,
+          borderBottom: 1,
+          borderColor: "divider",
+          "& .MuiTab-root": { minHeight: 36, textTransform: "none", py: 0.75 },
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }}>
-            Formula
-          </Typography>
-          <Box sx={{ ...cardSx, mt: 0.75, bgcolor: "background.default" }}>
+        <Tab label="Your numbers" />
+        <Tab label="Formula" />
+      </Tabs>
+
+      {tab === 0 ? (
+        <Box>
+          {examples.map((ex) => (
+            <Box
+              key={ex.label}
+              sx={{
+                px: 2,
+                py: 1.75,
+                borderRadius: 1,
+                border: 1,
+                borderColor: "divider",
+                bgcolor: "action.hover",
+                mb: examples.length > 1 ? 1.25 : 0,
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                {ex.label}
+              </Typography>
+              <MathTeX tex={alignedTex(ex.lines)} />
+            </Box>
+          ))}
+          {note ? (
+            <Typography variant="body2" color="text.secondary" display="block" sx={{ mt: 1.25 }}>
+              {note}
+            </Typography>
+          ) : null}
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            display: "grid",
+            gap: 2.5,
+            gridTemplateColumns: { xs: "1fr", sm: "minmax(0, 1.1fr) minmax(0, 1fr)" },
+            alignItems: "start",
+          }}
+        >
+          <Box
+            sx={{
+              px: 2,
+              py: 1.75,
+              borderRadius: 1,
+              border: 1,
+              borderColor: "divider",
+              bgcolor: "background.default",
+            }}
+          >
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ letterSpacing: 1, display: "block", mb: 1 }}
+            >
+              Equation
+            </Typography>
             <MathTeX tex={alignedTex(symbolicLines)} />
-            {legend.length > 0 ? (
-              <Box
-                component="dl"
-                sx={{
-                  m: 0,
-                  mt: 1.75,
-                  pt: 1.5,
-                  borderTop: 1,
-                  borderColor: "divider",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 0.75,
-                }}
-              >
-                {legend.map((entry) => (
-                  <Box
-                    key={entry.symbol}
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: "5.5rem 1fr",
-                      columnGap: 1.5,
-                      alignItems: "baseline",
-                    }}
-                  >
-                    <Typography
-                      component="dt"
-                      variant="body2"
-                      sx={{
-                        m: 0,
-                        fontWeight: 700,
-                        fontVariantNumeric: "tabular-nums",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {entry.symbol}
-                    </Typography>
-                    <Typography component="dd" variant="body2" color="text.secondary" sx={{ m: 0 }}>
-                      {entry.meaning}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
+            {note ? (
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1.5 }}>
+                {note}
+              </Typography>
             ) : null}
           </Box>
-        </Box>
-
-        <Box sx={{ minWidth: 0 }}>
-          <Typography
-            variant="overline"
-            color="text.secondary"
-            sx={{ letterSpacing: 1, display: "block" }}
+          <Box
+            sx={{
+              px: 2,
+              py: 1.75,
+              borderRadius: 1,
+              border: 1,
+              borderColor: "divider",
+              bgcolor: "background.default",
+            }}
           >
-            With your numbers
-          </Typography>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, mt: 0.75 }}>
-            {examples.map((ex) => (
-              <Box key={ex.label} sx={{ ...cardSx, bgcolor: "action.hover" }}>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {ex.label}
-                </Typography>
-                <MathTeX tex={alignedTex(ex.lines)} />
-              </Box>
-            ))}
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ letterSpacing: 1, display: "block", mb: 1 }}
+            >
+              Legend
+            </Typography>
+            <FormulaLegendList legend={legend} />
           </Box>
         </Box>
-      </Box>
-
-      {note ? (
-        <Typography variant="body2" color="text.secondary" display="block" sx={{ mt: 1.25 }}>
-          {note}
-        </Typography>
-      ) : null}
+      )}
     </Box>
   );
 }
@@ -306,8 +357,15 @@ function FalloffChart({
         );
 
   return (
-    <Box sx={{ overflowX: "auto" }}>
-      <svg width={width} height={height} role="img" aria-label={`${yLabel} vs ${xLabel}`}>
+    <Box sx={{ width: "100%", maxWidth: width, lineHeight: 0 }}>
+      <svg
+        width="100%"
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label={`${yLabel} vs ${xLabel}`}
+      >
         <line
           x1={padL}
           y1={height - padB}
@@ -981,6 +1039,10 @@ export function StatDetailDialog({
           opacity: 1,
           width: "100%",
           maxWidth: { xs: "100%", sm: 720, md: 860 },
+          maxHeight: { xs: "92vh", sm: "88vh" },
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
         },
       }}
     >
@@ -991,6 +1053,7 @@ export function StatDetailDialog({
           pt: 2.5,
           pb: 1.5,
           lineHeight: 1.35,
+          flexShrink: 0,
         }}
       >
         {title}
@@ -998,8 +1061,10 @@ export function StatDetailDialog({
       <DialogContent
         dividers
         sx={{
-          maxHeight: { xs: "80vh", sm: "70vh" },
-          overflow: "auto",
+          flex: "1 1 auto",
+          minHeight: 0,
+          overflowY: "auto",
+          overflowX: "hidden",
           bgcolor: "background.paper",
           backgroundImage: "none",
           px: { xs: 2, sm: 3 },

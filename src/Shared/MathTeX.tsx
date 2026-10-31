@@ -27,25 +27,25 @@ export function MathTeX({ tex, display = true }: MathTeXProps) {
       component={display ? "div" : "span"}
       sx={{
         color: "text.primary",
-        overflowX: "auto",
-        overflowY: "visible",
+        // Let the dialog be the only scroller — never nest overflow here.
+        overflow: "visible",
         textAlign: "left",
-        // Dark UI + KaTeX's thin Computer Modern reads soft; bump size and smooth.
         WebkitFontSmoothing: "antialiased",
         MozOsxFontSmoothing: "grayscale",
         "& .katex": {
           color: "inherit",
-          fontSize: display ? "1.35em" : "1.1em",
+          fontSize: display ? "1.3em" : "1.1em",
           lineHeight: 1.65,
+          maxWidth: "100%",
         },
         "& .katex-display": {
           margin: "0.35em 0",
           textAlign: "left",
+          maxWidth: "100%",
         },
         "& .katex-display > .katex": {
           textAlign: "left",
         },
-        // Prefer upright roman for identifiers we mark with \mathrm.
         "& .katex .mathrm": {
           fontStyle: "normal",
           fontWeight: 600,
