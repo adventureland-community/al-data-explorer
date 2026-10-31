@@ -221,10 +221,15 @@ function DamageVisualization({
   source,
   target,
   mitigationOptions,
+  direction,
+  targetLabel,
 }: {
   source: Combatant;
   target: Combatant;
   mitigationOptions: MitigationOptions;
+  /** outbound = you hit monster; inbound = monster hits you */
+  direction: "outbound" | "inbound";
+  targetLabel: string;
 }) {
   const damage = expectedHitDamage(source, target, mitigationOptions);
   const maxHealth = target.hp ?? 0;
@@ -238,15 +243,23 @@ function DamageVisualization({
 
   const percent = Math.min((damage / maxHealth) * 100, 100);
   const excess = Math.max(damage - maxHealth, 0);
-  const healthLeft = maxHealth - damage;
+  const healthLeft = Math.max(0, maxHealth - damage);
   const hitsToDefeat = Math.ceil(maxHealth / damage);
+
+  const summary =
+    direction === "outbound"
+      ? `Will do ${damage.toFixed(2)} damage to ${targetLabel} with ${healthLeft.toFixed(
+          2,
+        )} health left. Defeated in ${hitsToDefeat} hit${hitsToDefeat === 1 ? "" : "s"}`
+      : `Will do ${damage.toFixed(2)} damage to you with ${healthLeft.toFixed(
+          2,
+        )} health left. You will be defeated in ${hitsToDefeat} hit${
+          hitsToDefeat === 1 ? "" : "s"
+        }`;
 
   return (
     <Box sx={{ mt: 1 }}>
-      <Typography sx={{ wordBreak: "break-word" }}>
-        Will do {damage.toFixed(2)} damage to you with {healthLeft.toFixed(2)} health left. You will
-        be defeated in {hitsToDefeat} hits
-      </Typography>
+      <Typography sx={{ wordBreak: "break-word" }}>{summary}</Typography>
       <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
         <Box sx={{ width: "100%", mr: 1, minWidth: 0 }}>
           <LinearProgress
@@ -263,8 +276,13 @@ function DamageVisualization({
 
       {excess > 0 && (
         <Alert variant="outlined" severity="error" sx={{ mt: 1, wordBreak: "break-word" }}>
-          WARNING: Monster can deal {excess.toFixed(2)} excess damage! You will be one-shot with{" "}
-          {maxHealth.toFixed(2)} health
+          {direction === "outbound"
+            ? `One-shot: ${excess.toFixed(2)} excess damage vs ${targetLabel}'s ${maxHealth.toFixed(
+                2,
+              )} HP`
+            : `WARNING: Monster can deal ${excess.toFixed(
+                2,
+              )} excess damage! You will be one-shot with ${maxHealth.toFixed(2)} health`}
         </Alert>
       )}
     </Box>
@@ -811,6 +829,13 @@ export function StatsPanel({
               onOpenStat={openStat}
               mitigationOptions={attackMitigation}
             />
+            <DamageVisualization
+              source={fakePlayer}
+              target={monster}
+              mitigationOptions={attackMitigation}
+              direction="outbound"
+              targetLabel={String(monsterName)}
+            />
           </Grid>
           <Grid item xs={12} md={4}>
             <Divider textAlign="left">DEFENSE vs {monsterName}</Divider>
@@ -826,6 +851,8 @@ export function StatsPanel({
               source={monster}
               target={fakePlayer}
               mitigationOptions={defenseMitigation}
+              direction="inbound"
+              targetLabel="you"
             />
           </Grid>
         </Grid>
