@@ -514,8 +514,10 @@ export function StatsPanel({
   }
 
   const chipSkillPierce = hitPath === "basic" && skillPierce > 0 ? skillPierce : undefined;
+  // Heal path pairs magical even when the class/mainhand sheet type is physical.
+  const chipDamageType = hitPath === "heal" ? "magical" : fakePlayer.damage_type;
   const chips = wasteChipsForLoadout({
-    damageType: fakePlayer.damage_type,
+    damageType: chipDamageType,
     apiercing: fakePlayer.apiercing,
     rpiercing: fakePlayer.rpiercing,
     monsterArmor: monster.armor,
@@ -527,7 +529,7 @@ export function StatsPanel({
   const compareChips =
     compareMob &&
     wasteChipsForLoadout({
-      damageType: fakePlayer.damage_type,
+      damageType: chipDamageType,
       apiercing: fakePlayer.apiercing,
       rpiercing: fakePlayer.rpiercing,
       monsterArmor: compareMob.armor,

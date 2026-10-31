@@ -15,6 +15,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import { useEffect } from "react";
 import { ItemKey, SlotType } from "typed-adventureland";
 import { StatContribution } from "../gameData/loadoutStats";
 import { ItemInstanceLabel } from "../Shared/ItemInstanceLabel";
@@ -43,6 +44,8 @@ import {
   statusDurationCurve,
   statusResistInsight,
 } from "./statInsights";
+
+const STAT_DETAIL_GRAPH_ID = "stat-detail-graph";
 
 export type HitDirection = "youHit" | "theyHit";
 
@@ -276,31 +279,20 @@ function StatusResistBody({
 
   return (
     <Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        Current value: {value}
-        {insight.overcap ? " (overcap)" : ""}
-      </Typography>
-      {insight.hints.map((h) => (
-        <Alert key={h} severity="warning" sx={{ mb: 1 }}>
-          {h}
-        </Alert>
-      ))}
       {showChance && (
-        <>
-          <Typography variant="subtitle2" sx={{ mt: 1 }}>
-            Chance resist (capped at 100%)
-          </Typography>
+        <Box id={STAT_DETAIL_GRAPH_ID}>
+          <Typography variant="subtitle2">Chance resist (capped at 100%)</Typography>
           <FalloffChart
             points={statusChanceCurve()}
             markerX={value}
             xLabel={stat}
             yLabel="chance %"
           />
-        </>
+        </Box>
       )}
       {showDuration && (
-        <>
-          <Typography variant="subtitle2" sx={{ mt: 1 }}>
+        <Box id={showChance ? undefined : STAT_DETAIL_GRAPH_ID}>
+          <Typography variant="subtitle2" sx={{ mt: showChance ? 1 : 0 }}>
             Duration / intensity remaining
           </Typography>
           <FalloffChart
@@ -309,8 +301,17 @@ function StatusResistBody({
             xLabel={stat}
             yLabel="remaining %"
           />
-        </>
+        </Box>
       )}
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 1 }}>
+        Current value: {value}
+        {insight.overcap ? " (overcap)" : ""}
+      </Typography>
+      {insight.hints.map((h) => (
+        <Alert key={h} severity="warning" sx={{ mb: 1 }}>
+          {h}
+        </Alert>
+      ))}
       <Divider sx={{ my: 1.5 }} />
       <List dense>
         {insight.notes.map((n) => (
@@ -335,15 +336,15 @@ function AttributeSoftcapBody({ stat, value }: { stat: "str" | "int"; value: num
 
   return (
     <Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+      <Typography variant="subtitle2" id={STAT_DETAIL_GRAPH_ID}>
+        {derivedLabel} vs {stat}
+      </Typography>
+      <FalloffChart points={curve} markerX={value} xLabel={stat} yLabel={derivedLabel} />
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
         Current {stat}: {value} → {derivedLabel}{" "}
         {stat === "str" ? armorFromStr(value).toFixed(1) : resistanceFromInt(value).toFixed(1)}.
         Full value only up to the {threshold} softcap; each point above adds 25%.
       </Typography>
-      <Typography variant="subtitle2">
-        {derivedLabel} vs {stat}
-      </Typography>
-      <FalloffChart points={curve} markerX={value} xLabel={stat} yLabel={derivedLabel} />
     </Box>
   );
 }
@@ -372,16 +373,18 @@ function LandChanceBody({
 
   return (
     <Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        {against}. Current {stat}: {miss.toFixed(1)}% → land chance {land.toFixed(1)}%. Server roll:{" "}
-        <code>random × 100 &lt; {stat}</code> fully negates the hit
-        {stat === "reflection" ? " (and may bounce a projectile back)" : ""}.
+      <Typography variant="subtitle2" id={STAT_DETAIL_GRAPH_ID}>
+        Land chance vs {stat}
       </Typography>
-      <Typography variant="subtitle2">Land chance vs {stat}</Typography>
       <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
         Orange = current {stat}. Y is expected % of hits that deal damage.
       </Typography>
       <FalloffChart points={landChanceCurve()} markerX={miss} xLabel={stat} yLabel="land %" />
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        {against}. Current {stat}: {miss.toFixed(1)}% → land chance {land.toFixed(1)}%. Server roll:{" "}
+        <code>random × 100 &lt; {stat}</code> fully negates the hit
+        {stat === "reflection" ? " (and may bounce a projectile back)" : ""}.
+      </Typography>
     </Box>
   );
 }
@@ -403,16 +406,18 @@ function FortitudeBody({
 
   return (
     <Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        {who}. Only applies when the attacker is a player. Current for {value} → mult{" "}
-        {(mult * 100).toFixed(1)}% via <code>damage_multiplier(for × 5)</code> ={" "}
-        <code>damage_multiplier({(value * 5).toFixed(0)})</code>.
+      <Typography variant="subtitle2" id={STAT_DETAIL_GRAPH_ID}>
+        Damage mult vs fortitude (for)
       </Typography>
-      <Typography variant="subtitle2">Damage mult vs fortitude (for)</Typography>
       <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
         Orange = current for. Higher for softens player damage through the same mitigation curve.
       </Typography>
       <FalloffChart points={fortitudeMultCurve()} markerX={value} xLabel="for" yLabel="mult %" />
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        {who}. Only applies when the attacker is a player. Current for {value} → mult{" "}
+        {(mult * 100).toFixed(1)}% via <code>damage_multiplier(for × 5)</code> ={" "}
+        <code>damage_multiplier({(value * 5).toFixed(0)})</code>.
+      </Typography>
     </Box>
   );
 }
@@ -497,10 +502,59 @@ function MitigationBody({
 
   return (
     <Box>
-      <Typography variant="body2" color="text.secondary" paragraph>
-        vs {monsterName} — focus {hitDirection === "youHit" ? "you → monster" : "monster → you"} (
-        {focus.damageType}). Uses {pierceStatLabel} against {defenseStatLabel}. {pathNote}
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        vs {monsterName} — {hitDirection === "youHit" ? "you → monster" : "monster → you"} (
+        {focus.damageType}). {pathNote}
       </Typography>
+      {showPierceChart && (
+        <Box id={STAT_DETAIL_GRAPH_ID} sx={{ mb: 1 }}>
+          <Typography variant="subtitle2">
+            Damage multiplier vs {hitDirection === "youHit" ? "your" : "their"} pierce
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+            {defenseStatLabel} fixed at {defenseForCurve}. Orange = {pierceStatLabel}.
+            {hardCapPierce != null ? " Green dashed = 132% mult cap." : ""}
+          </Typography>
+          <FalloffChart
+            points={pierceCurve}
+            markerX={pierceMarker}
+            capX={hardCapPierce ?? undefined}
+            xLabel={pierceStatLabel}
+            yLabel="mult %"
+          />
+        </Box>
+      )}
+      {showEffChart && (
+        <Box id={showPierceChart ? undefined : STAT_DETAIL_GRAPH_ID} sx={{ mb: 1 }}>
+          <Typography variant="subtitle2">Damage multiplier vs effective defense</Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+            Orange marker: {hitDirection === "youHit" ? "you → monster" : "monster → you"}
+          </Typography>
+          <FalloffChart
+            points={effCurve}
+            markerX={focus.effectiveDefense}
+            xLabel="effective defense"
+            yLabel="mult %"
+          />
+        </Box>
+      )}
+      {hardCapPierce != null && focus.damageType !== "pure" && (
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+          Hard cap (132% mult) at ~{hardCapPierce} {pierceStatLabel} vs this defense. Marginal +1
+          pierce: +{(marginal * 100).toFixed(4)}% mult.
+          {focusWaste.piercePastHardCap > 0 ? (
+            <>
+              {" "}
+              Trim ~{focusWaste.piercePastHardCap.toFixed(0)} {pierceStatLabel} that does nothing.
+            </>
+          ) : null}
+        </Typography>
+      )}
+      {focusHints.map((h) => (
+        <Alert key={h.text} severity="warning" sx={{ mb: 1 }}>
+          {h.text}
+        </Alert>
+      ))}
       <Typography variant="body2" sx={{ mb: 1 }}>
         You → monster: effective = {youHit.defense}
         {youHit.path === "heal"
@@ -520,57 +574,6 @@ function MitigationBody({
           ? ` · ${theyHit.landChance * 100}% land (${theyHit.missChance}% miss)`
           : ""}
       </Typography>
-      {focusHints.map((h) => (
-        <Alert key={h.text} severity="warning" sx={{ mb: 1 }}>
-          {h.text}
-        </Alert>
-      ))}
-      {showPierceChart && (
-        <>
-          <Typography variant="subtitle2">
-            Damage multiplier vs {hitDirection === "youHit" ? "your" : "their"} pierce
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-            {defenseStatLabel} fixed at {defenseForCurve}. Orange = {pierceStatLabel}.
-            {hardCapPierce != null ? " Green dashed = 132% mult cap." : ""}
-          </Typography>
-          <FalloffChart
-            points={pierceCurve}
-            markerX={pierceMarker}
-            capX={hardCapPierce ?? undefined}
-            xLabel={pierceStatLabel}
-            yLabel="mult %"
-          />
-        </>
-      )}
-      {showEffChart && (
-        <>
-          <Typography variant="subtitle2" sx={{ mt: 1 }}>
-            Damage multiplier vs effective defense
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-            Orange marker: {hitDirection === "youHit" ? "you → monster" : "monster → you"}
-          </Typography>
-          <FalloffChart
-            points={effCurve}
-            markerX={focus.effectiveDefense}
-            xLabel="effective defense"
-            yLabel="mult %"
-          />
-        </>
-      )}
-      {hardCapPierce != null && focus.damageType !== "pure" && (
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-          Hard cap (132% mult) at ~{hardCapPierce} {pierceStatLabel} vs this defense. Marginal +1
-          pierce: +{(marginal * 100).toFixed(4)}% mult.
-          {focusWaste.piercePastHardCap > 0 ? (
-            <>
-              {" "}
-              Trim ~{focusWaste.piercePastHardCap.toFixed(0)} {pierceStatLabel} that does nothing.
-            </>
-          ) : null}
-        </Typography>
-      )}
     </Box>
   );
 }
@@ -604,6 +607,14 @@ export function StatDetailDialog({
   mitigationOptions,
   onContributionSlot,
 }: StatDetailDialogProps) {
+  useEffect(() => {
+    if (!open || !stat) return;
+    const id = window.setTimeout(() => {
+      document.getElementById(STAT_DETAIL_GRAPH_ID)?.scrollIntoView({ block: "nearest" });
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [open, stat, hitDirection]);
+
   if (!stat) return null;
 
   const title =

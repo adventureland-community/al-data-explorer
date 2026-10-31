@@ -129,8 +129,11 @@ export function mitigationBreakdown(
   options: MitigationOptions = {},
 ): MitigationBreakdown {
   const path = options.path ?? "basic";
-  const skillPierce = Math.max(0, options.skillPierce ?? 0);
+  // Skill pierce is info-only on basic attacks; heal/splash ignore it live.
+  const skillPierce = path === "basic" ? Math.max(0, options.skillPierce ?? 0) : 0;
   const damageType = resolveDamageType(source);
+  // Heal always pairs as magical (resistance / rpiercing), even if the sheet type is physical.
+  const reportedType: DamageType = path === "heal" ? "magical" : damageType;
 
   if (damageType === "pure" && path !== "heal" && path !== "splash") {
     return {
@@ -174,14 +177,14 @@ export function mitigationBreakdown(
     options.attackerIsPlayer && (target.for ?? 0) > 0 ? damageMultiplier((target.for ?? 0) * 5) : 1;
 
   let missChance = 0;
-  if (path === "basic" && damageType === "physical") {
+  if (path === "basic" && reportedType === "physical") {
     missChance = Math.max(0, Math.min(100, target.evasion ?? 0));
-  } else if (path === "basic" && damageType === "magical") {
+  } else if (path === "basic" && reportedType === "magical") {
     missChance = Math.max(0, Math.min(100, target.reflection ?? 0));
   }
 
   return {
-    damageType,
+    damageType: reportedType,
     path,
     defenseStat,
     pierceStat,

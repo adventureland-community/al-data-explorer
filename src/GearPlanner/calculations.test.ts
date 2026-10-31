@@ -100,6 +100,19 @@ describe("mitigationBreakdown", () => {
     expect(b.effectiveDefense).toBe((100 - 20) / 2);
   });
 
+  it("reports heal as magical and ignores skill pierce", () => {
+    const b = mitigationBreakdown(
+      { damage_type: "physical", apiercing: 50, rpiercing: 20 },
+      { armor: 200, resistance: 100 },
+      { path: "heal", skillPierce: 500 },
+    );
+    expect(b.damageType).toBe("magical");
+    expect(b.pierceStat).toBe("rpiercing");
+    expect(b.defenseStat).toBe("resistance");
+    expect(b.skillPierce).toBe(0);
+    expect(b.effectiveDefense).toBe((100 - 20) / 2);
+  });
+
   it("uses splash without pierce", () => {
     const b = mitigationBreakdown(
       { damage_type: "physical", apiercing: 50 },
