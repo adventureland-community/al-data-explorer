@@ -19,7 +19,7 @@ import { useEffect } from "react";
 import { ItemKey, SlotType } from "typed-adventureland";
 import { StatContribution } from "../gameData/loadoutStats";
 import { ItemInstanceLabel } from "../Shared/ItemInstanceLabel";
-import { MathTeX } from "../Shared/MathTeX";
+import { MathTeX, alignedTex } from "../Shared/MathTeX";
 import {
   Combatant,
   DamageType,
@@ -51,66 +51,111 @@ const STAT_DETAIL_GRAPH_ID = "stat-detail-graph";
 
 export type HitDirection = "youHit" | "theyHit";
 
-/** Escape a plain identifier for KaTeX `\mathrm{...}`. */
-function texId(name: string): string {
-  return `\\mathrm{${name.replace(/_/g, "\\_")}}`;
-}
+type FormulaExample = {
+  /** Human label outside the math, e.g. "You → Black Scorpion". */
+  label: string;
+  /** KaTeX `aligned` rows using `&=`. */
+  lines: string[];
+};
 
-/** Escape free text (monster names, etc.) for KaTeX `\text{...}`. */
-function texText(value: string): string {
-  return `\\text{${value.replace(/[{}\\]/g, "")}}`;
-}
+type FormulaLegendEntry = { symbol: string; meaning: string };
 
-/** Symbolic KaTeX first, then the same equations with current numbers. */
+/**
+ * Teach the formula first (short symbols + legend), then show labeled
+ * substitutions. Labels stay in UI chrome; only the equations go through KaTeX.
+ */
 function FormulaExplain({
-  symbolic,
-  pluggedIn,
+  symbolicLines,
+  legend = [],
+  examples,
   note,
 }: {
-  /** LaTeX math lines (no `$` delimiters). */
-  symbolic: string | string[];
-  pluggedIn: string | string[];
+  symbolicLines: string[];
+  /** Symbol key shown under the equation (not inside KaTeX). */
+  legend?: FormulaLegendEntry[];
+  examples: FormulaExample[];
   note?: string;
 }) {
-  const symbolicLines = Array.isArray(symbolic) ? symbolic : [symbolic];
-  const pluggedLines = Array.isArray(pluggedIn) ? pluggedIn : [pluggedIn];
   return (
-    <Box id={STAT_DETAIL_FORMULA_ID} sx={{ mb: 1.5 }}>
-      <Typography variant="subtitle2">Formula</Typography>
-      <Box
-        sx={{
-          mt: 0.5,
-          p: 1.25,
-          borderRadius: 1,
-          bgcolor: "action.hover",
-          display: "flex",
-          flexDirection: "column",
-          gap: 0.75,
-        }}
-      >
-        {symbolicLines.map((tex) => (
-          <MathTeX key={tex} tex={tex} />
-        ))}
-      </Box>
-      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1, mb: 0.5 }}>
-        With current numbers
+    <Box id={STAT_DETAIL_FORMULA_ID} sx={{ mb: 2 }}>
+      <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }}>
+        Formula
       </Typography>
       <Box
         sx={{
-          p: 1.25,
+          mt: 0.5,
+          px: 1.5,
+          py: 1.25,
           borderRadius: 1,
-          bgcolor: "action.selected",
-          display: "flex",
-          flexDirection: "column",
-          gap: 0.75,
+          border: 1,
+          borderColor: "divider",
+          bgcolor: "background.default",
         }}
       >
-        {pluggedLines.map((tex) => (
-          <MathTeX key={tex} tex={tex} />
+        <MathTeX tex={alignedTex(symbolicLines)} />
+        {legend.length > 0 ? (
+          <Box
+            component="dl"
+            sx={{
+              m: 0,
+              mt: 1.25,
+              pt: 1,
+              borderTop: 1,
+              borderColor: "divider",
+              display: "grid",
+              gridTemplateColumns: "auto 1fr",
+              columnGap: 1.5,
+              rowGap: 0.5,
+            }}
+          >
+            {legend.map((entry) => (
+              <Box key={entry.symbol} sx={{ display: "contents" }}>
+                <Typography
+                  component="dt"
+                  variant="caption"
+                  sx={{ fontFamily: "KaTeX_Main, Times New Roman, serif", fontWeight: 600 }}
+                >
+                  {entry.symbol}
+                </Typography>
+                <Typography component="dd" variant="caption" color="text.secondary" sx={{ m: 0 }}>
+                  {entry.meaning}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        ) : null}
+      </Box>
+
+      <Typography
+        variant="overline"
+        color="text.secondary"
+        sx={{ letterSpacing: 1, display: "block", mt: 2 }}
+      >
+        With your numbers
+      </Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, mt: 0.5 }}>
+        {examples.map((ex) => (
+          <Box
+            key={ex.label}
+            sx={{
+              px: 1.5,
+              py: 1.25,
+              borderRadius: 1,
+              border: 1,
+              borderColor: "divider",
+              bgcolor: "action.hover",
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+              {ex.label}
+            </Typography>
+            <MathTeX tex={alignedTex(ex.lines)} />
+          </Box>
         ))}
       </Box>
+
       {note ? (
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
           {note}
         </Typography>
       ) : null}
@@ -347,38 +392,30 @@ function StatusResistBody({
     stat === "stresistance" || stat === "pnresistance" || stat === "firesistance";
   const chancePlugged = Math.max(0, Math.min(100, value));
   const durationPlugged = Math.max(0, (100 - value) / 100);
-  const symbolic: string[] = [];
-  const pluggedIn: string[] = [];
+  const symbolicLines: string[] = [];
+  const exampleLines: string[] = [];
+  const legend: FormulaLegendEntry[] = [{ symbol: "r", meaning: stat }];
   if (showChance) {
-    symbolic.push(
-      `${texId("chance_resist")}\\% = \\min\\bigl(100,\\,\\max(0,\\,${texId(stat)})\\bigr)`,
-    );
-    pluggedIn.push(
-      `${texId(
-        "chance_resist",
-      )}\\% = \\min\\bigl(100,\\,\\max(0,\\,${value})\\bigr) = ${chancePlugged}\\%`,
-    );
+    symbolicLines.push(`c &= \\min\\bigl(100,\\,\\max(0,\\,r)\\bigr)`);
+    exampleLines.push(`c &= \\min\\bigl(100,\\,\\max(0,\\,${value})\\bigr) = ${chancePlugged}\\%`);
+    legend.push({ symbol: "c", meaning: "chance resist %" });
   }
   if (showDuration) {
-    symbolic.push(
-      `${texId("duration_remaining")} = \\max\\!\\left(0,\\,\\dfrac{100 - ${texId(
-        stat,
-      )}}{100}\\right)`,
-    );
-    pluggedIn.push(
-      `${texId(
-        "duration_remaining",
-      )} = \\max\\!\\left(0,\\,\\dfrac{100 - ${value}}{100}\\right) = ${(
+    symbolicLines.push(`\\delta &= \\max\\!\\left(0,\\,\\dfrac{100 - r}{100}\\right)`);
+    exampleLines.push(
+      `\\delta &= \\max\\!\\left(0,\\,\\dfrac{100 - ${value}}{100}\\right) = ${(
         durationPlugged * 100
       ).toFixed(1)}\\%`,
     );
+    legend.push({ symbol: "δ", meaning: "duration / intensity remaining" });
   }
 
   return (
     <Box>
       <FormulaExplain
-        symbolic={symbolic}
-        pluggedIn={pluggedIn}
+        symbolicLines={symbolicLines}
+        legend={legend}
+        examples={[{ label: `Current ${stat}`, lines: exampleLines }]}
         note={
           showChance
             ? "Server chance roll: random < resist / 100. Values above 100 are overcap for the roll."
@@ -442,17 +479,29 @@ function AttributeSoftcapBody({ stat, value }: { stat: "str" | "int"; value: num
   const result = stat === "str" ? armorFromStr(value) : resistanceFromInt(value);
   const curve = attributeSoftcapCurve({ kind: stat, from: 0, to: 280, steps: 70 });
 
+  const attrSym = stat === "str" ? "S" : "I";
+  const outSym = stat === "str" ? "A" : "R";
+
   return (
     <Box>
       <FormulaExplain
-        symbolic={`${texId(derived)} = \\min(${texId(stat)}, ${threshold}) + \\max(0, ${texId(
-          stat,
-        )} - ${threshold}) \\times 0.25`}
-        pluggedIn={`${texId(
-          derived,
-        )} = \\min(${value}, ${threshold}) + \\max(0, ${value} - ${threshold}) \\times 0.25 = ${result.toFixed(
-          1,
-        )}`}
+        symbolicLines={[
+          `${outSym} &= \\min(${attrSym}, ${threshold}) + \\max(0, ${attrSym} - ${threshold}) \\times 0.25`,
+        ]}
+        legend={[
+          { symbol: attrSym, meaning: stat },
+          { symbol: outSym, meaning: derived },
+        ]}
+        examples={[
+          {
+            label: `Current ${stat} = ${value}`,
+            lines: [
+              `${outSym} &= \\min(${value}, ${threshold}) + \\max(0, ${value} - ${threshold}) \\times 0.25 = ${result.toFixed(
+                1,
+              )}`,
+            ],
+          },
+        ]}
         note={`Full value only up to the ${threshold} softcap; each point above adds 25%.`}
       />
       <Typography variant="subtitle2" id={STAT_DETAIL_GRAPH_ID}>
@@ -488,18 +537,27 @@ function LandChanceBody({
   return (
     <Box>
       <FormulaExplain
-        symbolic={[
-          `${texId("miss")}\\% = \\min\\bigl(100,\\,\\max(0,\\,${texId(stat)})\\bigr)`,
-          `${texId("land")}\\% = 100 - ${texId("miss")}\\%`,
-          `${texText("miss if")}\\; \\mathrm{random} \\times 100 < ${texId(stat)}`,
+        symbolicLines={[
+          `e &= \\min\\bigl(100,\\,\\max(0,\\,${stat === "evasion" ? "E" : "R"})\\bigr)`,
+          `\\ell &= 100 - e`,
         ]}
-        pluggedIn={[
-          `${texId("miss")}\\% = \\min\\bigl(100,\\,\\max(0,\\,${miss.toFixed(
-            1,
-          )})\\bigr) = ${miss.toFixed(1)}\\%`,
-          `${texId("land")}\\% = 100 - ${miss.toFixed(1)} = ${land.toFixed(1)}\\%`,
+        legend={[
+          { symbol: stat === "evasion" ? "E" : "R", meaning: stat },
+          { symbol: "e", meaning: "miss %" },
+          { symbol: "ℓ", meaning: "land %" },
         ]}
-        note={`${against}. A successful roll fully negates the hit${
+        examples={[
+          {
+            label: `Current ${stat} = ${miss.toFixed(1)}%`,
+            lines: [
+              `e &= \\min\\bigl(100,\\,\\max(0,\\,${miss.toFixed(1)})\\bigr) = ${miss.toFixed(
+                1,
+              )}\\%`,
+              `\\ell &= 100 - ${miss.toFixed(1)} = ${land.toFixed(1)}\\%`,
+            ],
+          },
+        ]}
+        note={`${against}. Miss when random × 100 < ${stat}. A successful roll fully negates the hit${
           stat === "reflection" ? " (and may bounce a projectile back)" : ""
         }.`}
       />
@@ -532,16 +590,23 @@ function FortitudeBody({
   return (
     <Box>
       <FormulaExplain
-        symbolic={[
-          `${texId("fort_mult")} = ${texId("damage_multiplier")}(${texId("for")} \\times 5)`,
-          `${texId("final_damage")} = ${texId("final_damage")} \\times ${texId("fort_mult")}`,
+        symbolicLines={[`f &= M(F \\times 5)`, `\\mathrm{damage} &= \\mathrm{damage} \\times f`]}
+        legend={[
+          { symbol: "F", meaning: "fortitude (for)" },
+          { symbol: "M", meaning: "damage_multiplier" },
+          { symbol: "f", meaning: "fortitude mult" },
         ]}
-        pluggedIn={[
-          `${texId("fort_mult")} = ${texId("damage_multiplier")}(${value} \\times 5) = ${texId(
-            "damage_multiplier",
-          )}(${(value * 5).toFixed(0)}) = ${(mult * 100).toFixed(1)}\\%`,
+        examples={[
+          {
+            label: `Current for = ${value}`,
+            lines: [
+              `f &= M(${value} \\times 5) = M(${(value * 5).toFixed(0)}) = ${(mult * 100).toFixed(
+                1,
+              )}\\%`,
+            ],
+          },
         ]}
-        note={`${who}. Only applies when the attacker is a player. damage_multiplier is the same soft curve as armor/resist (clamped 5%–132%).`}
+        note={`${who}. Only applies when the attacker is a player. M is the same soft curve as armor/resist (clamped 5%–132%).`}
       />
       <Typography variant="subtitle2" id={STAT_DETAIL_GRAPH_ID}>
         Damage mult vs fortitude (for)
@@ -635,70 +700,80 @@ function MitigationBody({
   const youPath = youHit.path;
   const youEffSymbolic =
     youPath === "heal"
-      ? `${texId("effective")} = \\dfrac{${texId("defense")} - ${texId("pierce")}}{2}`
+      ? `d_{\\mathrm{eff}} &= \\dfrac{D - p}{2}`
       : youPath === "splash"
-      ? `${texId("effective")} = ${texId("defense")}`
+      ? `d_{\\mathrm{eff}} &= D`
       : skillPierce > 0
-      ? `${texId("effective")} = ${texId("defense")} - 2 \\times ${texId("gear_pierce")} - ${texId(
-          "skill_pierce",
-        )}`
-      : `${texId("effective")} = ${texId("defense")} - 2 \\times ${texId("gear_pierce")}`;
+      ? `d_{\\mathrm{eff}} &= D - 2p - s`
+      : `d_{\\mathrm{eff}} &= D - 2p`;
   const youEffPlugged =
     youPath === "heal"
-      ? `${texId("effective")} = \\dfrac{${youHit.defense} - ${
+      ? `d_{\\mathrm{eff}} &= \\dfrac{${youHit.defense} - ${
           youHit.pierce
         }}{2} = ${youHit.effectiveDefense.toFixed(1)}`
       : youPath === "splash"
-      ? `${texId("effective")} = ${youHit.defense} = ${youHit.effectiveDefense.toFixed(1)}`
+      ? `d_{\\mathrm{eff}} &= ${youHit.defense} = ${youHit.effectiveDefense.toFixed(1)}`
       : youHit.skillPierce > 0
-      ? `${texId("effective")} = ${youHit.defense} - 2 \\times ${youHit.pierce} - ${
+      ? `d_{\\mathrm{eff}} &= ${youHit.defense} - 2\\times${youHit.pierce} - ${
           youHit.skillPierce
         } = ${youHit.effectiveDefense.toFixed(1)}`
-      : `${texId("effective")} = ${youHit.defense} - 2 \\times ${
+      : `d_{\\mathrm{eff}} &= ${youHit.defense} - 2\\times${
           youHit.pierce
         } = ${youHit.effectiveDefense.toFixed(1)}`;
-  const theyEffPlugged = `${texId("effective")} = ${theyHit.defense} - 2 \\times ${
+  const theyEffPlugged = `d_{\\mathrm{eff}} &= ${theyHit.defense} - 2\\times${
     theyHit.pierce
   } = ${theyHit.effectiveDefense.toFixed(1)}`;
 
-  const formulaSymbolic = [
-    youEffSymbolic,
-    `${texId("mult")} = ${texId("damage_multiplier")}(${texId("effective")})`,
-  ];
+  const symbolicLines = [youEffSymbolic, `m &= M(d_{\\mathrm{eff}})`];
   if (youHit.fortitudeMult !== 1) {
-    formulaSymbolic.push(
-      `${texId("final_mult")} = ${texId("mult")} \\times ${texId("damage_multiplier")}(${texId(
-        "for",
-      )} \\times 5)`,
-    );
+    symbolicLines.push(`m' &= m \\times M(F \\times 5)`);
   }
 
-  const youMultPlugged = `${texId("mult")} = ${texId(
-    "damage_multiplier",
-  )}(${youHit.effectiveDefense.toFixed(1)}) = ${(youHit.multiplier * 100).toFixed(1)}\\%${
+  const youMultLine =
     youHit.fortitudeMult !== 1
-      ? ` \\times ${texId("fort")}\\,${(youHit.fortitudeMult * 100).toFixed(1)}\\%`
-      : ""
-  }`;
-  const formulaPlugged = [
-    `${texText(`You → ${monsterName}`)}:\\; ${youEffPlugged}`,
-    youMultPlugged,
-    `${texText("Monster → you")}:\\; ${theyEffPlugged}`,
-    `${texId("mult")} = ${texId("damage_multiplier")}(${theyHit.effectiveDefense.toFixed(1)}) = ${(
-      theyHit.multiplier * 100
-    ).toFixed(1)}\\%`,
+      ? `m' &= M(${youHit.effectiveDefense.toFixed(1)}) \\times M(F\\times 5) = ${(
+          youHit.multiplier *
+          youHit.fortitudeMult *
+          100
+        ).toFixed(1)}\\%`
+      : `m &= M(${youHit.effectiveDefense.toFixed(1)}) = ${(youHit.multiplier * 100).toFixed(
+          1,
+        )}\\%`;
+
+  const pierceName = focus.pierceStat === "none" ? "pierce" : focus.pierceStat;
+  const defName = focus.defenseStat === "none" ? "defense" : focus.defenseStat;
+  const legend: FormulaLegendEntry[] = [
+    { symbol: "D", meaning: defName },
+    { symbol: "p", meaning: pierceName },
   ];
+  if (skillPierce > 0) legend.push({ symbol: "s", meaning: "skill pierce" });
+  legend.push(
+    { symbol: "M", meaning: "damage_multiplier" },
+    { symbol: "d_eff", meaning: "effective defense" },
+    { symbol: "m", meaning: "damage mult" },
+  );
 
   return (
     <Box>
       <FormulaExplain
-        symbolic={formulaSymbolic}
-        pluggedIn={formulaPlugged}
-        note={`vs ${monsterName} — ${
-          hitDirection === "youHit" ? "you → monster" : "monster → you"
-        } (${
-          focus.damageType
-        }). ${pathNote} Defense always uses basic. damage_multiplier is soft-banded and clamped to 5%–132%.`}
+        symbolicLines={symbolicLines}
+        legend={legend}
+        examples={[
+          {
+            label: `You → ${monsterName}`,
+            lines: [youEffPlugged, youMultLine],
+          },
+          {
+            label: "Monster → you",
+            lines: [
+              theyEffPlugged,
+              `m &= M(${theyHit.effectiveDefense.toFixed(1)}) = ${(
+                theyHit.multiplier * 100
+              ).toFixed(1)}\\%`,
+            ],
+          },
+        ]}
+        note={`${pathNote} Defense always uses basic. M is soft-banded and clamped to 5%–132%.`}
       />
       {showPierceChart && (
         <Box id={STAT_DETAIL_GRAPH_ID} sx={{ mb: 1 }}>
