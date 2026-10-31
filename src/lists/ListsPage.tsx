@@ -25,6 +25,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { ItemKey } from "typed-adventureland";
 
+import { resolveItemKeyFromQuery } from "../gameData/itemFilters";
 import { GDataContext } from "../GDataContext";
 import { ItemInstanceLabel } from "../Shared/ItemInstanceLabel";
 import { decodeListShareSnapshot, listToShareSnapshot, listsShareUrl } from "./listShareState";
@@ -376,8 +377,13 @@ export function ListsPage() {
   const [namespace, setNamespace] = useState<ListType>("wishlist");
   const [filter, setFilter] = useState<ShoppingFilter>("active");
   const [freeText, setFreeText] = useState("");
-  const [itemKey, setItemKey] = useState("");
+  const [itemQuery, setItemQuery] = useState("");
   const [copied, setCopied] = useState(false);
+  const resolvedItemKey = useMemo(
+    () => (G ? resolveItemKeyFromQuery(itemQuery, G.items) : undefined),
+    [G, itemQuery],
+  );
+  const itemQueryUnknown = Boolean(itemQuery.trim() && !resolvedItemKey);
   const [sharePreview, setSharePreview] = useState<ListShareSnapshot | null>(null);
 
   const wishlistId =
@@ -511,13 +517,18 @@ export function ListsPage() {
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems="flex-start">
                   <TextField
                     size="small"
-                    label="Item key (optional)"
-                    value={itemKey}
-                    onChange={(e) => setItemKey(e.target.value.trim())}
-                    placeholder="firestaff"
-                    error={Boolean(itemKey && G && !G.items[itemKey as ItemKey])}
+                    label="Item key or name (optional)"
+                    value={itemQuery}
+                    onChange={(e) => setItemQuery(e.target.value)}
+                    placeholder="firestaff or Fire Staff"
+                    error={itemQueryUnknown}
                     helperText={
-                      itemKey && G && !G.items[itemKey as ItemKey] ? "Unknown item key" : undefined
+                      itemQueryUnknown
+                        ? "Unknown or ambiguous item"
+                        : resolvedItemKey &&
+                          resolvedItemKey.toLowerCase() !== itemQuery.trim().toLowerCase()
+                        ? `→ ${resolvedItemKey}`
+                        : undefined
                     }
                     sx={{ flex: 1 }}
                   />
@@ -530,20 +541,17 @@ export function ListsPage() {
                   />
                   <Button
                     variant="contained"
-                    disabled={
-                      (!itemKey && !freeText.trim()) ||
-                      Boolean(itemKey && G && !G.items[itemKey as ItemKey])
-                    }
+                    disabled={(!resolvedItemKey && !freeText.trim()) || itemQueryUnknown}
                     onClick={() => {
                       refresh(
                         addEntry(selected.id, {
-                          itemKey: itemKey || undefined,
+                          itemKey: resolvedItemKey,
                           note: freeText.trim() || undefined,
                           qty: 1,
                         }),
                       );
                       setFreeText("");
-                      setItemKey("");
+                      setItemQuery("");
                     }}
                   >
                     Add
