@@ -690,184 +690,170 @@ export function StatsPanel({
           </Grid>
         </Grid>
       </Box>
-      <Box
-        sx={{
-          gridArea: "vs",
-          minWidth: 0,
-          mt: { xs: 2, lg: 0 },
-          // Keep combat panel in view while scrolling sheet stats on wide desktops.
-          position: { lg: "sticky" },
-          top: { lg: 8 },
-          maxHeight: { lg: "calc(100vh - 16px)" },
-          overflow: { lg: "auto" },
-          pr: { lg: 0.5 },
-        }}
-      >
-        {favorites.length > 0 ? (
-          <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mb: 1 }}>
-            {favorites.map((key) => (
-              <Chip
-                key={key}
-                size="small"
-                variant={key === targetMonster ? "filled" : "outlined"}
-                label={G.monsters[key]?.name ?? key}
-                onClick={() => setTargetMonster(key)}
-                onDelete={() => toggleFavorite(key)}
-                deleteIcon={<StarIcon fontSize="small" />}
-              />
-            ))}
-          </Stack>
-        ) : null}
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          flexWrap="wrap"
-          gap={2}
-          alignItems={{ sm: "flex-end" }}
-          sx={{ mt: { xs: 0.5, sm: 2 } }}
-        >
-          <SimEntityAutocomplete
-            fullWidth
-            options={monsterOptions as MonsterKey[]}
-            value={targetMonster}
-            label="Target monster"
-            onChange={(value) => {
-              if (value) setTargetMonster(value);
-            }}
-            getOptionLabel={(option) => {
-              const name = G.monsters[option]?.name;
-              return name ? `${name} (${option})` : option;
-            }}
-            getPrimaryLabel={(option) => G.monsters[option]?.name ?? option}
-            getSecondaryLabel={(option) => option}
-            filterOption={(key, q) => {
-              if (key.toLowerCase().includes(q)) return true;
-              const name = G.monsters[key as MonsterKey]?.name;
-              return Boolean(name && name.toLowerCase().includes(q));
-            }}
-            renderListIcon={(option) => (
-              <Box
-                sx={{
-                  width: 48,
-                  height: 48,
-                  flexShrink: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+      <Box sx={{ gridArea: "vs", minWidth: 0, mt: 2 }}>
+        <Grid container spacing={2} alignItems="flex-start">
+          <Grid item xs={12} md={4}>
+            {favorites.length > 0 ? (
+              <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mb: 1 }}>
+                {favorites.map((key) => (
+                  <Chip
+                    key={key}
+                    size="small"
+                    variant={key === targetMonster ? "filled" : "outlined"}
+                    label={G.monsters[key]?.name ?? key}
+                    onClick={() => setTargetMonster(key)}
+                    onDelete={() => toggleFavorite(key)}
+                    deleteIcon={<StarIcon fontSize="small" />}
+                  />
+                ))}
+              </Stack>
+            ) : null}
+            <Stack direction="row" gap={1} alignItems="flex-start">
+              <SimEntityAutocomplete
+                fullWidth
+                options={monsterOptions as MonsterKey[]}
+                value={targetMonster}
+                label="Target monster"
+                onChange={(value) => {
+                  if (value) setTargetMonster(value);
                 }}
+                getOptionLabel={(option) => {
+                  const name = G.monsters[option]?.name;
+                  return name ? `${name} (${option})` : option;
+                }}
+                getPrimaryLabel={(option) => G.monsters[option]?.name ?? option}
+                getSecondaryLabel={(option) => option}
+                filterOption={(key, q) => {
+                  if (key.toLowerCase().includes(q)) return true;
+                  const name = G.monsters[key as MonsterKey]?.name;
+                  return Boolean(name && name.toLowerCase().includes(q));
+                }}
+                renderListIcon={(option) => (
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <MonsterImage
+                      monsterName={option as MonsterKey}
+                      opacity={1}
+                      scale={MONSTER_ICON_SCALE}
+                      tooltip={false}
+                    />
+                  </Box>
+                )}
+                renderInputIcon={(option) => (
+                  <MonsterImage
+                    monsterName={option as MonsterKey}
+                    opacity={1}
+                    scale={1.1}
+                    tooltip={false}
+                  />
+                )}
+              />
+              <IconButton
+                aria-label={
+                  favorites.includes(targetMonster) ? "Remove monster favorite" : "Favorite monster"
+                }
+                onClick={() => toggleFavorite(targetMonster)}
+                color={favorites.includes(targetMonster) ? "warning" : "default"}
+                sx={{ mt: 0.5 }}
               >
-                <MonsterImage
-                  monsterName={option as MonsterKey}
-                  opacity={1}
-                  scale={MONSTER_ICON_SCALE}
-                  tooltip={false}
-                />
-              </Box>
-            )}
-            renderInputIcon={(option) => (
-              <MonsterImage
-                monsterName={option as MonsterKey}
-                opacity={1}
-                scale={1.1}
-                tooltip={false}
+                {favorites.includes(targetMonster) ? <StarIcon /> : <StarBorderIcon />}
+              </IconButton>
+            </Stack>
+            <Box sx={{ mt: 1.5 }}>
+              <SimEntityAutocomplete
+                fullWidth
+                options={monsterOptions as MonsterKey[]}
+                value={compareMonster}
+                label="Compare vs (optional)"
+                onChange={(value) => setCompareMonster(value)}
+                getOptionLabel={(option) => {
+                  const name = G.monsters[option]?.name;
+                  return name ? `${name} (${option})` : option;
+                }}
+                getPrimaryLabel={(option) => G.monsters[option]?.name ?? option}
+                getSecondaryLabel={(option) => option}
+                filterOption={(key, q) => {
+                  if (key.toLowerCase().includes(q)) return true;
+                  const name = G.monsters[key as MonsterKey]?.name;
+                  return Boolean(name && name.toLowerCase().includes(q));
+                }}
+                renderListIcon={(option) => (
+                  <Box sx={{ width: 40, height: 40, flexShrink: 0 }}>
+                    <MonsterImage
+                      monsterName={option as MonsterKey}
+                      opacity={1}
+                      scale={1.2}
+                      tooltip={false}
+                    />
+                  </Box>
+                )}
               />
-            )}
-          />
-          <IconButton
-            aria-label={
-              favorites.includes(targetMonster) ? "Remove monster favorite" : "Favorite monster"
-            }
-            onClick={() => toggleFavorite(targetMonster)}
-            color={favorites.includes(targetMonster) ? "warning" : "default"}
-          >
-            {favorites.includes(targetMonster) ? <StarIcon /> : <StarBorderIcon />}
-          </IconButton>
-          <SimEntityAutocomplete
-            fullWidth
-            options={monsterOptions as MonsterKey[]}
-            value={compareMonster}
-            label="Compare vs (optional)"
-            onChange={(value) => setCompareMonster(value)}
-            getOptionLabel={(option) => {
-              const name = G.monsters[option]?.name;
-              return name ? `${name} (${option})` : option;
-            }}
-            getPrimaryLabel={(option) => G.monsters[option]?.name ?? option}
-            getSecondaryLabel={(option) => option}
-            filterOption={(key, q) => {
-              if (key.toLowerCase().includes(q)) return true;
-              const name = G.monsters[key as MonsterKey]?.name;
-              return Boolean(name && name.toLowerCase().includes(q));
-            }}
-            renderListIcon={(option) => (
-              <Box sx={{ width: 40, height: 40, flexShrink: 0 }}>
-                <MonsterImage
-                  monsterName={option as MonsterKey}
-                  opacity={1}
-                  scale={1.2}
-                  tooltip={false}
-                />
-              </Box>
-            )}
-          />
-        </Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} gap={2} sx={{ mt: 1.5 }}>
-          <FormControl size="small" sx={{ minWidth: 140 }}>
-            <InputLabel id="hit-path-label">Hit path</InputLabel>
-            <Select
-              labelId="hit-path-label"
-              value={hitPath}
-              label="Hit path"
-              onChange={(e) => setHitPath(e.target.value as HitPath)}
-            >
-              <MenuItem value="basic">basic</MenuItem>
-              <MenuItem value="heal">heal</MenuItem>
-              <MenuItem value="splash">splash</MenuItem>
-            </Select>
-          </FormControl>
-          <TextField
-            size="small"
-            type="number"
-            label="Skill pierce"
-            value={skillPierce}
-            onChange={(e) => setSkillPierce(Math.max(0, Number(e.target.value) || 0))}
-            inputProps={{ min: 0, step: 1 }}
-            sx={{ width: { xs: "100%", sm: 140 } }}
-          />
-          <Typography variant="body2" sx={{ alignSelf: "center" }}>
-            <Link to={`/drops?monster=${encodeURIComponent(targetMonster)}`}>Drop Simulator</Link>
-          </Typography>
-        </Stack>
-        {chips.length > 0 && (
-          <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 1.5 }}>
-            {chips.map((chip) => (
-              <Chip
-                key={`${chip.openStat}:${chip.text}`}
+            </Box>
+            <Stack direction="row" flexWrap="wrap" gap={1.5} sx={{ mt: 1.5 }}>
+              <FormControl size="small" sx={{ minWidth: 120, flex: 1 }}>
+                <InputLabel id="hit-path-label">Hit path</InputLabel>
+                <Select
+                  labelId="hit-path-label"
+                  value={hitPath}
+                  label="Hit path"
+                  onChange={(e) => setHitPath(e.target.value as HitPath)}
+                >
+                  <MenuItem value="basic">basic</MenuItem>
+                  <MenuItem value="heal">heal</MenuItem>
+                  <MenuItem value="splash">splash</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
                 size="small"
-                color="warning"
-                variant="outlined"
-                label={chip.text}
-                onClick={() => openStat(chip.openStat)}
+                type="number"
+                label="Skill pierce"
+                value={skillPierce}
+                onChange={(e) => setSkillPierce(Math.max(0, Number(e.target.value) || 0))}
+                inputProps={{ min: 0, step: 1 }}
+                sx={{ width: 120 }}
               />
-            ))}
-          </Stack>
-        )}
-        {compareChips && compareChips.length > 0 && compareMonster ? (
-          <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 1 }}>
-            {compareChips.map((chip) => (
-              <Chip
-                key={`cmp-${compareMonster}-${chip.openStat}:${chip.text}`}
-                size="small"
-                color="info"
-                variant="outlined"
-                label={`${G.monsters[compareMonster]?.name ?? compareMonster}: ${chip.text}`}
-                onClick={() => openStat(chip.openStat)}
-              />
-            ))}
-          </Stack>
-        ) : null}
-        <Grid container spacing={2} sx={{ mt: 0.5 }}>
-          {/* md full-width row: side-by-side. lg side column: stack. */}
-          <Grid item xs={12} md={6} lg={12}>
+            </Stack>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <Link to={`/drops?monster=${encodeURIComponent(targetMonster)}`}>Drop Simulator</Link>
+            </Typography>
+            {chips.length > 0 && (
+              <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 1.5 }}>
+                {chips.map((chip) => (
+                  <Chip
+                    key={`${chip.openStat}:${chip.text}`}
+                    size="small"
+                    color="warning"
+                    variant="outlined"
+                    label={chip.text}
+                    onClick={() => openStat(chip.openStat)}
+                  />
+                ))}
+              </Stack>
+            )}
+            {compareChips && compareChips.length > 0 && compareMonster ? (
+              <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 1 }}>
+                {compareChips.map((chip) => (
+                  <Chip
+                    key={`cmp-${compareMonster}-${chip.openStat}:${chip.text}`}
+                    size="small"
+                    color="info"
+                    variant="outlined"
+                    label={`${G.monsters[compareMonster]?.name ?? compareMonster}: ${chip.text}`}
+                    onClick={() => openStat(chip.openStat)}
+                  />
+                ))}
+              </Stack>
+            ) : null}
+          </Grid>
+          <Grid item xs={12} md={4}>
             <Divider textAlign="left">ATTACK vs {monsterName}</Divider>
             <MitigationRows
               source={fakePlayer}
@@ -878,7 +864,7 @@ export function StatsPanel({
               mitigationOptions={attackMitigation}
             />
           </Grid>
-          <Grid item xs={12} md={6} lg={12}>
+          <Grid item xs={12} md={4}>
             <Divider textAlign="left">DEFENSE vs {monsterName}</Divider>
             <MitigationRows
               source={monster}
