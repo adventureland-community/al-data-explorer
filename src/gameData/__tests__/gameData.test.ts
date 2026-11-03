@@ -26,6 +26,7 @@ describe("drops", () => {
         probability: 0.5,
         quantity: null,
         title: "",
+        data: "",
         nestedTable: "",
       },
       {
@@ -35,6 +36,7 @@ describe("drops", () => {
         probability: null,
         quantity: null,
         title: "",
+        data: "",
         nestedTable: "",
       },
     ]);
@@ -59,6 +61,7 @@ describe("drops", () => {
         probability: 0.01,
         quantity: null,
         title: "",
+        data: "",
         nestedTable: "",
       },
       {
@@ -68,6 +71,7 @@ describe("drops", () => {
         probability: 1,
         quantity: 7,
         title: "",
+        data: "",
         nestedTable: "",
       },
     ]);
@@ -149,6 +153,7 @@ describe("drops", () => {
         probability: 50,
         quantity: null,
         title: "",
+        data: "",
         nestedTable: "",
       },
       {
@@ -158,6 +163,7 @@ describe("drops", () => {
         probability: 40,
         quantity: null,
         title: "",
+        data: "",
         nestedTable: "",
       },
       {
@@ -167,6 +173,7 @@ describe("drops", () => {
         probability: 0.015625,
         quantity: null,
         title: "",
+        data: "",
         nestedTable: "",
       },
     ]);
@@ -240,23 +247,61 @@ describe("drops", () => {
     expect(formatDropProbability(common?.probability)).not.toBe("1 / 1");
   });
 
-  it("maps official G.drops `cx` shorthand to cxjar with cosmetic title", () => {
+  it("maps official G.drops `cx` shorthand to cxjar with cosmetic data", () => {
     // Server drop_item_logic: name=="cx" → name="cxjar", data = cosmetic id.
     const rows = extractDropRates({
       cosmo0: [
         [0.5, "cx", "marmor10a"],
         [1, "cxjar", 1, "breyes"],
+        [1, "emotionjar", 1, "smile"],
       ],
     });
-    const fromCx = rows.find((r) => r.title === "marmor10a");
+    const fromCx = rows.find((r) => r.data === "marmor10a");
     expect(fromCx).toMatchObject({
       itemKey: "cxjar",
       sourceType: "table",
       sourceKey: "cosmo0",
-      title: "marmor10a",
+      title: "",
+      data: "marmor10a",
+    });
+    expect(rows.find((r) => r.itemKey === "emotionjar")).toMatchObject({
+      data: "smile",
+      title: "",
     });
     expect(rows.every((r) => r.itemKey !== "cx")).toBe(true);
     expect(rows.filter((r) => r.itemKey === "cxjar")).toHaveLength(2);
+  });
+
+  it("parses drop[4] item titles on exchange tables only", () => {
+    // Server exchange: if (drop[4]) add_item_property(item, drop[4]).
+    // Kill chests do not — even if the tuple has a 5th field.
+    const rows = extractDropRates({
+      greenenvelope: [
+        [0.1, "cdragon", null, null, "lucky"],
+        [1, "oxhelmet", null, null, "lucky"],
+        [1, "cdragon"],
+      ],
+      monsters: {
+        goo: [100, [0.01, "cdragon", null, null, "lucky"]],
+      },
+    });
+    const luckyArmor = rows.find(
+      (r) => r.sourceKey === "greenenvelope" && r.itemKey === "cdragon" && r.title === "lucky",
+    );
+    const plainArmor = rows.find(
+      (r) => r.sourceKey === "greenenvelope" && r.itemKey === "cdragon" && r.title === "",
+    );
+    const luckyHelm = rows.find((r) => r.itemKey === "oxhelmet");
+    const monsterLucky = rows.find((r) => r.sourceType === "monster" && r.itemKey === "cdragon");
+    expect(luckyArmor).toMatchObject({
+      sourceKey: "greenenvelope",
+      quantity: null,
+      title: "lucky",
+      data: "",
+    });
+    expect(plainArmor).toMatchObject({ title: "", data: "" });
+    expect(luckyHelm).toMatchObject({ title: "lucky" });
+    expect(monsterLucky).toMatchObject({ title: "", data: "" });
   });
 });
 

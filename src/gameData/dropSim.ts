@@ -38,8 +38,10 @@ export type WeightedEntry = {
   weight: number;
   itemKey: string;
   quantity: number | null;
-  /** Drop payload: cxjar cosmetic id, or gear title (`p`). */
+  /** Gear title key (`item.p`) when the grant path applies `drop[4]`. */
   title: string;
+  /** Jar / cx cosmetic id (`ItemInfo.data`). */
+  data: string;
   nestedTable: string;
 };
 
@@ -55,8 +57,10 @@ export type AbsoluteOpportunity = {
   baseRate: number;
   itemKey: string;
   quantity: number | null;
-  /** Drop payload: cxjar cosmetic id, or gear title (`p`). */
+  /** Always empty on kill paths — chests do not apply `drop[4]`. */
   title: string;
+  /** Jar / cx cosmetic id (`ItemInfo.data`). */
+  data: string;
   nestedTable: string;
   /** How many independent rolls of this row per kill (coop table multiplier). */
   repeats: number;
@@ -69,8 +73,10 @@ export type OpportunitySet =
 export type OutcomeRow = {
   itemKey: string;
   quantity: number | null;
-  /** Drop payload: cxjar cosmetic id, or gear title (`p`). */
+  /** Gear title key (`item.p`). */
   title: string;
+  /** Jar / cx cosmetic id. */
+  data: string;
   observed: number;
   expected: number;
   /** Per-trial grant probability for this leaf (before × n). */
@@ -155,6 +161,7 @@ export function diffFromLive(live: ScenarioFlags, scenario: ScenarioFlags): stri
   return deltas;
 }
 
+/** Parse exclusive-table rows with titles intact (exchange semantics). */
 function parseWeightedEntries(raw: unknown[]): WeightedEntry[] {
   const total = tableTotalWeight(raw);
   if (total <= 0) return [];
@@ -168,11 +175,17 @@ function parseWeightedEntries(raw: unknown[]): WeightedEntry[] {
         itemKey: row.itemKey,
         quantity: row.quantity,
         title: row.title,
+        data: row.data,
         nestedTable: row.nestedTable,
       });
     }
   }
   return entries;
+}
+
+/** Kill/chest_exchange never applies drop[4] — strip before rolling nested opens. */
+function stripDropTitles(entries: WeightedEntry[]): WeightedEntry[] {
+  return entries.map((entry) => (entry.title ? { ...entry, title: "" } : entry));
 }
 
 export function buildExchangeOpportunities(
@@ -201,7 +214,10 @@ function parseAbsoluteRows(
 ): AbsoluteOpportunity[] {
   const rows: AbsoluteOpportunity[] = [];
   for (const entry of entries) {
-    const parsed = parseDropEntry(sourceType, sourceKey, entry, "absolute");
+    // Kill/chest path — never apply drop[4] titles (including konami as sourceType table).
+    const parsed = parseDropEntry(sourceType, sourceKey, entry, "absolute", undefined, {
+      applyTitleProperty: false,
+    });
     for (const row of parsed) {
       const base = absoluteBaseProbability(row.probability);
       const rawRate = base * modifier;
@@ -214,6 +230,7 @@ function parseAbsoluteRows(
         itemKey: row.itemKey,
         quantity: row.quantity,
         title: row.title,
+        data: row.data,
         nestedTable: row.nestedTable,
         repeats,
       });
@@ -539,10 +556,10 @@ export function planKillDrops(input: PlanKillDropsInput): KillDropPlan | null {
   };
 }
 
-type LeafGrant = { itemKey: string; quantity: number | null; title: string };
+type LeafGrant = { itemKey: string; quantity: number | null; title: string; data: string };
 
 function grantKey(grant: LeafGrant): string {
-  return `${grant.itemKey}\0${grant.quantity ?? ""}\0${grant.title}`;
+  return `${grant.itemKey}\0${grant.quantity ?? ""}\0${grant.title}\0${grant.data}`;
 }
 
 function rollWeightedExclusive(
@@ -550,6 +567,8 @@ function rollWeightedExclusive(
   drops: Record<string, unknown>,
   rng: Rng,
   depth = 0,
+  /** When true, nested opens keep titles (exchange). Kill paths pass stripped entries. */
+  preserveTitles = true,
 ): LeafGrant | null {
   if (entries.length === 0 || depth > 16) return null;
   let total = 0;
@@ -565,10 +584,22 @@ function rollWeightedExclusive(
     if (entry.nestedTable) {
       const nested = drops[entry.nestedTable];
       if (!Array.isArray(nested)) return null;
-      return rollWeightedExclusive(parseWeightedEntries(nested), drops, rng, depth + 1);
+      const nestedEntries = parseWeightedEntries(nested);
+      return rollWeightedExclusive(
+        preserveTitles ? nestedEntries : stripDropTitles(nestedEntries),
+        drops,
+        rng,
+        depth + 1,
+        preserveTitles,
+      );
     }
     if (!entry.itemKey) return null;
-    return { itemKey: entry.itemKey, quantity: entry.quantity, title: entry.title };
+    return {
+      itemKey: entry.itemKey,
+      quantity: entry.quantity,
+      title: entry.title,
+      data: entry.data,
+    };
   }
   return null;
 }
@@ -578,6 +609,7 @@ type LeafExpect = {
   quantity: number | null;
   itemKey: string;
   title: string;
+  data: string;
 };
 
 /** Expected leaf probabilities for one exclusive roll (open expanded). */
@@ -585,6 +617,7 @@ function exclusiveLeafProbabilities(
   entries: WeightedEntry[],
   drops: Record<string, unknown>,
   depth = 0,
+  preserveTitles = true,
 ): Map<string, LeafExpect> {
   const out = new Map<string, LeafExpect>();
   if (entries.length === 0 || depth > 16) return out;
@@ -599,10 +632,12 @@ function exclusiveLeafProbabilities(
     if (entry.nestedTable) {
       const nested = drops[entry.nestedTable];
       if (!Array.isArray(nested)) continue;
+      const nestedEntries = parseWeightedEntries(nested);
       const nestedLeaves = exclusiveLeafProbabilities(
-        parseWeightedEntries(nested),
+        preserveTitles ? nestedEntries : stripDropTitles(nestedEntries),
         drops,
         depth + 1,
+        preserveTitles,
       );
       for (const [key, leaf] of nestedLeaves) {
         const prev = out.get(key);
@@ -614,6 +649,7 @@ function exclusiveLeafProbabilities(
             itemKey: leaf.itemKey,
             quantity: leaf.quantity,
             title: leaf.title,
+            data: leaf.data,
             probability: add,
           });
         }
@@ -630,6 +666,7 @@ function exclusiveLeafProbabilities(
         itemKey: entry.itemKey,
         quantity: entry.quantity,
         title: entry.title,
+        data: entry.data,
         probability: p,
       });
     }
@@ -640,7 +677,7 @@ function exclusiveLeafProbabilities(
 function addObserved(
   counts: Map<
     string,
-    { itemKey: string; quantity: number | null; title: string; observed: number }
+    { itemKey: string; quantity: number | null; title: string; data: string; observed: number }
   >,
   grant: LeafGrant,
   amount = 1,
@@ -654,6 +691,7 @@ function addObserved(
       itemKey: grant.itemKey,
       quantity: grant.quantity,
       title: grant.title,
+      data: grant.data,
       observed: amount,
     });
   }
@@ -661,7 +699,7 @@ function addObserved(
 
 function expectedMapFromSet(set: OpportunitySet): Map<string, LeafExpect> {
   if (set.kind === "exchange") {
-    return exclusiveLeafProbabilities(set.entries, set.drops);
+    return exclusiveLeafProbabilities(set.entries, set.drops, 0, true);
   }
 
   const out = new Map<string, LeafExpect>();
@@ -670,7 +708,13 @@ function expectedMapFromSet(set: OpportunitySet): Map<string, LeafExpect> {
     if (row.nestedTable) {
       const nested = set.drops[row.nestedTable];
       if (!Array.isArray(nested)) continue;
-      const leaves = exclusiveLeafProbabilities(parseWeightedEntries(nested), set.drops);
+      // Kill open → chest_exchange: strip drop[4] titles.
+      const leaves = exclusiveLeafProbabilities(
+        stripDropTitles(parseWeightedEntries(nested)),
+        set.drops,
+        0,
+        false,
+      );
       for (const [key, leaf] of leaves) {
         const add = successP * leaf.probability;
         const prev = out.get(key);
@@ -681,6 +725,7 @@ function expectedMapFromSet(set: OpportunitySet): Map<string, LeafExpect> {
             itemKey: leaf.itemKey,
             quantity: leaf.quantity,
             title: leaf.title,
+            data: leaf.data,
             probability: add,
           });
         }
@@ -697,6 +742,7 @@ function expectedMapFromSet(set: OpportunitySet): Map<string, LeafExpect> {
         itemKey: row.itemKey,
         quantity: row.quantity,
         title: row.title,
+        data: row.data,
         probability: successP,
       });
     }
@@ -744,7 +790,7 @@ export function simulateOutcomes(args: {
       : new Set<string>();
   const observed = new Map<
     string,
-    { itemKey: string; quantity: number | null; title: string; observed: number }
+    { itemKey: string; quantity: number | null; title: string; data: string; observed: number }
   >();
 
   for (let i = 0; i < n; i += 1) {
@@ -763,9 +809,11 @@ export function simulateOutcomes(args: {
             const nested = args.opportunities.drops[row.nestedTable];
             if (!Array.isArray(nested)) continue;
             const grant = rollWeightedExclusive(
-              parseWeightedEntries(nested),
+              stripDropTitles(parseWeightedEntries(nested)),
               args.opportunities.drops,
               rng,
+              0,
+              false,
             );
             if (grant) addObserved(observed, grant);
             continue;
@@ -775,6 +823,7 @@ export function simulateOutcomes(args: {
             itemKey: row.itemKey,
             quantity: row.quantity,
             title: row.title,
+            data: row.data,
           });
         }
       }
@@ -793,6 +842,7 @@ export function simulateOutcomes(args: {
       itemKey,
       quantity: exp?.quantity ?? obs?.quantity ?? null,
       title: exp?.title ?? obs?.title ?? "",
+      data: exp?.data ?? obs?.data ?? "",
       observed: obs?.observed ?? 0,
       expected: probability * n,
       probability,
@@ -804,7 +854,8 @@ export function simulateOutcomes(args: {
     (a, b) =>
       b.expected - a.expected ||
       a.itemKey.localeCompare(b.itemKey) ||
-      a.title.localeCompare(b.title),
+      a.title.localeCompare(b.title) ||
+      a.data.localeCompare(b.data),
   );
   return rows;
 }

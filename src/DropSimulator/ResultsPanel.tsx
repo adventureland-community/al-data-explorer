@@ -16,9 +16,10 @@ import { ItemKey } from "typed-adventureland";
 
 import { formatDropProbability } from "../gameData/drops";
 import { OutcomeRow } from "../gameData/dropSim";
-import { itemInfoFromDropFields } from "../gameData/itemInstanceData";
+import { formatItemDataCaption, itemInfoFromDropFields } from "../gameData/itemInstanceData";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
+import { getTitleName } from "../Shared/iteminfo-util";
 import { abbreviateNumber } from "../Shared/utils";
 import { simNumericCellSx, simPanelPaperSx, simTableSx } from "./simTableStyles";
 
@@ -30,14 +31,18 @@ export type TokenCostRow = { tokenKey: string; total: number };
 function ResultItemCell({ row }: { row: OutcomeRow }) {
   const G = useContext(GDataContext);
   const gItem = G?.items[row.itemKey as ItemKey];
-  const displayName = gItem?.name ?? row.itemKey;
   const href = gItem ? `/items/${encodeURIComponent(row.itemKey)}` : undefined;
   const itemInfo = itemInfoFromDropFields({
     itemKey: row.itemKey,
     quantity: row.quantity,
     title: row.title,
+    data: row.data,
   });
-  const payload = row.title ? ` · ${row.title}` : "";
+  const titleName = G && itemInfo.p ? getTitleName(itemInfo, G) : "";
+  const baseName = gItem?.name ?? row.itemKey;
+  const displayName = titleName ? `${titleName} ${baseName}` : baseName;
+  const dataCaption = formatItemDataCaption(itemInfo);
+  const keyLine = dataCaption ? `${row.itemKey} · ${dataCaption}` : row.itemKey;
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -58,8 +63,7 @@ function ResultItemCell({ row }: { row: OutcomeRow }) {
           </Typography>
         )}
         <Typography variant="caption" color="text.secondary" display="block">
-          {row.itemKey}
-          {payload}
+          {keyLine}
         </Typography>
       </Box>
     </Box>
@@ -168,7 +172,10 @@ export function ResultsPanel({
                 const deltaPct =
                   row.expected > 0 ? ((row.observed - row.expected) / row.expected) * 100 : null;
                 return (
-                  <TableRow key={`${row.itemKey}-${row.quantity ?? ""}-${row.title}`} hover>
+                  <TableRow
+                    key={`${row.itemKey}-${row.quantity ?? ""}-${row.title}-${row.data}`}
+                    hover
+                  >
                     <TableCell>
                       <ResultItemCell row={row} />
                     </TableCell>

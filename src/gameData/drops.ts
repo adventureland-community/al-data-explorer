@@ -52,6 +52,36 @@ export function sortDropSources(drops: DropSource[]): DropSource[] {
   });
 }
 
+/** Pretty `G.titles[key].title` when present (e.g. lucky → Lucky); else the raw key. */
+export function formatDropTitleLabel(
+  title: string,
+  titles?: Record<string, { title?: string } | undefined> | null,
+): string {
+  if (!title) return "";
+  const pretty = titles?.[title]?.title;
+  return typeof pretty === "string" && pretty.length > 0 ? pretty : title;
+}
+
+/**
+ * Drop payload caption: jar cosmetic `data`, and/or gear title (`item.p`).
+ * Empty when the row has neither.
+ */
+export function formatDropPayloadCaption(
+  args: {
+    itemKey: string;
+    title: string;
+    data?: string;
+  },
+  titles?: Record<string, { title?: string } | undefined> | null,
+): string {
+  const bits: string[] = [];
+  const data = args.data?.trim() || "";
+  const title = args.title?.trim() || "";
+  if (data) bits.push(`Contains ${data}`);
+  if (title) bits.push(formatDropTitleLabel(title, titles));
+  return bits.join(" · ");
+}
+
 /** Format like in-game: chance ≥ 1 is guaranteed rolls ("N / 1"), else a percent or "1 in N". */
 export function formatDropProbability(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value) || value <= 0) return "—";
@@ -88,10 +118,10 @@ export function formatMergedDropOdds(probs: number[]): string {
 export function mergeDropSources(drops: DropSource[]): Array<DropSource & { oddsLabel: string }> {
   const groups = new Map<string, DropSource[]>();
   for (const drop of drops) {
-    // Include title/data so distinct cxjar cosmetics (and titled gear) stay separate.
+    // Include title/data so distinct jar cosmetics (and titled gear) stay separate.
     const id = `${drop.sourceType}\0${drop.sourceKey}\0${drop.itemKey}\0${drop.title}\0${
-      drop.quantity ?? ""
-    }`;
+      drop.data
+    }\0${drop.quantity ?? ""}`;
     const list = groups.get(id) ?? [];
     list.push(drop);
     groups.set(id, list);
@@ -124,7 +154,8 @@ function formatParsedDropRows(rows: DropSource[]): string {
     .map((row) => {
       const name = row.nestedTable || row.itemKey;
       if (!name) return "";
-      const payload = row.title ? ` · ${row.title}` : "";
+      const payloadBits = [row.title, row.data].filter(Boolean);
+      const payload = payloadBits.length ? ` · ${payloadBits.join(" · ")}` : "";
       const label = `${name}${payload}`;
       if (row.probability == null) return label;
       return `${label} (${formatDropProbability(row.probability)})`;

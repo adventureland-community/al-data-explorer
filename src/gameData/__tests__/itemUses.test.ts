@@ -91,6 +91,33 @@ describe("getItemUses", () => {
     expect(uses.exchangeRewards[0]?.oddsLabel).toBe("50.00%");
   });
 
+  it("labels titled exchange rewards (drop[4] lucky)", () => {
+    const G = stubG({
+      items: {
+        greenenvelope: { name: "Green Envelope", type: "gem", e: 1 },
+        cdragon: { name: "Dragon Armor", type: "chest" },
+      } as unknown as CustomGData["items"],
+      titles: {
+        lucky: { type: "all_items", luck: 2, title: "Lucky" },
+      } as unknown as CustomGData["titles"],
+      npcs: {
+        exchange: { id: "exchange", role: "exchange", name: "Xyn", items: [] },
+      } as unknown as CustomGData["npcs"],
+      drops: {
+        monsters: {},
+        greenenvelope: [[0.1, "cdragon", null, null, "lucky"]],
+      },
+    });
+
+    const uses = getItemUses("greenenvelope" as ItemKey, G);
+    expect(uses.exchangeRewards).toHaveLength(1);
+    expect(uses.exchangeRewards[0]).toMatchObject({
+      itemKey: "cdragon",
+      title: "lucky",
+      label: "Lucky Dragon Armor",
+    });
+  });
+
   it("returns empty when the item has no spends or exchange table", () => {
     const G = stubG({
       items: {

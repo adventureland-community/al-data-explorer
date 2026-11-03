@@ -431,6 +431,7 @@ describe("buildKillInspectionRows", () => {
         itemKey: "seashell",
         quantity: null,
         title: "",
+        data: "",
         nestedTable: "",
         repeats: 1,
       },
@@ -441,6 +442,7 @@ describe("buildKillInspectionRows", () => {
         itemKey: "suckerpunch",
         quantity: null,
         title: "",
+        data: "",
         nestedTable: "",
         repeats: 1,
       },
@@ -459,6 +461,7 @@ describe("buildKillInspectionRows", () => {
         itemKey: "suckerpunch",
         quantity: null,
         title: "",
+        data: "",
         nestedTable: "",
         repeats: 2,
       },
@@ -469,6 +472,7 @@ describe("buildKillInspectionRows", () => {
         itemKey: "seashell",
         quantity: null,
         title: "",
+        data: "",
         nestedTable: "",
         repeats: 2,
       },
@@ -489,6 +493,7 @@ describe("buildKillInspectionRows", () => {
           itemKey: "ringofluck",
           quantity: null,
           title: "",
+          data: "",
           nestedTable: "",
           repeats: 1,
         },
@@ -499,6 +504,7 @@ describe("buildKillInspectionRows", () => {
           itemKey: "seashell",
           quantity: null,
           title: "",
+          data: "",
           nestedTable: "",
           repeats: 1,
         },
@@ -509,6 +515,7 @@ describe("buildKillInspectionRows", () => {
           itemKey: "cryptkey",
           quantity: null,
           title: "",
+          data: "",
           nestedTable: "",
           repeats: 2,
         },
@@ -521,6 +528,76 @@ describe("buildKillInspectionRows", () => {
     expect(rows[1]?.luckmToGuarantee).toBeNull();
     expect(rows[2]?.guaranteedNow).toBe(false);
     expect(rows[2]?.luckmToGuarantee).toBeCloseTo(1.1 / 0.3, 6);
+  });
+});
+
+describe("drop title vs data grant paths", () => {
+  it("keeps drop[4] titles on exchange opportunities", () => {
+    const set = buildExchangeOpportunities(
+      {
+        greenenvelope: [[1, "cdragon", null, null, "lucky"]],
+      },
+      "greenenvelope",
+    );
+    expect(set?.kind).toBe("exchange");
+    if (!set || set.kind !== "exchange") return;
+    expect(set.entries[0]).toMatchObject({
+      itemKey: "cdragon",
+      title: "lucky",
+      data: "",
+    });
+    const rows = simulateOutcomes({
+      opportunities: set,
+      n: 1,
+      rng: seqRngFrom([0]),
+    });
+    expect(rows[0]).toMatchObject({ itemKey: "cdragon", title: "lucky", data: "" });
+  });
+
+  it("strips drop[4] titles on kill nested opens (chest_exchange)", () => {
+    const drops = {
+      monsters: {
+        goo: [100, [1, "open", "greenenvelope"]],
+      },
+      greenenvelope: [[1, "cdragon", null, null, "lucky"]],
+    };
+    const policy = resolveKillPolicy({
+      cooperative: false,
+      oneHp: false,
+      share: 1,
+      contributors: 1,
+    });
+    const pools = buildKillPools({
+      drops,
+      monsterKey: "goo",
+      luckm: 1,
+      policy,
+      level: 1,
+    });
+    const set = buildKillOpportunities({ drops, pools, policy });
+    expect(set.kind).toBe("kill");
+    const rows = simulateOutcomes({
+      opportunities: set,
+      n: 1,
+      rng: seqRngFrom([0, 0]),
+    });
+    expect(rows[0]).toMatchObject({ itemKey: "cdragon", title: "", data: "" });
+  });
+
+  it("keeps cxbundle cosmetic data on exchange leaves", () => {
+    const set = buildExchangeOpportunities(
+      {
+        cosmo0: [[1, "cxbundle", "pinkb"]],
+      },
+      "cosmo0",
+    );
+    expect(set?.kind).toBe("exchange");
+    if (!set || set.kind !== "exchange") return;
+    expect(set.entries[0]).toMatchObject({
+      itemKey: "cxbundle",
+      data: "pinkb",
+      title: "",
+    });
   });
 });
 

@@ -23,8 +23,11 @@ function DropRows({ rows, items }: { rows: DropSource[]; items: GItems }) {
         const itemKey = drop.nestedTable || drop.itemKey;
         if (!itemKey) return null;
         const itemDef = (items as Record<string, GItem | undefined>)[itemKey];
-        const displayName = itemDef?.name ?? itemKey;
-        const rowKey = `${drop.sourceType}-${itemKey}-${drop.title}-${drop.probability}-${index}`;
+        const baseName = itemDef?.name ?? itemKey;
+        const titleBit = drop.title ? `${drop.title} ` : "";
+        const dataBit = drop.data ? ` · ${drop.data}` : "";
+        const displayName = `${titleBit}${baseName}${dataBit}`;
+        const rowKey = `${drop.sourceType}-${itemKey}-${drop.title}-${drop.data}-${drop.probability}-${index}`;
         return (
           <ListItem key={rowKey} disableGutters disablePadding sx={{ minHeight: 24 }}>
             <ListItemText

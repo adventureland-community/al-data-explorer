@@ -5,6 +5,7 @@ export type NestedLeafShare = {
   probability: number;
   quantity: number | null;
   title: string;
+  data: string;
 };
 
 /** Expand an open nested table into leaf shares for display (exchange or kill open row). */
@@ -12,6 +13,8 @@ export function nestedLeafShares(
   drops: Record<string, unknown>,
   nestedTable: string,
   openProbability: number,
+  /** Kill opens use chest_exchange (no drop[4]); exchange opens keep titles. */
+  preserveTitles = true,
 ): NestedLeafShare[] {
   const nested = drops[nestedTable];
   if (!Array.isArray(nested) || !(openProbability > 0)) return [];
@@ -29,7 +32,8 @@ export function nestedLeafShares(
         itemKey: row.itemKey,
         probability: openProbability * row.probability,
         quantity: row.quantity,
-        title: row.title,
+        title: preserveTitles ? row.title : "",
+        data: row.data,
       });
     }
   }
