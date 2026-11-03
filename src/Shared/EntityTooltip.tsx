@@ -57,6 +57,8 @@ function TooltipLines({ lines }: { lines: EntityTooltipLine[] }) {
               : line.bonuses.length === 0 &&
                 line.upgrade.length === 0 &&
                 line.compound.length === 0;
+          // Equip-table presence alone is not a modifier — hide empty class/context rows.
+          if (empty) return null;
           const bonusRows =
             line.kind === "class_slot"
               ? line.bonuses
@@ -70,14 +72,11 @@ function TooltipLines({ lines }: { lines: EntityTooltipLine[] }) {
               key={boxKey}
               sx={{
                 borderLeft: `2px solid ${accent}`,
-                backgroundImage: empty
-                  ? "none"
-                  : `linear-gradient(90deg, ${accent}18 0%, transparent 72%)`,
+                backgroundImage: `linear-gradient(90deg, ${accent}18 0%, transparent 72%)`,
                 borderRadius: 0.5,
                 px: 0.7,
                 py: 0.3,
                 mb: 0.35,
-                opacity: empty ? 0.72 : 1,
                 display: "flex",
                 flexWrap: "wrap",
                 alignItems: "baseline",
@@ -137,34 +136,28 @@ function TooltipLines({ lines }: { lines: EntityTooltipLine[] }) {
                   </Box>
                 </>
               )}
-              {empty ? (
-                <Box component="span" sx={{ color: "text.secondary", fontStyle: "italic" }}>
-                  No Modifier
-                </Box>
-              ) : (
-                bonusRows.map((bonus, index) => (
+              {bonusRows.map((bonus, index) => (
+                <Box
+                  component="span"
+                  key={`${bonus.label}:${bonus.value}`}
+                  sx={{ fontVariantNumeric: "tabular-nums" }}
+                >
+                  {index > 0 ? (
+                    <Box component="span" sx={{ color: "text.disabled", mx: 0.35 }}>
+                      ·
+                    </Box>
+                  ) : null}
                   <Box
                     component="span"
-                    key={`${bonus.label}:${bonus.value}`}
-                    sx={{ fontVariantNumeric: "tabular-nums" }}
+                    sx={{ color: bonus.labelColor ?? "text.secondary", fontWeight: 600 }}
                   >
-                    {index > 0 ? (
-                      <Box component="span" sx={{ color: "text.disabled", mx: 0.35 }}>
-                        ·
-                      </Box>
-                    ) : null}
-                    <Box
-                      component="span"
-                      sx={{ color: bonus.labelColor ?? "text.secondary", fontWeight: 600 }}
-                    >
-                      {bonus.label}
-                    </Box>{" "}
-                    <Box component="span" sx={{ fontWeight: 700 }}>
-                      {bonus.value}
-                    </Box>
+                    {bonus.label}
+                  </Box>{" "}
+                  <Box component="span" sx={{ fontWeight: 700 }}>
+                    {bonus.value}
                   </Box>
-                ))
-              )}
+                </Box>
+              ))}
             </Box>
           );
         }

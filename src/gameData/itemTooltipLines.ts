@@ -286,6 +286,7 @@ function pushClassSlotLines(gItem: GItem, G: GData, lines: ItemTooltipLine[]) {
   if (!G.classes) return;
   const rows = itemClassSlotRows(G.classes, gItem);
   for (const row of rows) {
+    if (row.bonuses.length === 0) continue;
     lines.push({
       kind: "class_slot",
       classKey: row.classKey,

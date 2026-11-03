@@ -779,7 +779,7 @@ export function ItemDetail() {
               <ItemContextBonuses rows={contextBonusRows} />
             </Box>
           )}
-          {classSlotRows.length > 0 && (
+          {classSlotRows.some((row) => row.bonuses.length > 0) && (
             <Box sx={{ mb: 2 }}>
               <ItemClassSlotMods rows={classSlotRows} />
             </Box>

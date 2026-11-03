@@ -120,11 +120,11 @@ describe("buildItemTooltipLines", () => {
     );
 
     const slots = lines.filter((l) => l.kind === "class_slot");
-    expect(slots).toHaveLength(4);
-    expect(slots.some((l) => l.kind === "class_slot" && l.classKey === "merchant")).toBe(true);
-    const merchant = slots.find((l) => l.kind === "class_slot" && l.classKey === "merchant");
-    expect(merchant).toMatchObject({
+    // Empty equip-table entries (rogue/ranger) are omitted — only real modifiers show.
+    expect(slots).toHaveLength(1);
+    expect(slots[0]).toMatchObject({
       kind: "class_slot",
+      classKey: "merchant",
       slotLabel: "Mainhand",
       bonuses: [{ label: "Speed", value: "-3" }],
     });
