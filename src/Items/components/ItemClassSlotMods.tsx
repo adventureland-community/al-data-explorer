@@ -13,12 +13,11 @@ import {
 function SlotModRow({ row }: { row: ItemClassSlotRow }) {
   const color = CLASS_COLOR[row.classKey];
   const slotLabel = CLASS_SLOT_LABELS[row.slot];
-  const empty = row.bonuses.length === 0;
 
   return (
     <Box
       sx={{
-        ...modifierRowSx(color, { empty }),
+        ...modifierRowSx(color),
         display: "flex",
         flexWrap: "wrap",
         alignItems: "baseline",
@@ -52,13 +51,14 @@ function SlotModRow({ row }: { row: ItemClassSlotRow }) {
 }
 
 export function ItemClassSlotMods({ rows }: { rows: ItemClassSlotRow[] }) {
-  if (rows.length === 0) return null;
+  const withModifiers = rows.filter((row) => row.bonuses.length > 0);
+  if (withModifiers.length === 0) return null;
 
   return (
     <Paper sx={{ p: 1.5 }}>
       <ModifierSectionHeader title="Class slot modifiers" />
       <Stack spacing={0.4}>
-        {rows.map((row) => (
+        {withModifiers.map((row) => (
           <SlotModRow key={`${row.classKey}-${row.slot}`} row={row} />
         ))}
       </Stack>
