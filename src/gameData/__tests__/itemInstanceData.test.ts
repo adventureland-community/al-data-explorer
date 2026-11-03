@@ -29,17 +29,29 @@ describe("itemInstanceData", () => {
     });
   });
 
-  it("maps drop title to ItemInfo.data for cxjar", () => {
-    expect(
-      itemInfoFromDropFields({ itemKey: "cxjar", quantity: 1, title: "breyes" }),
-    ).toStrictEqual({
-      name: "cxjar",
-      q: 1,
-      data: "breyes",
-    });
+  it("maps drop data/title fields onto ItemInfo", () => {
+    expect(itemInfoFromDropFields({ itemKey: "cxjar", quantity: 1, data: "breyes" })).toStrictEqual(
+      {
+        name: "cxjar",
+        q: 1,
+        data: "breyes",
+      },
+    );
+    // Legacy: jar cosmetic stuffed into title still works.
     expect(itemInfoFromDropFields({ itemKey: "cx", title: "marmor10a" })).toStrictEqual({
       name: "cxjar",
       data: "marmor10a",
+    });
+    expect(
+      itemInfoFromDropFields({ itemKey: "emotionjar", data: "smile", title: "lucky" }),
+    ).toStrictEqual({
+      name: "emotionjar",
+      data: "smile",
+      p: "lucky",
+    });
+    expect(itemInfoFromDropFields({ itemKey: "cxbundle", data: "pinkb" })).toStrictEqual({
+      name: "cxbundle",
+      data: "pinkb",
     });
     expect(itemInfoFromDropFields({ itemKey: "sword", title: "lucky" })).toStrictEqual({
       name: "sword",

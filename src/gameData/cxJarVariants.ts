@@ -51,7 +51,8 @@ export function listCxJarVariants(G: CustomGData): CxJarVariant[] {
 
   const drops = prepareDropSourcesForDisplay(G.indexes.dropsByItem.get("cxjar" as ItemKey) ?? []);
   for (const drop of drops) {
-    if (!drop.title) continue;
+    const cosmeticId = drop.data || drop.title;
+    if (!cosmeticId) continue;
     const isMonster = drop.sourceType === "monster" || drop.sourceType === "monster_home";
     const monsterName = isMonster
       ? (G.monsters as Record<string, { name?: string } | undefined>)?.[drop.sourceKey]?.name
@@ -65,7 +66,7 @@ export function listCxJarVariants(G: CustomGData): CxJarVariant[] {
       : drop.sourceType === "map"
       ? mapName ?? drop.sourceKey
       : drop.sourceKey;
-    push(drop.title, {
+    push(cosmeticId, {
       kind: "drop",
       sourceType: drop.sourceType,
       sourceKey: drop.sourceKey,

@@ -17,9 +17,10 @@ import { ItemKey } from "typed-adventureland";
 import { formatDropProbability } from "../gameData/drops";
 import { COOP_MIN_DROP_SHARE, OddsInspectionRow } from "../gameData/dropSim";
 import { nestedLeafShares } from "../gameData/dropSimViz";
-import { itemInfoFromDropFields } from "../gameData/itemInstanceData";
+import { formatItemDataCaption, itemInfoFromDropFields } from "../gameData/itemInstanceData";
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
+import { getTitleName } from "../Shared/iteminfo-util";
 import { abbreviateNumber } from "../Shared/utils";
 import { luckmToUiPercent } from "./luckFromGear";
 import { simNumericCellSx, simPanelPaperSx, simTableSx } from "./simTableStyles";
@@ -76,13 +77,17 @@ function ItemCell({ row }: { row: OddsInspectionRow }) {
 
   const gItem = G?.items[row.itemKey as ItemKey];
   const href = gItem ? `/items/${encodeURIComponent(row.itemKey)}` : undefined;
-  const displayName = gItem?.name ?? row.itemKey;
   const itemInfo = itemInfoFromDropFields({
     itemKey: row.itemKey,
     quantity: row.quantity,
     title: row.title,
+    data: row.data,
   });
-  const payload = row.title ? ` · ${row.title}` : "";
+  const titleName = G && itemInfo.p ? getTitleName(itemInfo, G) : "";
+  const baseName = gItem?.name ?? row.itemKey;
+  const displayName = titleName ? `${titleName} ${baseName}` : baseName;
+  const dataCaption = formatItemDataCaption(itemInfo);
+  const keyLine = dataCaption ? `${row.itemKey} · ${dataCaption}` : row.itemKey;
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -103,8 +108,7 @@ function ItemCell({ row }: { row: OddsInspectionRow }) {
           </Typography>
         )}
         <Typography variant="caption" color="text.secondary" display="block">
-          {row.itemKey}
-          {payload}
+          {keyLine}
           {gItem?.tier != null ? ` · Tier ${gItem.tier}` : ""}
           {gItem?.type ? ` · ${gItem.type}${gItem.wtype ? ` ${gItem.wtype}` : ""}` : ""}
         </Typography>
@@ -267,6 +271,7 @@ export function OddsPanel({
                       drops,
                       row.nestedTable,
                       mode === "kill" ? row.perKillRate ?? row.probability : row.probability,
+                      mode === "exchange",
                     )
                   : [];
               return (
@@ -333,8 +338,22 @@ export function OddsPanel({
                     const href = gItem ? `/items/${encodeURIComponent(leaf.itemKey)}` : undefined;
                     const leafExp =
                       leaf.probability > 0 && leaf.probability < 1 ? 1 / leaf.probability : null;
+                    const leafInfo = itemInfoFromDropFields({
+                      itemKey: leaf.itemKey,
+                      quantity: leaf.quantity,
+                      title: leaf.title,
+                      data: leaf.data,
+                    });
+                    const leafTitle = G && leafInfo.p ? getTitleName(leafInfo, G) : "";
+                    const leafBase = gItem?.name ?? leaf.itemKey;
+                    const leafName = leafTitle ? `${leafTitle} ${leafBase}` : leafBase;
+                    const leafData = formatItemDataCaption(leafInfo);
                     return (
-                      <Fragment key={`${key}|${leaf.itemKey}|${leaf.quantity ?? ""}|${leaf.title}`}>
+                      <Fragment
+                        key={`${key}|${leaf.itemKey}|${leaf.quantity ?? ""}|${leaf.title}|${
+                          leaf.data
+                        }`}
+                      >
                         <TableRow className="odds-nested" hover>
                           <TableCell>
                             <Box
@@ -350,11 +369,7 @@ export function OddsPanel({
                                 ↳
                               </Typography>
                               <ItemInstance
-                                itemInfo={itemInfoFromDropFields({
-                                  itemKey: leaf.itemKey,
-                                  quantity: leaf.quantity,
-                                  title: leaf.title,
-                                })}
+                                itemInfo={leafInfo}
                                 size={NESTED_ICON_SIZE}
                                 showQuantity={leaf.quantity != null && leaf.quantity > 1}
                                 tooltip={Boolean(gItem)}
@@ -367,10 +382,10 @@ export function OddsPanel({
                                     variant="body2"
                                     underline="hover"
                                   >
-                                    {gItem?.name ?? leaf.itemKey}
+                                    {leafName}
                                   </Link>
                                 ) : (
-                                  <Typography variant="body2">{leaf.itemKey}</Typography>
+                                  <Typography variant="body2">{leafName}</Typography>
                                 )}
                                 <Typography
                                   variant="caption"
@@ -378,7 +393,7 @@ export function OddsPanel({
                                   display="block"
                                 >
                                   from {row.nestedTable}
-                                  {leaf.title ? ` · ${leaf.title}` : ""}
+                                  {leafData ? ` · ${leafData}` : ""}
                                 </Typography>
                               </Box>
                             </Box>

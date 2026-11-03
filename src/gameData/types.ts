@@ -12,7 +12,17 @@ export type DropSource = {
   itemKey: string;
   probability: number | null;
   quantity: number | null;
+  /**
+   * Gear title key (`item.p`) from `drop[4]`.
+   * Only applied on player `exchange()` grants — kill/chest paths leave this empty
+   * even when the raw tuple has a 5th field (server `drop_item_logic` / `chest_exchange`).
+   */
   title: string;
+  /**
+   * Instance `data` (cxjar / emotionjar cosmetic id, or `cx`/`cxbundle` unlock id).
+   * From `drop[3]` for jars, or `drop[2]` for `cx`/`cxbundle` shorthand.
+   */
+  data: string;
   nestedTable: string;
 };
 

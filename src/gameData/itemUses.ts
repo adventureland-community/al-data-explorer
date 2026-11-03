@@ -2,7 +2,7 @@ import { ItemKey } from "typed-adventureland";
 
 import { CustomGData } from "../GDataContext";
 import { expandOpenForAcquisition, parseDropEntry, tableTotalWeight } from "./dropTable";
-import { formatDropProbability, mergeDropSources } from "./drops";
+import { formatDropTitleLabel, formatDropProbability, mergeDropSources } from "./drops";
 import { normalizeTokenShopOffer } from "./tokenShopOffer";
 import { DropSource, GItems } from "./types";
 
@@ -31,6 +31,10 @@ export type UseExchangeRewardView = {
   itemKey: string;
   label: string;
   secondary?: string;
+  /** Gear title key (`item.p`). */
+  title?: string;
+  /** Jar / cx cosmetic id. */
+  data?: string;
   oddsLabel: string;
   linkTo: string;
 };
@@ -141,6 +145,7 @@ function toExchangeRewardViews(
   itemKey: ItemKey,
   items: GItems,
   allDrops: Record<string, unknown> | undefined,
+  titles?: Record<string, { title?: string } | undefined>,
 ): UseExchangeRewardView[] {
   const item = items[itemKey] as { e?: number; name?: string } | undefined;
   if (item?.e == null || !Number.isFinite(item.e)) return [];
@@ -168,17 +173,24 @@ function toExchangeRewardViews(
     .map((row) => {
       const rewardKey = row.itemKey;
       const reward = items[rewardKey as ItemKey] as { name?: string } | undefined;
-      const label =
+      const baseName =
         reward?.name ??
         (rewardKey === "gold" ? "Gold" : rewardKey === "shells" ? "Shells" : rewardKey);
+      const titleLabel = row.title ? formatDropTitleLabel(row.title, titles) : "";
+      const label = titleLabel ? `${titleLabel} ${baseName}` : baseName;
       // Prefer summed probability (single label) — listing every open-path odd overflows the row.
       const oddsLabel =
         row.probability != null ? formatDropProbability(row.probability) : row.oddsLabel || "—";
+      const secondaryBits = [row.data || null, baseName !== rewardKey ? rewardKey : null].filter(
+        Boolean,
+      );
       return {
-        id: `exchange-out-${rewardKey}-${oddsLabel}`,
+        id: `exchange-out-${rewardKey}-${row.title}-${row.data}-${oddsLabel}`,
         itemKey: rewardKey,
         label,
-        secondary: label !== rewardKey ? rewardKey : undefined,
+        secondary: secondaryBits.length ? secondaryBits.join(" · ") : undefined,
+        title: row.title || undefined,
+        data: row.data || undefined,
         oddsLabel,
         linkTo: `/items/${rewardKey}`,
       };
@@ -196,6 +208,7 @@ export function getItemUses(itemKey: ItemKey, G: CustomGData): ItemUses {
     itemKey,
     G.items,
     G.drops as Record<string, unknown> | undefined,
+    G.titles as Record<string, { title?: string } | undefined> | undefined,
   );
   const exchangeNpc = exchangeRewards.length > 0 ? findExchangeNpc(G.npcs) : undefined;
 

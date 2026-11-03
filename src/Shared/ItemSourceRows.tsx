@@ -9,6 +9,7 @@ import {
   AcquisitionShopView,
   AcquisitionTokenView,
 } from "../gameData/itemAcquisition";
+import { itemInfoFromDropFields } from "../gameData/itemInstanceData";
 import {
   UseExchangeRewardView,
   UseMerchantRef,
@@ -477,9 +478,14 @@ export function TokenSpendList({ vendors }: { vendors: UseTokenVendorGroup[] }) 
 }
 
 function ExchangeRewardTile({ row }: { row: UseExchangeRewardView }) {
+  const itemInfo = itemInfoFromDropFields({
+    itemKey: row.itemKey,
+    title: row.title,
+    data: row.data,
+  });
   return (
     <Box sx={{ width: USE_TILE_WIDTH, textAlign: "center", minWidth: 0 }}>
-      <ItemInstance itemInfo={{ name: row.itemKey as ItemKey }} size={USE_ITEM_SIZE} linkToDetail />
+      <ItemInstance itemInfo={itemInfo} size={USE_ITEM_SIZE} linkToDetail />
       <Typography
         variant="caption"
         component={RouterLink}

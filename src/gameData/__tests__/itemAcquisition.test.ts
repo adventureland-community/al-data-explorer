@@ -146,6 +146,30 @@ describe("getItemAcquisition", () => {
     expect(acq.drops).toHaveLength(0);
   });
 
+  it("surfaces drop[4] titles on exchange acquisition rows", () => {
+    const G = stubG({
+      items: {
+        cdragon: { name: "Dragon Armor", type: "chest" },
+        greenenvelope: { name: "Green Envelope", type: "gem", e: 1 },
+      } as unknown as CustomGData["items"],
+      titles: {
+        lucky: { type: "all_items", luck: 2, title: "Lucky" },
+      } as unknown as CustomGData["titles"],
+      drops: {
+        monsters: {},
+        greenenvelope: [[0.1, "cdragon", null, null, "lucky"]],
+      },
+    });
+
+    const acq = getItemAcquisition("cdragon" as ItemKey, G);
+    expect(acq.exchanges).toHaveLength(1);
+    expect(acq.exchanges[0]).toMatchObject({
+      inputKey: "greenenvelope",
+      title: "lucky",
+      secondary: expect.stringContaining("Lucky"),
+    });
+  });
+
   it("explains auto-opened loot tables with opener links and when-opened odds", () => {
     const G = stubG({
       items: {

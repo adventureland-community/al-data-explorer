@@ -3,6 +3,7 @@ import { ItemKey } from "typed-adventureland";
 import { CustomGData } from "../GDataContext";
 import {
   collectOpenTableOpeners,
+  formatDropPayloadCaption,
   formatDropProbability,
   getDropSourceLink,
   getMapDisplayName,
@@ -79,6 +80,10 @@ export type AcquisitionExchangeView = {
   inputKey: string;
   label: string;
   secondary?: string;
+  /** Output gear title key (`item.p`), e.g. lucky. */
+  title?: string;
+  /** Output jar/cx cosmetic id. */
+  data?: string;
   oddsLabel: string;
   linkTo: string;
 };
@@ -153,17 +158,25 @@ function toDropAndExchangeViews(
     if (drop.sourceType === "table" && isExchangeInput(items, drop.sourceKey)) {
       const input = items[drop.sourceKey as ItemKey] as { name?: string; e?: number } | undefined;
       const qty = input?.e != null && input.e > 1 ? input.e : null;
+      const titles = G.titles as Record<string, { title?: string } | undefined> | undefined;
+      const payload = formatDropPayloadCaption(
+        { itemKey: drop.itemKey, title: drop.title, data: drop.data },
+        titles,
+      );
       exchanges.push({
-        id: `exchange-${drop.sourceKey}-${oddsLabel}`,
+        id: `exchange-${drop.sourceKey}-${drop.title}-${drop.data}-${oddsLabel}`,
         inputKey: drop.sourceKey,
         label: input?.name ?? drop.sourceKey,
         secondary:
           [
             qty != null ? `${qty} per exchange` : null,
+            payload || null,
             input?.name && input.name !== drop.sourceKey ? drop.sourceKey : null,
           ]
             .filter(Boolean)
             .join(" · ") || undefined,
+        title: drop.title || undefined,
+        data: drop.data || undefined,
         oddsLabel,
         linkTo: `/items/${drop.sourceKey}`,
       });
@@ -240,8 +253,12 @@ function toDropAndExchangeViews(
       }
     }
 
+    const titles = G.titles as Record<string, { title?: string } | undefined> | undefined;
     const payloadBits = [
-      drop.title ? (drop.itemKey === "cxjar" ? `Contains ${drop.title}` : drop.title) : null,
+      formatDropPayloadCaption(
+        { itemKey: drop.itemKey, title: drop.title, data: drop.data },
+        titles,
+      ) || null,
       drop.quantity != null && drop.quantity > 1 ? `×${drop.quantity}` : null,
     ].filter(Boolean);
     if (payloadBits.length) {
@@ -249,7 +266,7 @@ function toDropAndExchangeViews(
     }
 
     drops.push({
-      id: `${drop.sourceType}-${drop.sourceKey}-${drop.itemKey}-${drop.title}-${oddsLabel}`,
+      id: `${drop.sourceType}-${drop.sourceKey}-${drop.itemKey}-${drop.title}-${drop.data}-${oddsLabel}`,
       sourceType: drop.sourceType,
       sourceKey: drop.sourceKey,
       label,

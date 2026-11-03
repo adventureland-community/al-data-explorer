@@ -139,7 +139,7 @@ export function buildCosmeticAcquireIndex(
 
   for (const row of toAcquisitionDropSources(drops)) {
     if (!CX_DROP_ITEMS.has(row.itemKey)) continue;
-    const cxId = row.title;
+    const cxId = row.data || row.title;
     if (!cxId) continue;
 
     const fromPack = row.sourceType === "table" && isCosmoPackId(row.sourceKey);

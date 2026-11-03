@@ -33,8 +33,10 @@ export type OddsInspectionRow = {
   itemKey: string;
   nestedTable: string;
   quantity: number | null;
-  /** Drop payload: cxjar cosmetic id, or gear title (`p`). */
+  /** Gear title key (`item.p`). */
   title: string;
+  /** Jar / cx cosmetic id. */
+  data: string;
   /** Raw exclusive weight (exchange); null for kill absolute rows. */
   weight: number | null;
   /** Roll probability (Bernoulli, capped at 1 for kill rows). */
@@ -75,6 +77,7 @@ export function buildExchangeInspectionRows(entries: WeightedEntry[]): OddsInspe
       nestedTable: entry.nestedTable,
       quantity: entry.quantity,
       title: entry.title,
+      data: entry.data,
       weight: entry.weight,
       probability,
       rawRate: null,
@@ -118,6 +121,7 @@ export function buildKillInspectionRows(
       nestedTable: row.nestedTable,
       quantity: row.quantity,
       title: row.title,
+      data: row.data,
       weight: null,
       probability: rollP,
       rawRate: displayRate,

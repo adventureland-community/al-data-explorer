@@ -86,17 +86,23 @@ export function parseCraftOutput(
   return { name: fallbackName };
 }
 
+function isDropDataJarName(name: string): boolean {
+  return name === CXJAR_NAME || name === "emotionjar";
+}
+
 /**
  * Build an ItemInfo for UI from a drop row.
- * `DropSource.title` is cosmetic id for cxjar / cx / cxbundle; item title (`p`) otherwise.
- * Drop tables may still say `cx`; normalize to `cxjar` + `data` like the live server.
+ * Prefer explicit `data` (jar cosmetic) and `title` (`item.p`).
+ * Legacy: when only `title` is passed for a jar/cx row, treat it as `data`.
  */
 export function itemInfoFromDropFields(args: {
   itemKey: string;
   quantity?: number | null;
   title?: string;
+  data?: string;
 }): ItemInfoWithData {
-  const title = args.title?.trim() || "";
+  const titleRaw = args.title?.trim() || "";
+  const dataRaw = args.data?.trim() || "";
   const q =
     args.quantity != null && Number.isFinite(args.quantity) && args.quantity > 0
       ? args.quantity
@@ -107,14 +113,23 @@ export function itemInfoFromDropFields(args: {
     ...(q != null ? { q } : {}),
   };
 
-  if (isCxJarName(name)) {
-    return { ...base, ...(title ? { data: title } : {}) };
+  if (isDropDataJarName(name)) {
+    // Compat: older callers stuffed jar cosmetics into `title`.
+    const data = dataRaw || titleRaw;
+    const title = dataRaw ? titleRaw : "";
+    return {
+      ...base,
+      ...(data ? { data } : {}),
+      ...(title ? { p: title as ItemInfo["p"] } : {}),
+    };
   }
 
-  if (title) {
-    return { ...base, p: title as ItemInfo["p"] };
-  }
-  return base;
+  // cxbundle (and any future data-bearing drop) keeps `data` + optional gear title.
+  return {
+    ...base,
+    ...(dataRaw ? { data: dataRaw } : {}),
+    ...(titleRaw ? { p: titleRaw as ItemInfo["p"] } : {}),
+  };
 }
 
 /** Short caption for tooltips / bank labels (cosmetic id or Empty). */

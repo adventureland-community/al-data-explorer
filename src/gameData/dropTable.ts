@@ -7,6 +7,14 @@ type DropTuple = [number, string, ...unknown[]];
 /** Named exchange / loot tables roll weight / sum(weights). Monster/map rolls are absolute. */
 export type DropChanceKind = "absolute" | "weighted";
 
+export type ParseDropOptions = {
+  /**
+   * Keep `drop[4]` as gear `title` (`item.p`). Server only applies it in `exchange()`.
+   * Default: true when `sourceType === "table"`, false for kill/chest paths.
+   */
+  applyTitleProperty?: boolean;
+};
+
 function toInt(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.round(value);
@@ -16,10 +24,14 @@ function toInt(value: unknown): number | null {
 
 /**
  * Official `G.drops` uses `cx` as shorthand; the server grants `cxjar` with
- * `ItemInfo.data` = the cosmetic id (3rd tuple field → DropSource.title).
+ * `ItemInfo.data` = the cosmetic id.
  */
 function normalizeDropItemKey(itemKey: string): string {
   return itemKey === "cx" ? "cxjar" : itemKey;
+}
+
+function isJarItemKey(itemKey: string): boolean {
+  return itemKey === "cxjar" || itemKey === "emotionjar";
 }
 
 /** Sum of numeric weights in a named exchange / nested open table. */
@@ -50,13 +62,20 @@ export function resolveDisplayChance(
   return raw / total;
 }
 
+/**
+ * Server grant layout: `[weight, item, qtyOrCxId?, jarData?, titleProperty?]`.
+ * - `drop[4]` → `item.p` only in `exchange()` (not `drop_item_logic` / `chest_exchange`).
+ * - `drop[3]` → jar `data` for cxjar/emotionjar.
+ * - `cx`/`cxbundle` use `drop[2]` as the cosmetic/bundle id → `data`.
+ */
 function parseDropTuple(
   sourceType: DropSourceType,
   sourceKey: string,
   tuple: DropTuple,
   probability: number | null,
+  applyTitleProperty: boolean,
 ): DropSource[] {
-  const [, second, third, fourth] = tuple;
+  const [, second, third, fourth, fifth] = tuple;
   if (second === "open" && typeof third === "string") {
     return [
       {
@@ -66,18 +85,40 @@ function parseDropTuple(
         probability,
         quantity: null,
         title: "",
+        data: "",
         nestedTable: third,
       },
     ];
   }
+
+  const rawKey = typeof second === "string" ? second : "";
+  const itemKey = normalizeDropItemKey(rawKey);
+  let quantity = toInt(third);
+  let data = "";
+  let title = "";
+
+  if (rawKey === "cx" || rawKey === "cxbundle") {
+    quantity = null;
+    if (typeof third === "string") data = third;
+    if (typeof fifth === "string") title = fifth;
+  } else if (isJarItemKey(itemKey)) {
+    if (typeof fourth === "string") data = fourth;
+    if (typeof fifth === "string") title = fifth;
+  } else if (typeof fifth === "string") {
+    title = fifth;
+  }
+
+  if (!applyTitleProperty) title = "";
+
   return [
     {
       sourceType,
       sourceKey,
-      itemKey: normalizeDropItemKey(second),
+      itemKey,
       probability,
-      quantity: toInt(third),
-      title: typeof fourth === "string" ? fourth : typeof third === "string" ? third : "",
+      quantity,
+      title,
+      data,
       nestedTable: "",
     },
   ];
@@ -90,7 +131,9 @@ export function parseDropEntry(
   entry: unknown,
   chanceKind: DropChanceKind = "absolute",
   tableTotal?: number,
+  options?: ParseDropOptions,
 ): DropSource[] {
+  const applyTitleProperty = options?.applyTitleProperty ?? sourceType === "table";
   if (typeof entry === "string") {
     return [
       {
@@ -100,6 +143,7 @@ export function parseDropEntry(
         probability: null,
         quantity: null,
         title: "",
+        data: "",
         nestedTable: "",
       },
     ];
@@ -107,7 +151,13 @@ export function parseDropEntry(
   if (Array.isArray(entry) && entry.length >= 2 && typeof entry[0] === "number") {
     const raw = entry[0] as number;
     const probability = resolveDisplayChance(raw, chanceKind, tableTotal);
-    return parseDropTuple(sourceType, sourceKey, entry as DropTuple, probability);
+    return parseDropTuple(
+      sourceType,
+      sourceKey,
+      entry as DropTuple,
+      probability,
+      applyTitleProperty,
+    );
   }
   return [];
 }
@@ -115,6 +165,9 @@ export function parseDropEntry(
 /**
  * Acquisition projection: expand nested `open` into leaf item odds
  * (openChance × weight/Σ). Drop Simulation keeps `open` deferred until roll.
+ *
+ * Monster/map opens use `chest_exchange` (no `drop[4]` titles). Table→table opens
+ * stay on the exchange path and keep titles.
  */
 export function expandOpenForAcquisition(
   sourceType: DropSourceType,
@@ -127,9 +180,12 @@ export function expandOpenForAcquisition(
   if (!Array.isArray(nested)) return [];
   const total = tableTotalWeight(nested);
   if (total <= 0) return [];
+  const applyTitleProperty = sourceType === "table";
   const rows: DropSource[] = [];
   for (const entry of nested) {
-    const parsed = parseDropEntry("table", nestedTable, entry, "weighted", total);
+    const parsed = parseDropEntry("table", nestedTable, entry, "weighted", total, {
+      applyTitleProperty,
+    });
     for (const row of parsed) {
       if (!row.itemKey || row.probability == null) continue;
       rows.push({
@@ -139,6 +195,7 @@ export function expandOpenForAcquisition(
         probability: openChance * row.probability,
         quantity: row.quantity,
         title: row.title,
+        data: row.data,
         nestedTable: "",
       });
     }
@@ -236,6 +293,7 @@ export function toAcquisitionDropSources(drops: Record<string, unknown>): DropSo
         probability: value,
         quantity: null,
         title: "",
+        data: "",
         nestedTable: "",
       });
     }
