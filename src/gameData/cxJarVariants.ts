@@ -3,6 +3,7 @@ import { ItemKey } from "typed-adventureland";
 import { CustomGData } from "../GDataContext";
 import { prepareDropSourcesForDisplay } from "./drops";
 import { parseCraftOutput } from "./itemInstanceData";
+import { monsterDetailHref } from "./monsterCatalog";
 import { normalizeTokenShopOffer } from "./tokenShopOffer";
 
 export type CxJarVariantSource =
@@ -74,7 +75,7 @@ export function listCxJarVariants(G: CustomGData): CxJarVariant[] {
       oddsLabel: drop.oddsLabel,
       homeServer: drop.sourceType === "monster_home",
       linkTo: isMonster
-        ? `/monsters?monster=${encodeURIComponent(drop.sourceKey)}`
+        ? monsterDetailHref(drop.sourceKey)
         : drop.sourceType === "map"
         ? `/maps/${encodeURIComponent(drop.sourceKey)}`
         : drop.sourceType === "table"

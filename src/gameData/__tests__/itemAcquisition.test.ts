@@ -250,7 +250,7 @@ describe("getItemAcquisition", () => {
     expect(acq.drops[0]?.label).toBe("Mr. Green");
     expect(acq.drops[0]?.homeServer).toBe(true);
     expect(acq.drops[0]?.secondary).not.toMatch(/home server/i);
-    expect(acq.drops[0]?.linkTo).toBe("/monsters?monster=mrgreen");
+    expect(acq.drops[0]?.linkTo).toBe("/monsters/mrgreen");
     expect(acq.drops[0]?.icon.kind).toBe("monster");
     expect(acq.drops[0]?.oddsLabel).toBe("1.00%");
   });

@@ -7,6 +7,7 @@ import App, { FullBleedLayout, StandardLayout } from "./App";
 import { GearPlanner } from "./GearPlanner/GearPlanner";
 import { Market } from "./Market/Market";
 import { Monsters } from "./Monster/monsters";
+import { MonsterDetail } from "./Monster/MonsterDetail";
 import { Bank } from "./Bank/bank";
 import { Welcome } from "./Welcome";
 import { WorldViewer } from "./WorldViewer/WorldViewer";
@@ -47,6 +48,10 @@ const router = createBrowserRouter([
           {
             path: "monsters",
             element: <Monsters />,
+          },
+          {
+            path: "monsters/:monsterKey",
+            element: <MonsterDetail />,
           },
           {
             path: "maps",

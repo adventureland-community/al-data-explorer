@@ -2,6 +2,7 @@ import { classLooks } from "./characterLook";
 import { CosmeticSlot, COSMETIC_SLOT_LABEL } from "./cosmeticsCatalog";
 import { toAcquisitionDropSources } from "./dropTable";
 import { parseCompoundItemKey, parseCraftOutput } from "./itemInstanceData";
+import { monsterDetailHref } from "./monsterCatalog";
 import { DropSourceType } from "./types";
 import { CustomGData } from "../GDataContext";
 
@@ -305,7 +306,7 @@ export function dropsDeepLink(packId: string): string {
 export function dropSourceDeepLink(source: CosmeticAcquireSource): string | undefined {
   if (source.kind !== "drop" || !source.dropSourceKey) return undefined;
   if (source.dropSourceType === "monster" || source.dropSourceType === "monster_home") {
-    return `/monsters?monster=${encodeURIComponent(source.dropSourceKey)}`;
+    return monsterDetailHref(source.dropSourceKey);
   }
   if (source.dropSourceType === "map") {
     return `/maps/${encodeURIComponent(source.dropSourceKey)}`;

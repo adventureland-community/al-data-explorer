@@ -1,4 +1,5 @@
 import { Box, Divider, Link, Typography } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 import { GMonster, GNpc } from "typed-adventureland";
 import { GItems } from "../GDataContext";
 import { MonsterDropList, NpcShopItemList } from "./InspectSourceLists";
@@ -75,7 +76,7 @@ function inspectTitle(pick: OverlayPick, monsters: Record<string, GMonster>): st
   }
 }
 
-function monsterDocsUrl(monsterType: unknown): string | null {
+function monsterPageHref(monsterType: unknown): string | null {
   if (typeof monsterType !== "string") {
     return null;
   }
@@ -83,7 +84,7 @@ function monsterDocsUrl(monsterType: unknown): string | null {
   if (!slug) {
     return null;
   }
-  return `https://adventure.land/docs/guide/all/monsters/${encodeURIComponent(slug)}`;
+  return `/monsters/${encodeURIComponent(slug)}`;
 }
 
 function InspectDetails({ pick, mapName }: { pick: OverlayPick; mapName: string | undefined }) {
@@ -121,7 +122,7 @@ function InspectDetails({ pick, mapName }: { pick: OverlayPick; mapName: string 
         </>
       );
     case "monster": {
-      const docsUrl = monsterDocsUrl(pick.monster.type);
+      const pageHref = monsterPageHref(pick.monster.type);
       return (
         <>
           <MapBadge mapId={pick.mapId} mapName={mapName} />
@@ -139,9 +140,9 @@ function InspectDetails({ pick, mapName }: { pick: OverlayPick; mapName: string 
               Roams
             </Typography>
           )}
-          {docsUrl && (
-            <Link href={docsUrl} target="_blank" rel="noreferrer" variant="caption">
-              Monster docs ↗
+          {pageHref && (
+            <Link component={RouterLink} to={pageHref} variant="caption">
+              View monster page
             </Link>
           )}
         </>

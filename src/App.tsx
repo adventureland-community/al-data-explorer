@@ -88,6 +88,7 @@ function Menu({ compact = false }: { compact?: boolean }) {
   const cosmeticsSelected = pathname === "/cosmetics" || pathname.startsWith("/cosmetics/");
   const npcsSelected = pathname === "/npcs" || pathname.startsWith("/npcs/");
   const mapsSelected = pathname === "/maps" || pathname.startsWith("/maps/");
+  const monstersSelected = pathname === "/monsters" || pathname.startsWith("/monsters/");
   const charactersSelected = pathname === "/characters" || pathname.startsWith("/characters/");
   const currentTab = itemsSelected
     ? "/items"
@@ -99,6 +100,8 @@ function Menu({ compact = false }: { compact?: boolean }) {
     ? "/npcs"
     : mapsSelected
     ? "/maps"
+    : monstersSelected
+    ? "/monsters"
     : charactersSelected
     ? "/characters"
     : routeMatch?.pattern?.path ?? false;

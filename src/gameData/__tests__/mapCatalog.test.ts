@@ -73,7 +73,11 @@ describe("mapCatalog", () => {
     expect(detail?.name).toBe("Mainland");
     expect(detail?.worldHref).toContain("map=main");
     expect(detail?.npcs[0]?.name).toBe("Basics");
-    expect(detail?.monsters[0]).toMatchObject({ type: "goo", count: 3 });
+    expect(detail?.monsters[0]).toMatchObject({
+      type: "goo",
+      count: 3,
+      href: "/monsters/goo",
+    });
     expect(detail?.mapDrops).toHaveLength(2);
     expect(detail?.mapDrops[0]?.label).toBe("Ring of Luck");
     expect(detail?.mapDrops[1]?.label).toBe("open → statbelt");
