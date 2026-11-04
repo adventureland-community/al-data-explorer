@@ -26,10 +26,11 @@ import {
 } from "@mui/material";
 import { GMonster, MonsterKey } from "typed-adventureland";
 import { useState, useContext, useEffect, useMemo } from "react";
-import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import { Link as RouterLink, Navigate, useSearchParams } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
 import { getMonsterDropDisplayParts } from "../gameData/drops";
 import { mapDetailHref } from "../gameData/mapCatalog";
+import { monsterDetailHref } from "../gameData/monsterCatalog";
 import { HomeServerBadge } from "../Shared/HomeServerBadge";
 import { MonsterImage } from "../Shared/SpriteSkin";
 import { QuerySearchBar } from "../Shared/QuerySearchBar";
@@ -109,6 +110,8 @@ function MonsterBrowseCard({
 
   return (
     <Box
+      component={RouterLink}
+      to={monsterDetailHref(monsterKey)}
       sx={{
         display: "flex",
         gap: 1.25,
@@ -119,6 +122,9 @@ function MonsterBrowseCard({
         borderColor: "divider",
         textAlign: "left",
         minHeight: 64,
+        color: "inherit",
+        textDecoration: "none",
+        "&:hover": { bgcolor: "action.hover" },
       }}
     >
       <Box
@@ -292,6 +298,16 @@ export function Monsters() {
 
   if (!G) {
     return <>WAITING!</>;
+  }
+
+  // Legacy deep links (`?monster=wolf`) go to the detail page.
+  const monsterParam = searchParams.get("monster");
+  if (
+    monsterParam &&
+    !searchParams.get("item") &&
+    (G.monsters as Record<string, unknown>)[monsterParam]
+  ) {
+    return <Navigate to={monsterDetailHref(monsterParam)} replace />;
   }
 
   const getMonsterSpawnsForKey = (monsterKey: string) =>
@@ -527,19 +543,25 @@ export function Monsters() {
                   return (
                     <TableRow key={monsterKey} hover>
                       <TableCell>
-                        <a
-                          href={`https://adventure.land/docs/guide/all/monsters/${monsterKey.toLowerCase()}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ textDecoration: "underline", color: "inherit" }}
+                        <Link
+                          component={RouterLink}
+                          to={monsterDetailHref(monsterKey)}
+                          variant="body2"
                         >
                           {monsterKey}
-                        </a>
+                        </Link>
                       </TableCell>
                       <TableCell>
                         <div style={{ display: "flex", alignItems: "center" }}>
                           <MonsterImage monsterName={monsterKey} opacity={1} scale={1} />
-                          <span style={{ marginLeft: "8px" }}>{row.name}</span>
+                          <Link
+                            component={RouterLink}
+                            to={monsterDetailHref(monsterKey)}
+                            variant="body2"
+                            sx={{ marginLeft: "8px" }}
+                          >
+                            {row.name}
+                          </Link>
                         </div>
                       </TableCell>
                       <TableCell>{row.hp}</TableCell>

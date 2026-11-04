@@ -10,6 +10,7 @@ import {
   type TravelDirectionLeg,
   type TravelEdge,
 } from "./mapTravel";
+import { monsterDetailHref } from "./monsterCatalog";
 import { npcHref } from "./npcCatalog";
 
 export function mapDetailHref(mapKey: string): string {
@@ -210,7 +211,7 @@ export function getMapDetail(mapKey: string, G: CustomGData): MapDetailView | nu
       type,
       name: monstersById[type]?.name ?? type,
       count: monsterPackCount(spawn),
-      href: `/monsters?monster=${encodeURIComponent(type)}`,
+      href: monsterDetailHref(type),
       grow: Boolean(spawn.grow),
       roam: Boolean(spawn.roam),
     });

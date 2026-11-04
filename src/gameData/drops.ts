@@ -223,7 +223,7 @@ export function getDropSourceLink(
   items?: Record<string, unknown>,
 ): string | undefined {
   if (drop.sourceType === "monster" || drop.sourceType === "monster_home") {
-    return `/monsters?monster=${encodeURIComponent(drop.sourceKey)}`;
+    return `/monsters/${encodeURIComponent(drop.sourceKey)}`;
   }
   if (drop.sourceType === "map") {
     return `/maps/${encodeURIComponent(drop.sourceKey)}`;

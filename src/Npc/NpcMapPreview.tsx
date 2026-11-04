@@ -15,15 +15,22 @@ import {
   type SpriteSheetClip,
 } from "../WorldViewer/spriteLookup";
 
-export type NpcMapMarkerKind = "npc" | "door" | "transporter" | "pin";
+export type NpcMapMarkerKind = "npc" | "door" | "transporter" | "pin" | "monster";
 
 export type NpcMapMarker = {
   x: number;
   y: number;
   label?: string;
   kind?: NpcMapMarkerKind;
-  /** AdventureLand skin id — drawn when kind is `npc` (or when set). */
+  /** AdventureLand skin id — drawn when kind is `npc`/`monster` (or when set). */
   skin?: string;
+  /** World-unit spawn / roam box centered on `x`,`y` (monster packs). */
+  width?: number;
+  height?: number;
+  /** Exact pack polygon in world units (preferred over AABB when set). */
+  polygon?: ReadonlyArray<readonly [number, number]>;
+  /** Circular pack radius in world units (drawn when set, else AABB). */
+  radius?: number;
 };
 
 export type NpcMapSpriteContext = {
@@ -69,8 +76,32 @@ type SpritePaint = {
 
 function markersSignature(markers: NpcMapMarker[]): string {
   return markers
-    .map((m) => `${m.x},${m.y},${m.kind ?? ""},${m.label ?? ""},${m.skin ?? ""}`)
+    .map(
+      (m) =>
+        `${m.x},${m.y},${m.kind ?? ""},${m.label ?? ""},${m.skin ?? ""},${m.width ?? ""},${
+          m.height ?? ""
+        }`,
+    )
     .join("|");
+}
+
+function markerWorldBox(marker: NpcMapMarker): {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+} {
+  const halfW = (marker.width ?? 0) / 2;
+  const halfH = (marker.height ?? 0) / 2;
+  if (halfW > 0 || halfH > 0) {
+    return {
+      minX: marker.x - halfW,
+      maxX: marker.x + halfW,
+      minY: marker.y - halfH,
+      maxY: marker.y + halfH,
+    };
+  }
+  return { minX: marker.x, maxX: marker.x, minY: marker.y, maxY: marker.y };
 }
 
 /** Opaque body span, walking up from the feet so floating sheet noise doesn't lift the name. */
@@ -110,14 +141,33 @@ function opaqueContentBounds(canvas: HTMLCanvasElement): { top: number; bottom: 
   return { top, bottom };
 }
 
+/** Tile-set keys referenced by this map's tile defs (skip unused / missing packs). */
+function tilesetKeysForGeometry(geometry: GGeometry, tilesets: Record<string, GTileset>): string[] {
+  const needed = new Set<string>();
+  const tiles = Array.isArray(geometry.tiles) ? geometry.tiles : [];
+  for (const raw of tiles) {
+    if (!Array.isArray(raw) || typeof raw[0] !== "string") continue;
+    if (tilesets[raw[0]]) needed.add(raw[0]);
+  }
+  if (needed.size === 0) return Object.keys(tilesets);
+  return [...needed];
+}
+
 async function loadTilesetImages(
   tilesets: Record<string, GTileset>,
+  geometry?: GGeometry,
 ): Promise<Record<string, HTMLImageElement>> {
   const images: Record<string, HTMLImageElement> = {};
+  const keys = geometry ? tilesetKeysForGeometry(geometry, tilesets) : Object.keys(tilesets);
   await Promise.all(
-    Object.entries(tilesets).map(async ([key, tileset]) => {
+    keys.map(async (key) => {
+      const tileset = tilesets[key];
       if (!tileset?.file) return;
-      images[key] = await loadImage(adventureLandAssetUrl(tileset.file));
+      try {
+        images[key] = await loadImage(adventureLandAssetUrl(tileset.file));
+      } catch {
+        // Skip missing sheets so one absent pack does not blank the whole preview.
+      }
     }),
   );
   return images;
@@ -142,15 +192,19 @@ async function loadMarkerSprites(
         skin,
       );
       if (!clip) return;
-      const image = await loadImage(clip.url);
-      const canvas = paintSpriteClip(image, clip);
-      const bounds = opaqueContentBounds(canvas);
-      out.set(skin, {
-        canvas,
-        clip,
-        contentTop: bounds.top,
-        contentBottom: bounds.bottom,
-      });
+      try {
+        const image = await loadImage(clip.url);
+        const canvas = paintSpriteClip(image, clip);
+        const bounds = opaqueContentBounds(canvas);
+        out.set(skin, {
+          canvas,
+          clip,
+          contentTop: bounds.top,
+          contentBottom: bounds.bottom,
+        });
+      } catch {
+        // Zone / pin still draw without the skin sheet.
+      }
     }),
   );
   return out;
@@ -170,6 +224,28 @@ function focusRect(geometry: GGeometry, markers: NpcMapMarker[], padding: number
       minY: geometry.min_y,
       maxX: geometry.max_x,
       maxY: geometry.max_y,
+    };
+  }
+
+  const hasZones = markers.some((m) => (m.width ?? 0) > 0 || (m.height ?? 0) > 0);
+  if (hasZones) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const marker of markers) {
+      const box = markerWorldBox(marker);
+      minX = Math.min(minX, box.minX);
+      minY = Math.min(minY, box.minY);
+      maxX = Math.max(maxX, box.maxX);
+      maxY = Math.max(maxY, box.maxY);
+    }
+    const pad = Math.max(40, padding * 0.35);
+    return {
+      minX: Math.max(geometry.min_x, minX - pad),
+      maxX: Math.min(geometry.max_x, maxX + pad),
+      minY: Math.max(geometry.min_y, minY - pad),
+      maxY: Math.min(geometry.max_y, maxY + pad),
     };
   }
 
@@ -264,9 +340,65 @@ function markerColor(kind: NpcMapMarkerKind | undefined): string {
       return "#a78bfa";
     case "npc":
       return "#f87171";
+    case "monster":
+      // Matches WorldViewer border_mode monsters (`overlayColors`).
+      return "#fc5f39";
     default:
       return "#ef4444";
   }
+}
+
+function drawSpawnZone(
+  ctx: CanvasRenderingContext2D,
+  marker: NpcMapMarker,
+  bakeScale: number,
+  cssScale: number,
+  originX: number,
+  originY: number,
+): void {
+  const scale = bakeScale * cssScale;
+  const lineW = Math.max(1.5, Math.min(3, 2.25 * Math.min(1, cssScale)));
+  ctx.fillStyle = "rgba(252, 95, 57, 0.28)";
+  ctx.strokeStyle = markerColor("monster");
+  ctx.lineWidth = lineW;
+
+  const { polygon } = marker;
+  if (polygon && polygon.length >= 3) {
+    ctx.beginPath();
+    for (let i = 0; i < polygon.length; i += 1) {
+      const point = polygon[i];
+      if (!point) continue;
+      const px = (point[0] - originX) * scale;
+      const py = (point[1] - originY) * scale;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    return;
+  }
+
+  if (typeof marker.radius === "number" && marker.radius > 0) {
+    const cx = (marker.x - originX) * scale;
+    const cy = (marker.y - originY) * scale;
+    const r = Math.max(2, marker.radius * scale);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    return;
+  }
+
+  const width = marker.width ?? 0;
+  const height = marker.height ?? 0;
+  if (width <= 0 || height <= 0) return;
+  const left = (marker.x - width / 2 - originX) * scale;
+  const top = (marker.y - height / 2 - originY) * scale;
+  const w = Math.max(2, width * scale);
+  const h = Math.max(2, height * scale);
+  ctx.fillRect(left, top, w, h);
+  ctx.strokeRect(left + 0.5, top + 0.5, w - 1, h - 1);
 }
 
 /** Wrap / truncate a pin label so destination names fit under hop thumbs. */
@@ -424,6 +556,9 @@ function drawMarkers(
   const { compact } = sizes;
 
   for (const marker of markers) {
+    if (marker.kind === "monster" || (marker.width ?? 0) > 0 || (marker.height ?? 0) > 0) {
+      drawSpawnZone(ctx, marker, bakeScale, cssScale, originX, originY);
+    }
     const px = (marker.x - originX) * bakeScale * cssScale;
     const py = (marker.y - originY) * bakeScale * cssScale;
     const skinPaint = marker.skin ? sprites.get(marker.skin) : undefined;
@@ -590,7 +725,7 @@ export function NpcMapPreview({
     (async () => {
       try {
         const [images, sprites] = await Promise.all([
-          loadTilesetImages(tilesets),
+          loadTilesetImages(tilesets, geometry),
           loadMarkerSprites(markersNow, spriteContext),
         ]);
         if (cancelled) return;

@@ -10,6 +10,7 @@ import {
   prepareDropSourcesForDisplay,
 } from "./drops";
 import { mapDetailHref } from "./mapCatalog";
+import { monsterDetailHref } from "./monsterCatalog";
 import { npcHref } from "./npcCatalog";
 import { DropSourceType, GItems, NpcShopSource, TokenOfferSource } from "./types";
 import { normalizeTokenShopOffer } from "./tokenShopOffer";
@@ -136,7 +137,7 @@ function dropIcon(
 
 function openerHref(sourceType: "map" | "monster", sourceKey: string): string {
   if (sourceType === "map") return mapDetailHref(sourceKey);
-  return `/monsters?monster=${encodeURIComponent(sourceKey)}`;
+  return monsterDetailHref(sourceKey);
 }
 
 function toDropAndExchangeViews(
