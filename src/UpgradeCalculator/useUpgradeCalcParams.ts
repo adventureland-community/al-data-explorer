@@ -6,8 +6,10 @@ import {
   GreedScrollKey,
   OfferingChoice,
   PriceTable,
+  UpgradeStepOverride,
   UPGRADE_SCROLL_KEYS,
 } from "../calculators";
+import { appendStepOverrides, parseStepOverrides } from "./stepOverrideUrl";
 
 export type CalcMode = "upgrade" | "compound" | "greed";
 export type CalcStrategy = "cheapest" | "fewest";
@@ -262,7 +264,11 @@ export function parseUpgradeCalcParams(searchParams: URLSearchParams): UpgradeCa
   };
 }
 
-function writeParams(params: UpgradeCalcParams, priceOverrides: PriceTable = {}): URLSearchParams {
+function writeParams(
+  params: UpgradeCalcParams,
+  priceOverrides: PriceTable = {},
+  stepOverrides: Record<string, UpgradeStepOverride> = {},
+): URLSearchParams {
   const sp = new URLSearchParams();
   if (params.mode !== DEFAULTS.mode) sp.set("mode", params.mode);
   if (params.item) sp.set("item", params.item);
@@ -300,6 +306,7 @@ function writeParams(params: UpgradeCalcParams, priceOverrides: PriceTable = {})
   const tax = taxRateParam(params.taxRate);
   if (tax) sp.set("tax", tax);
   appendPriceOverrides(sp, priceOverrides);
+  appendStepOverrides(sp, stepOverrides);
   return sp;
 }
 
@@ -365,6 +372,7 @@ export function useUpgradeCalcParams() {
   const [searchParams, setSearchParams] = useSearchParams();
   const params = useMemo(() => parseUpgradeCalcParams(searchParams), [searchParams]);
   const priceOverrides = useMemo(() => parsePriceOverrides(searchParams), [searchParams]);
+  const stepOverrides = useMemo(() => parseStepOverrides(searchParams), [searchParams]);
 
   const patch = useCallback(
     (partial: Partial<UpgradeCalcParams>, opts?: { replace?: boolean }) => {
@@ -380,18 +388,54 @@ export function useUpgradeCalcParams() {
         overrides = { ...priceOverrides };
         delete overrides[params.item];
       }
-      setSearchParams(writeParams(next, overrides), { replace: opts?.replace ?? false });
+      setSearchParams(writeParams(next, overrides, stepOverrides), {
+        replace: opts?.replace ?? false,
+      });
     },
-    [params, priceOverrides, setSearchParams],
+    [params, priceOverrides, stepOverrides, setSearchParams],
   );
 
   const setPriceOverrides = useCallback(
     (next: PriceTable | ((prev: PriceTable) => PriceTable), opts?: { replace?: boolean }) => {
       const resolved = typeof next === "function" ? next(priceOverrides) : next;
-      setSearchParams(writeParams(params, resolved), { replace: opts?.replace ?? true });
+      setSearchParams(writeParams(params, resolved, stepOverrides), {
+        replace: opts?.replace ?? true,
+      });
+    },
+    [params, priceOverrides, stepOverrides, setSearchParams],
+  );
+
+  const setStepOverrides = useCallback(
+    (
+      next:
+        | Record<string, UpgradeStepOverride>
+        | ((prev: Record<string, UpgradeStepOverride>) => Record<string, UpgradeStepOverride>),
+      opts?: { replace?: boolean },
+    ) => {
+      const resolved = typeof next === "function" ? next(stepOverrides) : next;
+      setSearchParams(writeParams(params, priceOverrides, resolved), {
+        replace: opts?.replace ?? true,
+      });
+    },
+    [params, priceOverrides, stepOverrides, setSearchParams],
+  );
+
+  const clearStepOverrides = useCallback(
+    (opts?: { replace?: boolean }) => {
+      setSearchParams(writeParams(params, priceOverrides, {}), {
+        replace: opts?.replace ?? true,
+      });
     },
     [params, priceOverrides, setSearchParams],
   );
 
-  return { params, patch, priceOverrides, setPriceOverrides };
+  return {
+    params,
+    patch,
+    priceOverrides,
+    setPriceOverrides,
+    stepOverrides,
+    setStepOverrides,
+    clearStepOverrides,
+  };
 }
