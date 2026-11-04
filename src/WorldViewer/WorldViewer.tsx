@@ -8,6 +8,7 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
+import { ClassKey } from "typed-adventureland";
 import { useLocation } from "react-router-dom";
 import { GDataContext } from "../GDataContext";
 import { DEFAULT_LAYER_HEIGHT, layoutWorld } from "./layoutWorld";
@@ -32,6 +33,15 @@ import { WorldInspector } from "./WorldInspector";
 import { WorldOverlayPanel, WorldStatusBar, WorldTopBar } from "./WorldViewerHud";
 import { WorldSearchBar } from "./WorldSearchBar";
 import { toWorldSource } from "./worldData";
+import { PLAN_DEFAULT_OVERLAYS } from "./plan/planDefaults";
+import { PlanLayersMenu } from "./plan/PlanLayersMenu";
+import { PlanLibraryPanel } from "./plan/PlanLibraryPanel";
+import { resolvePlanShortcut } from "./plan/planShortcuts";
+import { PlanToolbar } from "./plan/PlanToolbar";
+import { computeLoadoutStats } from "../gameData/loadoutStats";
+import { advanceRouteT, pointAlongRoute } from "./plan/planPlayback";
+import { usePlanSession } from "./plan/usePlanSession";
+import { PlanPoint, PlanRouteObject } from "./plan/types";
 
 const MAX_TRAVEL_HISTORY = 15;
 
@@ -44,20 +54,36 @@ function focusFromHash(hash: Record<string, string>): MapFocus | null {
   return { mapId, x, y, seq: 1, fit: "point" };
 }
 
+function viewerModeFromHash(mode: string | undefined): ViewerMode {
+  if (mode === "world" || mode === "plan" || mode === "map") {
+    return mode;
+  }
+  return "map";
+}
+
 export function WorldViewer() {
   const G = useContext(GDataContext);
   const location = useLocation();
   const initialHash = useRef(parseHash());
-  const [overlays, setOverlays] = useState<OverlayVisibility>(DEFAULT_OVERLAYS);
-  const [viewMode, setViewMode] = useState<ViewerMode>(
-    initialHash.current.mode === "world" ? "world" : "map",
+  const [overlays, setOverlays] = useState<OverlayVisibility>(() =>
+    initialHash.current.mode === "plan" ? PLAN_DEFAULT_OVERLAYS : DEFAULT_OVERLAYS,
   );
+  const [viewMode, setViewMode] = useState<ViewerMode>(
+    viewerModeFromHash(initialHash.current.mode),
+  );
+  const [ghostClass, setGhostClass] = useState<ClassKey>("warrior");
+  const [ghostLoadoutName, setGhostLoadoutName] = useState("");
+  const [zoneMode, setZoneMode] = useState(false);
   const [layerHeight, setLayerHeight] = useState(() => {
     const h = Number(initialHash.current.layers);
     return h > 0 ? h : DEFAULT_LAYER_HEIGHT;
   });
   const [includeIgnored, setIncludeIgnored] = useState(false);
   const [selectedMap, setSelectedMap] = useState<string | null>(initialHash.current.map || "main");
+  const planSession = usePlanSession({
+    mapKey: selectedMap,
+    initialShare: initialHash.current.plan || null,
+  });
   const focusSeqRef = useRef(0);
   const [focus, setFocus] = useState<MapFocus | null>(() => {
     const fromHash = focusFromHash(initialHash.current);
@@ -77,6 +103,8 @@ export function WorldViewer() {
   const [doorDialog, setDoorDialog] = useState<DoorTravel | null>(null);
   const [fogDensity, setFogDensity] = useState(0.000025);
   const [soloBand, setSoloBand] = useState<MapBand | null>(null);
+  const [playbackPoint, setPlaybackPoint] = useState<PlanPoint | null>(null);
+  const [trailPoints, setTrailPoints] = useState<PlanPoint[]>([]);
 
   const world = useMemo(() => (G ? toWorldSource(G) : null), [G]);
 
@@ -145,10 +173,18 @@ export function WorldViewer() {
     [world, sheets],
   );
 
-  // Sync state → URL hash
+  // Sync state → URL hash (preserve plan= share blob while in Plan mode)
   useEffect(() => {
-    syncHashFromState(selectedMap, focus, viewMode, layerHeight);
-  }, [selectedMap, focus, viewMode, layerHeight]);
+    syncHashFromState(
+      selectedMap,
+      focus,
+      viewMode,
+      layerHeight,
+      viewMode === "plan" && planSession.document
+        ? planSession.shareUrl()?.split("plan=")[1]
+        : null,
+    );
+  }, [selectedMap, focus, viewMode, layerHeight, planSession.document, planSession]);
 
   const requestMapFocus = (mapId: string, x: number, y: number, fit: MapFocus["fit"] = "map") => {
     focusSeqRef.current += 1;
@@ -204,6 +240,19 @@ export function WorldViewer() {
       return;
     }
     setViewMode(mode);
+    if (mode === "plan") {
+      setOverlays(PLAN_DEFAULT_OVERLAYS);
+      if (selectedMap) {
+        planSession.enterPlan(
+          selectedMap,
+          planSession.document?.mapKey === selectedMap
+            ? planSession.document ?? undefined
+            : undefined,
+        );
+      }
+    } else {
+      planSession.exitPlan();
+    }
     if (!layout) {
       return;
     }
@@ -216,10 +265,138 @@ export function WorldViewer() {
       if (map) {
         requestMapFocus(next, (map.artMinX + map.artMaxX) / 2, (map.artMinY + map.artMaxY) / 2);
       }
+      if (mode === "plan") {
+        planSession.enterPlan(next);
+      }
       return;
     }
     setSelectedMap(null);
   };
+
+  useEffect(() => {
+    if (planSession.active && planSession.document && viewMode !== "plan") {
+      setViewMode("plan");
+      setOverlays(PLAN_DEFAULT_OVERLAYS);
+      if (planSession.document.mapKey !== selectedMap) {
+        setSelectedMap(planSession.document.mapKey);
+      }
+    }
+  }, [planSession.active, planSession.document, viewMode, selectedMap]);
+
+  const playbackTRef = useRef(0);
+  useEffect(() => {
+    playbackTRef.current = planSession.playback.t;
+  }, [planSession.playback.t]);
+
+  useEffect(() => {
+    if (!planSession.playback.playing || !planSession.document || !planSession.playback.routeId) {
+      return undefined;
+    }
+    const route = planSession.document.objects.find(
+      (object) => object.id === planSession.playback.routeId && object.kind === "route",
+    ) as PlanRouteObject | undefined;
+    if (!route) {
+      return undefined;
+    }
+    let frame = 0;
+    let last = performance.now();
+    const ghost = route.ghostId
+      ? planSession.document.objects.find((object) => object.id === route.ghostId)
+      : undefined;
+    let speedPx = 40;
+    if (ghost?.kind === "ghost" && ghost.loadout && G) {
+      const classRaw = G.classes[ghost.loadout.classKey];
+      const stats = computeLoadoutStats({
+        characterClass: classRaw
+          ? {
+              className: ghost.loadout.classKey,
+              stats: classRaw.stats ?? {},
+              lstats: classRaw.lstats ?? {},
+              main_stat: classRaw.main_stat,
+              mainhand: classRaw.mainhand,
+              offhand: classRaw.offhand,
+              doublehand: classRaw.doublehand,
+            }
+          : undefined,
+        level: ghost.loadout.level,
+        gear: ghost.loadout.gear,
+        G,
+      });
+      if (typeof stats.speed === "number" && stats.speed > 0) {
+        speedPx = stats.speed;
+      }
+    }
+    const { speedMul, loop, trail } = planSession.playback;
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const advanced = advanceRouteT({
+        route,
+        t: playbackTRef.current,
+        dtSeconds: dt,
+        speedPx,
+        speedMul,
+        loop,
+      });
+      playbackTRef.current = advanced.t;
+      const point = pointAlongRoute(route, advanced.t);
+      setPlaybackPoint(point);
+      if (trail && point) {
+        setTrailPoints((current) => [...current.slice(-24), point]);
+      }
+      if (advanced.done) {
+        planSession.setPlayback({ t: advanced.t, playing: false });
+        return;
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [
+    planSession.playback.playing,
+    planSession.playback.routeId,
+    planSession.playback.speedMul,
+    planSession.playback.loop,
+    planSession.playback.trail,
+    planSession.document,
+    planSession,
+    G,
+  ]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!planSession.active || viewMode !== "plan") {
+        return;
+      }
+      const action = resolvePlanShortcut(event);
+      if (!action) {
+        return;
+      }
+      event.preventDefault();
+      if (action.type === "undo") {
+        planSession.undo();
+        return;
+      }
+      if (action.type === "redo") {
+        planSession.redo();
+        return;
+      }
+      if (action.type === "delete") {
+        planSession.deleteSelected();
+        return;
+      }
+      if (action.type === "escape") {
+        setZoneMode(false);
+        planSession.setTool("select");
+        planSession.setSelectedIds(new Set());
+        return;
+      }
+      setZoneMode(action.zoneMode);
+      planSession.setTool(action.tool);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [planSession, viewMode]);
 
   const pushTravel = useCallback((mapId: string) => {
     travelSeqRef.current += 1;
@@ -338,36 +515,204 @@ export function WorldViewer() {
           }}
         />
       </WorldTopBar>
-      <TravelBreadcrumb
-        history={travelHistory}
-        maps={layout.maps}
-        onFocusMap={focusMap}
-        onClear={() => setTravelHistory([])}
-      />
-      <Box sx={{ display: "flex", gap: 1, flex: 1, minHeight: 0 }}>
-        <WorldOverlayPanel
-          viewMode={viewMode}
-          overlays={overlays}
-          overlayKinds={OVERLAY_KINDS}
-          onToggleOverlay={toggleOverlay}
-          pixelArt={pixelArt}
-          onPixelArt={setPixelArt}
-          seeThroughOverlays={seeThroughOverlays}
-          onSeeThrough={setSeeThroughOverlays}
-          includeIgnored={includeIgnored}
-          onIncludeIgnored={setIncludeIgnored}
-          monsterTypes={monsterTypes}
-          hiddenMonsterTypes={hiddenMonsterTypes}
-          monsters={world.monsters}
-          onToggleMonster={toggleMonsterType}
-          onHideAllMonsters={() => setHiddenMonsterTypes(new Set(monsterTypes))}
-          onShowAllMonsters={() => setHiddenMonsterTypes(new Set())}
-          fogDensity={fogDensity}
-          onFogDensity={setFogDensity}
-          soloBand={soloBand}
-          onSoloBand={setSoloBand}
+      {viewMode !== "plan" && (
+        <TravelBreadcrumb
+          history={travelHistory}
+          maps={layout.maps}
+          onFocusMap={focusMap}
+          onClear={() => setTravelHistory([])}
         />
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+      )}
+      <Box sx={{ display: "flex", gap: 1, flex: 1, minHeight: 0 }}>
+        {viewMode !== "plan" && (
+          <WorldOverlayPanel
+            viewMode={viewMode}
+            overlays={overlays}
+            overlayKinds={OVERLAY_KINDS}
+            onToggleOverlay={toggleOverlay}
+            pixelArt={pixelArt}
+            onPixelArt={setPixelArt}
+            seeThroughOverlays={seeThroughOverlays}
+            onSeeThrough={setSeeThroughOverlays}
+            includeIgnored={includeIgnored}
+            onIncludeIgnored={setIncludeIgnored}
+            monsterTypes={monsterTypes}
+            hiddenMonsterTypes={hiddenMonsterTypes}
+            monsters={world.monsters}
+            onToggleMonster={toggleMonsterType}
+            onHideAllMonsters={() => setHiddenMonsterTypes(new Set(monsterTypes))}
+            onShowAllMonsters={() => setHiddenMonsterTypes(new Set())}
+            fogDensity={fogDensity}
+            onFogDensity={setFogDensity}
+            soloBand={soloBand}
+            onSoloBand={setSoloBand}
+            plansSlot={
+              <PlanLibraryPanel
+                mapKey={selectedMap}
+                mapName={selected?.name}
+                plansForMap={planSession.libraryForMap}
+                allPlans={planSession.allPlans}
+                activePlanId={planSession.document?.id ?? null}
+                planMode={false}
+                onCreate={(name) => {
+                  if (!selectedMap) {
+                    return;
+                  }
+                  setOverlays(PLAN_DEFAULT_OVERLAYS);
+                  setViewMode("plan");
+                  planSession.createNamedPlan(selectedMap, name);
+                }}
+                onLoad={(id) => {
+                  const plan = planSession.allPlans.find((entry) => entry.id === id);
+                  if (plan) {
+                    setSelectedMap(plan.mapKey);
+                    setOverlays(PLAN_DEFAULT_OVERLAYS);
+                    setViewMode("plan");
+                  }
+                  planSession.loadPlan(id);
+                }}
+                onDelete={planSession.deleteCurrentPlan}
+                onPlanThisMap={() => {
+                  if (!selectedMap) {
+                    return;
+                  }
+                  setOverlays(PLAN_DEFAULT_OVERLAYS);
+                  setViewMode("plan");
+                  planSession.enterPlan(selectedMap);
+                }}
+              />
+            }
+          />
+        )}
+        <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
+          {viewMode === "plan" && planSession.document && (
+            <PlanToolbar
+              tool={planSession.tool}
+              onTool={(nextTool) => {
+                if (nextTool !== "rect") {
+                  setZoneMode(false);
+                }
+                planSession.setTool(nextTool);
+              }}
+              zoneMode={zoneMode}
+              onZoneMode={setZoneMode}
+              color={planSession.color}
+              onColor={planSession.recolorSelected}
+              selectedRadius={(() => {
+                const rangeDisc = [...planSession.selectedIds]
+                  .map((id) => planSession.document?.objects.find((object) => object.id === id))
+                  .find((object) => object?.kind === "ellipse" && object.role === "range");
+                if (!rangeDisc || rangeDisc.kind !== "ellipse") {
+                  return null;
+                }
+                return rangeDisc.radiusOverride ?? rangeDisc.radiusX;
+              })()}
+              onSelectedRadius={planSession.setSelectedRadiusOverride}
+              stamp={planSession.stamp}
+              onStamp={planSession.setStamp}
+              planName={planSession.document.name}
+              onRename={planSession.renamePlan}
+              onUndo={planSession.undo}
+              onRedo={planSession.redo}
+              onDelete={planSession.deleteSelected}
+              onPreset={(presetId) => {
+                setZoneMode(true);
+                if (planSession.tool !== "rect" && planSession.tool !== "polygon") {
+                  planSession.setTool("rect");
+                }
+                planSession.applyPreset(presetId);
+              }}
+              onShare={() => {
+                const url = planSession.shareUrl();
+                if (url) {
+                  navigator.clipboard.writeText(url).catch(() => undefined);
+                }
+              }}
+              loadouts={planSession.loadouts}
+              ghostClass={ghostClass}
+              onGhostClass={setGhostClass}
+              ghostLoadoutName={ghostLoadoutName}
+              onGhostLoadoutName={setGhostLoadoutName}
+              routeDraftCount={planSession.routeDraft.length}
+              playback={{
+                playing: planSession.playback.playing,
+                t: planSession.playback.t,
+                speedMul: planSession.playback.speedMul,
+                trail: planSession.playback.trail,
+                loop: planSession.playback.loop,
+                hasRoute: planSession.document.objects.some((object) => object.kind === "route"),
+              }}
+              onPlayback={(patch) => {
+                if (patch.t != null) {
+                  playbackTRef.current = patch.t;
+                  const activeRoute = planSession.document?.objects.find(
+                    (object) =>
+                      object.kind === "route" &&
+                      (object.id === planSession.playback.routeId || !planSession.playback.routeId),
+                  ) as PlanRouteObject | undefined;
+                  if (activeRoute) {
+                    setPlaybackPoint(pointAlongRoute(activeRoute, patch.t));
+                  }
+                }
+                if (patch.playing && !planSession.playback.routeId) {
+                  const route = planSession.document?.objects.find(
+                    (object) => object.kind === "route",
+                  );
+                  planSession.setPlayback({
+                    ...patch,
+                    routeId: route?.id ?? null,
+                    t: patch.t ?? 0,
+                  });
+                  playbackTRef.current = patch.t ?? 0;
+                  setTrailPoints([]);
+                  return;
+                }
+                if (patch.trail === false) {
+                  setTrailPoints([]);
+                }
+                planSession.setPlayback(patch);
+              }}
+              libraryMenu={
+                <PlanLibraryPanel
+                  asMenu
+                  mapKey={selectedMap}
+                  mapName={selected?.name}
+                  plansForMap={planSession.libraryForMap}
+                  allPlans={planSession.allPlans}
+                  activePlanId={planSession.document?.id ?? null}
+                  planMode
+                  onCreate={(name) => {
+                    if (!selectedMap) {
+                      return;
+                    }
+                    setOverlays(PLAN_DEFAULT_OVERLAYS);
+                    planSession.createNamedPlan(selectedMap, name);
+                  }}
+                  onLoad={(id) => {
+                    const plan = planSession.allPlans.find((entry) => entry.id === id);
+                    if (plan) {
+                      setSelectedMap(plan.mapKey);
+                      setOverlays(PLAN_DEFAULT_OVERLAYS);
+                    }
+                    planSession.loadPlan(id);
+                  }}
+                  onDelete={planSession.deleteCurrentPlan}
+                  onPlanThisMap={() => undefined}
+                />
+              }
+              layersMenu={
+                <PlanLayersMenu
+                  overlays={overlays}
+                  overlayKinds={OVERLAY_KINDS}
+                  onToggleOverlay={toggleOverlay}
+                  pixelArt={pixelArt}
+                  onPixelArt={setPixelArt}
+                  seeThroughOverlays={seeThroughOverlays}
+                  onSeeThrough={setSeeThroughOverlays}
+                />
+              }
+            />
+          )}
           <WorldCanvas
             scene={visibleLayout}
             maps={layout.maps}
@@ -387,22 +732,62 @@ export function WorldViewer() {
             monsterDefs={world.monsters}
             soloBand={soloBand}
             fogDensity={fogDensity}
+            plan={
+              viewMode === "plan" && planSession.document
+                ? {
+                    active: true,
+                    document: planSession.document,
+                    selectedIds: planSession.selectedIds,
+                    tool: planSession.tool,
+                    G,
+                    capturePointer: planSession.tool !== "select",
+                    playbackPoint,
+                    playbackRouteId: planSession.playback.routeId,
+                    trailPoints: planSession.playback.trail ? trailPoints : [],
+                    onSelectIds: planSession.setSelectedIds,
+                    onPointer: (args) => {
+                      if (planSession.tool === "ghost" && args.phase === "down") {
+                        const loadout = ghostLoadoutName
+                          ? planSession.loadouts[ghostLoadoutName]
+                          : undefined;
+                        planSession.placeGhost({
+                          point: args.point,
+                          classKey: loadout?.classKey || ghostClass,
+                          loadoutName: ghostLoadoutName || undefined,
+                          loadout: loadout
+                            ? {
+                                classKey: loadout.classKey || ghostClass,
+                                level: loadout.level,
+                                gear: loadout.gear,
+                                loadoutName: ghostLoadoutName,
+                              }
+                            : undefined,
+                        });
+                        return;
+                      }
+                      planSession.handleMapPointer(args);
+                    },
+                  }
+                : null
+            }
           />
         </Box>
-        <WorldInspector
-          selected={selected}
-          selectedPose={selectedPose}
-          connections={selectedConnections}
-          maps={layout.maps}
-          poses={layout.poses}
-          onFocusMap={focusMap}
-          inspect={inspect}
-          monsters={world.monsters}
-          drops={world.drops}
-          items={world.items}
-          npcs={world.npcs}
-          onInspectClose={() => setInspect(null)}
-        />
+        {viewMode !== "plan" && (
+          <WorldInspector
+            selected={selected}
+            selectedPose={selectedPose}
+            connections={selectedConnections}
+            maps={layout.maps}
+            poses={layout.poses}
+            onFocusMap={focusMap}
+            inspect={inspect}
+            monsters={world.monsters}
+            drops={world.drops}
+            items={world.items}
+            npcs={world.npcs}
+            onInspectClose={() => setInspect(null)}
+          />
+        )}
       </Box>
       <WorldStatusBar
         viewMode={viewMode}
@@ -410,6 +795,17 @@ export function WorldViewer() {
         cursorMapName={cursorMap?.name}
         dataVersion={G.version}
         dataTimestamp={G.timestamp}
+        planHint={
+          planSession.tool === "ghost"
+            ? "Party: click map to place a ghost with attack range"
+            : planSession.tool === "packMarker"
+            ? "Pack: click a monster pack to set pull order"
+            : planSession.tool === "route"
+            ? "Route: click waypoints, then switch tool to finish"
+            : zoneMode
+            ? "Zone: drag a box, pick Camp / Safe / Pull box presets"
+            : null
+        }
       />
 
       <Dialog
