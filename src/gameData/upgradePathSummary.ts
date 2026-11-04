@@ -70,12 +70,15 @@ type PathMaterialScale = {
 /**
  * Path-restart material scales (same destroy model as `expectedPlanShrineMs`).
  * scroll4 retries in place; other grades destroy and redo earlier steps.
+ * Compound consumes three inputs per success, so earlier steps fan in ×3.
  */
 function pathMaterialScales(
   steps: { successRate?: number; chance: number; scrollGrade: number }[],
+  mode: "upgrade" | "compound",
 ): PathMaterialScale[] {
   const n = steps.length;
   if (n === 0) return [];
+  const fanIn = mode === "compound" ? 3 : 1;
 
   const rates: number[] = [];
   for (let i = 0; i < n; i++) {
@@ -93,7 +96,8 @@ function pathMaterialScales(
       needSuccess[i] = Infinity;
       continue;
     }
-    needSuccess[i] = steps[i + 1].scrollGrade === 4 ? nextNeed : nextNeed / pNext;
+    // scroll4: stay and retry (no fan-in). Destroy: redo earlier work (compound ×3).
+    needSuccess[i] = steps[i + 1].scrollGrade === 4 ? nextNeed : (fanIn * nextNeed) / pNext;
   }
 
   const out: PathMaterialScale[] = [];
@@ -346,7 +350,7 @@ export function summarizeUpgradePlan(
     });
   }
 
-  const materialScales = pathMaterialScales(plan.steps);
+  const materialScales = pathMaterialScales(plan.steps, mode);
   for (let i = 0; i < plan.steps.length; i++) {
     const step = plan.steps[i];
     const { localAttempts: attempts, consumeAttempts, prepStarts } = materialScales[i];

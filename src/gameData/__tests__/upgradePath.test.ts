@@ -486,7 +486,7 @@ describe("upgradePath", () => {
       graceAfter: 0,
       stepExpectedCost: 0,
     });
-    // Two compound steps at p=0.5 → cscrolls 4+2=6, bases 3²/(0.5·0.5)=36.
+    // Two compound steps at p=0.5 → cscrolls 12+2=14, bases 3²/(0.5·0.5)=36.
     const plan = {
       path: [fakeStep(0, 1, 0.5), fakeStep(1, 2, 0.5)],
       totalExpectedCost: 1_000_000,
@@ -496,7 +496,7 @@ describe("upgradePath", () => {
       itemValue: 3200,
       forceAcquire: true,
     });
-    expect(summary.materials.find((m) => m.itemKey === "cscroll0")?.expectedQty).toBeCloseTo(6, 6);
+    expect(summary.materials.find((m) => m.itemKey === "cscroll0")?.expectedQty).toBeCloseTo(14, 6);
     expect(summary.materials.find((m) => m.itemKey === "hpamulet")?.expectedQty).toBeCloseTo(36, 6);
     // Local UI attempts stay 1/p.
     const recipe = summary.steps.filter((s) => s.kind !== "acquire");
