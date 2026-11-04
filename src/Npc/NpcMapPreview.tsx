@@ -27,6 +27,10 @@ export type NpcMapMarker = {
   /** World-unit spawn / roam box centered on `x`,`y` (monster packs). */
   width?: number;
   height?: number;
+  /** Exact pack polygon in world units (preferred over AABB when set). */
+  polygon?: ReadonlyArray<readonly [number, number]>;
+  /** Circular pack radius in world units (drawn when set, else AABB). */
+  radius?: number;
 };
 
 export type NpcMapSpriteContext = {
@@ -352,18 +356,48 @@ function drawSpawnZone(
   originX: number,
   originY: number,
 ): void {
+  const scale = bakeScale * cssScale;
+  const lineW = Math.max(1.5, Math.min(3, 2.25 * Math.min(1, cssScale)));
+  ctx.fillStyle = "rgba(252, 95, 57, 0.28)";
+  ctx.strokeStyle = markerColor("monster");
+  ctx.lineWidth = lineW;
+
+  const { polygon } = marker;
+  if (polygon && polygon.length >= 3) {
+    ctx.beginPath();
+    for (let i = 0; i < polygon.length; i += 1) {
+      const point = polygon[i];
+      if (!point) continue;
+      const px = (point[0] - originX) * scale;
+      const py = (point[1] - originY) * scale;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    return;
+  }
+
+  if (typeof marker.radius === "number" && marker.radius > 0) {
+    const cx = (marker.x - originX) * scale;
+    const cy = (marker.y - originY) * scale;
+    const r = Math.max(2, marker.radius * scale);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    return;
+  }
+
   const width = marker.width ?? 0;
   const height = marker.height ?? 0;
   if (width <= 0 || height <= 0) return;
-  const scale = bakeScale * cssScale;
   const left = (marker.x - width / 2 - originX) * scale;
   const top = (marker.y - height / 2 - originY) * scale;
   const w = Math.max(2, width * scale);
   const h = Math.max(2, height * scale);
-  ctx.fillStyle = "rgba(252, 95, 57, 0.28)";
   ctx.fillRect(left, top, w, h);
-  ctx.strokeStyle = markerColor("monster");
-  ctx.lineWidth = Math.max(1.5, Math.min(3, 2.25 * Math.min(1, cssScale)));
   ctx.strokeRect(left + 0.5, top + 0.5, w - 1, h - 1);
 }
 

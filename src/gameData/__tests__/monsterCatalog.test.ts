@@ -98,6 +98,10 @@ describe("monsterCatalog", () => {
     expect(detail?.stats.some((row) => row.key === "hp" && row.value === "48,000")).toBe(true);
     expect(detail?.spawns[0]).toMatchObject({ mapKey: "winterland", mapName: "Winterland" });
     expect(detail?.spawns[0]?.zones).toHaveLength(1);
+    expect(detail?.spawns[0]?.zones[0]).toMatchObject({
+      width: expect.any(Number),
+      height: expect.any(Number),
+    });
     expect(detail?.drops[0]?.label).toBe("Leather");
     expect(detail?.homeDrops).toHaveLength(1);
     expect(detail?.goldByMap[0]).toMatchObject({ mapKey: "winterland", gold: 1200 });
@@ -143,12 +147,35 @@ describe("monsterCatalog", () => {
     expect(detail?.explanation).toBe("Test wolf");
     expect(detail?.abilities[0]?.key).toBe("weakness_aura");
     expect(detail?.slots[0]).toMatchObject({ slot: "mainhand", itemKey: "leather", level: 2 });
-    expect(detail?.childSpawns[0]).toMatchObject({ monsterKey: "goo", interval: 1000 });
+    expect(detail?.childSpawns[0]).toMatchObject({ monsterKey: "goo", when: "1,000 ms" });
     expect(detail?.cbuffs[0]).toMatchObject({ chance: 60, condition: "halloween0" });
     expect(detail?.statuses[0]?.key).toBe("fullguardx");
     expect(
       detail?.other.some((row) => row.key === "mystery_field" && row.value === "keep me"),
     ).toBe(true);
+  });
+
+  it("parses hp-threshold child spawns with counts", () => {
+    const G = stubG({
+      monsters: {
+        mrgreen: {
+          name: "Mr. Green",
+          skin: "mrgreen",
+          hp: 1,
+          xp: 1,
+          attack: 1,
+          spawns: [["hp:0.75", "greenjr", 5]],
+        },
+        greenjr: { name: "Green Jr", skin: "greenjr", hp: 1, xp: 1, attack: 1 },
+      } as unknown as CustomGData["monsters"],
+      maps: {} as unknown as CustomGData["maps"],
+    });
+    const detail = getMonsterDetail("mrgreen", G);
+    expect(detail?.childSpawns[0]).toMatchObject({
+      monsterKey: "greenjr",
+      when: "hp:0.75",
+      count: 5,
+    });
   });
 
   it("returns null for unknown monsters", () => {

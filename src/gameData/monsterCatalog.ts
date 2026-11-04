@@ -40,6 +40,8 @@ export type MonsterSpawnZone = {
   count: number;
   grow: boolean;
   roam: boolean;
+  polygon?: Array<[number, number]>;
+  radius?: number;
 };
 
 export type MonsterSpawnRow = {
@@ -51,6 +53,7 @@ export type MonsterSpawnRow = {
 };
 
 export type MonsterDropRow = {
+  id: string;
   itemKey: string;
   label: string;
   href: string | null;
@@ -88,10 +91,12 @@ export type MonsterSlotRow = {
 };
 
 export type MonsterChildSpawnRow = {
-  interval: number;
+  /** Interval ms, or an event trigger like `hp:0.75`. */
+  when: string;
   monsterKey: string;
   monsterName: string;
   href: string;
+  count: number | null;
 };
 
 export type MonsterCbuffRow = {
@@ -277,9 +282,11 @@ function dropRowsFromSources(
   homeServer: boolean,
 ): MonsterDropRow[] {
   const rows: MonsterDropRow[] = [];
+  let ordinal = 0;
   for (const drop of sources) {
     const itemKey = drop.nestedTable || drop.itemKey;
     if (!itemKey) continue;
+    ordinal += 1;
     const label = drop.nestedTable ? `open → ${drop.nestedTable}` : items[itemKey]?.name ?? itemKey;
     const href = drop.nestedTable
       ? `/drops?mode=exchange&table=${encodeURIComponent(drop.nestedTable)}`
@@ -287,6 +294,7 @@ function dropRowsFromSources(
       ? `/items/${encodeURIComponent(itemKey as ItemKey)}`
       : null;
     rows.push({
+      id: `${homeServer ? "home" : "drop"}-${ordinal}-${itemKey}-${drop.title}-${drop.data}`,
       itemKey,
       label,
       href,
@@ -368,14 +376,25 @@ function childSpawnRows(
   const rows: MonsterChildSpawnRow[] = [];
   for (const entry of raw) {
     if (!Array.isArray(entry) || entry.length < 2) continue;
-    const interval = Number(entry[0]);
+    const whenRaw = entry[0];
     const monsterKey = String(entry[1] ?? "");
-    if (!Number.isFinite(interval) || !monsterKey) continue;
+    if (!monsterKey) continue;
+    let when = "";
+    if (typeof whenRaw === "number" && Number.isFinite(whenRaw)) {
+      when = `${whenRaw.toLocaleString("en-US")} ms`;
+    } else if (typeof whenRaw === "string" && whenRaw.trim()) {
+      when = whenRaw.trim();
+    } else {
+      continue;
+    }
+    const countRaw = entry[2];
+    const count = typeof countRaw === "number" && Number.isFinite(countRaw) ? countRaw : null;
     rows.push({
-      interval,
+      when,
       monsterKey,
       monsterName: monsters[monsterKey]?.name ?? monsterKey,
       href: monsterDetailHref(monsterKey),
+      count,
     });
   }
   return rows;
@@ -475,6 +494,11 @@ export function listMonsterSpawns(monsterKey: string, G: CustomGData): MonsterSp
         count: pack.count,
         grow: pack.grow,
         roam: Boolean(pack.roam),
+        polygon: pack.polygon
+          ? pack.polygon.map(([px, py]) => [px, py] as [number, number])
+          : undefined,
+        radius:
+          typeof pack.radius === "number" && Number.isFinite(pack.radius) ? pack.radius : undefined,
       });
       byMap.set(mapKey, list);
     }

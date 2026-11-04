@@ -98,6 +98,8 @@ function SpawnMapCard({
       y: zone.y,
       width: zone.width,
       height: zone.height,
+      polygon: zone.polygon,
+      radius: zone.radius,
       kind: "monster" as const,
       skin: index === 0 ? skin : undefined,
       label: zone.count > 1 ? `×${zone.count}` : undefined,
@@ -184,10 +186,7 @@ function DropTable({ rows, home }: { rows: MonsterDropRow[]; home?: boolean }) {
       </TableHead>
       <TableBody>
         {rows.map((drop) => (
-          <TableRow
-            key={`${drop.itemKey}-${drop.title}-${drop.data}-${drop.oddsLabel}-${drop.nestedTable}`}
-            hover
-          >
+          <TableRow key={drop.id} hover>
             <TableCell>
               {!drop.nestedTable ? (
                 <ItemInstance itemInfo={{ name: drop.itemKey as ItemKey }} size={36} />
@@ -363,12 +362,13 @@ export function MonsterDetail() {
                 <TableHead>
                   <TableRow>
                     <TableCell>Monster</TableCell>
-                    <TableCell align="right">Interval</TableCell>
+                    <TableCell>When</TableCell>
+                    <TableCell align="right">Count</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {detail.childSpawns.map((row) => (
-                    <TableRow key={`${row.monsterKey}-${row.interval}`} hover>
+                    <TableRow key={`${row.monsterKey}-${row.when}-${row.count ?? ""}`} hover>
                       <TableCell>
                         <Link component={RouterLink} to={row.href} variant="body2">
                           {row.monsterName}
@@ -377,8 +377,9 @@ export function MonsterDetail() {
                           {row.monsterKey}
                         </Typography>
                       </TableCell>
+                      <TableCell sx={{ fontVariantNumeric: "tabular-nums" }}>{row.when}</TableCell>
                       <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
-                        {row.interval.toLocaleString("en-US")}
+                        {row.count != null ? row.count : "—"}
                       </TableCell>
                     </TableRow>
                   ))}
