@@ -13,7 +13,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import { useContext, useMemo } from "react";
+import { useContext, useMemo, type ReactNode } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
 import type { GTileset, ItemKey } from "typed-adventureland";
 
@@ -22,13 +22,55 @@ import { mapGeometryFor } from "../gameData/npcCatalog";
 import {
   getMonsterDetail,
   type MonsterDropRow,
+  type MonsterFactRow,
   type MonsterSpawnRow,
+  type MonsterStatRow,
 } from "../gameData/monsterCatalog";
 import { HomeServerBadge } from "../Shared/HomeServerBadge";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { LoadingState } from "../Shared/LoadingState";
 import { MonsterImage } from "../Shared/SpriteSkin";
 import { NpcMapPreview, type NpcMapMarker, type NpcMapSpriteContext } from "../Npc/NpcMapPreview";
+
+function KeyValueTable({ rows }: { rows: MonsterStatRow[] | MonsterFactRow[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <Table size="small" sx={{ mt: 0.5 }}>
+      <TableBody>
+        {rows.map((row) => (
+          <TableRow key={row.key}>
+            <TableCell
+              sx={{
+                color: "text.secondary",
+                width: "42%",
+                py: 0.45,
+                borderColor: "divider",
+              }}
+            >
+              {row.label}
+            </TableCell>
+            <TableCell
+              sx={{
+                py: 0.45,
+                borderColor: "divider",
+                fontVariantNumeric: "tabular-nums",
+                wordBreak: "break-word",
+              }}
+            >
+              {"href" in row && row.href ? (
+                <Link component={RouterLink} to={row.href} underline="hover">
+                  {row.value}
+                </Link>
+              ) : (
+                row.value
+              )}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
 
 function SpawnMapCard({
   spawn,
@@ -175,6 +217,17 @@ function DropTable({ rows, home }: { rows: MonsterDropRow[]; home?: boolean }) {
   );
 }
 
+function Section({ title, children, mb = 2 }: { title: string; children: ReactNode; mb?: number }) {
+  return (
+    <Paper sx={{ p: 2, mb }}>
+      <Typography variant="overline" sx={{ opacity: 0.7 }}>
+        {title}
+      </Typography>
+      <Box sx={{ mt: 0.5 }}>{children}</Box>
+    </Paper>
+  );
+}
+
 export function MonsterDetail() {
   const { monsterKey: rawKey } = useParams();
   const monsterKey = rawKey ? decodeURIComponent(rawKey) : "";
@@ -223,6 +276,11 @@ export function MonsterDetail() {
           <Paper sx={{ p: 2 }}>
             <Stack spacing={1.5} alignItems="center">
               <MonsterImage monsterName={detail.key} scale={2.2} tooltip={false} />
+              {detail.chargeSkin && detail.chargeSkin !== detail.skin ? (
+                <Typography variant="caption" color="text.secondary">
+                  Charge skin: {detail.chargeSkin}
+                </Typography>
+              ) : null}
               <Box sx={{ textAlign: "center" }}>
                 <Typography variant="h5">{detail.name}</Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -249,92 +307,240 @@ export function MonsterDetail() {
                   <Chip key={flag} size="small" label={flag} />
                 ))}
               </Stack>
+              {detail.explanation ? (
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
+                  {detail.explanation}
+                </Typography>
+              ) : null}
             </Stack>
           </Paper>
 
-          <Paper sx={{ p: 2, mt: 2 }}>
-            <Typography variant="overline" sx={{ opacity: 0.7 }}>
-              Stats
-            </Typography>
+          <Section title="Stats" mb={0}>
             {detail.stats.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              <Typography variant="body2" color="text.secondary">
                 No combat stats recorded.
               </Typography>
             ) : (
-              <Table size="small" sx={{ mt: 0.5 }}>
-                <TableBody>
-                  {detail.stats.map((row) => (
-                    <TableRow key={row.key}>
-                      <TableCell
-                        sx={{
-                          color: "text.secondary",
-                          width: "42%",
-                          py: 0.45,
-                          borderColor: "divider",
-                        }}
-                      >
-                        {row.label}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          py: 0.45,
-                          borderColor: "divider",
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        {row.value}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <KeyValueTable rows={detail.stats} />
             )}
-          </Paper>
+          </Section>
+
+          {detail.facts.length > 0 ? (
+            <Box sx={{ mt: 2 }}>
+              <Section title="Facts" mb={0}>
+                <KeyValueTable rows={detail.facts} />
+              </Section>
+            </Box>
+          ) : null}
+
+          {detail.other.length > 0 ? (
+            <Box sx={{ mt: 2 }}>
+              <Section title="Other fields" mb={0}>
+                <KeyValueTable rows={detail.other} />
+              </Section>
+            </Box>
+          ) : null}
         </Grid>
 
         <Grid item xs={12} md={8}>
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="overline" sx={{ opacity: 0.7 }}>
-              Spawns
-            </Typography>
+          <Section title="Spawns">
             {detail.spawns.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              <Typography variant="body2" color="text.secondary">
                 No map spawns recorded for this monster.
               </Typography>
             ) : (
-              <Stack spacing={3} sx={{ mt: 1 }}>
+              <Stack spacing={3}>
                 {detail.spawns.map((spawn) => (
                   <SpawnMapCard key={spawn.mapKey} spawn={spawn} skin={detail.skin} G={G} />
                 ))}
               </Stack>
             )}
-          </Paper>
+          </Section>
 
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="overline" sx={{ opacity: 0.7 }}>
-              Drops
-            </Typography>
+          {detail.childSpawns.length > 0 ? (
+            <Section title="Spawns monsters">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Monster</TableCell>
+                    <TableCell align="right">Interval</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {detail.childSpawns.map((row) => (
+                    <TableRow key={`${row.monsterKey}-${row.interval}`} hover>
+                      <TableCell>
+                        <Link component={RouterLink} to={row.href} variant="body2">
+                          {row.monsterName}
+                        </Link>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {row.monsterKey}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {row.interval.toLocaleString("en-US")}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Section>
+          ) : null}
+
+          <Section title="Drops">
             <DropTable rows={detail.drops} />
-          </Paper>
+          </Section>
 
           {detail.homeDrops.length > 0 ? (
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.25 }}>
-                <Typography variant="overline" sx={{ opacity: 0.7 }}>
-                  Bonus drops
-                </Typography>
+            <Section title="Bonus drops">
+              <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.5 }}>
                 <HomeServerBadge />
               </Stack>
               <DropTable rows={detail.homeDrops} home />
-            </Paper>
+            </Section>
+          ) : null}
+
+          {detail.slots.length > 0 ? (
+            <Section title="Equipment">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Slot</TableCell>
+                    <TableCell>Item</TableCell>
+                    <TableCell align="right">Level</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {detail.slots.map((row) => (
+                    <TableRow key={row.slot} hover>
+                      <TableCell sx={{ textTransform: "capitalize" }}>{row.slot}</TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <ItemInstance itemInfo={{ name: row.itemKey as ItemKey }} size={32} />
+                          <Box>
+                            <Link component={RouterLink} to={row.href} variant="body2">
+                              {row.itemName}
+                            </Link>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              {row.itemKey}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {row.level != null ? row.level : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Section>
+          ) : null}
+
+          {detail.abilities.length > 0 ? (
+            <Section title="Abilities">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Ability</TableCell>
+                    <TableCell>Details</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {detail.abilities.map((row) => (
+                    <TableRow key={row.key} hover>
+                      <TableCell sx={{ verticalAlign: "top", whiteSpace: "nowrap" }}>
+                        {row.key}
+                      </TableCell>
+                      <TableCell sx={{ wordBreak: "break-word" }}>{row.summary}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Section>
+          ) : null}
+
+          {detail.statuses.length > 0 ? (
+            <Section title="Status">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Key</TableCell>
+                    <TableCell>Details</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {detail.statuses.map((row) => (
+                    <TableRow key={row.key} hover>
+                      <TableCell sx={{ verticalAlign: "top", whiteSpace: "nowrap" }}>
+                        {row.key}
+                      </TableCell>
+                      <TableCell sx={{ wordBreak: "break-word" }}>{row.summary}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Section>
+          ) : null}
+
+          {detail.cbuffs.length > 0 ? (
+            <Section title="Condition buffs">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Condition</TableCell>
+                    <TableCell align="right">Chance</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {detail.cbuffs.map((row) => (
+                    <TableRow key={`${row.condition}-${row.chance}`} hover>
+                      <TableCell>{row.condition}</TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {row.chance}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Section>
+          ) : null}
+
+          {detail.pet ? (
+            <Section title="Pet">
+              <Stack spacing={1}>
+                <Typography variant="body2" color="text.secondary">
+                  {[
+                    detail.pet.xp != null ? `XP ${detail.pet.xp.toLocaleString("en-US")}` : null,
+                    detail.pet.exponential ? "exponential" : null,
+                    detail.pet.brightness != null ? `brightness ${detail.pet.brightness}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "Pet stats"}
+                </Typography>
+                {detail.pet.levelStats.length > 0 ? (
+                  <>
+                    <Typography variant="caption" color="text.secondary">
+                      Per level
+                    </Typography>
+                    <KeyValueTable rows={detail.pet.levelStats} />
+                  </>
+                ) : null}
+                {detail.pet.ranges.length > 0 ? (
+                  <>
+                    <Typography variant="caption" color="text.secondary">
+                      Ranges
+                    </Typography>
+                    <KeyValueTable rows={detail.pet.ranges} />
+                  </>
+                ) : null}
+              </Stack>
+            </Section>
           ) : null}
 
           {detail.goldByMap.length > 0 ? (
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Typography variant="overline" sx={{ opacity: 0.7 }}>
-                Gold by map
-              </Typography>
-              <Table size="small" sx={{ mt: 1 }}>
+            <Section title="Gold by map">
+              <Table size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Map</TableCell>
@@ -359,15 +565,12 @@ export function MonsterDetail() {
                   ))}
                 </TableBody>
               </Table>
-            </Paper>
+            </Section>
           ) : null}
 
           {detail.achievements.length > 0 ? (
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="overline" sx={{ opacity: 0.7 }}>
-                Achievements
-              </Typography>
-              <Table size="small" sx={{ mt: 1 }}>
+            <Section title="Achievements" mb={0}>
+              <Table size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell align="right">Kills</TableCell>
@@ -387,7 +590,7 @@ export function MonsterDetail() {
                   ))}
                 </TableBody>
               </Table>
-            </Paper>
+            </Section>
           ) : null}
         </Grid>
       </Grid>

@@ -95,6 +95,7 @@ describe("monsterCatalog", () => {
     expect(detail?.name).toBe("White Wolf");
     expect(detail?.key).toBe("wolf");
     expect(detail?.damageType).toBe("physical");
+    expect(detail?.stats.some((row) => row.key === "hp" && row.value === "48,000")).toBe(true);
     expect(detail?.spawns[0]).toMatchObject({ mapKey: "winterland", mapName: "Winterland" });
     expect(detail?.spawns[0]?.zones).toHaveLength(1);
     expect(detail?.drops[0]?.label).toBe("Leather");
@@ -104,6 +105,50 @@ describe("monsterCatalog", () => {
     expect(detail?.dropsSimHref).toBe("/drops?monster=wolf");
     expect(detail?.worldHref).toContain("map=winterland");
     expect(detail?.worldHref).toContain("x=");
+  });
+
+  it("surfaces abilities, slots, child spawns, and flags from monster JSON", () => {
+    const G = stubG({
+      monsters: {
+        wolf: {
+          name: "White Wolf",
+          skin: "wolf",
+          hp: 100,
+          xp: 10,
+          attack: 5,
+          damage_type: "physical",
+          poisonous: true,
+          abilities: { weakness_aura: { aura: true, condition: "weakness", radius: 100 } },
+          slots: { mainhand: { name: "leather", level: 2 } },
+          spawns: [[1000, "goo"]],
+          cbuff: [[60, "halloween0"]],
+          s: { fullguardx: { ms: 300000 } },
+          explanation: "Test wolf",
+          mystery_field: "keep me",
+        },
+        goo: { name: "Goo", skin: "goo", hp: 1, xp: 1, attack: 1 },
+      } as unknown as CustomGData["monsters"],
+      maps: {
+        winterland: {
+          name: "Winterland",
+          monsters: [{ type: "wolf", count: 1, boundary: [0, 0, 10, 10] }],
+          npcs: [],
+          doors: [],
+          spawns: [[0, 0]],
+        },
+      } as unknown as CustomGData["maps"],
+    });
+    const detail = getMonsterDetail("wolf", G);
+    expect(detail?.flags).toContain("Poisonous");
+    expect(detail?.explanation).toBe("Test wolf");
+    expect(detail?.abilities[0]?.key).toBe("weakness_aura");
+    expect(detail?.slots[0]).toMatchObject({ slot: "mainhand", itemKey: "leather", level: 2 });
+    expect(detail?.childSpawns[0]).toMatchObject({ monsterKey: "goo", interval: 1000 });
+    expect(detail?.cbuffs[0]).toMatchObject({ chance: 60, condition: "halloween0" });
+    expect(detail?.statuses[0]?.key).toBe("fullguardx");
+    expect(
+      detail?.other.some((row) => row.key === "mystery_field" && row.value === "keep me"),
+    ).toBe(true);
   });
 
   it("returns null for unknown monsters", () => {
