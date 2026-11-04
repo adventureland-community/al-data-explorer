@@ -55,6 +55,64 @@ function addQty(map: Map<string, number>, key: string, n: number): void {
   map.set(key, (map.get(key) ?? 0) + n);
 }
 
+type PathMaterialScale = {
+  /** Local geometric tries (1/p) — plan UI / oneshot product. */
+  localAttempts: number;
+  /** Expected scroll/offering consumes for one finished item. */
+  consumeAttempts: number;
+  /**
+   * Expected times primstack / pscroll-grace prep is paid.
+   * Destroy: every attempt. scroll4: once per arrival (item survives fails).
+   */
+  prepStarts: number;
+};
+
+/**
+ * Path-restart material scales (same destroy model as `expectedPlanShrineMs`).
+ * scroll4 retries in place; other grades destroy and redo earlier steps.
+ * Compound consumes three inputs per success, so earlier steps fan in ×3.
+ */
+function pathMaterialScales(
+  steps: { successRate?: number; chance: number; scrollGrade: number }[],
+  mode: "upgrade" | "compound",
+): PathMaterialScale[] {
+  const n = steps.length;
+  if (n === 0) return [];
+  const fanIn = mode === "compound" ? 3 : 1;
+
+  const rates: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const s = steps[i];
+    const p = s.successRate != null && s.successRate > 0 ? s.successRate : s.chance;
+    rates.push(p);
+  }
+
+  const needSuccess: number[] = new Array(n);
+  needSuccess[n - 1] = 1;
+  for (let i = n - 2; i >= 0; i--) {
+    const pNext = rates[i + 1];
+    const nextNeed = needSuccess[i + 1];
+    if (!(pNext > 0) || !Number.isFinite(pNext) || !Number.isFinite(nextNeed)) {
+      needSuccess[i] = Infinity;
+      continue;
+    }
+    // scroll4: stay and retry (no fan-in). Destroy: redo earlier work (compound ×3).
+    needSuccess[i] = steps[i + 1].scrollGrade === 4 ? nextNeed : (fanIn * nextNeed) / pNext;
+  }
+
+  const out: PathMaterialScale[] = [];
+  for (let i = 0; i < n; i++) {
+    const p = rates[i];
+    const need = needSuccess[i];
+    const localAttempts = p > 0 && Number.isFinite(p) ? 1 / p : Infinity;
+    const consumeAttempts =
+      p > 0 && Number.isFinite(p) && Number.isFinite(need) ? need / p : Infinity;
+    const prepStarts = steps[i].scrollGrade === 4 ? need : consumeAttempts;
+    out.push({ localAttempts, consumeAttempts, prepStarts });
+  }
+  return out;
+}
+
 function materialLinesFromQty(qty: Map<string, number>, prices: PriceTable): MaterialLine[] {
   const lines: MaterialLine[] = [];
   for (const [itemKey, expectedQty] of qty) {
@@ -77,6 +135,8 @@ function materialLinesFromQty(qty: Map<string, number>, prices: PriceTable): Mat
  * item and do not force a new base). That matches “how many times do I start
  * from +0?”, which is what Acquire qty and Shiny polish campaigns need.
  *
+ * Compound consumes three inputs per attempt, so copies are 3^destroySteps / Π(p).
+ *
  * Falls back to (item gold in materials + EV gap) / unit price when chances
  * are missing.
  */
@@ -86,12 +146,15 @@ export function expectedBaseCopies(args: {
   planEv: number;
   materials: MaterialLine[];
   steps?: PlanSummaryStep[];
+  mode?: "upgrade" | "compound";
 }): number {
   const { itemKey, itemValue, planEv, materials, steps } = args;
+  const inputsPerAttempt = args.mode === "compound" ? 3 : 1;
 
   if (steps?.length) {
     let survive = 1;
     let sawDestroyStep = false;
+    let destroySteps = 0;
     for (const s of steps) {
       if (s.kind === "acquire" || s.kind === "shiny") continue;
       // scroll4: fail keeps the item — no new +0.
@@ -103,10 +166,11 @@ export function expectedBaseCopies(args: {
         break;
       }
       sawDestroyStep = true;
+      destroySteps += 1;
       survive *= p;
     }
     if (sawDestroyStep && survive > 0 && Number.isFinite(survive)) {
-      const n = 1 / survive;
+      const n = inputsPerAttempt ** destroySteps / survive;
       if (Number.isFinite(n) && n > 0) return n;
     }
     if (!sawDestroyStep) return 1;
@@ -146,6 +210,7 @@ export function foldExpectedBaseCopies(args: {
    */
   craftMaterialLines?: MaterialLine[] | null;
   acquireMode?: "buy" | "craft";
+  mode?: "upgrade" | "compound";
 }): number {
   const { steps, materials, itemKey, itemValue, planEv } = args;
   const acquire = steps.find((s) => s.kind === "acquire");
@@ -162,6 +227,7 @@ export function foldExpectedBaseCopies(args: {
     planEv,
     materials,
     steps,
+    mode: args.mode,
   });
   const replacementGold =
     itemValue > 0 && Number.isFinite(itemValue) ? Math.min(copies * itemValue, planEv) : 0;
@@ -284,16 +350,15 @@ export function summarizeUpgradePlan(
     });
   }
 
+  const materialScales = pathMaterialScales(plan.steps, mode);
   for (let i = 0; i < plan.steps.length; i++) {
     const step = plan.steps[i];
+    const { localAttempts: attempts, consumeAttempts, prepStarts } = materialScales[i];
     const scrollKey =
       mode === "upgrade"
         ? scrollKeyForUpgrade(step.scrollGrade) ?? `scroll${step.scrollGrade}`
         : scrollKeyForCompound(step.scrollGrade) ?? `cscroll${step.scrollGrade}`;
     const offeringKey = offeringKeyFromGrade(step.offering);
-    const successRate =
-      step.successRate != null && step.successRate > 0 ? step.successRate : step.chance;
-    const attempts = successRate > 0 ? 1 / successRate : Infinity;
     const primstacking = step.primstacking ?? 0;
     const primstackingStatClicks = step.primstackingStatClicks ?? 0;
     const primstackingNormal = step.primstackingNormal ?? primstacking;
@@ -325,19 +390,22 @@ export function summarizeUpgradePlan(
     // Prefer planner EV delta when present (includes destroy risk + stacks).
     const stepSpend = Number.isFinite(step.stepExpectedCost)
       ? step.stepExpectedCost
-      : Number.isFinite(attempts)
-      ? matsPerAttempt * attempts + primstackingCost + ssCost + fsCost + psCost
+      : Number.isFinite(consumeAttempts) && Number.isFinite(prepStarts)
+      ? matsPerAttempt * consumeAttempts +
+        (primstackingCost + ssCost) * prepStarts +
+        fsCost +
+        psCost
       : Infinity;
     running += Number.isFinite(stepSpend) ? stepSpend : 0;
     stackGold += (Number.isFinite(fsCost) ? fsCost : 0) + (Number.isFinite(psCost) ? psCost : 0);
 
-    addQty(qty, scrollKey, attempts);
-    if (offeringKey) addQty(qty, offeringKey, attempts);
-    if (primlingQty > 0) addQty(qty, "offeringp", primlingQty);
-    if (primingScrollQty > 0) addQty(qty, STAT_SCROLL_PROXY_KEY, primingScrollQty);
+    addQty(qty, scrollKey, consumeAttempts);
+    if (offeringKey) addQty(qty, offeringKey, consumeAttempts);
+    if (primlingQty > 0) addQty(qty, "offeringp", primlingQty * prepStarts);
+    if (primingScrollQty > 0) addQty(qty, STAT_SCROLL_PROXY_KEY, primingScrollQty * prepStarts);
     if (statScrollGrace > 0) {
-      addQty(qty, STAT_SCROLL_PROXY_KEY, statScrollGrace * pscrollQty);
-      if (statOfferingKey) addQty(qty, statOfferingKey, statScrollGrace);
+      addQty(qty, STAT_SCROLL_PROXY_KEY, statScrollGrace * pscrollQty * prepStarts);
+      if (statOfferingKey) addQty(qty, statOfferingKey, statScrollGrace * prepStarts);
     }
 
     const shrineAt = shrineTimes[i + 1] ?? Infinity;
@@ -388,6 +456,7 @@ export function summarizeUpgradePlan(
       acquireChargePerCopy: opts.acquireChargePerCopy,
       craftMaterialLines: opts.craftMaterialLines,
       acquireMode: opts.acquireMode,
+      mode,
     });
   }
 

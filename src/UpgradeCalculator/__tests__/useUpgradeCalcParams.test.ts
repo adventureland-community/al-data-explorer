@@ -1,4 +1,5 @@
 import { DEFAULT_MERCHANT_TAX } from "../../calculators";
+import { encodeStepOverrides, parseStepOverrides } from "../stepOverrideUrl";
 import { parsePriceOverrides, parseUpgradeCalcParams } from "../useUpgradeCalcParams";
 
 describe("useUpgradeCalcParams URL codec", () => {
@@ -42,6 +43,14 @@ describe("useUpgradeCalcParams URL codec", () => {
     const off = parseUpgradeCalcParams(new URLSearchParams("item=rod&fs=0&ograce=0"));
     expect(off.failstack).toBe(false);
     expect(off.ograce).toBe(false);
+  });
+
+  it("parses step overrides from ov", () => {
+    const encoded = encodeStepOverrides({ "0-1": { primstacking: 9, scrollGrade: 1 } });
+    expect(encoded).toBeTruthy();
+    const sp = new URLSearchParams(`item=glolipop&ov=${encoded}`);
+    expect(parseUpgradeCalcParams(sp).item).toBe("glolipop");
+    expect(parseStepOverrides(sp)).toStrictEqual({ "0-1": { primstacking: 9, scrollGrade: 1 } });
   });
 
   it("parses tax percent into a fraction and defaults to 2.5%", () => {

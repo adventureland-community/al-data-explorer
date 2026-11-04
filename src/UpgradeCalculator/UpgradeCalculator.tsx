@@ -86,6 +86,8 @@ import {
   StepPlanTable,
   StrategyCard,
 } from "./PlanResults";
+import { ReportUpgradeBugButton } from "./ReportUpgradeBugButton";
+import { UPGRADE_ISSUES_URL } from "./upgradeBugReport";
 import { AcquireMode, CalcMode, CalcStrategy, useUpgradeCalcParams } from "./useUpgradeCalcParams";
 
 import {
@@ -110,9 +112,6 @@ import {
 import { LevelRangeControl, LevelStepper, SidebarSection } from "./UpgradeCalcControls";
 import { EmptyPickState, RecentItemsStrip } from "./UpgradeCalcPicker";
 
-const UPGRADE_ISSUES_URL =
-  "https://github.com/adventureland-community/al-data-explorer/issues/new?title=Upgrade%20Calculator%3A%20";
-
 type PlanSummary = {
   steps: PlanSummaryStep[];
   materials: MaterialLine[];
@@ -121,13 +120,21 @@ type PlanSummary = {
 
 export function UpgradeCalculator() {
   const G = useContext(GDataContext);
-  const { params, patch, priceOverrides, setPriceOverrides } = useUpgradeCalcParams();
+  const {
+    params,
+    patch,
+    priceOverrides,
+    setPriceOverrides,
+    stepOverrides,
+    setStepOverrides,
+    clearStepOverrides,
+  } = useUpgradeCalcParams();
   const { items: marketItems } = useMerchants();
-  const [stepOverrides, setStepOverrides] = useState<Record<string, UpgradeStepOverride>>({});
   const [recentItems, setRecentItems] = useState<ItemKey[]>(() => readRecentItems());
   const [evDelta, setEvDelta] = useState<number | null>(null);
   const [evDeltaVisible, setEvDeltaVisible] = useState(false);
   const prevEvRef = useRef<number | null>(null);
+  const stepPlanIdentityRef = useRef<string | null>(null);
   const evDeltaTimerRef = useRef<number | null>(null);
 
   const itemKey = (params.item || "") as ItemKey;
@@ -280,9 +287,16 @@ export function UpgradeCalculator() {
     params.offeringx,
   ].join("|");
 
+  // Clear recipe edits when the planned identity changes, but keep URL `ov` on first mount.
   useEffect(() => {
-    setStepOverrides({});
-  }, [stepPlanIdentity]);
+    if (stepPlanIdentityRef.current == null) {
+      stepPlanIdentityRef.current = stepPlanIdentity;
+      return;
+    }
+    if (stepPlanIdentityRef.current === stepPlanIdentity) return;
+    stepPlanIdentityRef.current = stepPlanIdentity;
+    clearStepOverrides();
+  }, [stepPlanIdentity, clearStepOverrides]);
 
   // Shared links may set acquire=craft on non-craftable items — normalize to buy.
   useEffect(() => {
@@ -702,9 +716,9 @@ export function UpgradeCalculator() {
               : "Plan upgrade/compound paths, or farm Essence of Greed from any upgradeable item (set its unit price)."}
           </Typography>
           <Alert severity="info" sx={{ py: 0.5 }}>
-            Work in progress — please{" "}
+            Work in progress — use <strong>Report bug</strong> to copy settings + shopping list, or{" "}
             <Link href={UPGRADE_ISSUES_URL} target="_blank" rel="noopener noreferrer">
-              report bugs, issues, and improvement ideas
+              open a blank issue
             </Link>
             .
           </Alert>
@@ -713,7 +727,7 @@ export function UpgradeCalculator() {
           direction="row"
           spacing={0.5}
           alignItems="center"
-          sx={{ flexShrink: 0, alignSelf: { xs: "flex-start", sm: "center" } }}
+          sx={{ flexShrink: 0, alignSelf: { xs: "flex-start", sm: "center" }, flexWrap: "wrap" }}
         >
           <EvDeltaBanner delta={evDelta} visible={evDeltaVisible} />
           {hasPriceOverrides ? (
@@ -728,6 +742,18 @@ export function UpgradeCalculator() {
           ) : null}
           <UpgradeCalcHelpButton />
           <CopyPlanLinkButton />
+          <ReportUpgradeBugButton
+            params={params}
+            priceOverrides={priceOverrides}
+            prices={prices}
+            stepOverrides={stepOverrides}
+            itemKey={itemKey}
+            itemName={gItem?.name}
+            itemValue={itemValue}
+            planEv={summary?.totalExpectedCost ?? null}
+            materials={summary?.materials ?? null}
+            steps={summary?.steps ?? null}
+          />
         </Stack>
       </Stack>
 
@@ -1483,7 +1509,7 @@ export function UpgradeCalculator() {
                             overrides: stepOverrides,
                             onPatch: patchStepOverride,
                             onReset: clearStepOverride,
-                            onResetAll: () => setStepOverrides({}),
+                            onResetAll: () => clearStepOverrides(),
                             onCyclePolish:
                               params.wantShiny && shinyPolishOptions.some((o) => !o.invalid)
                                 ? (delta) => {

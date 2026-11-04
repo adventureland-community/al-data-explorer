@@ -11,6 +11,7 @@ import {
   PlannerContext,
   recomputeUpgradePlan,
   shrineClickMs,
+  summarizeCompoundPlan,
   summarizeUpgradePlan,
   upgradeStepOverrideKey,
 } from "../upgradePath";
@@ -417,6 +418,135 @@ describe("upgradePath", () => {
     expect(itemMat?.total).toBeCloseTo(acquire.stepSpend, 4);
     const last = summary.steps[summary.steps.length - 1];
     expect(last.runningTotal).toBeCloseTo(summary.totalExpectedCost, 0);
+  });
+
+  /**
+   * Discord bug: shopping list showed ~9 Primlings / ~11 High scrolls next to
+   * ~438 base copies for shiny +10. Base copies use 1/Π(p); mats must too.
+   * Two destroy steps at p=0.5 → bases=4, scrolls=4+2=6, primlings=2×(4+2)=12.
+   */
+  it("summarizeUpgradePlan scales scrolls and primlings for destroy restarts", () => {
+    const fakeStep = (
+      fromLevel: number,
+      toLevel: number,
+      chance: number,
+      primstacking: number,
+    ) => ({
+      fromLevel,
+      toLevel,
+      scrollGrade: 0,
+      offering: null as null,
+      primstacking,
+      primstackingStatClicks: 0,
+      primstackingNormal: primstacking,
+      primstackingStatScrollEach: 0,
+      statScrollGrace: 0,
+      statScrollOffering: null as null,
+      statScrollQty: 0,
+      failstack: 0,
+      ograce: 0,
+      failstackCost: 0,
+      ograceCost: 0,
+      chance,
+      successRate: chance,
+      graceAfter: 0,
+      stepExpectedCost: 0,
+    });
+    const plan = {
+      steps: [fakeStep(0, 1, 0.5, 2), fakeStep(1, 2, 0.5, 2)],
+      totalExpectedCost: 1_000_000,
+    };
+    const summary = summarizeUpgradePlan(plan, PRICES, "upgrade", {
+      itemKey: "blade",
+      itemValue: 1000,
+      forceAcquire: true,
+    });
+    const blade = summary.materials.find((m) => m.itemKey === "blade");
+    const scroll0 = summary.materials.find((m) => m.itemKey === "scroll0");
+    const primling = summary.materials.find((m) => m.itemKey === "offeringp");
+    expect(blade?.expectedQty).toBeCloseTo(4, 6);
+    // Local 1/p would give scrolls=4 and primlings=4 — those are the bug numbers.
+    expect(scroll0?.expectedQty).toBeCloseTo(6, 6);
+    expect(primling?.expectedQty).toBeCloseTo(12, 6);
+    // Per-step UI attempts stay local (1/chance), not path-total.
+    const recipe = summary.steps.filter((s) => s.kind !== "acquire");
+    expect(recipe[0].attempts).toBeCloseTo(2, 6);
+    expect(recipe[1].attempts).toBeCloseTo(2, 6);
+  });
+
+  it("summarizeCompoundPlan scales cscrolls and 3× bases for destroy restarts", () => {
+    const fakeStep = (fromLevel: number, toLevel: number, chance: number) => ({
+      fromLevel,
+      toLevel,
+      scrollGrade: 0,
+      offering: null as null,
+      ograce: 0,
+      ograceCost: 0,
+      chance,
+      graceAfter: 0,
+      stepExpectedCost: 0,
+    });
+    // Two compound steps at p=0.5 → cscrolls 12+2=14, bases 3²/(0.5·0.5)=36.
+    const plan = {
+      path: [fakeStep(0, 1, 0.5), fakeStep(1, 2, 0.5)],
+      totalExpectedCost: 1_000_000,
+    };
+    const summary = summarizeCompoundPlan(plan, PRICES, {
+      itemKey: "hpamulet",
+      itemValue: 3200,
+      forceAcquire: true,
+    });
+    expect(summary.materials.find((m) => m.itemKey === "cscroll0")?.expectedQty).toBeCloseTo(14, 6);
+    expect(summary.materials.find((m) => m.itemKey === "hpamulet")?.expectedQty).toBeCloseTo(36, 6);
+    // Local UI attempts stay 1/p.
+    const recipe = summary.steps.filter((s) => s.kind !== "acquire");
+    expect(recipe[0].attempts).toBeCloseTo(2, 6);
+    expect(recipe[1].attempts).toBeCloseTo(2, 6);
+  });
+
+  it("summarizeUpgradePlan scroll4 prep is once per arrival, not per retry", () => {
+    const fakeStep = (
+      fromLevel: number,
+      toLevel: number,
+      chance: number,
+      scrollGrade: number,
+      primstacking: number,
+    ) => ({
+      fromLevel,
+      toLevel,
+      scrollGrade,
+      offering: null as null,
+      primstacking,
+      primstackingStatClicks: 0,
+      primstackingNormal: primstacking,
+      primstackingStatScrollEach: 0,
+      statScrollGrace: 0,
+      statScrollOffering: null as null,
+      statScrollQty: 0,
+      failstack: 0,
+      ograce: 0,
+      failstackCost: 0,
+      ograceCost: 0,
+      chance,
+      successRate: chance,
+      graceAfter: 0,
+      stepExpectedCost: 0,
+    });
+    // +0→+1 destroy p=0.5, then scroll4 p=0.5 with 3 primlings.
+    // Bases=2; scroll0 consume=2; scroll4 consume=2; primlings=2×2 + 3×1=7.
+    const plan = {
+      steps: [fakeStep(0, 1, 0.5, 0, 2), fakeStep(1, 2, 0.5, 4, 3)],
+      totalExpectedCost: 1_000_000,
+    };
+    const summary = summarizeUpgradePlan(plan, PRICES, "upgrade", {
+      itemKey: "blade",
+      itemValue: 1000,
+      forceAcquire: true,
+    });
+    expect(summary.materials.find((m) => m.itemKey === "blade")?.expectedQty).toBeCloseTo(2, 6);
+    expect(summary.materials.find((m) => m.itemKey === "scroll0")?.expectedQty).toBeCloseTo(2, 6);
+    expect(summary.materials.find((m) => m.itemKey === "scroll4")?.expectedQty).toBeCloseTo(2, 6);
+    expect(summary.materials.find((m) => m.itemKey === "offeringp")?.expectedQty).toBeCloseTo(7, 6);
   });
 
   it("summarizeUpgradePlan craft acquire replaces finished item with leaf mats", () => {
