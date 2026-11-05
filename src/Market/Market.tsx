@@ -11,6 +11,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TableSortLabel,
   Typography,
 } from "@mui/material";
 import { useContext, useMemo, useState } from "react";
@@ -28,6 +29,14 @@ import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
 import { abbreviateNumber } from "../Shared/utils";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
 import { buildMarketSearchSuggestions, marketRowMatchesSearch } from "./marketSearchQuery";
+import {
+  DEFAULT_MARKET_SORT,
+  defaultDirectionFor,
+  nextMarketSort,
+  sortMarketRows,
+  type MarketSortConfig,
+  type MarketSortKey,
+} from "./marketSort";
 import { useMerchants } from "./useMerchants";
 import type { BuySellItemPrices, Merchant } from "./useMerchants";
 
@@ -40,8 +49,8 @@ function Info() {
           <a href="https://aldata.earthiverse.ca">earthiverse&apos;s aldata</a>
           <br />
           You can search with market ops — try <code>price:&gt;=1m</code>,{" "}
-          <code>attr:armor&gt;=40</code>, <code>is:sell</code>. Press REFRESH DATA to refresh from
-          the merchant endpoint.
+          <code>attr:armor&gt;=40</code>, <code>is:sell</code>. Click column headers to sort —
+          selling Min starts high→low. Press REFRESH DATA to refresh from the merchant endpoint.
         </Typography>
       </CardContent>
     </Card>
@@ -254,6 +263,20 @@ export function Market() {
   const [filter, setFilter] = useState("");
   const [selectedBuyers, setSelectedBuyers] = useState<string[]>([]);
   const [selectedSellers, setSelectedSellers] = useState<string[]>([]);
+  const [sortConfig, setSortConfig] = useState<MarketSortConfig>(DEFAULT_MARKET_SORT);
+
+  const handleSort = (key: MarketSortKey) => {
+    setSortConfig((prev) => nextMarketSort(prev, key));
+  };
+
+  const sortLabelProps = (key: MarketSortKey) => {
+    const direction = sortConfig.key === key ? sortConfig.direction : defaultDirectionFor(key);
+    return {
+      active: sortConfig.key === key,
+      direction,
+      onClick: () => handleSort(key),
+    };
+  };
 
   const uniqueBuyers = useMemo(() => {
     const buyers = new Set<string>();
@@ -358,29 +381,28 @@ export function Market() {
     return tmpRows;
   }, [items]);
 
-  const filteredRows = useMemo(
-    () =>
-      rows.filter((row) => {
-        const buyerKeys = Object.keys(row.prices.buying.merchants);
-        const sellerKeys = Object.keys(row.prices.selling.merchants);
-        const buyerMatches =
-          selectedBuyers.length === 0 || selectedBuyers.some((buyer) => buyerKeys.includes(buyer));
-        const sellerMatches =
-          selectedSellers.length === 0 ||
-          selectedSellers.some((seller) => sellerKeys.includes(seller));
+  const filteredRows = useMemo(() => {
+    const matched = rows.filter((row) => {
+      const buyerKeys = Object.keys(row.prices.buying.merchants);
+      const sellerKeys = Object.keys(row.prices.selling.merchants);
+      const buyerMatches =
+        selectedBuyers.length === 0 || selectedBuyers.some((buyer) => buyerKeys.includes(buyer));
+      const sellerMatches =
+        selectedSellers.length === 0 ||
+        selectedSellers.some((seller) => sellerKeys.includes(seller));
 
-        const hasSellers = sellerKeys.length > 0;
-        const hasBuyers = buyerKeys.length > 0;
+      const hasSellers = sellerKeys.length > 0;
+      const hasBuyers = buyerKeys.length > 0;
 
-        return (
-          (hasSellers || hasBuyers) &&
-          buyerMatches &&
-          sellerMatches &&
-          marketRowMatchesSearch(row, G, filter)
-        );
-      }),
-    [rows, selectedBuyers, selectedSellers, filter, G],
-  );
+      return (
+        (hasSellers || hasBuyers) &&
+        buyerMatches &&
+        sellerMatches &&
+        marketRowMatchesSearch(row, G, filter)
+      );
+    });
+    return sortMarketRows(matched, sortConfig);
+  }, [rows, selectedBuyers, selectedSellers, filter, G, sortConfig]);
 
   return (
     <StickyListLayout
@@ -438,17 +460,39 @@ export function Market() {
             </TableRow>
             <TableRow>
               <TableCell />
-              <TableCell>Name</TableCell>
-              <TableCell># Buyers</TableCell>
-              <TableCell>Quantity</TableCell>
-              <TableCell>Min</TableCell>
-              <TableCell>Max</TableCell>
-              <TableCell>Avg</TableCell>
-              <TableCell># Sellers</TableCell>
-              <TableCell>Quantity</TableCell>
-              <TableCell>Min</TableCell>
-              <TableCell>Max</TableCell>
-              <TableCell>Avg</TableCell>
+              <TableCell>
+                <TableSortLabel {...sortLabelProps("name")}>Name</TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel {...sortLabelProps("buyCount")}># Buyers</TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel {...sortLabelProps("buyQty")}>Quantity</TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel {...sortLabelProps("buyMin")}>Min</TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel {...sortLabelProps("buyMax")}>Max</TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel {...sortLabelProps("buyAvg")}>Avg</TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel {...sortLabelProps("sellCount")}># Sellers</TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel {...sortLabelProps("sellQty")}>Quantity</TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel {...sortLabelProps("sellMin")}>Min</TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel {...sortLabelProps("sellMax")}>Max</TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel {...sortLabelProps("sellAvg")}>Avg</TableSortLabel>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
