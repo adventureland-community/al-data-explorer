@@ -505,13 +505,15 @@ export function PlanToolbar({
                 selected={ghostVision}
                 onChange={() => onGhostVision(!ghostVision)}
                 aria-label="Vision box"
-                title="1400×1000 client vision — scout what you can see from here"
+                title="Server entity vision (B.vision 700×500 half) — what you can see from here"
                 sx={{ px: 1, py: 0.25 }}
               >
                 Vision
               </ToggleButton>
               <Typography variant="caption" sx={{ opacity: 0.65 }}>
-                {ghostSelected ? "Vision on this ghost" : "Vision on next place · 1400×1000"}
+                {ghostSelected
+                  ? "Applies to selected ghost"
+                  : "Default for next place · entities in 1400×1000"}
               </Typography>
             </>
           )}
