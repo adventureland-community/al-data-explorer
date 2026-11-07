@@ -5,6 +5,7 @@ import { ParsedMap } from "../types";
 import { makeLabelSprite } from "../sceneOverlays";
 import { findPlanObject } from "./planDocument";
 import { ellipseRadiusForRangeDisc } from "./planRange";
+import { PLAN_VISION_COLOR, visionRectForPoint } from "./planVision";
 import { PlanDocument, PlanGhostObject, PlanObject, PlanPoint } from "./types";
 
 export const PLAN_LAYER_NAME = "planLayer";
@@ -203,6 +204,30 @@ function buildObjectMesh(args: {
       break;
     }
     case "ghost": {
+      if (object.showVision) {
+        const vision = visionRectForPoint(object);
+        const box = new THREE.Mesh(
+          layFlat(new THREE.PlaneGeometry(1, 1)),
+          fillMaterial(parseColor(PLAN_VISION_COLOR), 0.12),
+        );
+        box.scale.set(vision.width, 1, vision.height);
+        box.position.set(object.x, lift - 0.3, object.y);
+        // Vision is display-only — don't steal pack/ghost picks.
+        box.raycast = () => undefined;
+        group.add(box);
+        const edge = new THREE.LineSegments(
+          new THREE.EdgesGeometry(layFlat(new THREE.PlaneGeometry(1, 1))),
+          new THREE.LineBasicMaterial({
+            color: parseColor(PLAN_VISION_COLOR),
+            transparent: true,
+            opacity: 0.55,
+          }),
+        );
+        edge.scale.set(vision.width, 1, vision.height);
+        edge.position.set(object.x, lift - 0.25, object.y);
+        edge.raycast = () => undefined;
+        group.add(edge);
+      }
       const disc = new THREE.Mesh(
         layFlat(new THREE.CircleGeometry(8, 16)),
         fillMaterial(color, 0.85),

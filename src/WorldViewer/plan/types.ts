@@ -84,6 +84,8 @@ export type PlanGhostObject = PlanObjectBase & {
   name?: string;
   skin?: string;
   loadout?: PlanGhostLoadout;
+  /** Show the 1400×1000 client vision box for spawn scouting. */
+  showVision?: boolean;
 };
 
 export type PlanRouteObject = PlanObjectBase & {

@@ -633,6 +633,22 @@ export function WorldViewer() {
               onGhostClass={setGhostClass}
               ghostLoadoutName={ghostLoadoutName}
               onGhostLoadoutName={setGhostLoadoutName}
+              ghostSelected={(() => {
+                const ghost = [...planSession.selectedIds]
+                  .map((id) => planSession.document?.objects.find((object) => object.id === id))
+                  .find((object) => object?.kind === "ghost");
+                return Boolean(ghost);
+              })()}
+              ghostVision={(() => {
+                const ghost = [...planSession.selectedIds]
+                  .map((id) => planSession.document?.objects.find((object) => object.id === id))
+                  .find((object) => object?.kind === "ghost");
+                if (ghost && ghost.kind === "ghost") {
+                  return Boolean(ghost.showVision);
+                }
+                return planSession.ghostVisionDefault;
+              })()}
+              onGhostVision={planSession.setGhostVision}
               routeDraftCount={planSession.routeDraft.length}
               playback={{
                 playing: planSession.playback.playing,

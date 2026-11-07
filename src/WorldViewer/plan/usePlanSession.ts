@@ -7,6 +7,7 @@ import {
   createEmptyPlan,
   createPlanHistory,
   createPlanObjectId,
+  findPlanObject,
   movePlanObject,
   nextPackOrder,
   pushPlanHistory,
@@ -114,6 +115,11 @@ export type PlanSession = {
     loadout?: PlanGhostLoadout;
   }) => void;
   placePackMarker: (packIndex: number) => void;
+  /** Default vision box for the next placed party ghost. */
+  ghostVisionDefault: boolean;
+  setGhostVisionDefault: (on: boolean) => void;
+  /** Toggle vision on selected ghosts; falls back to the place default. */
+  setGhostVision: (on: boolean) => void;
 };
 
 export function usePlanSession(args: {
@@ -131,6 +137,7 @@ export function usePlanSession(args: {
   const [polygonDraft, setPolygonDraft] = useState<PlanPoint[]>([]);
   const [routeDraft, setRouteDraft] = useState<PlanPoint[]>([]);
   const [zoneDraft, setZoneDraft] = useState<{ label: string; color: string } | null>(null);
+  const [ghostVisionDefault, setGhostVisionDefault] = useState(true);
   const [playback, setPlaybackState] = useState({
     routeId: null as string | null,
     playing: false,
@@ -382,6 +389,32 @@ export function usePlanSession(args: {
     [persist],
   );
 
+  const setGhostVision = useCallback(
+    (on: boolean) => {
+      if (!document) {
+        setGhostVisionDefault(on);
+        return;
+      }
+      const ghostIds = [...selectedIds].filter((id) => {
+        const object = document.objects.find((entry) => entry.id === id);
+        return object?.kind === "ghost";
+      });
+      if (ghostIds.length === 0) {
+        setGhostVisionDefault(on);
+        return;
+      }
+      let next = document;
+      for (const id of ghostIds) {
+        const ghost = findPlanObject(next, id);
+        if (ghost?.kind === "ghost") {
+          next = replacePlanObject(next, { ...ghost, showVision: on });
+        }
+      }
+      commit(next);
+    },
+    [commit, document, selectedIds],
+  );
+
   const placeGhost: PlanSession["placeGhost"] = useCallback(
     ({ point, classKey, loadoutName, loadout }) => {
       if (!document) {
@@ -396,6 +429,7 @@ export function usePlanSession(args: {
         classKey,
         name: loadoutName || classKey,
         loadout,
+        showVision: ghostVisionDefault,
       };
       const range: PlanObject = {
         kind: "ellipse",
@@ -414,7 +448,7 @@ export function usePlanSession(args: {
       commit(next);
       setSelectedIds(new Set([ghost.id]));
     },
-    [color, commit, document],
+    [color, commit, document, ghostVisionDefault],
   );
 
   const placePackMarker = useCallback(
@@ -766,6 +800,9 @@ export function usePlanSession(args: {
     handleMapPointer,
     placeGhost,
     placePackMarker,
+    ghostVisionDefault,
+    setGhostVisionDefault,
+    setGhostVision,
   };
 }
 

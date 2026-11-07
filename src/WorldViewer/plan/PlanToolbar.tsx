@@ -162,6 +162,11 @@ type PlanToolbarProps = {
   /** Strategy plans + map layers live in the dock so sidebars can stay gone. */
   libraryMenu?: ReactNode;
   layersMenu?: ReactNode;
+  /** Vision box for scouting — selected ghost, else next place default. */
+  ghostVision: boolean;
+  onGhostVision: (on: boolean) => void;
+  /** True when a placed ghost is selected (toggle edits that ghost). */
+  ghostSelected: boolean;
 };
 
 function strategyValue(tool: PlanTool, zoneMode: boolean): string {
@@ -202,11 +207,14 @@ export function PlanToolbar({
   routeDraftCount,
   libraryMenu,
   layersMenu,
+  ghostVision,
+  onGhostVision,
+  ghostSelected,
 }: PlanToolbarProps) {
   const loadoutNames = Object.keys(loadouts).sort((a, b) => a.localeCompare(b));
   const strategy = strategyValue(tool, zoneMode);
   const drawValue = !strategy && DRAW_TOOLS.some((entry) => entry.id === tool) ? tool : null;
-  const showGhostContext = tool === "ghost";
+  const showGhostContext = tool === "ghost" || ghostSelected;
   const showZoneContext = zoneMode || tool === "rect";
   const showRouteContext = tool === "route" || playback.hasRoute || routeDraftCount > 0;
   const showDrawExtras = tool === "stamp";
@@ -491,6 +499,20 @@ export function PlanToolbar({
                   </MenuItem>
                 ))}
               </TextField>
+              <ToggleButton
+                size="small"
+                value="vision"
+                selected={ghostVision}
+                onChange={() => onGhostVision(!ghostVision)}
+                aria-label="Vision box"
+                title="1400×1000 client vision — scout what you can see from here"
+                sx={{ px: 1, py: 0.25 }}
+              >
+                Vision
+              </ToggleButton>
+              <Typography variant="caption" sx={{ opacity: 0.65 }}>
+                {ghostSelected ? "Vision on this ghost" : "Vision on next place · 1400×1000"}
+              </Typography>
             </>
           )}
 
