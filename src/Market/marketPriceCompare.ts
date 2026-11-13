@@ -62,10 +62,18 @@ export type BarterMarketSides = {
   compare: BarterGoldCompare | null;
 };
 
+/** Per-side upgrade/compound EV (either side may be missing). */
+export type BarterCalcSides = {
+  give?: GoldEstimate;
+  receive?: GoldEstimate;
+  /** Present only when both sides have an upgrade/compound EV. */
+  compare: BarterGoldCompare | null;
+};
+
 /** Market-only and/or calc-only sides for a barter row. */
 export type BarterValueSplit = {
   market: BarterMarketSides;
-  calc: BarterGoldCompare | null;
+  calc: BarterCalcSides;
 };
 
 export type ItemRef = {
@@ -98,13 +106,25 @@ function levelBucket(
   return byVariant[variant]?.[level] ?? byVariant[PLAIN_VARIANT]?.[level];
 }
 
-function chanceTablesFromG(G: GData) {
-  const gAny = G as GData & {
-    upgrades?: Record<number, Record<number, number>>;
-    compounds?: Record<number, Record<number, number>>;
-  };
-  if (!gAny.upgrades && !gAny.compounds) return undefined;
-  return { upgrades: gAny.upgrades, compounds: gAny.compounds };
+type ChanceTablesFromG = {
+  upgrades?: Record<number, Record<number, number>>;
+  compounds?: Record<number, Record<number, number>>;
+};
+
+/** Stable per-G object so upgrade stack memo (`tables ===`) stays warm across rows. */
+let chanceTablesG: GData | undefined;
+let chanceTablesCached: ChanceTablesFromG | undefined;
+
+function chanceTablesFromG(G: GData): ChanceTablesFromG | undefined {
+  if (chanceTablesG === G) return chanceTablesCached;
+  const gAny = G as GData & ChanceTablesFromG;
+  chanceTablesG = G;
+  if (!gAny.upgrades && !gAny.compounds) {
+    chanceTablesCached = undefined;
+    return undefined;
+  }
+  chanceTablesCached = { upgrades: gAny.upgrades, compounds: gAny.compounds };
+  return chanceTablesCached;
 }
 
 function formatCompact(n: number): string {
@@ -252,6 +272,14 @@ export function estimateMarketItemGold(
   return undefined;
 }
 
+/** True when upgrade/compound EV can exist (mode set and level ≥ 1). */
+export function itemEligibleForUpgradeCalc(item: ItemRef, G: GData | undefined): boolean {
+  if (!G) return false;
+  const gItem = G.items[item.name as ItemKey];
+  const level = item.level ?? 0;
+  return !!gItem && !!itemUpgradeMode(gItem) && level >= 1;
+}
+
 /**
  * Upgrade/compound EV only. No NPC sell value, no catalog `.g`.
  * Pass `light: true` to skip (keeps expand/barter paint snappy).
@@ -263,14 +291,64 @@ export function estimateCalcItemGold(
   const qty = item.q != null && item.q > 0 ? item.q : 1;
   const { G, light } = args;
   if (!G || light) return undefined;
-
-  const gItem = G.items[item.name as ItemKey];
-  const level = item.level ?? 0;
-  if (!gItem || !itemUpgradeMode(gItem) || level < 1) return undefined;
+  if (!itemEligibleForUpgradeCalc(item, G)) return undefined;
 
   const range = itemCalcUnitRange(item, args);
   if (range?.kind !== "upgrade-path") return undefined;
   return { gold: itemCalcMidGold(range) * qty, source: "calc" };
+}
+
+/** Cache key for one unit's upgrade/compound mid (qty applied by caller). */
+export function upgradeCalcCacheKey(item: ItemRef): string {
+  return `${item.name}|${item.level ?? 0}|${item.p ?? ""}|${item.data ?? ""}`;
+}
+
+/**
+ * Like `estimateCalcItemGold`, but reuses prior results for the same item identity.
+ * Callers pass a Map scoped to one expand / panel mount.
+ */
+export function estimateCalcItemGoldCached(
+  item: ItemRef,
+  args: { market?: ItemsByNameTitleLevel; G?: GData; light?: boolean },
+  cache: Map<string, GoldEstimate | undefined>,
+): GoldEstimate | undefined {
+  const qty = item.q != null && item.q > 0 ? item.q : 1;
+  if (args.light || !args.G) return undefined;
+  if (!itemEligibleForUpgradeCalc(item, args.G)) return undefined;
+
+  const key = upgradeCalcCacheKey(item);
+  let unit = cache.get(key);
+  if (!cache.has(key)) {
+    unit = estimateCalcItemGold({ ...item, q: 1 }, args);
+    cache.set(key, unit);
+  }
+  if (!unit) return undefined;
+  return qty === 1 ? unit : { gold: unit.gold * qty, source: unit.source };
+}
+
+function pairBarter(
+  give: GoldEstimate | undefined,
+  receive: GoldEstimate | undefined,
+): BarterGoldCompare | null {
+  if (!give || !receive) return null;
+  const diff = give.gold - receive.gold;
+  const pct = receive.gold > 0 ? (diff / receive.gold) * 100 : null;
+  return { give, receive, diff, pct };
+}
+
+/** Per-side upgrade/compound EV for a barter (one-sided results kept). */
+export function barterCalcSides(
+  sides: WantTradeSides,
+  args: { market?: ItemsByNameTitleLevel; G?: GData; light?: boolean },
+  cache?: Map<string, GoldEstimate | undefined>,
+): BarterCalcSides {
+  if (args.light) return { compare: null };
+  const estimate = cache
+    ? (item: ItemRef) => estimateCalcItemGoldCached(item, args, cache)
+    : (item: ItemRef) => estimateCalcItemGold(item, args);
+  const give = estimate(sides.give);
+  const receive = estimate(sides.receive);
+  return { give, receive, compare: pairBarter(give, receive) };
 }
 
 /**
@@ -295,16 +373,6 @@ export function goldVsBest(price: number, best: number): GoldVsBest | null {
   };
 }
 
-function pairBarter(
-  give: GoldEstimate | undefined,
-  receive: GoldEstimate | undefined,
-): BarterGoldCompare | null {
-  if (!give || !receive) return null;
-  const diff = give.gold - receive.gold;
-  const pct = receive.gold > 0 ? (diff / receive.gold) * 100 : null;
-  return { give, receive, diff, pct };
-}
-
 /**
  * Value both sides of an x:y barter.
  * WantTradeSides: merchant gives `give`, wants `receive`.
@@ -321,6 +389,7 @@ export function barterGoldCompare(
 export function barterValueSplit(
   sides: WantTradeSides,
   args: { market?: ItemsByNameTitleLevel; G?: GData; light?: boolean },
+  cache?: Map<string, GoldEstimate | undefined>,
 ): BarterValueSplit {
   const marketGive = estimateMarketItemGold(sides.give, args);
   const marketReceive = estimateMarketItemGold(sides.receive, args);
@@ -330,10 +399,7 @@ export function barterValueSplit(
       receive: marketReceive,
       compare: pairBarter(marketGive, marketReceive),
     },
-    calc: pairBarter(
-      estimateCalcItemGold(sides.give, args),
-      estimateCalcItemGold(sides.receive, args),
-    ),
+    calc: barterCalcSides(sides, args, cache),
   };
 }
 

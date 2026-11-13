@@ -632,6 +632,9 @@ function computeStacksForPlanner(ctx: PlannerContext): StackTables {
   return computeUpgradeStacks(ctx);
 }
 
+/** Used when failstack/ograce search is off — unit-cost helpers short-circuit at 0. */
+const EMPTY_STACKS: StackTables = { failstack: [], ograce: [] };
+
 const MAX_ITEM_GRACE = 13;
 const PRIMSTACK_GRACE = 0.5;
 
@@ -1112,7 +1115,12 @@ export function planUpgradePath(
     return planUpgradePathBestOdds(ctx, itemName, itemValue, targetLevel, options);
   }
 
-  const stacks = options.stacks ?? computeStacksForPlanner(ctx);
+  // Snappy market paths disable both stack farms — skip stack table build entirely.
+  const stacks =
+    options.stacks ??
+    (options.allowFailstack === false && options.allowOgrace === false
+      ? EMPTY_STACKS
+      : computeStacksForPlanner(ctx));
   const frontier = upgradeCalcPareto(ctx, itemName, itemValue, targetLevel, {
     luckySlot: options.luckySlot,
     startGrace: options.startGrace,
@@ -1197,9 +1205,11 @@ function planCompoundCheapest(
   const def = ctx.lookup(itemName);
   if (!def) return null;
 
-  const stacks = options.stacks ?? computeStacksForPlanner(ctx);
-  const offerings = offeringChoices(ctx.toolkit);
   const allowOgrace = options.allowOgrace !== false;
+  // Snappy market paths disable ograce — skip stack table build entirely.
+  const stacks =
+    options.stacks ?? (allowOgrace === false ? EMPTY_STACKS : computeStacksForPlanner(ctx));
+  const offerings = offeringChoices(ctx.toolkit);
   const maxOgraceIdx = allowOgrace ? Math.min(MAX_OGRACE_STEPS, stacks.ograce.length - 1) : 0;
   const grades = ((def.grades as number[] | undefined) ?? [9, 10, 11, 12]) as number[];
   const target = Math.min(targetLevel, grades[3] ?? 10, 10);

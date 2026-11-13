@@ -9,7 +9,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import { useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useContext, useMemo, type ReactNode } from "react";
 import { ItemKey } from "typed-adventureland";
 
 import { CustomGData, GDataContext } from "../GDataContext";
@@ -33,10 +33,12 @@ import {
   itemCalcMidGold,
   itemCalcUnitRange,
   leadAskPrice,
+  type BarterCalcSides,
   type BarterGoldCompare,
   type GoldEstimate,
 } from "./marketPriceCompare";
 import type { ItemsByNameTitleLevel, Merchant } from "./merchantTypes";
+import { useWantBarterCalcs } from "./useWantBarterCalcs";
 
 function sourceChip(source: OfferSource) {
   // Stand is the default; only call out Earth /trades rows.
@@ -357,8 +359,8 @@ function barterArrowCell(args: {
   );
 }
 
-function sideTitle(label: string, estimate?: GoldEstimate) {
-  if (!estimate) return `${label} — (no market quote)`;
+function sideTitle(label: string, estimate: GoldEstimate | undefined, emptyHint: string) {
+  if (!estimate) return `${label} — (${emptyHint})`;
   return `${label} ≈ ${estimate.gold.toLocaleString()} (${estimateSourceLabel(estimate.source)})`;
 }
 
@@ -371,11 +373,21 @@ function barterTitle(compare: BarterGoldCompare): string {
   ].join("\n");
 }
 
+function calcSidesTitle(calc: BarterCalcSides): string {
+  return [
+    sideTitle("You get", calc.give, "no upgrade/compound EV"),
+    sideTitle("You give", calc.receive, "no upgrade/compound EV"),
+  ].join("\n");
+}
+
 function marketSidesTitle(
   give?: BarterGoldCompare["give"],
   receive?: BarterGoldCompare["receive"],
 ) {
-  return [sideTitle("You get", give), sideTitle("You give", receive)].join("\n");
+  return [
+    sideTitle("You get", give, "no market quote"),
+    sideTitle("You give", receive, "no market quote"),
+  ].join("\n");
 }
 
 export function WantOffersPanel({
@@ -404,31 +416,12 @@ export function WantOffersPanel({
     [rows, viewedItem, marketItems, G],
   );
 
-  const [calcSplits, setCalcSplits] = useState<(BarterGoldCompare | null)[] | null>(null);
+  // Calc = upgrade/compound EV only (chunked idle; spinner while pending).
+  const { pending: calcPending, splits: calcSplits } = useWantBarterCalcs(rows, viewedItem, {
+    G,
+    market: marketItems,
+  });
 
-  // Calc = upgrade/compound EV only (async; never NPC).
-  useEffect(() => {
-    let cancelled = false;
-    setCalcSplits(null);
-    if (rows.length === 0) {
-      setCalcSplits([]);
-      return;
-    }
-    const raf = window.requestAnimationFrame(() => {
-      const next = rows.map((row) => {
-        const sides = wantTradeSides(row, viewedItem);
-        if (!sides) return null;
-        return barterValueSplit(sides, { market: marketItems, G, light: false }).calc;
-      });
-      if (!cancelled) setCalcSplits(next);
-    });
-    return () => {
-      cancelled = true;
-      window.cancelAnimationFrame(raf);
-    };
-  }, [rows, viewedItem, marketItems, G]);
-
-  const calcPending = calcSplits == null;
   const dash = (
     <Typography variant="caption" color="text.secondary" component="span">
       —
@@ -438,8 +431,8 @@ export function WantOffersPanel({
   return (
     <PanelShell title={title} badge={`${rows.length}`} empty={rows.length === 0}>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
-        From your side of the deal. Value = market only. Calc = upgrade/compound EV only. Diff = get
-        − give when both sides have a market quote.
+        From your side of the deal. Value = market only. Calc = upgrade/compound EV only (either
+        side may be —). Diff = get − give when both sides have a market quote.
       </Typography>
       <Table size="small">
         <TableHead>
@@ -469,10 +462,11 @@ export function WantOffersPanel({
             const merchant = merchants[row.merchantName];
             const sides = wantTradeSides(row, viewedItem);
             const market = marketSplits[index] ?? null;
-            const calc = calcSplits?.[index] ?? null;
+            const calc = calcSplits[index] ?? null;
             // Diff is market-only (both sides must quote). Calc stays in its own column.
             const diffCompare = market?.compare ?? null;
-            const calcEmpty = calcPending ? <CircularProgress size={14} thickness={5} /> : dash;
+            const rowCalcPending = calcPending && calc == null;
+            const calcEmpty = rowCalcPending ? <CircularProgress size={14} thickness={5} /> : dash;
             // wantTradeSides: merchant `give` / `receive` → visitor gets `give`, pays `receive`.
             const youGive = sides?.receive;
             const youGet = sides?.give;
@@ -506,10 +500,10 @@ export function WantOffersPanel({
                     : "No live market ask/bid",
                 })}
                 {barterArrowCell({
-                  leftGold: calc?.receive.gold,
-                  rightGold: calc?.give.gold,
+                  leftGold: calc?.receive?.gold,
+                  rightGold: calc?.give?.gold,
                   empty: calcEmpty,
-                  title: calc ? barterTitle(calc) : calcPending ? "Calculating…" : undefined,
+                  title: calc ? calcSidesTitle(calc) : rowCalcPending ? "Calculating…" : undefined,
                 })}
                 {diffCompare ? (
                   <DiffCell

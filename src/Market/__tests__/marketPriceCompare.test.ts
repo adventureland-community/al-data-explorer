@@ -186,8 +186,10 @@ describe("estimateItemGold / calc", () => {
     expect(split.market.compare).toBeNull();
     expect(split.market.give?.source).toBe("market-ask");
     expect(split.market.receive).toBeUndefined();
-    // Flat / +0 items have no upgrade EV → no Calc pair.
-    expect(split.calc).toBeNull();
+    // Flat / +0 items have no upgrade EV → empty Calc sides.
+    expect(split.calc.compare).toBeNull();
+    expect(split.calc.give).toBeUndefined();
+    expect(split.calc.receive).toBeUndefined();
   });
 
   it("skips Calc for items that cannot upgrade or compound", () => {
@@ -204,7 +206,23 @@ describe("estimateItemGold / calc", () => {
       },
       { G, light: false },
     );
-    expect(split.calc).toBeNull();
+    expect(split.calc.compare).toBeNull();
+    expect(split.calc.give).toBeUndefined();
+    expect(split.calc.receive).toBeUndefined();
+  });
+
+  it("keeps one-sided Calc when only the counterparty has upgrade EV", () => {
+    const split = barterValueSplit(
+      {
+        give: { name: "suckerpunch", level: 0, q: 1 },
+        receive: { name: "blade", level: 3, q: 1 },
+      },
+      { G, light: false },
+    );
+    expect(split.calc.give).toBeUndefined();
+    expect(split.calc.receive?.source).toBe("calc");
+    expect(split.calc.receive!.gold).toBeGreaterThan(0);
+    expect(split.calc.compare).toBeNull();
   });
 
   it("falls back to upgrade-path mid between cheapest and fewest", () => {
