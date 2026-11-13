@@ -14,7 +14,7 @@ import {
   TableSortLabel,
   Typography,
 } from "@mui/material";
-import { useContext, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import { ItemInfoPValues, ItemKey } from "typed-adventureland";
@@ -28,8 +28,9 @@ import { QuerySearchBar } from "../Shared/QuerySearchBar";
 import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
 import { abbreviateNumber } from "../Shared/utils";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
-import { BankListingsPanel, GoldOffersPanel, WantOffersPanel } from "./MarketDetailPanels";
+import { GoldOffersPanel, WantOffersPanel } from "./MarketDetailPanels";
 import { buildMarketSearchSuggestions, marketRowMatchesSearch } from "./marketSearchQuery";
+import { useItemCalcRange } from "./useItemCalcRange";
 import {
   DEFAULT_MARKET_SORT,
   defaultDirectionFor,
@@ -39,7 +40,9 @@ import {
   type MarketSortKey,
 } from "./marketSort";
 import { splitMarketOffers } from "./marketOfferRows";
-import { useBankTrades } from "./useBankTrades";
+import { CalcCostGlance } from "./CalcCostGlance";
+import { PriceSpreadGlance } from "./PriceSpreadGlance";
+import { useListedTrades } from "./useListedTrades";
 import { emptyBuySellPrices, useMerchants } from "./useMerchants";
 import type { BuySellItemPrices, Merchant } from "./useMerchants";
 import { listingKey } from "../Trades/tradeViewModel";
@@ -49,14 +52,13 @@ function Info() {
     <Card>
       <CardContent>
         <Typography component="div">
-          Live merchant stands from{" "}
-          <a href="https://aldata.earthiverse.ca">earthiverse&apos;s aldata</a> (gold asks/bids and
-          official item-for-item <code>want</code> offers), plus bank WTS/WTB listings from the same
-          API. Expand a row for Buying / Selling / stand trades / bank listings.
+          Stands from <a href="https://aldata.earthiverse.ca">earthiverse&apos;s aldata</a>, plus
+          Earth <code>/trades</code> WTS/WTB. Gold goes under Buying/Selling. Item barters split
+          into You get this / You give this; Earth rows get an Earth chip.
           <br />
-          Search with market ops — try <code>price:&gt;=1m</code>, <code>attr:armor&gt;=40</code>,{" "}
-          <code>is:sell</code>. Column headers sort; Selling Best (low ask) starts high→low on first
-          click. REFRESH DATA reloads stands and bank listings.
+          Search ops: <code>price:&gt;=1m</code>, <code>attr:armor&gt;=40</code>,{" "}
+          <code>is:sell</code>. Click a column to sort. Best ask sorts cheapest-first on the first
+          click. Refresh Data reloads stands and Earth.
         </Typography>
       </CardContent>
     </Card>
@@ -81,7 +83,8 @@ function TradeItemRow({
   level,
   prices,
   merchants,
-  bankRows,
+  marketItems,
+  listedRows,
 }: {
   itemKey: ItemKey;
   title: string;
@@ -89,15 +92,60 @@ function TradeItemRow({
   level: number;
   prices: BuySellItemPrices;
   merchants: { [id: string]: Merchant };
-  bankRows: ReturnType<typeof useBankTrades>["allRows"];
+  marketItems: ReturnType<typeof useMerchants>["items"];
+  listedRows: ReturnType<typeof useListedTrades>["allRows"];
 }) {
   const G = useContext(GDataContext);
   const [showDetails, setShowDetails] = useState(false);
+  /** Mount want panels after gold glance paints so expand stays responsive. */
+  const [showWantPanels, setShowWantPanels] = useState(false);
   const gItem = G?.items[itemKey];
 
   const buyerCount = Object.keys(prices.buying.merchants).length;
   const sellerCount = Object.keys(prices.selling.merchants).length;
-  const offers = splitMarketOffers(prices);
+  const viewedItem = useMemo(
+    () => ({
+      name: itemKey,
+      level,
+      p: title || undefined,
+    }),
+    [itemKey, level, title],
+  );
+
+  // Cheap expand chevron: stand slots or any Earth row for this listing.
+  const hasDetail =
+    buyerCount > 0 ||
+    sellerCount > 0 ||
+    prices.wantedBy.length > 0 ||
+    Object.values(prices.buying.merchants).some((m) =>
+      m.items.some((it) => it.want != null && typeof it.want.name === "string"),
+    ) ||
+    Object.values(prices.selling.merchants).some((m) =>
+      m.items.some((it) => it.want != null && typeof it.want.name === "string"),
+    ) ||
+    listedRows.length > 0;
+
+  const offers = useMemo(
+    () => (showDetails ? splitMarketOffers(prices, listedRows, viewedItem) : null),
+    [showDetails, prices, listedRows, viewedItem],
+  );
+
+  useEffect(() => {
+    if (!showDetails) {
+      setShowWantPanels(false);
+      return;
+    }
+    const raf = window.requestAnimationFrame(() => setShowWantPanels(true));
+    return () => window.cancelAnimationFrame(raf);
+  }, [showDetails]);
+
+  const calcState = useItemCalcRange(
+    showDetails,
+    { name: itemKey, level },
+    { G, market: marketItems },
+  );
+  const calcRange = calcState.status === "ready" ? calcState.range : undefined;
+  const calcLoading = showDetails && calcState.status === "loading";
 
   if (!gItem) return null;
 
@@ -115,12 +163,16 @@ function TradeItemRow({
 
   const itemName = getItemName(itemKey, gItem);
   const keyLine = data ? `${itemInfo.name} · ${data}` : itemInfo.name;
-  const hasDetail =
-    offers.buyGold.length > 0 ||
-    offers.sellGold.length > 0 ||
-    offers.outgoingWant.length > 0 ||
-    offers.incomingWant.length > 0 ||
-    bankRows.length > 0;
+  const standTradeCount = offers
+    ? offers.outgoingWant.filter((r) => r.source === "stand").length +
+      offers.incomingWant.filter((r) => r.source === "stand").length
+    : 0;
+  const earthCount = offers
+    ? offers.buyGold.filter((r) => r.source === "earth").length +
+      offers.sellGold.filter((r) => r.source === "earth").length +
+      offers.outgoingWant.filter((r) => r.source === "earth").length +
+      offers.incomingWant.filter((r) => r.source === "earth").length
+    : 0;
 
   return (
     <>
@@ -160,37 +212,55 @@ function TradeItemRow({
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={13}>
           <Collapse in={showDetails} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
-                <GoldOffersPanel
-                  title="Buying (gold bids)"
-                  rows={offers.buyGold}
-                  merchants={merchants}
-                  bestLabel="Bid"
-                />
-                <GoldOffersPanel
-                  title="Selling (gold asks)"
-                  rows={offers.sellGold}
-                  merchants={merchants}
-                  bestLabel="Ask"
-                />
+            {offers ? (
+              <Box sx={{ margin: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "stretch" }}>
+                  <PriceSpreadGlance
+                    buyGold={offers.buyGold}
+                    sellGold={offers.sellGold}
+                    standTradeCount={standTradeCount}
+                    earthCount={earthCount}
+                  />
+                  <CalcCostGlance calcRange={calcRange} loading={calcLoading} />
+                </Box>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                  <GoldOffersPanel
+                    title="Buying (gold bids)"
+                    rows={offers.buyGold}
+                    merchants={merchants}
+                    bestLabel="Bid"
+                    side="bid"
+                    calcRange={calcRange}
+                  />
+                  <GoldOffersPanel
+                    title="Selling (gold asks)"
+                    rows={offers.sellGold}
+                    merchants={merchants}
+                    bestLabel="Ask"
+                    side="ask"
+                    calcRange={calcRange}
+                  />
+                </Box>
+                {showWantPanels ? (
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                    <WantOffersPanel
+                      title="You get this"
+                      rows={offers.outgoingWant}
+                      merchants={merchants}
+                      viewedItem={{ name: itemKey, level }}
+                      marketItems={marketItems}
+                    />
+                    <WantOffersPanel
+                      title="You give this"
+                      rows={offers.incomingWant}
+                      merchants={merchants}
+                      viewedItem={{ name: itemKey, level }}
+                      marketItems={marketItems}
+                    />
+                  </Box>
+                ) : null}
               </Box>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
-                <WantOffersPanel
-                  title="Stand trades (offering this)"
-                  rows={offers.outgoingWant}
-                  merchants={merchants}
-                  viewedItem={{ name: itemKey, level }}
-                />
-                <WantOffersPanel
-                  title="Stand trades (want this)"
-                  rows={offers.incomingWant}
-                  merchants={merchants}
-                  viewedItem={{ name: itemKey, level }}
-                />
-              </Box>
-              <BankListingsPanel rows={bankRows} />
-            </Box>
+            ) : null}
           </Collapse>
         </TableCell>
       </TableRow>
@@ -202,11 +272,11 @@ export function Market() {
   const G = useContext(GDataContext);
   const { items, merchants, lastRefresh, refresh } = useMerchants();
   const {
-    allRows: bankAllRows,
+    allRows: listedAllRows,
     getRowsForItem,
-    lastRefresh: bankRefresh,
-    refresh: refreshBank,
-  } = useBankTrades();
+    lastRefresh: listedRefresh,
+    refresh: refreshListed,
+  } = useListedTrades();
   const [filter, setFilter] = useState("");
   const [selectedBuyers, setSelectedBuyers] = useState<string[]>([]);
   const [selectedSellers, setSelectedSellers] = useState<string[]>([]);
@@ -287,7 +357,7 @@ export function Market() {
 
   const onRefreshData = () => {
     refresh();
-    refreshBank();
+    refreshListed();
   };
 
   const rows = useMemo(() => {
@@ -320,25 +390,25 @@ export function Market() {
       }
     }
 
-    // Bank-only listings (no live stand) still appear as market rows.
+    // Listed-only items (no live stand) still appear as market rows.
     const seen = new Set(
       tmpRows.map((row) =>
         listingKey({ name: row.itemName, level: row.level, p: row.title || undefined }),
       ),
     );
-    for (const bankRow of bankAllRows) {
-      const key = listingKey(bankRow.listing);
+    for (const listedRow of listedAllRows) {
+      const key = listingKey(listedRow.listing);
       if (seen.has(key)) continue;
       seen.add(key);
       const variantKey = instanceVariantKey({
-        p: bankRow.listing.p,
+        p: listedRow.listing.p,
       });
       const { title, data } = parseInstanceVariantKey(variantKey);
       tmpRows.push({
-        itemName: bankRow.listing.name as ItemKey,
-        title: bankRow.listing.p ?? title,
+        itemName: listedRow.listing.name as ItemKey,
+        title: listedRow.listing.p ?? title,
         data,
-        level: bankRow.listing.level ?? 0,
+        level: listedRow.listing.level ?? 0,
         prices: emptyBuySellPrices(),
       });
     }
@@ -350,7 +420,7 @@ export function Market() {
         a.title.localeCompare(b.title),
     );
     return tmpRows;
-  }, [items, bankAllRows]);
+  }, [items, listedAllRows]);
 
   const filteredRows = useMemo(() => {
     const matched = rows.filter((row) => {
@@ -365,14 +435,14 @@ export function Market() {
       const hasSellers = sellerKeys.length > 0;
       const hasBuyers = buyerKeys.length > 0;
       const hasWantedBy = row.prices.wantedBy.length > 0;
-      const hasBank = getRowsForItem({
+      const hasListed = getRowsForItem({
         name: row.itemName,
         level: row.level,
         p: row.title || undefined,
       }).length;
 
       return (
-        (hasSellers || hasBuyers || hasWantedBy || hasBank > 0) &&
+        (hasSellers || hasBuyers || hasWantedBy || hasListed > 0) &&
         buyerMatches &&
         sellerMatches &&
         marketRowMatchesSearch(row, G, filter)
@@ -381,10 +451,10 @@ export function Market() {
     return sortMarketRows(matched, sortConfig);
   }, [rows, selectedBuyers, selectedSellers, filter, G, sortConfig, getRowsForItem]);
 
-  const refreshedAt = [lastRefresh, bankRefresh]
+  const refreshedAt = [lastRefresh, listedRefresh]
     .filter(Boolean)
     .map((d) => d!.toLocaleString())
-    .join(" · stands / bank ");
+    .join(" · stands / earth ");
 
   return (
     <StickyListLayout
@@ -478,22 +548,30 @@ export function Market() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredRows.map(({ itemName, title, data, level, prices }) => (
-              <TradeItemRow
-                key={`${itemName}\0${title}\0${data ?? ""}\0${level}`}
-                itemKey={itemName}
-                title={title}
-                data={data}
-                level={level}
-                prices={prices}
-                merchants={merchants}
-                bankRows={getRowsForItem({
-                  name: itemName,
-                  level,
-                  p: title || undefined,
-                })}
-              />
-            ))}
+            {filteredRows.map(({ itemName, title, data, level, prices }) => {
+              const rowKey = listingKey({
+                name: itemName,
+                level,
+                p: title || undefined,
+              });
+              return (
+                <TradeItemRow
+                  key={`${rowKey}\0${data ?? ""}`}
+                  itemKey={itemName}
+                  title={title}
+                  data={data}
+                  level={level}
+                  prices={prices}
+                  merchants={merchants}
+                  marketItems={items}
+                  listedRows={getRowsForItem({
+                    name: itemName,
+                    level,
+                    p: title || undefined,
+                  })}
+                />
+              );
+            })}
           </TableBody>
         </Table>
       </StickyTableShell>

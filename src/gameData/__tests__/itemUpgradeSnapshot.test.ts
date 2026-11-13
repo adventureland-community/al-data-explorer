@@ -1,6 +1,7 @@
 import { GItem, ItemKey } from "typed-adventureland";
 
 import {
+  buildItemUpgradeCostRange,
   buildItemUpgradeSnapshot,
   buildUpgradeCalcHref,
   itemUpgradeMode,
@@ -132,5 +133,21 @@ describe("itemUpgradeSnapshot", () => {
     expect(snap).not.toBeNull();
     expect(snap!.targetLevel).toBe(5);
     expect(snap!.calcHref).toContain("target=5");
+  });
+
+  it("builds a cheapest–fewest upgrade cost range", () => {
+    const range = buildItemUpgradeCostRange({
+      itemKey: "blade" as ItemKey,
+      gItem: ITEMS.blade,
+      level: 3,
+      items: ITEMS,
+      prices: PRICES,
+    });
+    expect(range).not.toBeNull();
+    expect(range!.mode).toBe("upgrade");
+    expect(range!.cheapest).not.toBeNull();
+    expect(range!.fewest).not.toBeNull();
+    expect(range!.low).toBe(Math.min(range!.cheapest!, range!.fewest!));
+    expect(range!.high).toBe(Math.max(range!.cheapest!, range!.fewest!));
   });
 });

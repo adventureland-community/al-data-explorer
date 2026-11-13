@@ -4,12 +4,13 @@ import { getAllTrades } from "../Bank/getTrades";
 import type { OwnerTrades } from "../Trades/tradeTypes";
 import { flattenTrades, listingKey, type TradeRow } from "../Trades/tradeViewModel";
 
-type BankTradesCache = {
+type ListedTradesCache = {
   timestamp: string;
   owners: OwnerTrades[];
 };
 
-const CACHE_KEY = "bank-trades";
+/** Session cache for Earth ALData `/trades` (player-posted WTS/WTB, not inventory bank). */
+const CACHE_KEY = "listed-trades";
 
 function rowsForItem(
   rows: TradeRow[],
@@ -20,26 +21,14 @@ function rowsForItem(
     level: item.level,
     p: item.p,
   });
-  // Exact key first; also include wildcards where listing omits level/p.
-  return rows.filter((row) => {
-    if (row.listing.name !== item.name) return false;
-    if (item.p && row.listing.p !== undefined && row.listing.p !== item.p) return false;
-    if (
-      item.level !== undefined &&
-      row.listing.level !== undefined &&
-      row.listing.level !== item.level
-    ) {
-      return false;
-    }
-    // Prefer exact listingKey matches when both sides specify level/p.
-    if (row.listing.level !== undefined && row.listing.p !== undefined) {
-      return listingKey(row.listing) === key || listingKey(row.listing) === listingKey(item);
-    }
-    return true;
-  });
+  return rows.filter((row) => listingKey(row.listing) === key);
 }
 
-export function useBankTrades() {
+/**
+ * Player-posted trades from Earth ALData `/trades`.
+ * These are listings a player wants to do — they may or may not be on a live merchant stand.
+ */
+export function useListedTrades() {
   const [owners, setOwners] = useState<OwnerTrades[]>([]);
   const [lastRefresh, setLastRefresh] = useState<Date | undefined>(undefined);
 
@@ -48,7 +37,7 @@ export function useBankTrades() {
     setOwners(data);
     const now = new Date();
     setLastRefresh(now);
-    const cache: BankTradesCache = {
+    const cache: ListedTradesCache = {
       timestamp: now.toISOString(),
       owners: data,
     };
@@ -59,7 +48,7 @@ export function useBankTrades() {
     const cached = sessionStorage.getItem(CACHE_KEY);
     if (cached) {
       try {
-        const parsed = JSON.parse(cached) as BankTradesCache;
+        const parsed = JSON.parse(cached) as ListedTradesCache;
         setOwners(parsed.owners ?? []);
         setLastRefresh(new Date(parsed.timestamp));
         return;

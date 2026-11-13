@@ -49,8 +49,9 @@ export type TradeOverviewStats = {
   topItems: TradeOverviewItem[];
 };
 
+/** Stable identity for a listing. Omitted level is treated as 0 (matches stand slots). */
 export function listingKey(listing: ItemRef): string {
-  return `${listing.name}|${listing.level ?? ""}|${listing.p ?? ""}`;
+  return `${listing.name}|${listing.level ?? 0}|${listing.p ?? ""}`;
 }
 
 export function itemRefToItemInfo(item: ItemRef): ItemInfo {

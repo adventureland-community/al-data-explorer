@@ -74,5 +74,33 @@ describe("groupItemsByNameAndLevel", () => {
     expect(offers.sellGold).toHaveLength(1);
     expect(offers.outgoingWant).toHaveLength(2);
     expect(offers.incomingWant).toHaveLength(1);
+    expect(offers.incomingWant[0].item.name).toBe("cxjar");
+  });
+
+  it("combines identical gold slots from one merchant when splitting offers", () => {
+    const merchants = [
+      {
+        id: "merchBot",
+        lastSeen: new Date().toISOString(),
+        map: "main",
+        serverIdentifier: "I",
+        serverRegion: "US",
+        x: 0,
+        y: 0,
+        slots: {
+          trade1: { name: "suckerpunch", level: 0, price: 3_300_000_000, q: 1 },
+          trade2: { name: "suckerpunch", level: 0, price: 3_300_000_000, q: 1 },
+          trade3: { name: "suckerpunch", level: 0, price: 3_300_000_000, q: 1 },
+        },
+      },
+    ] as unknown as Merchant[];
+
+    const grouped = groupItemsByNameAndLevel(merchants);
+    const punch = grouped.suckerpunch?.[instanceVariantKey({})]?.[0];
+    const offers = splitMarketOffers(punch!);
+    expect(offers.sellGold).toHaveLength(1);
+    expect(offers.sellGold[0].quantity).toBe(3);
+    expect(offers.sellGold[0].slotCount).toBe(3);
+    expect(offers.sellGold[0].merchantName).toBe("merchBot");
   });
 });
