@@ -48,7 +48,7 @@ const sections = [
     title: "Market",
     path: "/market",
     description:
-      "Merchant stand gold and item-for-item offers, plus bank WTS/WTB listings from ALData.",
+      "Merchant stand gold and item-for-item offers, plus Earth /trades WTS/WTB from ALData.",
   },
   {
     title: "Bank",

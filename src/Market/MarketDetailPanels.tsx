@@ -439,7 +439,7 @@ export function WantOffersPanel({
     <PanelShell title={title} badge={`${rows.length}`} empty={rows.length === 0}>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
         From your side of the deal. Value = market only. Calc = upgrade/compound EV only. Diff = get
-        − give.
+        − give when both sides have a market quote.
       </Typography>
       <Table size="small">
         <TableHead>
@@ -470,7 +470,8 @@ export function WantOffersPanel({
             const sides = wantTradeSides(row, viewedItem);
             const market = marketSplits[index] ?? null;
             const calc = calcSplits?.[index] ?? null;
-            const diffCompare = market?.compare ?? calc;
+            // Diff is market-only (both sides must quote). Calc stays in its own column.
+            const diffCompare = market?.compare ?? null;
             const calcEmpty = calcPending ? <CircularProgress size={14} thickness={5} /> : dash;
             // wantTradeSides: merchant `give` / `receive` → visitor gets `give`, pays `receive`.
             const youGive = sides?.receive;
