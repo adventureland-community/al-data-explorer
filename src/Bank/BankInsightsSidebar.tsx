@@ -14,7 +14,7 @@ import { useMerchants } from "../Market/useMerchants";
 import type { Merchant } from "../Market/merchantTypes";
 import { CraftCostLabel, RecipeItemTile } from "../Shared/RecipeItemTile";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { abbreviateNumber, msToTime } from "../Shared/utils";
+import { abbreviateGold, abbreviateNumber, msToTime } from "../Shared/utils";
 import { AggregatedBankItem, formatBankItemLabel, getUniqueItemKey } from "./bankItems";
 import {
   analyzeCompoundCombines,
@@ -67,7 +67,7 @@ function craftIngredientTooltipLines(
     {
       kind: "stat",
       label: "In bank",
-      value: String(abbreviateNumber(ingredient.have)),
+      value: abbreviateNumber(ingredient.have),
       labelColor: "text.secondary",
     },
   ];
@@ -76,7 +76,7 @@ function craftIngredientTooltipLines(
     lines.push({
       kind: "stat",
       label: "Need",
-      value: String(abbreviateNumber(opts.usageQty)),
+      value: abbreviateNumber(opts.usageQty),
       labelColor: "text.secondary",
     });
   }
@@ -85,7 +85,7 @@ function craftIngredientTooltipLines(
     lines.push({
       kind: "stat",
       label: "Missing",
-      value: String(abbreviateNumber(ingredient.missing)),
+      value: abbreviateNumber(ingredient.missing),
       labelColor: "text.secondary",
       valueColor: "#ff5252",
     });
@@ -134,7 +134,7 @@ function combineInputTooltipLines(
     {
       kind: "stat",
       label: "In bank",
-      value: String(abbreviateNumber(combine.have)),
+      value: abbreviateNumber(combine.have),
       labelColor: "text.secondary",
     },
   ];
@@ -143,7 +143,7 @@ function combineInputTooltipLines(
     lines.push({
       kind: "stat",
       label: `From +${combine.level - 1} combines`,
-      value: String(abbreviateNumber(combine.cascadeIn)),
+      value: abbreviateNumber(combine.cascadeIn),
       labelColor: "text.secondary",
       valueColor: "#81c784",
     });
@@ -154,7 +154,7 @@ function combineInputTooltipLines(
       {
         kind: "stat",
         label: "Combines",
-        value: String(abbreviateNumber(count)),
+        value: abbreviateNumber(count),
         labelColor: "text.secondary",
       },
       {
@@ -170,7 +170,7 @@ function combineInputTooltipLines(
     lines.push({
       kind: "stat",
       label: "Missing",
-      value: String(abbreviateNumber(combine.missing)),
+      value: abbreviateNumber(combine.missing),
       labelColor: "text.secondary",
       valueColor: "#ff5252",
     });
@@ -490,21 +490,21 @@ function bankMarketTooltipLines(
     {
       kind: "stat",
       label: "Unit price",
-      value: `${abbreviateNumber(line.unitPrice)}g`,
+      value: abbreviateGold(line.unitPrice, { unit: "g" }),
       labelColor: "text.secondary",
       valueColor: "#fde047",
     },
     {
       kind: "stat",
       label: "Total",
-      value: `${abbreviateNumber(line.totalValue)}g`,
+      value: abbreviateGold(line.totalValue, { unit: "g" }),
       labelColor: "text.secondary",
       valueColor: "#fde047",
     },
     {
       kind: "stat",
       label: "Quantity",
-      value: String(abbreviateNumber(line.item.q)),
+      value: abbreviateNumber(line.item.q),
       labelColor: "text.secondary",
     },
   ];
@@ -579,7 +579,7 @@ function BankMarketTile({
             lineHeight: 1.2,
           }}
         >
-          {abbreviateNumber(line.totalValue)}g
+          {abbreviateGold(line.totalValue, { unit: "g" })}
         </Typography>
         <Typography
           variant="caption"
@@ -591,7 +591,7 @@ function BankMarketTile({
             lineHeight: 1.2,
           }}
         >
-          {abbreviateNumber(line.unitPrice)} × {abbreviateNumber(line.item.q)}
+          {abbreviateGold(line.unitPrice)} × {abbreviateNumber(line.item.q)}
         </Typography>
 
         <Box
@@ -937,7 +937,7 @@ export function BankInsightsSidebar({ bankData, items }: BankInsightsSidebarProp
               title="Sell estimate"
             />
             <Typography variant="h6" sx={{ fontWeight: 600, mt: 1 }}>
-              {abbreviateNumber(valueBreakdown.itemsSellValue)}
+              {abbreviateGold(valueBreakdown.itemsSellValue, { unit: "g" })}
             </Typography>
             <Stack
               direction={{ xs: "column", sm: "row" }}

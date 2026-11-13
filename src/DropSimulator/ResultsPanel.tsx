@@ -92,7 +92,7 @@ function TokenCostSummary({ costs, trialCount }: { costs: TokenCostRow[]; trialC
         {costs.map((cost) => {
           const gItem = G?.items[cost.tokenKey as ItemKey];
           const name = gItem?.name ?? cost.tokenKey;
-          const totalLabel = abbreviateNumber(cost.total) ?? cost.total.toLocaleString();
+          const totalLabel = abbreviateNumber(cost.total);
           return (
             <Box
               key={cost.tokenKey}

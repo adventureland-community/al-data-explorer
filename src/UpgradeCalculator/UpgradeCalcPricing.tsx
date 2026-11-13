@@ -11,8 +11,9 @@ import {
 } from "@mui/material";
 import { ReactNode, useEffect, useState } from "react";
 import { ItemKey } from "typed-adventureland";
+import { abbreviateGold } from "../Shared/utils";
 
-import { craftExpectedCost, formatGold, PriceTable } from "../calculators";
+import { craftExpectedCost, PriceTable } from "../calculators";
 import { ItemInstance } from "../Shared/ItemInstance";
 
 export function PriceField({
@@ -33,7 +34,7 @@ export function PriceField({
     }
   }, [value, focused]);
 
-  const display = focused ? draft : Number.isFinite(value) ? formatGold(value) : "";
+  const display = focused ? draft : Number.isFinite(value) ? abbreviateGold(value) : "";
 
   return (
     <Tooltip title={Number.isFinite(value) ? value.toLocaleString("en-US") : ""} placement="top">
@@ -144,14 +145,14 @@ export function MarketPriceHint({
         color="text.secondary"
         sx={{ fontVariantNumeric: "tabular-nums" }}
       >
-        market {formatGold(marketPrice)}
+        market {abbreviateGold(marketPrice)}
       </Typography>
       {onApplyMarket ? (
         <Button
           size="small"
           variant="text"
           onClick={() => onApplyMarket(marketPrice)}
-          aria-label={`Set override to market ${formatGold(marketPrice)}`}
+          aria-label={`Set override to market ${abbreviateGold(marketPrice)}`}
           sx={{ minWidth: 0, px: 0.5, py: 0, fontSize: "0.7rem", lineHeight: 1.4 }}
         >
           Use market
@@ -259,7 +260,7 @@ export function CraftRecipeBreakdown({
                     color="text.secondary"
                     sx={{ display: "block", fontVariantNumeric: "tabular-nums" }}
                   >
-                    line {formatGold(line)}
+                    line {abbreviateGold(line)}
                   </Typography>
                 ) : !Number.isFinite(unit) ? (
                   <Typography variant="caption" color="warning.main">
@@ -316,7 +317,7 @@ export function CraftRecipeBreakdown({
             Craft fee
           </Typography>
           <Typography variant="caption" sx={{ fontVariantNumeric: "tabular-nums" }}>
-            {formatGold(craftCost.fee)}
+            {abbreviateGold(craftCost.fee)}
           </Typography>
         </Stack>
       ) : null}
@@ -330,7 +331,9 @@ export function CraftRecipeBreakdown({
           color={craftCost.ok ? "text.primary" : "warning.main"}
           sx={{ fontVariantNumeric: "tabular-nums" }}
         >
-          {craftCost.ok ? formatGold(craftCost.cost) : `${formatGold(craftCost.partialCost)}+`}
+          {craftCost.ok
+            ? abbreviateGold(craftCost.cost)
+            : `${abbreviateGold(craftCost.partialCost)}+`}
         </Typography>
       </Stack>
       {!craftCost.ok ? (

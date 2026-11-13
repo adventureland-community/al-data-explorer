@@ -12,11 +12,11 @@ import {
   Typography,
 } from "@mui/material";
 import { ItemKey } from "typed-adventureland";
+import { abbreviateGold } from "../Shared/utils";
 
 import {
   compareGreedKits,
   formatChancePct,
-  formatGold,
   GreedFarmResult,
   GreedScrollCompareRow,
   OfferingChoice,
@@ -118,11 +118,11 @@ export function GreedFarmResults(props: {
 
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={3} flexWrap="wrap">
-          <Metric label="Gold / greed" value={formatGold(result.goldPerGreed)} />
+          <Metric label="Gold / greed" value={abbreviateGold(result.goldPerGreed)} />
           {result.targetCount > 1 ? (
             <Metric
               label={`Gold for ${result.targetCount}`}
-              value={formatGold(result.goldForTarget)}
+              value={abbreviateGold(result.goldForTarget)}
             />
           ) : null}
           <Metric
@@ -132,7 +132,7 @@ export function GreedFarmResults(props: {
           />
           <Metric
             label="Cost / attempt"
-            value={formatGold(result.attemptCost)}
+            value={abbreviateGold(result.attemptCost)}
             hint="Item + scroll + offering (item replaced each try)"
           />
           {result.targetCount > 1 ? (
@@ -151,10 +151,13 @@ export function GreedFarmResults(props: {
           Kit
         </Typography>
         <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5, gap: 1 }}>
-          <Chip size="small" label={`Item ${formatGold(result.itemUnit)}`} />
-          <Chip size="small" label={`${result.scrollKey} ${formatGold(result.scrollUnit)}`} />
+          <Chip size="small" label={`Item ${abbreviateGold(result.itemUnit)}`} />
+          <Chip size="small" label={`${result.scrollKey} ${abbreviateGold(result.scrollUnit)}`} />
           {result.offeringKey ? (
-            <Chip size="small" label={`${result.offeringKey} ${formatGold(result.offeringUnit)}`} />
+            <Chip
+              size="small"
+              label={`${result.offeringKey} ${abbreviateGold(result.offeringUnit)}`}
+            />
           ) : (
             <Chip size="small" variant="outlined" label="No offering" />
           )}
@@ -192,7 +195,7 @@ export function GreedFarmResults(props: {
                   >
                     <TableCell>{kitLabel(row.scrollKey, row.offering)}</TableCell>
                     <TableCell align="right">{formatChancePct(row.result.chance)}</TableCell>
-                    <TableCell align="right">{formatGold(row.result.goldPerGreed)}</TableCell>
+                    <TableCell align="right">{abbreviateGold(row.result.goldPerGreed)}</TableCell>
                     <TableCell align="right">
                       {formatAttempts(row.result.attemptsPerGreed)}
                     </TableCell>

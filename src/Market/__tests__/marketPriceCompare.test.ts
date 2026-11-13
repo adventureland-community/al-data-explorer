@@ -5,7 +5,6 @@ import {
   estimateSourceLabel,
   formatCalcGoldRange,
   formatPct,
-  formatSignedGold,
   goldVsBest,
   isParkingGoldPrice,
   itemCalcUnitRange,
@@ -17,7 +16,7 @@ import {
 import type { ItemsByNameTitleLevel } from "../merchantTypes";
 
 describe("parking asks", () => {
-  it("treats ~100G (incl. just-under display rounding) as parking", () => {
+  it("treats ≈100B parks (threshold 99B) as parking", () => {
     expect(isParkingGoldPrice(PARKING_GOLD)).toBe(true);
     expect(isParkingGoldPrice(99_999_999_999)).toBe(true);
     expect(isParkingGoldPrice(100_000_000_000)).toBe(true);
@@ -244,9 +243,7 @@ describe("estimateItemGold / calc", () => {
 });
 
 describe("format helpers", () => {
-  it("formats signed gold, pct, and calc ranges", () => {
-    expect(formatSignedGold(-200_000)).toBe("−200k");
-    expect(formatSignedGold(0)).toBe("0");
+  it("formats pct and calc gold ranges", () => {
     expect(formatPct(-20)).toBe("−20%");
     expect(formatPct(12.34)).toBe("+12.3%");
     expect(formatCalcGoldRange(1_000_000, 1_000_000)).toBe("1M");

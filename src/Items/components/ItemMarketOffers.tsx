@@ -15,7 +15,7 @@ import { ItemKey, TradeItemInfo } from "typed-adventureland";
 import { parseInstanceVariantKey } from "../../gameData/itemInstanceData";
 import type { BuySellItemPrices, Merchant } from "../../Market/useMerchants";
 import { useMerchants } from "../../Market/useMerchants";
-import { abbreviateNumber } from "../../Shared/utils";
+import { abbreviateGold } from "../../Shared/utils";
 
 type OfferRow = {
   id: string;
@@ -131,7 +131,7 @@ function OfferTable({
                       title={row.price.toLocaleString()}
                       sx={{ fontVariantNumeric: "tabular-nums" }}
                     >
-                      {abbreviateNumber(row.price)}
+                      {abbreviateGold(row.price)}
                     </TableCell>
                     <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>
                       {row.quantity > 1 ? row.quantity : "—"}

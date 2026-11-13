@@ -1,6 +1,7 @@
 import { ItemKey } from "typed-adventureland";
+import { abbreviateGold } from "../Shared/utils";
 
-import { formatGold, OfferingChoice, PlanSummaryStep } from "../calculators";
+import { OfferingChoice, PlanSummaryStep } from "../calculators";
 import { CalcStrategy } from "./useUpgradeCalcParams";
 
 export const TARGET_UPGRADE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -78,8 +79,10 @@ export function strategyCompareBadge(
 ): string | null {
   const parts: string[] = [];
   if (goldDelta != null && Number.isFinite(goldDelta) && Math.abs(goldDelta) >= 1) {
-    if (thisStrategy === "cheapest" && goldDelta > 0) parts.push(`saves ${formatGold(goldDelta)}`);
-    if (thisStrategy === "fewest" && goldDelta > 0) parts.push(`+${formatGold(goldDelta)} gold`);
+    if (thisStrategy === "cheapest" && goldDelta > 0)
+      parts.push(`saves ${abbreviateGold(goldDelta)}`);
+    if (thisStrategy === "fewest" && goldDelta > 0)
+      parts.push(`+${abbreviateGold(goldDelta)} gold`);
   }
   if (attemptDelta != null && Number.isFinite(attemptDelta) && Math.abs(attemptDelta) >= 0.05) {
     if (thisStrategy === "fewest" && attemptDelta > 0) {

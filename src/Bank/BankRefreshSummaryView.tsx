@@ -13,7 +13,7 @@ import { useContext, useMemo } from "react";
 import type { EntityTooltipLine } from "../gameData/entityTooltip";
 import { GDataContext } from "../GDataContext";
 import { RecipeItemTile } from "../Shared/RecipeItemTile";
-import { abbreviateNumber } from "../Shared/utils";
+import { abbreviateGold, abbreviateNumber } from "../Shared/utils";
 import { filterBankChanges } from "./bankAnalysis";
 import {
   BankItemChange,
@@ -186,7 +186,7 @@ function changeCaption(change: BankItemChange): string {
       return "Removed";
     case "changed":
       if (change.deltaQ != null && change.deltaQ !== 0) {
-        return `${change.deltaQ > 0 ? "+" : ""}${abbreviateNumber(change.deltaQ)} qty`;
+        return `${abbreviateNumber(change.deltaQ, { signed: true })} qty`;
       }
       if (change.deltaStack != null && change.deltaStack !== 0) {
         return `${change.deltaStack > 0 ? "+" : ""}${change.deltaStack} stacks`;
@@ -284,9 +284,7 @@ export function BankRefreshSummaryView({
         <Typography variant="subtitle2">
           {title} — {visibleChanges.length} item change
           {visibleChanges.length === 1 ? "" : "s"}
-          {summary.goldDelta
-            ? `, gold ${summary.goldDelta > 0 ? "+" : ""}${abbreviateNumber(summary.goldDelta)}`
-            : ""}
+          {summary.goldDelta ? `, gold ${abbreviateGold(summary.goldDelta, { signed: true })}` : ""}
           {summary.usedSlotsDelta
             ? `, slots ${summary.usedSlotsDelta > 0 ? "+" : ""}${summary.usedSlotsDelta}`
             : ""}

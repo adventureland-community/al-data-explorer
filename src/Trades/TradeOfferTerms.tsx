@@ -1,6 +1,6 @@
 import { Box, Typography } from "@mui/material";
 
-import { abbreviateNumber } from "../Shared/utils";
+import { abbreviateGold } from "../Shared/utils";
 import { NegotiableMarker } from "./NegotiableMarker";
 import { TradeRatioRow } from "./TradeRatioRow";
 import { ItemRef, TradeSide } from "./tradeTypes";
@@ -11,8 +11,7 @@ export function formatGoldPrice(side?: TradeSide): string | undefined {
   if (side?.price === undefined) {
     return undefined;
   }
-  const gold = abbreviateNumber(side.price) ?? side.price;
-  return String(gold);
+  return abbreviateGold(side.price);
 }
 
 export function formatGoldPriceLabel(side?: TradeSide): string | undefined {

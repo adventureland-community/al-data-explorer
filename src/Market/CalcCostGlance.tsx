@@ -1,14 +1,11 @@
 import { Box, CircularProgress, Typography } from "@mui/material";
 
-import { abbreviateNumber } from "../Shared/utils";
+import { abbreviateGold } from "../Shared/utils";
 import type { ItemCalcRange } from "./marketPriceCompare";
 import { formatCalcGoldRange } from "./marketPriceCompare";
 
 function goldLine(label: string, value: number | null | undefined, hint?: string) {
-  const body =
-    value != null && Number.isFinite(value) && value > 0
-      ? String(abbreviateNumber(value) ?? value)
-      : "—";
+  const body = abbreviateGold(value, { empty: "—", positiveOnly: true });
   return (
     <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }} title={hint}>
       <Typography variant="caption" color="text.secondary">

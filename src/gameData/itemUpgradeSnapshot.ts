@@ -9,7 +9,6 @@ import { getItemGrade } from "./itemGrade";
 import { ChanceTables, getCompoundChance, getUpgradeChance, ItemLookup } from "./upgradeChance";
 import {
   formatChancePct,
-  formatGold,
   formatShrineTime,
   planCompoundPath,
   planUpgradePath,
@@ -494,4 +493,4 @@ export function buildItemUpgradeSnapshot(args: {
 }
 
 /** Format helpers for the detail card (avoid pulling the full calculators barrel). */
-export { formatChancePct, formatGold };
+export { formatChancePct };

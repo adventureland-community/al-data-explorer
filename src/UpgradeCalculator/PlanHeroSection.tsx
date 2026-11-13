@@ -2,12 +2,12 @@ import { Box, Button, Chip, Link, Paper, Stack, TextField, Typography } from "@m
 import { useEffect, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { ItemKey } from "typed-adventureland";
+import { abbreviateGold } from "../Shared/utils";
 
 import {
   breakEvenListPrice,
   DEFAULT_MERCHANT_TAX,
   formatChancePct,
-  formatGold,
   PlanSummaryStep,
 } from "../calculators";
 import { ItemInstance } from "../Shared/ItemInstance";
@@ -189,7 +189,7 @@ export function PlanHero({
                         fontVariantNumeric: "tabular-nums",
                       }}
                     >
-                      {formatGold(planEv)}
+                      {abbreviateGold(planEv)}
                     </Box>
                     {shrineTime ? ` · ${shrineTime}` : null}
                   </>
@@ -205,10 +205,10 @@ export function PlanHero({
               flexWrap="wrap"
               sx={{ gap: { xs: 2, sm: 3 }, "& > *": { minWidth: 88 } }}
             >
-              <Metric label="Plan EV" value={formatGold(planEv)} />
+              <Metric label="Plan EV" value={abbreviateGold(planEv)} />
               <Metric
                 label="Break-even ask"
-                value={askPrice == null ? "—" : formatGold(askPrice)}
+                value={abbreviateGold(askPrice, { empty: "—" })}
                 hint={`List price so merchant tax (${taxPctLabel}) still leaves you with Plan EV. Match character.tax on Stats.`}
               />
               <Metric
@@ -241,7 +241,7 @@ export function PlanHero({
             color="text.secondary"
             sx={{ fontVariantNumeric: "tabular-nums" }}
           >
-            Break-even ask {formatGold(askPrice)}
+            Break-even ask {abbreviateGold(askPrice)}
             <Box component="span" sx={{ color: "text.disabled" }}>
               {" "}
               · after {taxPctLabel} tax
@@ -302,7 +302,7 @@ export function PlanHero({
                 <Box component="span" sx={{ color: "primary.main", fontWeight: 700 }}>
                   ■
                 </Box>{" "}
-                Materials {formatGold(materialsSum)}
+                Materials {abbreviateGold(materialsSum)}
                 {planEv > 0 ? ` (${Math.round(matShare * 100)}%)` : ""}
               </Typography>
               {destroyGap > 0 ? (
@@ -313,7 +313,7 @@ export function PlanHero({
                   <Box component="span" sx={{ color: "warning.main", fontWeight: 700 }}>
                     ■
                   </Box>{" "}
-                  Destroy / base risk {formatGold(destroyGap)}
+                  Destroy / base risk {abbreviateGold(destroyGap)}
                   {planEv > 0 ? ` (${Math.round(riskShare * 100)}%)` : ""}
                 </Typography>
               ) : null}
@@ -379,8 +379,8 @@ export function PlanHero({
               <strong>
                 +{bottleneck.fromLevel}→+{bottleneck.toLevel}
               </strong>
-              : {formatChancePct(bottleneck.chance)} chance, {formatGold(bottleneck.stepSpend)} (
-              {Math.round(bottleneckShare * 100)}% of plan EV)
+              : {formatChancePct(bottleneck.chance)} chance, {abbreviateGold(bottleneck.stepSpend)}{" "}
+              ({Math.round(bottleneckShare * 100)}% of plan EV)
               {onBottleneckClick ? (
                 <Typography component="span" variant="caption" color="text.secondary">
                   {" "}

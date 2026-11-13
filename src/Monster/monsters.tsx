@@ -35,7 +35,7 @@ import { HomeServerBadge } from "../Shared/HomeServerBadge";
 import { MonsterImage } from "../Shared/SpriteSkin";
 import { QuerySearchBar } from "../Shared/QuerySearchBar";
 import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
-import { abbreviateNumber } from "../Shared/utils";
+import { abbreviateGold, abbreviateNumber } from "../Shared/utils";
 import { MonsterAdvancedSearchPanel } from "./MonsterAdvancedSearchPanel";
 import {
   buildMonsterSearchSuggestions,
@@ -88,11 +88,10 @@ function MonsterDropsCell({ regular, home }: { regular: string; home: string }) 
   );
 }
 
-function formatMonsterStat(value: number): string {
+function formatMonsterStat(value: number, kind: "metric" | "gold" = "metric"): string {
   if (value === -1) return "—";
   if (Math.abs(value) >= 10000) {
-    const abbreviated = abbreviateNumber(value);
-    return abbreviated == null ? String(value) : String(abbreviated);
+    return kind === "gold" ? abbreviateGold(value) : abbreviateNumber(value);
   }
   return String(value);
 }
@@ -159,7 +158,7 @@ function MonsterBrowseCard({
             [
               ["HP", formatMonsterStat(row.hp)],
               ["XP", formatMonsterStat(row.xp)],
-              ["Gold", formatMonsterStat(goldValues)],
+              ["Gold", formatMonsterStat(goldValues, "gold")],
               ["Respawn", formatMonsterStat(row.respawn)],
             ] as const
           ).map(([label, value]) => (

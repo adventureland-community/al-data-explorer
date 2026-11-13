@@ -11,16 +11,6 @@ export function formatShrineTime(ms: number): string {
   return mins > 0 ? `${h}h ${mins}m` : `${h}h`;
 }
 
-export function formatGold(n: number): string {
-  if (!Number.isFinite(n)) return "∞";
-  const abs = Math.abs(n);
-  if (abs >= 1e12) return `${(n / 1e12).toFixed(2)}T`;
-  if (abs >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
-  return Math.round(n).toLocaleString("en-US");
-}
-
 export function formatChancePct(chance: number): string {
   if (!Number.isFinite(chance)) return "—";
   return `${(chance * 100).toFixed(2)}%`;

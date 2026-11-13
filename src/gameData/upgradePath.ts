@@ -1363,4 +1363,4 @@ export {
   summarizeUpgradePlan,
 } from "./upgradePathSummary";
 export { expectedPlanShrineMs, shrineClickMs } from "./upgradePathShrine";
-export { formatAttempts, formatChancePct, formatGold, formatShrineTime } from "./upgradePathFormat";
+export { formatAttempts, formatChancePct, formatShrineTime } from "./upgradePathFormat";

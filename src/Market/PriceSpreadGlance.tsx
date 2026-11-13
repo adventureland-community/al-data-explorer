@@ -1,13 +1,8 @@
 import { Box, Chip, LinearProgress, Typography } from "@mui/material";
 
-import { abbreviateNumber } from "../Shared/utils";
+import { abbreviateGold } from "../Shared/utils";
 import type { GoldOfferRow } from "./marketOfferRows";
 import { isParkingGoldPrice, leadAskPrice } from "./marketPriceCompare";
-
-function formatGold(n?: number) {
-  if (n == null || n === 0) return "—";
-  return String(abbreviateNumber(n) ?? n);
-}
 
 type PriceSpreadGlanceProps = {
   buyGold: GoldOfferRow[];
@@ -18,7 +13,7 @@ type PriceSpreadGlanceProps = {
 
 /**
  * At-a-glance bid/ask share + price ticks for an expanded market row.
- * Parking asks (≥100G) are kept out of the tick scale so they don't crush the graph.
+ * Parking asks (≈100B+) are kept out of the tick scale so they don't crush the graph.
  */
 export function PriceSpreadGlance({
   buyGold,
@@ -58,10 +53,10 @@ export function PriceSpreadGlance({
     >
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.75 }}>
         <Typography variant="body2" sx={{ color: "success.light" }}>
-          Bid {formatGold(bestBid)}
+          Bid {abbreviateGold(bestBid, { empty: "—", positiveOnly: true })}
         </Typography>
         <Typography variant="body2" sx={{ color: "error.light" }}>
-          Ask {formatGold(bestAsk)}
+          Ask {abbreviateGold(bestAsk, { empty: "—", positiveOnly: true })}
         </Typography>
       </Box>
       <LinearProgress
@@ -115,7 +110,7 @@ export function PriceSpreadGlance({
           <Chip
             size="small"
             label={`${parkAsks.length} park`}
-            title="Asks ≥100G are usually stand parking, not real sells"
+            title="Asks ≈100B+ are usually stand parking, not real sells"
             variant="outlined"
           />
         ) : null}

@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GCraft, ItemKey } from "typed-adventureland";
+import { abbreviateGold } from "../Shared/utils";
 
 import {
   applyShinyPolishToSummary,
@@ -32,7 +33,6 @@ import {
   craftExpectedCost,
   defaultPriceTable,
   formatChancePct,
-  formatGold,
   formatShrineTime,
   getItemGrade,
   GREED_QUICK_PICKS,
@@ -575,8 +575,8 @@ export function UpgradeCalculator() {
             strategyAttemptDelta >= 1
               ? `${strategyAttemptDelta.toFixed(
                   strategyAttemptDelta >= 10 ? 0 : 1,
-                )} fewer tries · ${formatGold(fewestTotal)}`
-              : formatGold(fewestTotal),
+                )} fewer tries · ${abbreviateGold(fewestTotal)}`
+              : abbreviateGold(fewestTotal),
           onSelect: () => patch({ strategy: "fewest" }),
         }
       : null;
@@ -1292,7 +1292,8 @@ export function UpgradeCalculator() {
                                   color="text.secondary"
                                   sx={{ pl: 4.5, fontVariantNumeric: "tabular-nums" }}
                                 >
-                                  {formatChancePct(opt.chance)} · EV {formatGold(opt.expectedCost)}
+                                  {formatChancePct(opt.chance)} · EV{" "}
+                                  {abbreviateGold(opt.expectedCost)}
                                   {selected && !params.polish ? " · auto" : ""}
                                 </Typography>
                               ) : null}

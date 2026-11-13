@@ -126,12 +126,7 @@ export {
   summarizeUpgradePlan,
 } from "../gameData/upgradePathSummary";
 export { expectedPlanShrineMs, shrineClickMs } from "../gameData/upgradePathShrine";
-export {
-  formatAttempts,
-  formatChancePct,
-  formatGold,
-  formatShrineTime,
-} from "../gameData/upgradePathFormat";
+export { formatAttempts, formatChancePct, formatShrineTime } from "../gameData/upgradePathFormat";
 
 // --- Merchant sell ask (tax) ---
 export { breakEvenListPrice, DEFAULT_MERCHANT_TAX, netAfterTax } from "../gameData/merchantTax";

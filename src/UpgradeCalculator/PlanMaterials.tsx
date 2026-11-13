@@ -21,8 +21,9 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { abbreviateGold } from "../Shared/utils";
 
-import { formatGold, MaterialLine, SideEffectSummary } from "../calculators";
+import { MaterialLine, SideEffectSummary } from "../calculators";
 import { addEntries, ensureDestinationList } from "../lists/listsStore";
 import { materialLinesToListEntries } from "../lists/materialLinesToListEntries";
 import { CostShareBar, MatIcon } from "./planResultsShared";
@@ -52,18 +53,18 @@ function formatMaterialsClipboard(
   const lines: string[] = ["Shopping list (ceil of expected):"];
   for (const m of ranked) {
     if (m.itemKey === "_stacks" || m.itemKey === "_craft_fee") {
-      lines.push(`${materialLabel(m.itemKey)}: ${formatGold(m.total)}`);
+      lines.push(`${materialLabel(m.itemKey)}: ${abbreviateGold(m.total)}`);
     } else {
       lines.push(
         `${materialLabel(m.itemKey)} × ${buyQty(m.expectedQty)} (expect ${m.expectedQty.toFixed(
           2,
-        )}) = ${formatGold(m.total)}`,
+        )}) = ${abbreviateGold(m.total)}`,
       );
     }
   }
-  lines.push(`Materials subtotal (EV): ${formatGold(materialsSum)}`);
-  if (destroyGap > 0) lines.push(`Destroy / base risk: ${formatGold(destroyGap)}`);
-  lines.push(`Plan EV: ${formatGold(planEv)}`);
+  lines.push(`Materials subtotal (EV): ${abbreviateGold(materialsSum)}`);
+  if (destroyGap > 0) lines.push(`Destroy / base risk: ${abbreviateGold(destroyGap)}`);
+  lines.push(`Plan EV: ${abbreviateGold(planEv)}`);
   return lines.join("\n");
 }
 
@@ -362,7 +363,7 @@ export function MaterialsPanel({
                     fontWeight={600}
                     sx={{ fontVariantNumeric: "tabular-nums", flexShrink: 0 }}
                   >
-                    {formatGold(m.total)}
+                    {abbreviateGold(m.total)}
                   </Typography>
                 </Stack>
                 <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.25 }}>
@@ -404,7 +405,7 @@ export function MaterialsPanel({
             component="span"
             sx={{ fontWeight: 700, color: "text.primary", fontVariantNumeric: "tabular-nums" }}
           >
-            {formatGold(materialsSum)}
+            {abbreviateGold(materialsSum)}
           </Box>
           {destroyGap > 0 ? (
             <>
@@ -412,7 +413,7 @@ export function MaterialsPanel({
               <Box component="span" sx={{ color: "warning.main" }}>
                 risk{" "}
                 <Box component="span" sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                  {formatGold(destroyGap)}
+                  {abbreviateGold(destroyGap)}
                 </Box>
                 {riskPct != null ? ` (${riskPct}%)` : ""}
               </Box>
@@ -424,7 +425,7 @@ export function MaterialsPanel({
           color="text.secondary"
           sx={{ fontVariantNumeric: "tabular-nums" }}
         >
-          plan {formatGold(planEv)}
+          plan {abbreviateGold(planEv)}
         </Typography>
       </Box>
     </Paper>
