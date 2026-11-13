@@ -2,11 +2,11 @@ import { Box, Button, Paper, Stack, Typography } from "@mui/material";
 import { useMemo } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { GItem, ItemKey } from "typed-adventureland";
+import { abbreviateGold } from "../../Shared/utils";
 
 import {
   buildItemUpgradeSnapshot,
   formatChancePct,
-  formatGold,
   itemUpgradeMode,
 } from "../../gameData/itemUpgradeSnapshot";
 import { breakEvenListPrice, DEFAULT_MERCHANT_TAX } from "../../gameData/merchantTax";
@@ -124,11 +124,11 @@ export function ItemUpgradeCard({
       >
         <Metric
           label="Plan EV"
-          value={snapshot.planEv != null ? formatGold(snapshot.planEv) : "—"}
+          value={snapshot.planEv != null ? abbreviateGold(snapshot.planEv) : "—"}
         />
         <Metric
           label="Break-even ask"
-          value={breakEvenAsk == null ? "—" : formatGold(breakEvenAsk)}
+          value={abbreviateGold(breakEvenAsk, { empty: "—" })}
           hint={`List price so ${
             DEFAULT_MERCHANT_TAX * 100
           }% merchant tax still leaves Plan EV. Open the calculator to change tax.`}
@@ -163,7 +163,7 @@ export function ItemUpgradeCard({
           </Box>
           : {last.scrollKey}
           {last.offeringKey ? ` + ${last.offeringKey}` : ""} · {formatChancePct(last.chance)}
-          {Number.isFinite(last.stepSpend) ? ` · ${formatGold(last.stepSpend)}` : ""}
+          {Number.isFinite(last.stepSpend) ? ` · ${abbreviateGold(last.stepSpend)}` : ""}
           {snapshot.inboundBaseChance != null &&
           Math.abs(snapshot.inboundBaseChance - last.chance) > 0.0005
             ? ` (table ${formatChancePct(snapshot.inboundBaseChance)} without offering)`
@@ -178,8 +178,9 @@ export function ItemUpgradeCard({
           sx={{ mt: last ? 0.75 : 0, lineHeight: 1.45 }}
         >
           Bottleneck +{snapshot.bottleneck.fromLevel}→+{snapshot.bottleneck.toLevel}:{" "}
-          {formatChancePct(snapshot.bottleneck.chance)}, {formatGold(snapshot.bottleneck.stepSpend)}{" "}
-          ({Math.round(snapshot.bottleneck.share * 100)}% of plan EV)
+          {formatChancePct(snapshot.bottleneck.chance)},{" "}
+          {abbreviateGold(snapshot.bottleneck.stepSpend)} (
+          {Math.round(snapshot.bottleneck.share * 100)}% of plan EV)
         </Typography>
       ) : null}
     </Paper>

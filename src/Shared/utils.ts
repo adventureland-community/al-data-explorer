@@ -1,22 +1,27 @@
 // https://stackoverflow.com/a/40724354/28145
-export const SI_SYMBOL = ["", "k", "M", "G", "T", "P", "E"];
+const SI_SYMBOL = ["", "k", "M", "G", "T", "P", "E"] as const;
+/** Finance-style suffixes for gold (avoids SI "G"/giga reading as gold). */
+const CURRENCY_SYMBOL = ["", "K", "M", "B", "T"] as const;
 
-export function abbreviateNumber(number?: number) {
-  if (!number) {
-    return number;
-  }
+export type AbbreviateOptions = {
+  /** Shown for null, undefined, or non-finite values. Default: "". */
+  empty?: string;
+  /** When true, non-positive numbers also use `empty` (missing bid/ask / no cost). */
+  positiveOnly?: boolean;
+  /** Prefix "+" / "−" for positive / negative. */
+  signed?: boolean;
+  /** Appended after the abbreviated value (e.g. "g"). */
+  unit?: string;
+};
 
-  // what tier? (determines SI symbol)
+function formatAbbreviated(number: number, symbols: readonly string[]): string {
   const tier = (Math.log10(Math.abs(number)) / 3) | 0;
 
-  // if zero, we don't need a suffix
-  if (tier === 0) return number;
+  if (tier === 0) return String(number);
 
-  // get suffix and determine scale
-  const suffix = SI_SYMBOL[tier];
-  const scale = 10 ** (tier * 3);
-
-  // scale the number
+  const cappedTier = Math.min(tier, symbols.length - 1);
+  const suffix = symbols[cappedTier] ?? "";
+  const scale = 10 ** (cappedTier * 3);
   const scaled = number / scale;
 
   // Drop trailing .0 (e.g. 9999 → "10k", 1500 → "1.5k")
@@ -29,6 +34,38 @@ export function abbreviateNumber(number?: number) {
       });
 
   return formatted + suffix;
+}
+
+function abbreviate(
+  number: number | null | undefined,
+  symbols: readonly string[],
+  opts?: AbbreviateOptions,
+): string {
+  if (number == null || !Number.isFinite(number) || (opts?.positiveOnly && !(number > 0))) {
+    return opts?.empty ?? "";
+  }
+
+  const core = formatAbbreviated(Math.abs(number), symbols);
+  let body = core;
+  if (opts?.signed) {
+    if (number > 0) body = `+${core}`;
+    else if (number < 0) body = `−${core}`;
+  } else if (number < 0) {
+    body = `-${core}`;
+  }
+
+  if (opts?.unit) body += opts.unit;
+  return body;
+}
+
+/** Compact counts / metrics with SI-style suffixes (k/M/G/…). */
+export function abbreviateNumber(number?: number | null, opts?: AbbreviateOptions): string {
+  return abbreviate(number, SI_SYMBOL, opts);
+}
+
+/** Compact gold amounts with K/M/B/T (not SI G for billions). */
+export function abbreviateGold(number?: number | null, opts?: AbbreviateOptions): string {
+  return abbreviate(number, CURRENCY_SYMBOL, opts);
 }
 
 // https://stackoverflow.com/a/32180863/28145

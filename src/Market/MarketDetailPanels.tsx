@@ -14,7 +14,7 @@ import { ItemKey } from "typed-adventureland";
 
 import { CustomGData, GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
-import { abbreviateNumber } from "../Shared/utils";
+import { abbreviateGold } from "../Shared/utils";
 import { getItemName } from "../Shared/iteminfo-util";
 import {
   wantTradeSides,
@@ -27,7 +27,6 @@ import {
   calcRangeTitle,
   estimateSourceLabel,
   formatPct,
-  formatSignedGold,
   goldVsBest,
   isParkingGoldPrice,
   itemCalcMidGold,
@@ -171,7 +170,7 @@ function DiffCell({
   return (
     <TableCell align="right" title={title} sx={{ color, whiteSpace: "nowrap" }}>
       <Typography variant="body2" component="span" sx={{ color: "inherit" }}>
-        {formatSignedGold(diff)}
+        {abbreviateGold(diff, { signed: true })}
       </Typography>
       {showPct ? (
         <Typography
@@ -214,7 +213,7 @@ export function GoldOffersPanel({
   const vsBestTooltip =
     side === "bid"
       ? "Signed gap vs best (highest) bid"
-      : "Signed gap vs best (lowest) live ask — ignores ≥100G parking";
+      : "Signed gap vs best (lowest) live ask — ignores ≈100B+ parking";
 
   return (
     <PanelShell title={title} badge={`${rows.length}`} empty={rows.length === 0}>
@@ -256,7 +255,7 @@ export function GoldOffersPanel({
                       label="Park"
                       sx={{ ml: 0.5 }}
                       variant="outlined"
-                      title="≥100G is usually stand parking, not a real ask"
+                      title="≈100B+ asks are usually stand parking, not a real ask"
                     />
                   ) : null}
                   {row.slotCount > 1 ? (
@@ -270,14 +269,14 @@ export function GoldOffersPanel({
                 </TableCell>
                 <TableCell align="right">{row.quantity}</TableCell>
                 <TableCell align="right" title={row.price.toLocaleString()}>
-                  {abbreviateNumber(row.price)}
+                  {abbreviateGold(row.price)}
                 </TableCell>
                 {parking ? (
                   <TableCell align="right">
                     <Typography
                       variant="caption"
                       color="text.secondary"
-                      title="≥100G is usually stand parking, not a real ask"
+                      title="≈100B+ asks are usually stand parking, not a real ask"
                     >
                       park
                     </Typography>
@@ -328,7 +327,7 @@ function goldOrDash(gold: number | undefined, empty: ReactNode) {
   if (gold == null) return empty;
   return (
     <Typography variant="body2" component="span">
-      {abbreviateNumber(gold)}
+      {abbreviateGold(gold)}
     </Typography>
   );
 }

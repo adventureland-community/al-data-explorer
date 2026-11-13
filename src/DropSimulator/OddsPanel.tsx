@@ -30,8 +30,7 @@ const NESTED_ICON_SIZE = 28;
 
 function formatExpectedRolls(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return "—";
-  const abbreviated = abbreviateNumber(Number(value.toFixed(2)));
-  return abbreviated == null ? value.toFixed(2) : String(abbreviated);
+  return abbreviateNumber(Number(value.toFixed(2)));
 }
 
 /** Full-width chance bar — old exchange.html style (second row, zero padding). */
@@ -141,8 +140,7 @@ function formatGuaranteeLuck(row: OddsInspectionRow): string {
   if (row.guaranteedNow) return "✓";
   if (row.luckmToGuarantee == null) return "—";
   const pct = luckmToUiPercent(row.luckmToGuarantee);
-  const abbreviated = abbreviateNumber(pct);
-  return `≥${abbreviated ?? pct}%`;
+  return `≥${abbreviateNumber(pct)}%`;
 }
 
 function guaranteeLuckTitle(row: OddsInspectionRow): string | undefined {

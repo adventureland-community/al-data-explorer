@@ -232,9 +232,9 @@ function MitigationRows({
           >
             {hitsToDefeat == null
               ? "—"
-              : `${abbreviateNumber(hitsToDefeat) ?? hitsToDefeat} hit${
-                  hitsToDefeat === 1 ? "" : "s"
-                }${secondsToDefeat != null ? ` ≈ ${msToTime(secondsToDefeat * 1000)}` : ""}`}
+              : `${abbreviateNumber(hitsToDefeat)} hit${hitsToDefeat === 1 ? "" : "s"}${
+                  secondsToDefeat != null ? ` ≈ ${msToTime(secondsToDefeat * 1000)}` : ""
+                }`}
           </TableCell>
         </TableRow>
       </TableBody>
@@ -271,9 +271,7 @@ function DamageVisualization({
   const healthLeft = Math.max(0, maxHealth - damage);
   const hitsToDefeat = Math.ceil(maxHealth / damage);
 
-  const hitsLabel = `${abbreviateNumber(hitsToDefeat) ?? hitsToDefeat} hit${
-    hitsToDefeat === 1 ? "" : "s"
-  }`;
+  const hitsLabel = `${abbreviateNumber(hitsToDefeat)} hit${hitsToDefeat === 1 ? "" : "s"}`;
   const summary =
     direction === "outbound"
       ? `Will do ${damage.toFixed(2)} damage to ${targetLabel} with ${healthLeft.toFixed(

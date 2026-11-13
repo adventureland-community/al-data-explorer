@@ -22,12 +22,12 @@ import {
 } from "@mui/material";
 import { useContext, useState } from "react";
 import { ItemKey } from "typed-adventureland";
+import { abbreviateGold } from "../Shared/utils";
 
 import {
   allowedUpgradeScrollGrades,
   formatAttempts,
   formatChancePct,
-  formatGold,
   OfferingChoice,
   offeringGradeFromKey,
   PlanSummaryStep,
@@ -110,12 +110,12 @@ export function formatRecipeClipboard(
         ? s.offeringKey ?? "polish"
         : [s.scrollKey, s.offeringKey].filter(Boolean).join(" + ");
     lines.push(
-      `${stepRangeLabel(s)}: ${mats || "—"} · ${formatChancePct(s.chance)} · ${formatGold(
+      `${stepRangeLabel(s)}: ${mats || "—"} · ${formatChancePct(s.chance)} · ${abbreviateGold(
         s.stepSpend,
       )}${bits.length ? ` · ${bits.join(", ")}` : ""}`,
     );
   }
-  lines.push(`Plan EV: ${formatGold(opts.planEv)}`);
+  lines.push(`Plan EV: ${abbreviateGold(opts.planEv)}`);
   return lines.join("\n");
 }
 
@@ -332,7 +332,7 @@ export function StepPlanCards({
             >
               <Typography fontWeight={600}>{stepRangeLabel(s)}</Typography>
               <Typography fontWeight={700} sx={{ fontVariantNumeric: "tabular-nums" }}>
-                {formatGold(s.stepSpend)}
+                {abbreviateGold(s.stepSpend)}
               </Typography>
             </Stack>
             <Stack
@@ -779,7 +779,7 @@ export function StepPlanTable({
                   <TableCell sx={{ ...numSx, minWidth: 96 }} align="right">
                     <Stack spacing={0.4} alignItems="flex-end" sx={{ minWidth: 88 }}>
                       <Box component="span" sx={{ fontWeight: 600 }}>
-                        {formatGold(s.stepSpend)}
+                        {abbreviateGold(s.stepSpend)}
                       </Box>
                       {s.kind === "acquire" && s.acquireMode === "craft" ? (
                         <Typography
@@ -814,7 +814,7 @@ export function StepPlanTable({
                     </Stack>
                   </TableCell>
                   <TableCell sx={numSx} align="right">
-                    {formatGold(s.runningTotal)}
+                    {abbreviateGold(s.runningTotal)}
                   </TableCell>
                 </TableRow>
               );

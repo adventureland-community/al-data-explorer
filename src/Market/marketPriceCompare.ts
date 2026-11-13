@@ -8,13 +8,15 @@ import {
 } from "../gameData/itemUpgradeSnapshot";
 import { calculateItemNpcSellValue } from "../gameData/itemSellValue";
 import type { ItemsByNameTitleLevel } from "./merchantTypes";
+import { abbreviateGold } from "../Shared/utils";
 import type { WantTradeSides } from "./marketOfferRows";
 
 const PLAIN_VARIANT = instanceVariantKey({});
 
 /**
- * Trade-stand "parking" asks are listed around 100G (often slightly under so
- * `abbreviateNumber` still shows "100G"). Rarely real sell prices.
+ * Trade-stand "parking" asks sit around ≈100B gold. Threshold is 99B so
+ * slightly-under parks still count (threshold formats as "99B").
+ * Rarely real sell prices.
  */
 export const PARKING_GOLD = 99_000_000_000;
 
@@ -127,19 +129,9 @@ function chanceTablesFromG(G: GData): ChanceTablesFromG | undefined {
   return chanceTablesCached;
 }
 
-function formatCompact(n: number): string {
-  const SI = ["", "k", "M", "G", "T"];
-  const tier = (Math.log10(Math.abs(n)) / 3) | 0;
-  if (tier === 0) return String(Math.round(n));
-  const suffix = SI[Math.min(tier, SI.length - 1)] ?? "";
-  const scaled = n / 10 ** (Math.min(tier, SI.length - 1) * 3);
-  const rounded = Math.round(scaled * 10) / 10;
-  return Number.isInteger(rounded) ? `${rounded}${suffix}` : `${rounded.toFixed(1)}${suffix}`;
-}
-
 /**
  * Cheapest live stand ask for one unit (replacement cost).
- * Skips ≥~100G parking placeholders so barters / EV don't treat park as price.
+ * Skips ≈100B+ parking placeholders (≥99B) so barters / EV don't treat park as price.
  */
 export function marketUnitAsk(market: ItemsByNameTitleLevel, item: ItemRef): number | undefined {
   const bucket = levelBucket(market, item.name, item.level ?? 0, item.p, item.data);
@@ -232,9 +224,9 @@ export function itemCalcUnitRange(
 /** Format low–high (or a single value when nearly equal). */
 export function formatCalcGoldRange(low: number, high: number): string {
   if (Math.abs(high - low) / Math.max(high, low, 1) < 0.02) {
-    return formatCompact(low);
+    return abbreviateGold(low);
   }
-  return `${formatCompact(low)}–${formatCompact(high)}`;
+  return `${abbreviateGold(low)}–${abbreviateGold(high)}`;
 }
 
 export function calcRangeLabel(range: ItemCalcRange): string {
@@ -401,15 +393,6 @@ export function barterValueSplit(
     },
     calc: barterCalcSides(sides, args, cache),
   };
-}
-
-export function formatSignedGold(n: number): string {
-  const abs = Math.abs(n);
-  const body =
-    abs >= 1000 ? formatCompact(abs) : abs.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  if (n > 0) return `+${body}`;
-  if (n < 0) return `−${body}`;
-  return body;
 }
 
 export function formatPct(n: number): string {

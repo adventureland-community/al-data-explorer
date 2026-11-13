@@ -2,7 +2,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import { useState } from "react";
 
-import { formatGold } from "../calculators";
+import { abbreviateGold } from "../Shared/utils";
 
 export function CopyPlanLinkButton() {
   const [copied, setCopied] = useState(false);
@@ -132,8 +132,8 @@ export function StrategyCard({
                 noWrap
               >
                 {riskDominates
-                  ? `${Math.round(riskShare * 100)}% risk · ${formatGold(risk)}`
-                  : `${Math.round(matShare * 100)}% mats · ${formatGold(mats)}`}
+                  ? `${Math.round(riskShare * 100)}% risk · ${abbreviateGold(risk)}`
+                  : `${Math.round(matShare * 100)}% mats · ${abbreviateGold(mats)}`}
               </Typography>
             </Box>
           ) : null}
@@ -145,7 +145,7 @@ export function StrategyCard({
             fontWeight={700}
             sx={{ fontVariantNumeric: "tabular-nums", lineHeight: 1.15 }}
           >
-            {total == null ? "—" : formatGold(total)}
+            {abbreviateGold(total, { empty: "—" })}
           </Typography>
           <Typography
             variant="caption"
@@ -192,7 +192,7 @@ export function EvDeltaBanner({ delta, visible }: { delta: number | null; visibl
         color={cheaper ? "success.main" : "warning.main"}
       >
         {cheaper ? "−" : "+"}
-        {formatGold(Math.abs(delta))} EV
+        {abbreviateGold(Math.abs(delta))} EV
       </Typography>
     </Box>
   );

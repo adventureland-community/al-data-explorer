@@ -26,7 +26,7 @@ import { ItemInstance } from "../Shared/ItemInstance";
 import { MultiFilterAutocomplete } from "../Shared/MultiFilterAutocomplete";
 import { QuerySearchBar } from "../Shared/QuerySearchBar";
 import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
-import { abbreviateNumber } from "../Shared/utils";
+import { abbreviateGold, abbreviateNumber } from "../Shared/utils";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
 import { GoldOffersPanel, WantOffersPanel } from "./MarketDetailPanels";
 import { buildMarketSearchSuggestions, marketRowMatchesSearch } from "./marketSearchQuery";
@@ -62,17 +62,6 @@ function Info() {
         </Typography>
       </CardContent>
     </Card>
-  );
-}
-
-function RenderShortNumber({ number }: { number?: number }) {
-  if (number == null || number === 0) {
-    return <TableCell component="td" />;
-  }
-  return (
-    <TableCell component="td" title={number.toLocaleString()}>
-      {abbreviateNumber(number)}
-    </TableCell>
   );
 }
 
@@ -174,6 +163,15 @@ function TradeItemRow({
       offers.incomingWant.filter((r) => r.source === "earth").length
     : 0;
 
+  const buyQty = prices.buying.goldQty || prices.buying.amount;
+  const sellQty = prices.selling.goldQty || prices.selling.amount;
+  const buyMax = prices.buying.maxPrice.price;
+  const buyMin = prices.buying.minPrice.price;
+  const buyAvg = prices.buying.avgPrice;
+  const sellMin = prices.selling.minPrice.price;
+  const sellMax = prices.selling.maxPrice.price;
+  const sellAvg = prices.selling.avgPrice;
+
   return (
     <>
       <TableRow
@@ -199,15 +197,31 @@ function TradeItemRow({
           </div>
         </TableCell>
         <TableCell component="td">{buyerCount || ""}</TableCell>
-        <RenderShortNumber number={prices.buying.goldQty || prices.buying.amount} />
-        <RenderShortNumber number={prices.buying.maxPrice.price} />
-        <RenderShortNumber number={prices.buying.minPrice.price} />
-        <RenderShortNumber number={prices.buying.avgPrice} />
+        <TableCell component="td" title={buyQty ? buyQty.toLocaleString() : undefined}>
+          {buyQty ? abbreviateNumber(buyQty) : null}
+        </TableCell>
+        <TableCell component="td" title={buyMax ? buyMax.toLocaleString() : undefined}>
+          {buyMax ? abbreviateGold(buyMax) : null}
+        </TableCell>
+        <TableCell component="td" title={buyMin ? buyMin.toLocaleString() : undefined}>
+          {buyMin ? abbreviateGold(buyMin) : null}
+        </TableCell>
+        <TableCell component="td" title={buyAvg ? buyAvg.toLocaleString() : undefined}>
+          {buyAvg ? abbreviateGold(buyAvg) : null}
+        </TableCell>
         <TableCell component="td">{sellerCount || ""}</TableCell>
-        <RenderShortNumber number={prices.selling.goldQty || prices.selling.amount} />
-        <RenderShortNumber number={prices.selling.minPrice.price} />
-        <RenderShortNumber number={prices.selling.maxPrice.price} />
-        <RenderShortNumber number={prices.selling.avgPrice} />
+        <TableCell component="td" title={sellQty ? sellQty.toLocaleString() : undefined}>
+          {sellQty ? abbreviateNumber(sellQty) : null}
+        </TableCell>
+        <TableCell component="td" title={sellMin ? sellMin.toLocaleString() : undefined}>
+          {sellMin ? abbreviateGold(sellMin) : null}
+        </TableCell>
+        <TableCell component="td" title={sellMax ? sellMax.toLocaleString() : undefined}>
+          {sellMax ? abbreviateGold(sellMax) : null}
+        </TableCell>
+        <TableCell component="td" title={sellAvg ? sellAvg.toLocaleString() : undefined}>
+          {sellAvg ? abbreviateGold(sellAvg) : null}
+        </TableCell>
       </TableRow>
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={13}>
