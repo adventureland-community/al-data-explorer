@@ -24,8 +24,11 @@ export function useWantBarterCalcs(
   const { G, market } = args;
   const viewedName = viewedItem.name;
   const viewedLevel = viewedItem.level;
-  const [splits, setSplits] = useState<(BarterCalcSides | null)[]>([]);
-  const [pending, setPending] = useState(false);
+  // Seed pending so the first paint shows spinners, not dashes, before the effect runs.
+  const [splits, setSplits] = useState<(BarterCalcSides | null)[]>(() =>
+    rows.length > 0 ? rows.map(() => null) : [],
+  );
+  const [pending, setPending] = useState(() => rows.length > 0);
 
   useEffect(() => {
     const viewed = { name: viewedName, level: viewedLevel };
