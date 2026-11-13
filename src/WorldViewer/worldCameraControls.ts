@@ -29,6 +29,8 @@ export interface WorldCameraControls {
   resetView: () => void;
   saveDefaultView: () => void;
   setViewMode: (mode: ViewerMode, bounds: WorldBounds, options?: { resetCamera?: boolean }) => void;
+  /** When false, left-drag does not pan (Plan draw tools own the pointer). */
+  setLeftPanEnabled: (enabled: boolean) => void;
   isDragging: () => boolean;
   wasDragging: () => boolean;
   dispose: () => void;
@@ -119,6 +121,7 @@ function zoomForMode(
 ): void {
   switch (mode) {
     case "map":
+    case "plan":
       zoomMapHeight(controls, wheelDelta, bounds);
       return;
     case "world":
@@ -276,10 +279,19 @@ export function createWorldCameraControls(
   let panDragOccurred = false;
   let panStartX = 0;
   let panStartY = 0;
+  let leftPanEnabled = true;
   const PAN_DRAG_THRESHOLD_PX = 4;
 
+  const setLeftPanEnabled = (enabled: boolean) => {
+    leftPanEnabled = enabled;
+    if (!enabled) {
+      panning = false;
+      panDragActive = false;
+    }
+  };
+
   const onPointerDown = (event: PointerEvent) => {
-    if (event.button !== 0) {
+    if (event.button !== 0 || !leftPanEnabled) {
       return;
     }
     panning = true;
@@ -336,31 +348,39 @@ export function createWorldCameraControls(
     const step = (event.shiftKey ? 2.4 : 1) * KEYBOARD_PAN_STEP;
     const { allowVerticalPan } = cameraMode(modeRef.current);
 
+    // Plan mode reserves letter keys for tools (Excalidraw-style). Arrows still pan.
+    const letterPan = modeRef.current !== "plan";
+    const panUp = key === "arrowup" || (letterPan && key === "w");
+    const panDown = key === "arrowdown" || (letterPan && key === "s");
+    const panLeft = key === "arrowleft" || (letterPan && key === "a");
+    const panRight = key === "arrowright" || (letterPan && key === "d");
+
+    if (panUp) {
+      panDeltaFromScreen(camera, 0, -step, 1, _panDelta);
+      panCamera(controls, _panDelta);
+      event.preventDefault();
+      return;
+    }
+    if (panDown) {
+      panDeltaFromScreen(camera, 0, step, 1, _panDelta);
+      panCamera(controls, _panDelta);
+      event.preventDefault();
+      return;
+    }
+    if (panLeft) {
+      panDeltaFromScreen(camera, -step, 0, 1, _panDelta);
+      panCamera(controls, _panDelta);
+      event.preventDefault();
+      return;
+    }
+    if (panRight) {
+      panDeltaFromScreen(camera, step, 0, 1, _panDelta);
+      panCamera(controls, _panDelta);
+      event.preventDefault();
+      return;
+    }
+
     switch (key) {
-      case "w":
-      case "arrowup":
-        panDeltaFromScreen(camera, 0, -step, 1, _panDelta);
-        panCamera(controls, _panDelta);
-        event.preventDefault();
-        break;
-      case "s":
-      case "arrowdown":
-        panDeltaFromScreen(camera, 0, step, 1, _panDelta);
-        panCamera(controls, _panDelta);
-        event.preventDefault();
-        break;
-      case "a":
-      case "arrowleft":
-        panDeltaFromScreen(camera, -step, 0, 1, _panDelta);
-        panCamera(controls, _panDelta);
-        event.preventDefault();
-        break;
-      case "d":
-      case "arrowright":
-        panDeltaFromScreen(camera, step, 0, 1, _panDelta);
-        panCamera(controls, _panDelta);
-        event.preventDefault();
-        break;
       case "q":
       case "pageup":
         if (allowVerticalPan) {
@@ -422,6 +442,7 @@ export function createWorldCameraControls(
     resetView,
     saveDefaultView,
     setViewMode,
+    setLeftPanEnabled,
     isDragging,
     wasDragging,
     dispose: () => {
