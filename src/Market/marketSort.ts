@@ -86,7 +86,7 @@ function sortValue(row: MarketSortRow, key: MarketSortKey): number | null {
     case "buyCount":
       return buyCount;
     case "buyQty":
-      return buyCount > 0 ? row.prices.buying.amount : null;
+      return buyCount > 0 ? row.prices.buying.goldQty || row.prices.buying.amount : null;
     case "buyMin":
       return priceOrNull(row.prices.buying.minPrice.price, buyCount);
     case "buyMax":
@@ -96,7 +96,7 @@ function sortValue(row: MarketSortRow, key: MarketSortKey): number | null {
     case "sellCount":
       return sellCount;
     case "sellQty":
-      return sellCount > 0 ? row.prices.selling.amount : null;
+      return sellCount > 0 ? row.prices.selling.goldQty || row.prices.selling.amount : null;
     case "sellMin":
       return priceOrNull(row.prices.selling.minPrice.price, sellCount);
     case "sellMax":

@@ -21,6 +21,32 @@ export function getTitleName(itemInfo: any, G: GData) {
   return titleName;
 }
 
+/** Compact display name for trade cards (title, name, +level; omits +0). */
+export function formatItemDisplayName(
+  itemInfo: { name: string; level?: number; p?: string },
+  G: GData,
+): string {
+  const itemKey = itemInfo.name as ItemKey;
+  const gItem = G.items[itemKey];
+  if (!gItem) {
+    return itemInfo.level ? `${itemKey} +${itemInfo.level}` : itemKey;
+  }
+
+  const titleName = getTitleName(itemInfo, G);
+  const itemName = getItemName(itemKey, gItem);
+  const level = itemInfo.level ?? 0;
+  const levelString = level > 0 ? getLevelString(gItem, level) : undefined;
+
+  let label = itemName;
+  if (titleName) {
+    label = `${titleName} ${label}`;
+  }
+  if (levelString) {
+    label = `+${levelString} ${label}`;
+  }
+  return label;
+}
+
 /** Display name with optional +level and title prefix (market tooltip parity). */
 export function getFullItemName(itemInfo: ItemInfo, G: GData) {
   const gItem = G.items[itemInfo.name];

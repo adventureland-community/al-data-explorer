@@ -19,7 +19,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import { ItemInfoPValues, ItemKey } from "typed-adventureland";
 
-import { parseInstanceVariantKey } from "../gameData/itemInstanceData";
+import { parseInstanceVariantKey, instanceVariantKey } from "../gameData/itemInstanceData";
 
 import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
@@ -28,6 +28,7 @@ import { QuerySearchBar } from "../Shared/QuerySearchBar";
 import { StickyListLayout, StickyTableShell } from "../Shared/StickyListLayout";
 import { abbreviateNumber } from "../Shared/utils";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
+import { BankListingsPanel, GoldOffersPanel, WantOffersPanel } from "./MarketDetailPanels";
 import { buildMarketSearchSuggestions, marketRowMatchesSearch } from "./marketSearchQuery";
 import {
   DEFAULT_MARKET_SORT,
@@ -37,36 +38,40 @@ import {
   type MarketSortConfig,
   type MarketSortKey,
 } from "./marketSort";
-import { useMerchants } from "./useMerchants";
+import { splitMarketOffers } from "./marketOfferRows";
+import { useBankTrades } from "./useBankTrades";
+import { emptyBuySellPrices, useMerchants } from "./useMerchants";
 import type { BuySellItemPrices, Merchant } from "./useMerchants";
+import { listingKey } from "../Trades/tradeViewModel";
 
 function Info() {
   return (
     <Card>
       <CardContent>
         <Typography component="div">
-          This page shows market data from adventureland merchants using the merchant endpoint from{" "}
-          <a href="https://aldata.earthiverse.ca">earthiverse&apos;s aldata</a>
+          Live merchant stands from{" "}
+          <a href="https://aldata.earthiverse.ca">earthiverse&apos;s aldata</a> (gold asks/bids and
+          official item-for-item <code>want</code> offers), plus bank WTS/WTB listings from the same
+          API. Expand a row for Buying / Selling / stand trades / bank listings.
           <br />
-          You can search with market ops — try <code>price:&gt;=1m</code>,{" "}
-          <code>attr:armor&gt;=40</code>, <code>is:sell</code>. Click column headers to sort —
-          selling Min starts high→low. Press REFRESH DATA to refresh from the merchant endpoint.
+          Search with market ops — try <code>price:&gt;=1m</code>, <code>attr:armor&gt;=40</code>,{" "}
+          <code>is:sell</code>. Column headers sort; Selling Best (low ask) starts high→low on first
+          click. REFRESH DATA reloads stands and bank listings.
         </Typography>
       </CardContent>
     </Card>
   );
 }
 
-function getTimeAgo(lastSeen: string | Date) {
-  const now = new Date();
-  const lastSeenDate = new Date(lastSeen);
-  const diffInMs = now.getTime() - lastSeenDate.getTime();
-
-  const days = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diffInMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((diffInMs % (1000 * 60 * 60)) / (1000 * 60));
-
-  return `${days}d ${hours}h ${minutes}m ago`;
+function RenderShortNumber({ number }: { number?: number }) {
+  if (number == null || number === 0) {
+    return <TableCell component="td" />;
+  }
+  return (
+    <TableCell component="td" title={number.toLocaleString()}>
+      {abbreviateNumber(number)}
+    </TableCell>
+  );
 }
 
 function TradeItemRow({
@@ -76,6 +81,7 @@ function TradeItemRow({
   level,
   prices,
   merchants,
+  bankRows,
 }: {
   itemKey: ItemKey;
   title: string;
@@ -83,76 +89,17 @@ function TradeItemRow({
   level: number;
   prices: BuySellItemPrices;
   merchants: { [id: string]: Merchant };
+  bankRows: ReturnType<typeof useBankTrades>["allRows"];
 }) {
   const G = useContext(GDataContext);
-  const [showDetails, setShowDetails] = useState<boolean>(false);
+  const [showDetails, setShowDetails] = useState(false);
   const gItem = G?.items[itemKey];
-
-  const RenderShortNumber = (number?: number) => {
-    if (number) {
-      return (
-        <TableCell component="td" title={number.toLocaleString()}>
-          {abbreviateNumber(number)}
-        </TableCell>
-      );
-    }
-    return <TableCell component="td" />;
-  };
-
-  const RenderMerchantName = (merchantName?: string) => {
-    if (merchantName) {
-      const merchantDetails = merchants[merchantName];
-      let tooltip = `${merchantName}`;
-
-      if (merchantDetails) {
-        tooltip += `\nServer: ${merchantDetails.serverRegion}${merchantDetails.serverIdentifier}`;
-        tooltip += `\nMap: ${merchantDetails.map}`;
-        tooltip += `\nX: ${merchantDetails.x.toFixed(2)}, Y: ${merchantDetails.y.toFixed(2)}`;
-        tooltip += `\nLast seen: ${getTimeAgo(merchantDetails.lastSeen)}`;
-      }
-
-      const handleCopy = () => {
-        const command = `smart_move({map: "${merchantDetails?.map}", x: ${merchantDetails?.x}, y: ${merchantDetails?.y}})`;
-        navigator.clipboard.writeText(command).then(() => {
-          console.log("Copied to clipboard:", command);
-        });
-      };
-
-      return (
-        <TableCell
-          component="td"
-          title={tooltip}
-          onClick={handleCopy}
-          style={{ cursor: "pointer" }}
-        >
-          {merchantName}
-        </TableCell>
-      );
-    }
-    return <TableCell component="td" />;
-  };
 
   const buyerCount = Object.keys(prices.buying.merchants).length;
   const sellerCount = Object.keys(prices.selling.merchants).length;
+  const offers = splitMarketOffers(prices);
 
-  const buyItems = Object.entries(prices.buying.merchants)
-    .flatMap(([merchantName, m]) => m.items.map((x) => ({ merchantName, ...x })))
-    .sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
-
-  const sellItems = Object.entries(prices.selling.merchants)
-    .flatMap(([merchantName, m]) => m.items.map((x) => ({ merchantName, ...x })))
-    .sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
-
-  const maxDetailIndex = Math.max(buyItems.length, sellItems.length);
-
-  const detailRows = [];
-
-  for (let index = 0; index < maxDetailIndex; index++) {
-    const buy = buyItems[index];
-    const sell = sellItems[index];
-    detailRows.push({ buy, sell });
-  }
-  if (!gItem) return <></>;
+  if (!gItem) return null;
 
   const itemInfo = {
     name: itemKey,
@@ -168,20 +115,25 @@ function TradeItemRow({
 
   const itemName = getItemName(itemKey, gItem);
   const keyLine = data ? `${itemInfo.name} · ${data}` : itemInfo.name;
+  const hasDetail =
+    offers.buyGold.length > 0 ||
+    offers.sellGold.length > 0 ||
+    offers.outgoingWant.length > 0 ||
+    offers.incomingWant.length > 0 ||
+    bankRows.length > 0;
 
   return (
     <>
       <TableRow
-        onClick={() => setShowDetails(!showDetails)}
+        onClick={() => hasDetail && setShowDetails(!showDetails)}
         hover
-        sx={{ "& > *": { borderBottom: "unset" } }}
+        sx={{ "& > *": { borderBottom: "unset" }, cursor: hasDetail ? "pointer" : "default" }}
       >
         <TableCell>
-          <IconButton aria-label="expand row" size="small">
+          <IconButton aria-label="expand row" size="small" disabled={!hasDetail}>
             {showDetails ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
         </TableCell>
-        {/* <TableCell>{itemName}</TableCell> */}
         <TableCell component="td">
           <div style={{ display: "inline-block" }}>
             <ItemInstance itemInfo={itemInfo as never} />
@@ -195,60 +147,49 @@ function TradeItemRow({
           </div>
         </TableCell>
         <TableCell component="td">{buyerCount || ""}</TableCell>
-        {RenderShortNumber(prices.buying.amount)}
-        {RenderShortNumber(prices.buying.minPrice.price)}
-        {RenderShortNumber(prices.buying.maxPrice.price)}
-        {RenderShortNumber(prices.buying.avgPrice)}
-        <TableCell>{sellerCount || ""}</TableCell>
-        {RenderShortNumber(prices.selling.amount)}
-        {RenderShortNumber(prices.selling.minPrice.price)}
-        {RenderShortNumber(prices.selling.maxPrice.price)}
-        {RenderShortNumber(prices.selling.avgPrice)}
+        <RenderShortNumber number={prices.buying.goldQty || prices.buying.amount} />
+        <RenderShortNumber number={prices.buying.maxPrice.price} />
+        <RenderShortNumber number={prices.buying.minPrice.price} />
+        <RenderShortNumber number={prices.buying.avgPrice} />
+        <TableCell component="td">{sellerCount || ""}</TableCell>
+        <RenderShortNumber number={prices.selling.goldQty || prices.selling.amount} />
+        <RenderShortNumber number={prices.selling.minPrice.price} />
+        <RenderShortNumber number={prices.selling.maxPrice.price} />
+        <RenderShortNumber number={prices.selling.avgPrice} />
       </TableRow>
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={13}>
           <Collapse in={showDetails} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 1 }}>
-              <Table size="small" aria-label="purchases">
-                <TableHead>
-                  {" "}
-                  <TableRow>
-                    <TableCell align="center" colSpan={3} />
-                    <TableCell align="center" colSpan={3}>
-                      Buying
-                    </TableCell>
-                    <TableCell align="center" colSpan={3}>
-                      Selling
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell colSpan={3} />
-                    <TableCell>Merchant</TableCell>
-                    <TableCell>Quantity</TableCell>
-                    <TableCell>Price</TableCell>
-                    <TableCell>Merchant</TableCell>
-                    <TableCell>Quantity</TableCell>
-                    <TableCell>Price</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {detailRows.map(({ buy, sell }) => (
-                    <TableRow
-                      key={`${itemName}-${level}-${buy?.merchantName || ""}-${
-                        sell?.merchantName || ""
-                      }`}
-                    >
-                      <TableCell colSpan={3} />
-                      {RenderMerchantName(buy?.merchantName)}
-                      {RenderShortNumber(buy?.q)}
-                      {RenderShortNumber(buy?.price)}
-                      {RenderMerchantName(sell?.merchantName)}
-                      {RenderShortNumber(sell?.q)}
-                      {RenderShortNumber(sell?.price)}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <Box sx={{ margin: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                <GoldOffersPanel
+                  title="Buying (gold bids)"
+                  rows={offers.buyGold}
+                  merchants={merchants}
+                  bestLabel="Bid"
+                />
+                <GoldOffersPanel
+                  title="Selling (gold asks)"
+                  rows={offers.sellGold}
+                  merchants={merchants}
+                  bestLabel="Ask"
+                />
+              </Box>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                <WantOffersPanel
+                  title="Stand trades (offering this)"
+                  rows={offers.outgoingWant}
+                  merchants={merchants}
+                  viewedItem={{ name: itemKey, level }}
+                />
+                <WantOffersPanel
+                  title="Stand trades (want this)"
+                  rows={offers.incomingWant}
+                  merchants={merchants}
+                  viewedItem={{ name: itemKey, level }}
+                />
+              </Box>
+              <BankListingsPanel rows={bankRows} />
             </Box>
           </Collapse>
         </TableCell>
@@ -260,6 +201,12 @@ function TradeItemRow({
 export function Market() {
   const G = useContext(GDataContext);
   const { items, merchants, lastRefresh, refresh } = useMerchants();
+  const {
+    allRows: bankAllRows,
+    getRowsForItem,
+    lastRefresh: bankRefresh,
+    refresh: refreshBank,
+  } = useBankTrades();
   const [filter, setFilter] = useState("");
   const [selectedBuyers, setSelectedBuyers] = useState<string[]>([]);
   const [selectedSellers, setSelectedSellers] = useState<string[]>([]);
@@ -340,6 +287,7 @@ export function Market() {
 
   const onRefreshData = () => {
     refresh();
+    refreshBank();
   };
 
   const rows = useMemo(() => {
@@ -372,6 +320,29 @@ export function Market() {
       }
     }
 
+    // Bank-only listings (no live stand) still appear as market rows.
+    const seen = new Set(
+      tmpRows.map((row) =>
+        listingKey({ name: row.itemName, level: row.level, p: row.title || undefined }),
+      ),
+    );
+    for (const bankRow of bankAllRows) {
+      const key = listingKey(bankRow.listing);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const variantKey = instanceVariantKey({
+        p: bankRow.listing.p,
+      });
+      const { title, data } = parseInstanceVariantKey(variantKey);
+      tmpRows.push({
+        itemName: bankRow.listing.name as ItemKey,
+        title: bankRow.listing.p ?? title,
+        data,
+        level: bankRow.listing.level ?? 0,
+        prices: emptyBuySellPrices(),
+      });
+    }
+
     tmpRows.sort(
       (a, b) =>
         a.itemName.localeCompare(b.itemName) ||
@@ -379,7 +350,7 @@ export function Market() {
         a.title.localeCompare(b.title),
     );
     return tmpRows;
-  }, [items]);
+  }, [items, bankAllRows]);
 
   const filteredRows = useMemo(() => {
     const matched = rows.filter((row) => {
@@ -393,16 +364,27 @@ export function Market() {
 
       const hasSellers = sellerKeys.length > 0;
       const hasBuyers = buyerKeys.length > 0;
+      const hasWantedBy = row.prices.wantedBy.length > 0;
+      const hasBank = getRowsForItem({
+        name: row.itemName,
+        level: row.level,
+        p: row.title || undefined,
+      }).length;
 
       return (
-        (hasSellers || hasBuyers) &&
+        (hasSellers || hasBuyers || hasWantedBy || hasBank > 0) &&
         buyerMatches &&
         sellerMatches &&
         marketRowMatchesSearch(row, G, filter)
       );
     });
     return sortMarketRows(matched, sortConfig);
-  }, [rows, selectedBuyers, selectedSellers, filter, G, sortConfig]);
+  }, [rows, selectedBuyers, selectedSellers, filter, G, sortConfig, getRowsForItem]);
+
+  const refreshedAt = [lastRefresh, bankRefresh]
+    .filter(Boolean)
+    .map((d) => d!.toLocaleString())
+    .join(" · stands / bank ");
 
   return (
     <StickyListLayout
@@ -411,7 +393,7 @@ export function Market() {
           <Info />
           <Box sx={{ mt: 1, display: "flex", alignItems: "center", gap: 2 }}>
             <Button onClick={onRefreshData}>Refresh Data</Button>
-            <Typography variant="subtitle2">{lastRefresh?.toLocaleString()}</Typography>
+            <Typography variant="subtitle2">{refreshedAt}</Typography>
           </Box>
         </Box>
       }
@@ -467,13 +449,13 @@ export function Market() {
                 <TableSortLabel {...sortLabelProps("buyCount")}># Buyers</TableSortLabel>
               </TableCell>
               <TableCell>
-                <TableSortLabel {...sortLabelProps("buyQty")}>Quantity</TableSortLabel>
+                <TableSortLabel {...sortLabelProps("buyQty")}>Qty</TableSortLabel>
               </TableCell>
               <TableCell>
-                <TableSortLabel {...sortLabelProps("buyMin")}>Min</TableSortLabel>
+                <TableSortLabel {...sortLabelProps("buyMax")}>Best bid</TableSortLabel>
               </TableCell>
               <TableCell>
-                <TableSortLabel {...sortLabelProps("buyMax")}>Max</TableSortLabel>
+                <TableSortLabel {...sortLabelProps("buyMin")}>Low bid</TableSortLabel>
               </TableCell>
               <TableCell>
                 <TableSortLabel {...sortLabelProps("buyAvg")}>Avg</TableSortLabel>
@@ -482,13 +464,13 @@ export function Market() {
                 <TableSortLabel {...sortLabelProps("sellCount")}># Sellers</TableSortLabel>
               </TableCell>
               <TableCell>
-                <TableSortLabel {...sortLabelProps("sellQty")}>Quantity</TableSortLabel>
+                <TableSortLabel {...sortLabelProps("sellQty")}>Qty</TableSortLabel>
               </TableCell>
               <TableCell>
-                <TableSortLabel {...sortLabelProps("sellMin")}>Min</TableSortLabel>
+                <TableSortLabel {...sortLabelProps("sellMin")}>Best ask</TableSortLabel>
               </TableCell>
               <TableCell>
-                <TableSortLabel {...sortLabelProps("sellMax")}>Max</TableSortLabel>
+                <TableSortLabel {...sortLabelProps("sellMax")}>High ask</TableSortLabel>
               </TableCell>
               <TableCell>
                 <TableSortLabel {...sortLabelProps("sellAvg")}>Avg</TableSortLabel>
@@ -505,6 +487,11 @@ export function Market() {
                 level={level}
                 prices={prices}
                 merchants={merchants}
+                bankRows={getRowsForItem({
+                  name: itemName,
+                  level,
+                  p: title || undefined,
+                })}
               />
             ))}
           </TableBody>

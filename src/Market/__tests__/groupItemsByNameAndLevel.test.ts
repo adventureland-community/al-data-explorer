@@ -1,6 +1,7 @@
 import { groupItemsByNameAndLevel } from "../useMerchants";
 import type { Merchant } from "../merchantTypes";
 import { instanceVariantKey } from "../../gameData/itemInstanceData";
+import { splitMarketOffers } from "../marketOfferRows";
 
 describe("groupItemsByNameAndLevel", () => {
   it("does not merge cxjar listings with different data", () => {
@@ -28,5 +29,50 @@ describe("groupItemsByNameAndLevel", () => {
     expect(byVariant[breyesKey]?.[0]?.selling.amount).toBe(2);
     expect(byVariant[bathatKey]?.[0]?.selling.amount).toBe(1);
     expect(Object.keys(byVariant)).toHaveLength(2);
+  });
+
+  it("computes qty-weighted avg and indexes official want barters", () => {
+    const merchants = [
+      {
+        id: "RellMer",
+        lastSeen: new Date().toISOString(),
+        map: "main",
+        serverIdentifier: "I",
+        serverRegion: "US",
+        x: 0,
+        y: 0,
+        slots: {
+          trade1: { name: "suckerpunch", level: 0, price: 1_200_000_000, q: 1 },
+          trade2: { name: "suckerpunch", level: 0, want: { name: "fallen" } },
+          trade3: { name: "suckerpunch", level: 0, want: { name: "dartgun", level: 6 } },
+        },
+      },
+      {
+        id: "buffett",
+        lastSeen: new Date().toISOString(),
+        map: "main",
+        serverIdentifier: "I",
+        serverRegion: "US",
+        x: 1,
+        y: 1,
+        slots: {
+          trade1: { name: "cxjar", q: 1, data: "hairdo608", want: { name: "suckerpunch" } },
+        },
+      },
+    ] as unknown as Merchant[];
+
+    const grouped = groupItemsByNameAndLevel(merchants);
+    const punch = grouped.suckerpunch?.[instanceVariantKey({})]?.[0];
+    expect(punch).toBeDefined();
+    expect(punch!.selling.goldOfferCount).toBe(1);
+    expect(punch!.selling.wantOfferCount).toBe(2);
+    expect(punch!.selling.avgPrice).toBe(1_200_000_000);
+    expect(punch!.wantedBy).toHaveLength(1);
+    expect(punch!.wantedBy[0].merchantName).toBe("buffett");
+
+    const offers = splitMarketOffers(punch!);
+    expect(offers.sellGold).toHaveLength(1);
+    expect(offers.outgoingWant).toHaveLength(2);
+    expect(offers.incomingWant).toHaveLength(1);
   });
 });

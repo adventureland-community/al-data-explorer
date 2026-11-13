@@ -12,6 +12,10 @@ import type { BuySellItemPrices, ItemPrices } from "../merchantTypes";
 function emptySide(): ItemPrices {
   return {
     amount: 0,
+    goldValueSum: 0,
+    goldQty: 0,
+    goldOfferCount: 0,
+    wantOfferCount: 0,
     minPrice: { price: 0 },
     maxPrice: { price: 0 },
     avgPrice: 0,
@@ -50,7 +54,7 @@ function prices(partial: {
     selling.minPrice = { price: partial.sellMin, merchant: "seller" };
     selling.amount = 1;
   }
-  return { buying, selling };
+  return { buying, selling, wantedBy: [] };
 }
 
 function row(
