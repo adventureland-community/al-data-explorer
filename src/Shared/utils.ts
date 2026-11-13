@@ -1,5 +1,5 @@
 // https://stackoverflow.com/a/40724354/28145
-export const SI_SYMBOL = ["", "k", "M", "G", "T", "P", "E"];
+export const FI_SYMBOL = ["", "K", "M", "B", "T", "Quad", "Quint"];
 
 export function abbreviateNumber(number?: number) {
   if (!number) {
@@ -13,7 +13,7 @@ export function abbreviateNumber(number?: number) {
   if (tier === 0) return number;
 
   // get suffix and determine scale
-  const suffix = SI_SYMBOL[tier];
+  const suffix = FI_SYMBOL[tier];
   const scale = 10 ** (tier * 3);
 
   // scale the number
