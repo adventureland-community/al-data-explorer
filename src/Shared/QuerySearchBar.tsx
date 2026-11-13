@@ -294,6 +294,7 @@ export function QuerySearchBar({
               return (
                 <Box key={section.title} component="li" sx={{ listStyle: "none" }}>
                   <ListSubheader
+                    component="div"
                     sx={{
                       lineHeight: "32px",
                       bgcolor: "background.paper",

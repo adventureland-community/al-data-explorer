@@ -35,6 +35,7 @@ import { BankSearchBar } from "./BankSearchBar";
 import { findItemLocations } from "./bankAnalysis";
 import { BankInsightsSidebar } from "./BankInsightsSidebar";
 import { getBankData, BankDataProps } from "./getBankData";
+import { findMatchingListings, getOwnerTrades } from "./getTrades";
 import { BankPacksView, PackFocus } from "./BankPacksView";
 import { BankRefreshSummaryView } from "./BankRefreshSummaryView";
 import { downloadBankSnapshot, loadBankSnapshot, saveBankSnapshot } from "./bankSnapshot";
@@ -42,6 +43,8 @@ import { GDataContext } from "../GDataContext";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { abbreviateNumber, msToTime } from "../Shared/utils";
 import { getItemName, getTitleName } from "../Shared/iteminfo-util";
+import { ListingNotes, TradeSideSummary } from "../Trades/TradeSideDisplay";
+import type { TradeListing } from "../Trades/tradeTypes";
 
 type BankRenderProps = {
   ownerId: string;
@@ -124,7 +127,31 @@ const types: { [key in ItemType | "exchange" | "other"]?: string } = {
   other: "Others",
 };
 
-function BankTableView({ items }: { items: AggregatedBankItem[] }) {
+function TradeBadges({ listings }: { listings: TradeListing[] }) {
+  if (!listings.length) return null;
+  return (
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+      {listings.map((listing) => (
+        <Box
+          key={`${listing.name}-${listing.level ?? ""}-${listing.p ?? ""}-${listing.note ?? ""}`}
+          sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, alignItems: "flex-start" }}
+        >
+          {listing.wts && <TradeSideSummary label="WTS" side={listing.wts} listing={listing} />}
+          {listing.wtb && <TradeSideSummary label="WTB" side={listing.wtb} listing={listing} />}
+          <ListingNotes note={listing.note} />
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+function BankTableView({
+  items,
+  listingsByItemKey,
+}: {
+  items: AggregatedBankItem[];
+  listingsByItemKey: Record<string, TradeListing[]>;
+}) {
   const G = useContext(GDataContext);
 
   return (
@@ -140,6 +167,7 @@ function BankTableView({ items }: { items: AggregatedBankItem[] }) {
           <TableCell component="th">Name</TableCell>
           <TableCell component="th">Level</TableCell>
           <TableCell component="th">Stacks</TableCell>
+          <TableCell component="th">Trades</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
@@ -161,6 +189,7 @@ function BankTableView({ items }: { items: AggregatedBankItem[] }) {
 
           const itemName = getItemName(itemKey, gItem);
           const keyLine = itemInfo.data ? `${itemInfo.name} · ${itemInfo.data}` : itemInfo.name;
+          const listings = listingsByItemKey[getUniqueItemKey(itemInfo)] ?? [];
 
           return (
             <TableRow key={getUniqueItemKey(itemInfo)} hover>
@@ -184,6 +213,9 @@ function BankTableView({ items }: { items: AggregatedBankItem[] }) {
               <TableCell component="td">
                 {itemInfo.stack}
                 {optimalStackCountMessage}
+              </TableCell>
+              <TableCell component="td">
+                <TradeBadges listings={listings} />
               </TableCell>
             </TableRow>
           );
@@ -260,6 +292,7 @@ export function BankRender(props: BankRenderProps) {
   const { ownerId } = props;
 
   const [bankData, setBankData] = useState<BankDataProps>({});
+  const [tradeListings, setTradeListings] = useState<TradeListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshSummary, setRefreshSummary] = useState<BankRefreshSummary | undefined>(undefined);
   const [renderMode, setRenderMode] = useState<"list" | "grid" | "gridCompact" | "packs">(
@@ -329,6 +362,7 @@ export function BankRender(props: BankRenderProps) {
     setVisitSummary(undefined);
     setPackFocus(null);
     setChangeFilter("all");
+    setTradeListings([]);
     if (!ownerId) {
       setBankData({});
       return;
@@ -336,21 +370,24 @@ export function BankRender(props: BankRenderProps) {
 
     let cancelled = false;
     setLoading(true);
-    getBankData(ownerId).then((newBankData) => {
-      if (cancelled) return;
-      if (Object.keys(newBankData).length) {
-        const snapshot = loadBankSnapshot(ownerId);
-        if (snapshot?.bankData) {
-          const comparison = applySnapshotComparison(snapshot.bankData, newBankData);
-          if (comparison) setVisitSummary(comparison);
+    Promise.all([getBankData(ownerId), getOwnerTrades(ownerId)]).then(
+      ([newBankData, ownerTrades]) => {
+        if (cancelled) return;
+        if (Object.keys(newBankData).length) {
+          const snapshot = loadBankSnapshot(ownerId);
+          if (snapshot?.bankData) {
+            const comparison = applySnapshotComparison(snapshot.bankData, newBankData);
+            if (comparison) setVisitSummary(comparison);
+          }
+          setBankData({ ...newBankData });
+          saveBankSnapshot(ownerId, newBankData);
+        } else {
+          setBankData({});
         }
-        setBankData({ ...newBankData });
-        saveBankSnapshot(ownerId, newBankData);
-      } else {
-        setBankData({});
-      }
-      setLoading(false);
-    });
+        setTradeListings(ownerTrades.listings ?? []);
+        setLoading(false);
+      },
+    );
 
     return () => {
       cancelled = true;
@@ -358,6 +395,22 @@ export function BankRender(props: BankRenderProps) {
   }, [ownerId, applySnapshotComparison]);
 
   const aggregated = useMemo(() => aggregateBankData(bankData, G), [bankData, G]);
+
+  const listingsByItemKey = useMemo(() => {
+    const map: Record<string, TradeListing[]> = {};
+    for (const item of aggregated.items) {
+      const matches = findMatchingListings(tradeListings, {
+        name: item.name,
+        level: item.level,
+        p: item.p,
+      });
+      if (matches.length) {
+        map[getUniqueItemKey(item)] = matches;
+      }
+    }
+    return map;
+  }, [aggregated.items, tradeListings]);
+
   const filteredItems = useMemo(
     () => filterAggregatedBankItems(aggregated.items, G, search),
     [aggregated.items, G, search],
@@ -580,7 +633,9 @@ export function BankRender(props: BankRenderProps) {
               itemsByCategory={sortedFilteredItemsByCategory}
             />
           )}
-          {renderMode === "list" && <BankTableView items={items} />}
+          {renderMode === "list" && (
+            <BankTableView items={items} listingsByItemKey={listingsByItemKey} />
+          )}
           {renderMode === "packs" && (
             <BankPacksView bankData={bankData} search={search} focus={packFocus} />
           )}

@@ -42,7 +42,7 @@ function collectOffers(
       const level = Number(levelKey);
       for (const [merchantName, entry] of Object.entries(prices[side].merchants)) {
         for (const item of entry.items as TradeItemInfo[]) {
-          if (item.price == null) continue;
+          if (item.price == null || item.price <= 0) continue;
           rows.push({
             id: `${side}-${variantKey}-${level}-${merchantName}-${item.price}-${item.q ?? 1}`,
             level,

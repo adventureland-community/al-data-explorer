@@ -47,7 +47,8 @@ const sections = [
   {
     title: "Market",
     path: "/market",
-    description: "See what merchants are buying and selling across Adventure Land.",
+    description:
+      "Merchant stand gold and item-for-item offers, plus Earth /trades WTS/WTB from ALData.",
   },
   {
     title: "Bank",

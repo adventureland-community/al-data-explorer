@@ -12,6 +12,7 @@ import {
   formatGold,
   formatShrineTime,
   planCompoundPath,
+  planUpgradePath,
   planUpgradePathBestOdds,
   PlannerContext,
   summarizeCompoundPlan,
@@ -198,6 +199,136 @@ function resolvePrices(args: {
     items: args.items,
     market: args.market,
   });
+}
+
+export type ItemUpgradeCostRange = {
+  mode: ItemUpgradeMode;
+  targetLevel: number;
+  /** Expected gold for Cheapest strategy (Pareto / costOptimal). */
+  cheapest: number | null;
+  /** Expected gold for Fewest copies / best-odds strategy. */
+  fewest: number | null;
+  /** min(cheapest, fewest) among finite values. */
+  low: number;
+  /** max(cheapest, fewest) among finite values. */
+  high: number;
+};
+
+function summarizeUpgradeEv(
+  mode: ItemUpgradeMode,
+  ctx: PlannerContext,
+  args: {
+    itemKey: ItemKey;
+    gItem: GItem;
+    itemValue: number;
+    targetLevel: number;
+    prices: PriceTable;
+    strategy: "cheapest" | "fewest";
+    /** Market UI: skip failstack/ograce Pareto dimensions for speed. */
+    snappy?: boolean;
+  },
+): number | null {
+  const { itemKey, gItem, itemValue, targetLevel, prices, strategy, snappy } = args;
+  const acquireOpts = {
+    igrade: getItemGrade(gItem, 0),
+    itemKey,
+    itemValue,
+    forceAcquire: itemValue > 0,
+    acquireChargePerCopy: itemValue,
+    acquireMode: "buy" as const,
+  };
+
+  if (mode === "upgrade") {
+    const plan =
+      strategy === "cheapest"
+        ? planUpgradePath(ctx, itemKey, itemValue, targetLevel, {
+            luckySlot: false,
+            allowFailstack: snappy ? false : undefined,
+            allowOgrace: snappy ? false : undefined,
+          })
+        : planUpgradePathBestOdds(ctx, itemKey, itemValue, targetLevel, { luckySlot: false });
+    if (!plan) return null;
+    const summary = summarizeUpgradePlan(plan, prices, "upgrade", acquireOpts);
+    return Number.isFinite(summary.totalExpectedCost) ? summary.totalExpectedCost : null;
+  }
+
+  const plan = planCompoundPath(
+    ctx,
+    itemKey,
+    itemValue,
+    targetLevel,
+    strategy === "cheapest" ? "costOptimal" : "bestOdds",
+    snappy ? { allowOgrace: false } : {},
+  );
+  if (!plan) return null;
+  const summary = summarizeCompoundPlan(plan, prices, acquireOpts);
+  return Number.isFinite(summary.totalExpectedCost) ? summary.totalExpectedCost : null;
+}
+
+/**
+ * Expected gold range to reach `level` from +0 via Cheapest vs Fewest strategies.
+ * Returns null when the item isn't upgradable/compoundable or level < 1.
+ */
+export function buildItemUpgradeCostRange(args: {
+  itemKey: ItemKey;
+  gItem: GItem;
+  level: number;
+  items: GItems;
+  tables?: ChanceTables;
+  prices?: PriceTable;
+  market?: Parameters<typeof marketSellMinPrice>[0];
+  /** Skip heavy stack/ograce search (Market expand panels). */
+  snappy?: boolean;
+}): ItemUpgradeCostRange | null {
+  const mode = itemUpgradeMode(args.gItem);
+  if (!mode) return null;
+
+  const level = Math.floor(args.level);
+  if (!Number.isFinite(level) || level < 1) return null;
+
+  const targetLevel = Math.min(level, CALC_MAX[mode]);
+  if (targetLevel < 1) return null;
+
+  const prices = resolvePrices(args);
+  const lookup: ItemLookup = (name) => args.items[name];
+  const itemValue =
+    typeof prices[args.itemKey] === "number" && Number.isFinite(prices[args.itemKey])
+      ? prices[args.itemKey]
+      : typeof args.gItem.g === "number" && args.gItem.g > 0
+      ? args.gItem.g
+      : 0;
+
+  const ctx: PlannerContext = {
+    lookup,
+    prices,
+    tables: args.tables,
+    toolkit: DEFAULT_TOOLKIT,
+  };
+
+  const planArgs = {
+    itemKey: args.itemKey,
+    gItem: args.gItem,
+    itemValue,
+    targetLevel,
+    prices,
+    snappy: args.snappy,
+  };
+  const cheapest = summarizeUpgradeEv(mode, ctx, { ...planArgs, strategy: "cheapest" });
+  const fewest = summarizeUpgradeEv(mode, ctx, { ...planArgs, strategy: "fewest" });
+
+  const values: number[] = [];
+  if (cheapest != null && cheapest > 0) values.push(cheapest);
+  if (fewest != null && fewest > 0) values.push(fewest);
+  if (!values.length) return null;
+
+  let low = values[0];
+  let high = values[0];
+  for (const v of values) {
+    if (v < low) low = v;
+    if (v > high) high = v;
+  }
+
+  return { mode, targetLevel, cheapest, fewest, low, high };
 }
 
 /**

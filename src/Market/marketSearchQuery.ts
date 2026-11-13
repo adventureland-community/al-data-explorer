@@ -154,13 +154,16 @@ function clauseMatches(ctx: MarketMatchCtx, clause: MarketClause): boolean {
     case "text": {
       const needle = clause.value.toLowerCase();
       const display = gItem ? getItemName(row.itemName, gItem).toLowerCase() : "";
+      // Attribute/name-via-G matching needs a longer needle — single letters match almost every item.
+      const allowAttr = needle.length >= 3;
       hit =
         row.itemName.toLowerCase().includes(needle) ||
         display.includes(needle) ||
         String(row.title).toLowerCase().includes(needle) ||
         Boolean(row.data?.toLowerCase().includes(needle)) ||
         Boolean(
-          gItem &&
+          allowAttr &&
+            gItem &&
             itemMatchesSearch(row.itemName, gItem, needle, {
               matchAttributes: true,
               sets: G?.sets as Record<string, Record<string, unknown>> | undefined,

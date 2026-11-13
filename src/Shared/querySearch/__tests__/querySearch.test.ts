@@ -95,6 +95,10 @@ describe("market query", () => {
     prices: {
       buying: {
         amount: 0,
+        goldValueSum: 0,
+        goldQty: 0,
+        goldOfferCount: 0,
+        wantOfferCount: 0,
         minPrice: { price: 0 },
         maxPrice: { price: 0 },
         avgPrice: 0,
@@ -102,11 +106,16 @@ describe("market query", () => {
       },
       selling: {
         amount: 1,
+        goldValueSum: 2_000_000,
+        goldQty: 1,
+        goldOfferCount: 1,
+        wantOfferCount: 0,
         minPrice: { price: 2_000_000, merchant: "Bob" },
         maxPrice: { price: 2_000_000 },
         avgPrice: 2_000_000,
         merchants: { Bob: { merchant: { id: "Bob", lastSeen: "" }, items: [] } },
       },
+      wantedBy: [],
     },
   };
 

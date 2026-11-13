@@ -1,14 +1,79 @@
 import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
-import { ItemKey, TradeItemInfo, TradeSlotType } from "typed-adventureland";
+import { ItemKey, TradeSlotType } from "typed-adventureland";
 
+import { ALDATA_BASE_URL } from "../aldataBaseUrl";
 import { instanceVariantKey } from "../gameData/itemInstanceData";
 import {
   BuySellItemPrices,
+  ItemPrices,
   ItemsByNameTitleLevel,
   Merchant,
+  MerchantTradeItem,
   MerchantsCache,
 } from "./merchantTypes";
+
+function emptySide(): ItemPrices {
+  return {
+    amount: 0,
+    goldValueSum: 0,
+    goldQty: 0,
+    goldOfferCount: 0,
+    wantOfferCount: 0,
+    minPrice: { price: 0 },
+    maxPrice: { price: 0 },
+    avgPrice: 0,
+    merchants: {},
+  };
+}
+
+export function emptyBuySellPrices(): BuySellItemPrices {
+  return {
+    buying: emptySide(),
+    selling: emptySide(),
+    wantedBy: [],
+  };
+}
+
+function ensureLevelBucket(
+  result: ItemsByNameTitleLevel,
+  itemName: ItemKey,
+  variantKey: string,
+  level: number,
+): BuySellItemPrices {
+  result[itemName] = result[itemName] ?? {};
+  const byVariant = result[itemName] ?? {};
+  byVariant[variantKey] = byVariant[variantKey] ?? [];
+  const byLevel = byVariant[variantKey] ?? [];
+  if (!byLevel[level]) {
+    byLevel[level] = emptyBuySellPrices();
+  }
+  return byLevel[level];
+}
+
+function recordGoldPrice(side: ItemPrices, merchantId: string, price: number) {
+  if (side.minPrice.price === 0 || side.minPrice.price > price) {
+    side.minPrice = { merchant: merchantId, price };
+  }
+  if (side.maxPrice.price === 0 || side.maxPrice.price < price) {
+    side.maxPrice = { merchant: merchantId, price };
+  }
+}
+
+function finalizeAverages(result: ItemsByNameTitleLevel) {
+  for (const byVariant of Object.values(result)) {
+    if (!byVariant) continue;
+    for (const byLevel of Object.values(byVariant)) {
+      if (!byLevel) continue;
+      for (const prices of byLevel) {
+        if (!prices) continue;
+        for (const side of [prices.buying, prices.selling]) {
+          side.avgPrice = side.goldQty > 0 ? side.goldValueSum / side.goldQty : 0;
+        }
+      }
+    }
+  }
+}
 
 export function groupItemsByNameAndLevel(merchants: Merchant[]): ItemsByNameTitleLevel {
   const result: ItemsByNameTitleLevel = {};
@@ -20,84 +85,63 @@ export function groupItemsByNameAndLevel(merchants: Merchant[]): ItemsByNameTitl
         continue;
       }
 
-      const item = merchant.slots[tradeSlot] as TradeItemInfo;
+      const item = merchant.slots[tradeSlot] as MerchantTradeItem | undefined;
       if (!item) {
         continue;
       }
 
-      result[item.name] = result[item.name] ?? {};
-      const itemPricesByName = result[item.name] ?? {};
-
-      // Titles + cxjar.data: same stack rule as can_stack (do not merge different cosmetics).
       const variantKey = instanceVariantKey(item);
-      let itemPricesByTitle = itemPricesByName[variantKey];
-      if (!itemPricesByTitle) {
-        itemPricesByName[variantKey] = [];
-        itemPricesByTitle = itemPricesByName[variantKey] ?? [];
-      }
-
       const level = item.level ?? 0;
-      let itemPricesByLevel = itemPricesByTitle[level];
-
-      if (!itemPricesByLevel) {
-        itemPricesByTitle[level] = {
-          buying: {
-            amount: 0,
-            minPrice: { price: 0 },
-            maxPrice: { price: 0 },
-            avgPrice: 0,
-            merchants: {},
-          },
-          selling: {
-            amount: 0,
-            minPrice: { price: 0 },
-            maxPrice: { price: 0 },
-            avgPrice: 0,
-            merchants: {},
-          },
-        };
-        itemPricesByLevel = itemPricesByTitle[level];
-      }
+      const itemPricesByLevel = ensureLevelBucket(result, item.name as ItemKey, variantKey, level);
 
       const buyingOrSelling: "buying" | "selling" = item.b ? "buying" : "selling";
+      const side = itemPricesByLevel[buyingOrSelling];
+      const qty = item.q ?? 1;
+      const hasGold = typeof item.price === "number" && item.price > 0;
+      const hasWant = item.want != null && typeof item.want.name === "string";
 
-      const itemsByBuyingOrSelling = itemPricesByLevel[buyingOrSelling];
-      let itemsByMerchant = itemsByBuyingOrSelling.merchants[merchant.id];
+      let itemsByMerchant = side.merchants[merchant.id];
       if (!itemsByMerchant) {
-        const { id, lastSeen } = merchant;
-
-        if (item.price) {
-          if (
-            itemsByBuyingOrSelling.minPrice.price === 0 ||
-            itemsByBuyingOrSelling.minPrice.price > item.price
-          ) {
-            itemsByBuyingOrSelling.minPrice.merchant = id;
-            itemsByBuyingOrSelling.minPrice.price = item.price;
-          }
-
-          if (
-            itemsByBuyingOrSelling.maxPrice.price === 0 ||
-            itemsByBuyingOrSelling.maxPrice.price < item.price
-          ) {
-            itemsByBuyingOrSelling.maxPrice.merchant = id;
-            itemsByBuyingOrSelling.maxPrice.price = item.price;
-          }
-        }
-
-        itemsByBuyingOrSelling.merchants[merchant.id] = {
-          merchant: { id, lastSeen },
+        side.merchants[merchant.id] = {
+          merchant: { id: merchant.id, lastSeen: merchant.lastSeen },
           items: [],
         };
-
-        itemsByMerchant = itemsByBuyingOrSelling.merchants[merchant.id];
+        itemsByMerchant = side.merchants[merchant.id];
       }
 
-      itemsByBuyingOrSelling.amount += item.q ?? 1;
+      side.amount += qty;
+      if (hasGold) {
+        recordGoldPrice(side, merchant.id, item.price);
+        side.goldValueSum += item.price * qty;
+        side.goldQty += qty;
+        side.goldOfferCount += 1;
+      }
+      if (hasWant) {
+        side.wantOfferCount += 1;
+      }
 
       itemsByMerchant.items.push(item);
+
+      // Index reverse barters: stand offers something else, wants this item.
+      if (hasWant && item.want) {
+        const wantVariant = instanceVariantKey(item.want);
+        const wantLevel = item.want.level ?? 0;
+        const wantBucket = ensureLevelBucket(
+          result,
+          item.want.name as ItemKey,
+          wantVariant,
+          wantLevel,
+        );
+        wantBucket.wantedBy.push({
+          merchantName: merchant.id,
+          offered: item,
+          want: item.want,
+        });
+      }
     }
   }
 
+  finalizeAverages(result);
   return result;
 }
 
@@ -128,7 +172,7 @@ export function useMerchants() {
   const refresh = useCallback(
     () =>
       axios
-        .get<Merchant[]>("https://aldata.earthiverse.ca/merchants")
+        .get<Merchant[]>(`${ALDATA_BASE_URL}/merchants`)
         .then((response) => {
           applyMerchants(response.data, setItems, setMerchants, setLastRefresh);
           const cache: MerchantsCache = {

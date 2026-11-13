@@ -78,6 +78,10 @@ const router = createBrowserRouter([
             element: <Market />,
           },
           {
+            path: "trades",
+            element: <Navigate to="/market" replace />,
+          },
+          {
             path: "bank",
             element: <Bank />,
           },
