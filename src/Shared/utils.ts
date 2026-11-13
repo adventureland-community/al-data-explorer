@@ -1,5 +1,5 @@
 // https://stackoverflow.com/a/40724354/28145
-export const FI_SYMBOL = ["", "K", "M", "B", "T", "Quad", "Quint"];
+export const FI_SYMBOL = ["", "K", "M", "B", "T", "P", "E"];
 
 export function abbreviateNumber(number?: number) {
   if (!number) {
