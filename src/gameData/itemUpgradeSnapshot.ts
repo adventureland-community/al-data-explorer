@@ -6,6 +6,7 @@
 import { GItem, ItemKey } from "typed-adventureland";
 
 import { getItemGrade } from "./itemGrade";
+import { getMaxLevel } from "./itemProperties";
 import { ChanceTables, getCompoundChance, getUpgradeChance, ItemLookup } from "./upgradeChance";
 import {
   formatChancePct,
@@ -64,15 +65,22 @@ export type ItemUpgradeSnapshot = {
   shrineTime: string | null;
 };
 
+/** Global calculator ceilings — per-item max still comes from getMaxLevel / grades[3]. */
 const CALC_MAX: Record<ItemUpgradeMode, number> = {
   upgrade: 12,
-  compound: 5,
+  compound: 7,
 };
 
 const DEFAULT_TARGET: Record<ItemUpgradeMode, number> = {
   upgrade: 7,
   compound: 3,
 };
+
+function calcTargetCap(gItem: GItem, mode: ItemUpgradeMode): number {
+  const itemMax = getMaxLevel(gItem);
+  if (itemMax == null) return CALC_MAX[mode];
+  return Math.min(CALC_MAX[mode], itemMax);
+}
 
 /** Default toolkit matches Upgrade Calculator URL defaults. */
 const DEFAULT_TOOLKIT: NonNullable<PlannerContext["toolkit"]> = {
@@ -93,11 +101,14 @@ export function buildUpgradeCalcHref(args: {
   itemKey: string;
   mode: ItemUpgradeMode;
   target: number;
+  /** When set, clamp target to this item's grades[3] max as well as CALC_MAX. */
+  gItem?: GItem;
 }): string {
   const sp = new URLSearchParams();
   if (args.mode === "compound") sp.set("mode", "compound");
   sp.set("item", args.itemKey);
-  const capped = Math.min(Math.max(1, Math.floor(args.target)), CALC_MAX[args.mode]);
+  const modeCap = args.gItem ? calcTargetCap(args.gItem, args.mode) : CALC_MAX[args.mode];
+  const capped = Math.min(Math.max(1, Math.floor(args.target)), modeCap);
   if (capped !== DEFAULT_TARGET[args.mode]) sp.set("target", String(capped));
   const q = sp.toString();
   return q ? `/upgrade?${q}` : "/upgrade";
@@ -285,7 +296,7 @@ export function buildItemUpgradeCostRange(args: {
   const level = Math.floor(args.level);
   if (!Number.isFinite(level) || level < 1) return null;
 
-  const targetLevel = Math.min(level, CALC_MAX[mode]);
+  const targetLevel = Math.min(level, calcTargetCap(args.gItem, mode));
   if (targetLevel < 1) return null;
 
   const prices = resolvePrices(args);
@@ -351,8 +362,7 @@ export function buildItemUpgradeSnapshot(args: {
   const level = Math.floor(args.level);
   if (!Number.isFinite(level) || level < 1) return null;
 
-  const calcMax = CALC_MAX[mode];
-  const targetLevel = Math.min(level, calcMax);
+  const targetLevel = Math.min(level, calcTargetCap(args.gItem, mode));
   if (targetLevel < 1) return null;
 
   const prices = resolvePrices(args);
@@ -375,6 +385,7 @@ export function buildItemUpgradeSnapshot(args: {
     itemKey: args.itemKey,
     mode,
     target: targetLevel,
+    gItem: args.gItem,
   });
 
   const baseInbound = inboundBaseChance({

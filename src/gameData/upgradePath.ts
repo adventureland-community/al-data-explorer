@@ -1211,8 +1211,8 @@ function planCompoundCheapest(
     options.stacks ?? (allowOgrace === false ? EMPTY_STACKS : computeStacksForPlanner(ctx));
   const offerings = offeringChoices(ctx.toolkit);
   const maxOgraceIdx = allowOgrace ? Math.min(MAX_OGRACE_STEPS, stacks.ograce.length - 1) : 0;
-  const grades = ((def.grades as number[] | undefined) ?? [9, 10, 11, 12]) as number[];
-  const target = Math.min(targetLevel, grades[3] ?? 10, 10);
+  const grades = (def.grades as number[] | undefined) ?? [];
+  const target = Math.min(targetLevel, grades[3] ?? 7);
 
   let last: ParetoState[] = [{ item_grace: 0, cost: itemValue, parent: null }];
 

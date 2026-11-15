@@ -71,6 +71,7 @@ import { GDataContext } from "../GDataContext";
 import { SimEntityAutocomplete } from "../DropSimulator/SimEntityAutocomplete";
 import { ItemInstance } from "../Shared/ItemInstance";
 import { useMerchants } from "../Market/useMerchants";
+import { getMaxLevel } from "../Utils";
 import { UpgradeCalcHelpButton } from "./UpgradeCalcHelp";
 import { GreedFarmResults, greedCompareForLevel } from "./GreedFarmResults";
 import {
@@ -651,10 +652,20 @@ export function UpgradeCalculator() {
     return keys;
   }, [G, params.mode, itemKey]);
 
-  const maxTarget =
+  const modeCeiling =
     params.mode === "compound"
       ? TARGET_COMPOUND[TARGET_COMPOUND.length - 1]
       : TARGET_UPGRADE[TARGET_UPGRADE.length - 1];
+  const itemMax = gItem ? getMaxLevel(gItem) : undefined;
+  const maxTarget =
+    itemMax != null ? Math.min(modeCeiling, itemMax) : modeCeiling;
+
+  useEffect(() => {
+    if (params.mode === "greed") return;
+    if (params.target <= maxTarget) return;
+    patch({ target: maxTarget }, { replace: true });
+  }, [params.mode, params.target, maxTarget, patch]);
+
   const hasPriceOverrides = Object.keys(priceOverrides).length > 0;
   const enabledOfferingCount = offeringKeys.filter((k) => offeringEnabled(k, params)).length;
 
