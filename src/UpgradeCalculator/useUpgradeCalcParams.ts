@@ -121,7 +121,7 @@ function parseBool(raw: string | null, fallback: boolean): boolean {
 }
 
 function maxTarget(mode: CalcMode): number {
-  if (mode === "compound") return 5;
+  if (mode === "compound") return 7;
   if (mode === "greed") return 12;
   return 12;
 }

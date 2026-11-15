@@ -1211,8 +1211,8 @@ function planCompoundCheapest(
     options.stacks ?? (allowOgrace === false ? EMPTY_STACKS : computeStacksForPlanner(ctx));
   const offerings = offeringChoices(ctx.toolkit);
   const maxOgraceIdx = allowOgrace ? Math.min(MAX_OGRACE_STEPS, stacks.ograce.length - 1) : 0;
-  const grades = ((def.grades as number[] | undefined) ?? [9, 10, 11, 12]) as number[];
-  const target = Math.min(targetLevel, grades[3] ?? 10, 10);
+  const grades = (def.grades as number[] | undefined) ?? [];
+  const target = Math.min(targetLevel, grades[3] ?? 7);
 
   let last: ParetoState[] = [{ item_grace: 0, cost: itemValue, parent: null }];
 
@@ -1305,11 +1305,14 @@ export function planCompoundPath(
   strategyOrOptimize: UpgradeStepStrategy | boolean = false,
   options: { stacks?: StackTables; allowOgrace?: boolean } = {},
 ): CompoundPathPlan | null {
-  if (!ctx.lookup(itemName)) return null;
+  const def = ctx.lookup(itemName);
+  if (!def) return null;
+  const grades = (def.grades as number[] | undefined) ?? [];
+  const cappedTarget = Math.min(targetLevel, grades[3] ?? 7);
   const strategy = resolveCompoundStrategy(strategyOrOptimize);
 
   if (strategy === "costOptimal") {
-    return planCompoundCheapest(ctx, itemName, itemValue, targetLevel, options);
+    return planCompoundCheapest(ctx, itemName, itemValue, cappedTarget, options);
   }
 
   const offerings = offeringChoices(ctx.toolkit);
@@ -1318,7 +1321,7 @@ export function planCompoundPath(
   // Absolute EV of the current compound product (includes base); step spend is the delta.
   let curCost = itemValue;
 
-  for (let lvl = 0; lvl < targetLevel; lvl++) {
+  for (let lvl = 0; lvl < cappedTarget; lvl++) {
     const def = ctx.lookup(itemName);
     if (!def) break;
     const grade = getItemGrade(def, item.level ?? 0);

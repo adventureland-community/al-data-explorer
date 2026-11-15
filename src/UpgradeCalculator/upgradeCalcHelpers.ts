@@ -5,7 +5,8 @@ import { OfferingChoice, PlanSummaryStep } from "../calculators";
 import { CalcStrategy } from "./useUpgradeCalcParams";
 
 export const TARGET_UPGRADE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-export const TARGET_COMPOUND = [1, 2, 3, 4, 5];
+/** Compound ceiling matches design/items.js grades[3] clamp (≤7). */
+export const TARGET_COMPOUND = [1, 2, 3, 4, 5, 6, 7];
 export const RECENT_STORAGE_KEY = "aldex.upgradeCalc.recentItems";
 export const RECENT_LIMIT = 6;
 

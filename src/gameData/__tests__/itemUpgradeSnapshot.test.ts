@@ -70,8 +70,8 @@ describe("itemUpgradeSnapshot", () => {
     expect(buildUpgradeCalcHref({ itemKey: "hpamulet", mode: "compound", target: 3 })).toBe(
       "/upgrade?mode=compound&item=hpamulet",
     );
-    expect(buildUpgradeCalcHref({ itemKey: "hpamulet", mode: "compound", target: 5 })).toBe(
-      "/upgrade?mode=compound&item=hpamulet&target=5",
+    expect(buildUpgradeCalcHref({ itemKey: "hpamulet", mode: "compound", target: 7 })).toBe(
+      "/upgrade?mode=compound&item=hpamulet&target=7",
     );
   });
 
@@ -122,17 +122,36 @@ describe("itemUpgradeSnapshot", () => {
     expect(snap!.planEv).not.toBeNull();
   });
 
-  it("caps compound targets at the calculator max", () => {
+  it("caps compound targets at the calculator max (+7)", () => {
     const snap = buildItemUpgradeSnapshot({
       itemKey: "hpamulet" as ItemKey,
       gItem: ITEMS.hpamulet,
-      level: 7,
+      level: 9,
       items: ITEMS,
       prices: PRICES,
     });
     expect(snap).not.toBeNull();
-    expect(snap!.targetLevel).toBe(5);
-    expect(snap!.calcHref).toContain("target=5");
+    expect(snap!.targetLevel).toBe(7);
+    expect(snap!.calcHref).toContain("target=7");
+  });
+
+  it("respects per-item compound grades[3] (zapper +3)", () => {
+    const zapper = {
+      compound: true,
+      g: 6400000,
+      grades: [0, 0, 1, 3],
+    } as unknown as GItem;
+    const snap = buildItemUpgradeSnapshot({
+      itemKey: "zapper" as ItemKey,
+      gItem: zapper,
+      level: 7,
+      items: { ...ITEMS, zapper },
+      prices: PRICES,
+    });
+    expect(snap).not.toBeNull();
+    expect(snap!.targetLevel).toBe(3);
+    // Default compound target is +3, so the deep link omits target=.
+    expect(snap!.calcHref).toBe("/upgrade?mode=compound&item=zapper");
   });
 
   it("builds a cheapest–fewest upgrade cost range", () => {

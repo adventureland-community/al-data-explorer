@@ -83,7 +83,8 @@ export function LevelRangeControl({
   onFrom: (n: number) => void;
   onTarget: (n: number) => void;
 }) {
-  const presets = mode === "compound" ? [3, 4, 5] : [7, 8, 9, 10, 12];
+  const presetPool = mode === "compound" ? [3, 5, 7] : [7, 8, 9, 10, 12];
+  const presets = presetPool.filter((t) => t <= maxTarget);
   const minTarget = mode === "compound" ? 1 : Math.max(1, from + 1);
   const maxFrom = Math.max(0, target - 1);
 

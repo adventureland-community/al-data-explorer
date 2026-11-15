@@ -9,6 +9,12 @@ describe("compareStats", () => {
   it("respects compound max level", () => {
     expect(isValidLevel({ compound: { stat: 1 }, name: "ring" } as any, 7)).toBe(true);
     expect(isValidLevel({ compound: { stat: 1 }, name: "ring" } as any, 8)).toBe(false);
+    expect(
+      isValidLevel({ compound: { stat: 1 }, grades: [0, 0, 1, 3], name: "zapper" } as any, 3),
+    ).toBe(true);
+    expect(
+      isValidLevel({ compound: { stat: 1 }, grades: [0, 0, 1, 3], name: "zapper" } as any, 4),
+    ).toBe(false);
   });
 
   it("computes stat delta as B minus A", () => {

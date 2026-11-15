@@ -135,9 +135,18 @@ function applyLegacyTitle(
   }
 }
 
-export function getMaxLevel(gItem: { upgrade?: unknown; compound?: unknown }): number | undefined {
-  if (gItem.upgrade) return 13;
-  if (gItem.compound) return 7;
+/**
+ * Max reachable upgrade/compound level from G.grades[3].
+ * Mirrors calculate_item_grade grade-4 (max) threshold in adventureland_mongodb
+ * js/old_common_functions.js; design/items.js clamps compound grades[3] to ≤7.
+ */
+export function getMaxLevel(gItem: {
+  upgrade?: unknown;
+  compound?: unknown;
+  grades?: number[];
+}): number | undefined {
+  if (gItem.upgrade) return gItem.grades?.[3] ?? 12;
+  if (gItem.compound) return gItem.grades?.[3] ?? 7;
   return undefined;
 }
 
@@ -158,8 +167,8 @@ export function getLevelString(gItem: GItem, level?: number): string {
   }
 
   if (gItem.compound) {
-    let compoundLevel = level;
-    if (compoundLevel && compoundLevel > 7) compoundLevel = 7;
+    const maxLevel = getMaxLevel(gItem) ?? 7;
+    const compoundLevel = Math.min(level ?? 0, maxLevel);
     switch (compoundLevel) {
       case 7:
         return "R";
@@ -168,7 +177,7 @@ export function getLevelString(gItem: GItem, level?: number): string {
       case 5:
         return "V";
       default:
-        return String(compoundLevel ?? 0);
+        return String(compoundLevel);
     }
   }
 
