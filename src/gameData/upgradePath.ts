@@ -5,7 +5,7 @@
  * failstack, ograce bank, scroll4 survival, stat-scroll grace prep;
  * https://pastebin.com/jBMKeLfd, CALC_VERSION 8).
  * Fewest Copies = per-level max chance over the scroll/offering/primling toolkit
- * only (zero stacks).
+ * (upgrade: zero failstack; compound: may bank ograce when enabled — cuts copies).
  */
 
 import { GItem, ItemKey } from "typed-adventureland";
@@ -1160,8 +1160,17 @@ export function pickCompoundRoute(
     let best = candidates[0];
     for (let i = 1; i < candidates.length; i++) {
       const c = candidates[i];
-      if (c.chance > best.chance + 0.0001) best = c;
-      else if (Math.abs(c.chance - best.chance) < 0.0001 && c.expCost < best.expCost) best = c;
+      if (c.chance > best.chance + 0.0001) {
+        best = c;
+        continue;
+      }
+      if (Math.abs(c.chance - best.chance) >= 0.0001) continue;
+      // Same chance: prefer leftover grace (feeds later levels), then cheaper EV.
+      if (c.grace > best.grace + 1e-6) {
+        best = c;
+        continue;
+      }
+      if (Math.abs(c.grace - best.grace) <= 1e-6 && c.expCost < best.expCost) best = c;
     }
     return best;
   }
@@ -1315,6 +1324,10 @@ export function planCompoundPath(
     return planCompoundCheapest(ctx, itemName, itemValue, cappedTarget, options);
   }
 
+  const allowOgrace = options.allowOgrace !== false;
+  const stacks =
+    options.stacks ?? (allowOgrace === false ? EMPTY_STACKS : computeStacksForPlanner(ctx));
+  const maxOgraceIdx = allowOgrace ? Math.min(MAX_OGRACE_STEPS, stacks.ograce.length - 1) : 0;
   const offerings = offeringChoices(ctx.toolkit);
   const path: CompoundPathStep[] = [];
   let item = { name: itemName, level: 0, grace: 0 };
@@ -1322,8 +1335,6 @@ export function planCompoundPath(
   let curCost = itemValue;
 
   for (let lvl = 0; lvl < cappedTarget; lvl++) {
-    const def = ctx.lookup(itemName);
-    if (!def) break;
     const grade = getItemGrade(def, item.level ?? 0);
     const candidates: CompoundRouteCandidate[] = [];
 
@@ -1332,18 +1343,31 @@ export function planCompoundPath(
         const scrollUnit = compoundScrollCost(ctx.prices, s);
         const oCost = offeringCost(ctx.prices, offering);
         if (!Number.isFinite(scrollUnit) || !Number.isFinite(oCost)) continue;
-        const stepCost = curCost * 3 + scrollUnit + oCost;
-        const { chance, graceAfter } = getCompoundChance(ctx.lookup, item, s, offering, ctx.tables);
-        if (!chance) continue;
-        candidates.push({
-          expCost: stepCost / chance,
-          chance,
-          grace: graceAfter,
-          scroll: s,
-          offering,
-          ograce: 0,
-          ograceCost: 0,
-        });
+        const attemptCost = curCost * 3 + scrollUnit + oCost;
+        for (let ograce = 0; ograce <= maxOgraceIdx; ograce++) {
+          const psCost = ograceUnitCost(stacks, ograce);
+          if (!Number.isFinite(psCost)) break;
+          const { chance, graceAfter, chanceCap } = getCompoundChance(
+            ctx.lookup,
+            item,
+            s,
+            offering,
+            ctx.tables,
+            { ograce },
+          );
+          if (!chance) continue;
+          candidates.push({
+            expCost: psCost + attemptCost / chance,
+            chance,
+            grace: graceAfter,
+            scroll: s,
+            offering,
+            ograce,
+            ograceCost: psCost,
+          });
+          // Extra ograce past the cap cannot raise chance further.
+          if (chance >= chanceCap) break;
+        }
       }
     }
 

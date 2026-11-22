@@ -657,8 +657,7 @@ export function UpgradeCalculator() {
       ? TARGET_COMPOUND[TARGET_COMPOUND.length - 1]
       : TARGET_UPGRADE[TARGET_UPGRADE.length - 1];
   const itemMax = gItem ? getMaxLevel(gItem) : undefined;
-  const maxTarget =
-    itemMax != null ? Math.min(modeCeiling, itemMax) : modeCeiling;
+  const maxTarget = itemMax != null ? Math.min(modeCeiling, itemMax) : modeCeiling;
 
   useEffect(() => {
     if (params.mode === "greed") return;
