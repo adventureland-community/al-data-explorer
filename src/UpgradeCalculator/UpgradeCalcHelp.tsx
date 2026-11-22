@@ -210,8 +210,8 @@ function HelpBody() {
         <code>ugrace</code>, and banking <code>ograce</code> from offering fails (costed with a
         helmet proxy — that bank has no common community name). Scroll4 survival is included when
         enabled. <strong>Fewest Copies</strong> instead picks the highest success chance from your
-        scroll/offering/Primling toolkit only — no helmet farms — so you burn fewer base items when
-        copies are scarce.
+        scroll/offering/Primling toolkit (and compound ograce when that toggle is on) so you burn
+        fewer base items when copies are scarce. Upgrade Fewest still skips failstack helmet farms.
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
@@ -237,9 +237,9 @@ function HelpBody() {
         primstacking when one Primling + scrolls is cheaper than two Primlings. The Stat scroll
         grace toggle is a separate path: property scroll + offering for +1 item grace. Shrine time
         assumes Mass Production++ on every click (indicative). Stack columns appear only when the
-        plan uses them (Cheapest may failstack helmets even though Fewest never does — turn
-        Failstack / Ograce off to exclude those banks). Use Copy link to share the current item,
-        levels, toolkit, and price overrides.
+        plan uses them (Cheapest may failstack helmets even though Upgrade Fewest never does;
+        Compound Fewest may bank ograce — turn Failstack / Ograce off to exclude those banks). Use
+        Copy link to share the current item, levels, toolkit, and price overrides.
       </Typography>
 
       <Typography variant="body2" color="text.secondary">

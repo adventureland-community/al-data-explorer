@@ -413,7 +413,10 @@ export function buildItemUpgradeSnapshot(args: {
       });
     }
   } else {
-    const plan = planCompoundPath(ctx, args.itemKey, itemValue, targetLevel, "bestOdds");
+    // Skip ograce bank (helmet Pareto) so the detail slider stays snappy.
+    const plan = planCompoundPath(ctx, args.itemKey, itemValue, targetLevel, "bestOdds", {
+      allowOgrace: false,
+    });
     if (plan) {
       summary = summarizeCompoundPlan(plan, prices, {
         igrade: getItemGrade(args.gItem, 0),

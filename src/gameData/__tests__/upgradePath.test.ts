@@ -97,7 +97,10 @@ describe("upgradePath", () => {
     const cheap = planCompoundPath(ctx(), "loadeddice" as ItemKey, 1_000_000, 3, "costOptimal", {
       stacks: defaultStacks,
     });
-    const odds = planCompoundPath(ctx(), "loadeddice" as ItemKey, 1_000_000, 3, "bestOdds");
+    const odds = planCompoundPath(ctx(), "loadeddice" as ItemKey, 1_000_000, 3, "bestOdds", {
+      stacks: defaultStacks,
+      allowOgrace: true,
+    });
     expect(cheap).not.toBeNull();
     expect(odds).not.toBeNull();
     expect(cheap!.path).toHaveLength(3);
@@ -105,6 +108,28 @@ describe("upgradePath", () => {
     expect(Number.isFinite(cheap!.totalExpectedCost)).toBe(true);
     expect(Number.isFinite(odds!.totalExpectedCost)).toBe(true);
     expect(odds!.totalExpectedCost).toBeGreaterThanOrEqual(cheap!.totalExpectedCost);
+  });
+
+  it("compound bestOdds prefers higher leftover grace on chance ties", () => {
+    const lowGrace = {
+      expCost: 1_000_000,
+      chance: 0.57,
+      grace: 1.0,
+      scroll: 2,
+      offering: 3 as const,
+      ograce: 0,
+      ograceCost: 0,
+    };
+    const highGrace = {
+      expCost: 1_050_000,
+      chance: 0.57,
+      grace: 1.4,
+      scroll: 3,
+      offering: 3 as const,
+      ograce: 0,
+      ograceCost: 0,
+    };
+    expect(pickCompoundRoute([lowGrace, highGrace], "bestOdds")).toBe(highGrace);
   });
 
   it("pickCompoundRoute strategies diverge", () => {
