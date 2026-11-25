@@ -33,3 +33,5 @@ yarn-debug.log*
 yarn-error.log*
 
 typed-adventureland*.tgz
+# Agent evidence captures (never commit)
+.evidence/

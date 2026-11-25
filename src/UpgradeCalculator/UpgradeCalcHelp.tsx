@@ -243,9 +243,10 @@ function HelpBody() {
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
-        On an Upgrade path, the plan-steps table is editable: left-click scroll/offering icons to
-        cycle forward, right-click to go back; nudge primstacking / failstack / ograce inline. Base
-        / Cap / Chance update with the rest of the EV. Reset restores planner defaults.
+        On Upgrade and Compound paths, the plan-steps table is editable: left-click scroll/offering
+        icons to cycle forward, right-click to go back; nudge stack knobs inline where they apply
+        (Upgrade: primstacking / failstack / ograce; Compound: ograce). Base / Cap / Chance update
+        with the rest of the EV. Reset restores planner defaults.
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
