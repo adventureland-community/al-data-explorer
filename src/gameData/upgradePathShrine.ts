@@ -15,12 +15,15 @@ export function shrineClickMs(
 /**
  * Expected shrine time to hold one item at each plan step (index 0 = start).
  * Destroy restarts from the previous level; scroll4 does not.
+ * Compound consume-3 fan-in: each attempt needs three prior-level copies
+ * (`(fanIn * prev + click) / p`), matching `pathMaterialScales`.
  */
 export function expectedPlanShrineMs(
   steps: { toLevel: number; chance: number; scrollGrade: number; successRate?: number }[],
   mode: "upgrade" | "compound",
   igrade: number,
 ): number[] {
+  const fanIn = mode === "compound" ? 3 : 1;
   const times = [0];
   for (let n = 0; n < steps.length; n++) {
     const step = steps[n];
@@ -32,7 +35,7 @@ export function expectedPlanShrineMs(
       continue;
     }
     const clicks = 1 / p;
-    times.push(step.scrollGrade === 4 ? prev + click * clicks : (prev + click) * clicks);
+    times.push(step.scrollGrade === 4 ? prev + click * clicks : (fanIn * prev + click) * clicks);
   }
   return times;
 }

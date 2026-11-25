@@ -136,6 +136,30 @@ describe("upgradeChance", () => {
     expect(stacked).toBeGreaterThan(base);
   });
 
+  it("compound offering graceAfter is graceSum/6.4 + bonus (not ograce)", () => {
+    const itemGrace = 2;
+    const withOgrace = getCompoundChance(
+      lookup,
+      { name: "hpamulet", level: 3, grace: itemGrace },
+      1,
+      1,
+      undefined,
+      { ograce: 20 },
+    );
+    const withoutOgrace = getCompoundChance(
+      lookup,
+      { name: "hpamulet", level: 3, grace: itemGrace },
+      1,
+      1,
+    );
+    // High scroll (+0.4) + Primling on grade-0 (increase 1); graceSum = 3 * itemGrace
+    const expected = (itemGrace * 3) / 6.4 + 0.4 + 1;
+    expect(withOgrace.graceAfter).toBeCloseTo(expected, 10);
+    expect(withoutOgrace.graceAfter).toBeCloseTo(expected, 10);
+    // ograce must not change the written graceAfter (it only boosts roll chance).
+    expect(withOgrace.graceAfter).toBeCloseTo(withoutOgrace.graceAfter, 10);
+  });
+
   it("returns chanceCap alongside chance", () => {
     const { chance, chanceCap } = getUpgradeChance(
       lookup,

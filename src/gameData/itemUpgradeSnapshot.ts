@@ -118,16 +118,32 @@ function sumAttempts(steps: PlanSummaryStep[]): number {
   let sum = 0;
   for (const s of steps) {
     if (s.kind === "acquire") continue;
-    if (Number.isFinite(s.attempts)) sum += s.attempts;
+    const n =
+      s.consumeAttempts != null && Number.isFinite(s.consumeAttempts)
+        ? s.consumeAttempts
+        : s.attempts;
+    if (Number.isFinite(n)) sum += n;
   }
   return sum;
 }
 
-function oneshotPercent(steps: PlanSummaryStep[]): number | null {
+function oneshotPercent(
+  steps: PlanSummaryStep[],
+  mode: "upgrade" | "compound" = "upgrade",
+): number | null {
   const recipe = steps.filter((s) => s.kind !== "acquire" && s.kind !== "shiny");
   if (!recipe.length) return null;
+  const fanIn = mode === "compound" ? 3 : 1;
+  const n = recipe.length;
+  const treeCopies = new Array<number>(n);
+  treeCopies[n - 1] = 1;
+  for (let i = n - 2; i >= 0; i--) {
+    treeCopies[i] =
+      recipe[i + 1].scrollKey === "scroll4" ? treeCopies[i + 1] : fanIn * treeCopies[i + 1];
+  }
   let product = 1;
-  for (const s of recipe) {
+  for (let i = 0; i < n; i++) {
+    const s = recipe[i];
     const p =
       Number.isFinite(s.attempts) && s.attempts > 0
         ? 1 / s.attempts
@@ -135,7 +151,7 @@ function oneshotPercent(steps: PlanSummaryStep[]): number | null {
         ? s.chance
         : 0;
     if (!(p > 0)) return null;
-    product *= p;
+    product *= p ** treeCopies[i];
   }
   return product * 100;
 }
@@ -466,7 +482,7 @@ export function buildItemUpgradeSnapshot(args: {
   const recipe = summary.steps.filter((s) => s.kind !== "acquire" && s.kind !== "shiny");
   const last = recipe.length ? recipe[recipe.length - 1] : null;
   const attempts = sumAttempts(summary.steps);
-  const oneshot = oneshotPercent(summary.steps);
+  const oneshot = oneshotPercent(summary.steps, mode);
   const heavy = heaviestStep(summary.steps);
   const planEv = summary.totalExpectedCost;
   const bottleneck =

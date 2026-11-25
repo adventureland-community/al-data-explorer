@@ -35,17 +35,40 @@ export function sumAttempts(steps: PlanSummaryStep[]): number {
   let sum = 0;
   for (const s of steps) {
     if (s.kind === "acquire") continue;
-    if (Number.isFinite(s.attempts)) sum += s.attempts;
+    // Prefer path-restart consume count (destroy rebuilds / compound ×3) over local 1/p.
+    const n =
+      s.consumeAttempts != null && Number.isFinite(s.consumeAttempts)
+        ? s.consumeAttempts
+        : s.attempts;
+    if (Number.isFinite(n)) sum += n;
   }
   return sum;
 }
 
-export function oneshotPercent(steps: PlanSummaryStep[]): number | null {
+/**
+ * Chance of clearing the path with no failed clicks.
+ * Upgrade: Π(p). Compound: Π(p_i ^ treeCopies_i) with ×3 fan-in per destroy step
+ * (enough bases laid out so every compound succeeds on the first try).
+ */
+export function oneshotPercent(
+  steps: PlanSummaryStep[],
+  mode: "upgrade" | "compound" = "upgrade",
+): number | null {
   const recipe = steps.filter((s) => s.kind !== "acquire" && s.kind !== "shiny");
   if (!recipe.length) return null;
+  const fanIn = mode === "compound" ? 3 : 1;
+  const n = recipe.length;
+  const treeCopies = new Array<number>(n);
+  treeCopies[n - 1] = 1;
+  for (let i = n - 2; i >= 0; i--) {
+    // scroll4 fails keep the item — no extra prior copies.
+    treeCopies[i] =
+      recipe[i + 1].scrollKey === "scroll4" ? treeCopies[i + 1] : fanIn * treeCopies[i + 1];
+  }
   let product = 1;
-  for (const s of recipe) {
+  for (let i = 0; i < n; i++) {
     // Prefer attempts (EV rate, includes Lucky Slot) over game-visible chance.
+    const s = recipe[i];
     const p =
       Number.isFinite(s.attempts) && s.attempts > 0
         ? 1 / s.attempts
@@ -53,7 +76,7 @@ export function oneshotPercent(steps: PlanSummaryStep[]): number | null {
         ? s.chance
         : 0;
     if (!(p > 0)) return null;
-    product *= p;
+    product *= p ** treeCopies[i];
   }
   return product * 100;
 }

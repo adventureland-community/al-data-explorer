@@ -27,7 +27,13 @@ export type PlanSummaryStep = {
   chanceCap?: number;
   /** Game-visible success chance (matches in-game upgrade UI). */
   chance: number;
+  /**
+   * Local geometric tries (1/p) for the step table / oneshot product.
+   * Hero “Exp. attempts” prefers `consumeAttempts` when set.
+   */
   attempts: number;
+  /** Expected scroll/offering consumes for one finished item (path-restart + fan-in). */
+  consumeAttempts?: number;
   stepSpend: number;
   runningTotal: number;
   /** Expected shrine wait for this step alone (Mass Production++). */
@@ -429,6 +435,7 @@ export function summarizeUpgradePlan(
       chanceCap: step.chanceCap,
       chance: step.chance,
       attempts,
+      consumeAttempts,
       stepSpend,
       runningTotal: running,
       shrineMs,

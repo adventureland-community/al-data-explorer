@@ -180,15 +180,24 @@ describe("upgradePath", () => {
     expect(plan!.totalExpectedCost).toBeCloseTo(1000 + stepSum, 6);
   });
 
-  it("mid-path fewest starts with zero banked grace (not intrinsic igrace)", () => {
+  it("mid-path fewest seeds intrinsic igrace (unknown banked grace stays 0)", () => {
     const fromZero = planUpgradePathBestOdds(ctx(), "fireblade" as ItemKey, 160_000, 5);
     const fromMid = planUpgradePathBestOdds(ctx(), "fireblade" as ItemKey, 160_000, 5, {
       startLevel: 3,
     });
+    const fromMidZeroGrace = planUpgradePathBestOdds(ctx(), "fireblade" as ItemKey, 160_000, 5, {
+      startLevel: 3,
+      startGrace: 0,
+    });
     expect(fromZero).not.toBeNull();
     expect(fromMid).not.toBeNull();
+    expect(fromMidZeroGrace).not.toBeNull();
     expect(fromMid!.steps[0].fromLevel).toBe(3);
-    // Intrinsic igrace seed at +0 usually beats a mid-path zero-grace start at the same level.
+    // igrace seed beats an explicit zero-grace mid start at the same level.
+    expect(fromMid!.steps[0].chance).toBeGreaterThanOrEqual(
+      fromMidZeroGrace!.steps[0].chance - 1e-9,
+    );
+    // Accumulated grace from +0 may still beat a mid-path igrace-only start.
     const zeroAt3 = fromZero!.steps.find((s) => s.fromLevel === 3);
     expect(zeroAt3).toBeDefined();
     expect(fromMid!.steps[0].chance).toBeLessThanOrEqual(zeroAt3!.chance + 1e-9);
@@ -425,6 +434,20 @@ describe("upgradePath", () => {
     );
     expect(survive[1]).toBeCloseTo(click1 * 2);
     expect(formatShrineTime(survive[1])).toMatch(/s$/);
+  });
+
+  it("expectedPlanShrineMs compounds with ×3 fan-in", () => {
+    const steps = [
+      { toLevel: 1, chance: 0.5, scrollGrade: 0 },
+      { toLevel: 2, chance: 0.5, scrollGrade: 0 },
+    ];
+    const times = expectedPlanShrineMs(steps, "compound", 0);
+    const click1 = shrineClickMs("compound", 1, 0);
+    const click2 = shrineClickMs("compound", 2, 0);
+    expect(times[0]).toBe(0);
+    expect(times[1]).toBeCloseTo(click1 * 2);
+    // Each attempt needs 3 prior-level copies: (3 * prev + click) / p
+    expect(times[2]).toBeCloseTo((3 * times[1] + click2) * 2);
   });
 
   it("summarizeUpgradePlan folds expected base copies into Acquire", () => {

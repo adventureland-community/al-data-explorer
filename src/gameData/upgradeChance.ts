@@ -284,6 +284,7 @@ export function getCompoundChance(
 
   if (offeringGrade != null) {
     let increase = 0.5;
+    // Chance term only — ograce boosts probability, not the written item.grace.
     grace = 0.027 * (graceSum + 0.5 + ograce);
     const diff = offeringGrade - grade;
     if (diff > 1) {
@@ -305,7 +306,8 @@ export function getCompoundChance(
         probability * 1.08 + Math.min(15 * 0.015, grace) / Math.max((item.level ?? 0) - 1, 1);
       increase = 0.1;
     }
-    newGrace = grace * 3;
+    // Server: item0.grace = g0+g1+g2, then /6.4 + bonus (ograce never enters item.grace).
+    newGrace = graceSum;
     graceBonus += increase;
   } else {
     grace = 0.007 * (graceSum + ograce);

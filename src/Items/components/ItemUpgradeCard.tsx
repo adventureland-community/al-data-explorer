@@ -144,7 +144,11 @@ export function ItemUpgradeCard({
         <Metric
           label="One-shot"
           value={snapshot.oneshotPct == null ? "—" : `${snapshot.oneshotPct.toFixed(2)}%`}
-          hint="Chance of clearing every step on the first try (no retries)."
+          hint={
+            snapshot.mode === "compound"
+              ? "Chance the whole ×3 copy tree succeeds on the first try at every compound (no retries)."
+              : "Chance of clearing every step on the first try (no retries)."
+          }
         />
         {snapshot.shrineTime ? (
           <Metric
