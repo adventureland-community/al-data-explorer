@@ -55,7 +55,8 @@ function expectedBases(
 
 /**
  * Discord (vetto): compound suckerpunch +4 shopping list showed ×6 bases with
- * ~98% "destroy risk". Legacy 1/Π(p) ≈ 5.6; with 3^n consume → hundreds.
+ * ~98% "destroy risk". Legacy 1/Π(p) ≈ 5.12 (server graceAfter); with 3^n
+ * consume → hundreds. (Older buggy ograce→graceAfter math showed ≈5.61.)
  */
 describe("suckerpunch compound +4 (Discord repro)", () => {
   it("lists far more than 6 bases after 3^n path scaling", () => {
@@ -97,19 +98,21 @@ describe("suckerpunch compound +4 (Discord repro)", () => {
     }
     const legacyCopies = 1 / survive;
 
-    expect(legacyCopies).toBeCloseTo(5.61, 1); // Discord buy ×6
+    expect(legacyCopies).toBeCloseTo(5.12, 1);
     expect(bases).toBeCloseTo(legacyCopies * 3 ** recipe.length, 4);
     expect(Math.ceil(bases)).toBeGreaterThan(6);
   });
 });
 
 /**
- * Discord: Fewest copies for suckerpunch +7 skipped ograce and demanded more
- * bases than Cheapest (~2.6M vs ~1.94M at 10b / 1b with offeringp 5M / offeringx 800M).
+ * Discord: Fewest copies for suckerpunch +7 used to skip ograce and demand more
+ * bases than Cheapest (~2.6M vs ~1.94M). With correct graceAfter (ograce is
+ * chance-only), fewest may skip ograce when chance is already capped — the
+ * invariant that matters is fewest bases ≤ cheapest (~1.94M ballpark).
  */
-describe("suckerpunch compound +7 fewest uses ograce (Discord repro)", () => {
+describe("suckerpunch compound +7 fewest vs cheapest (Discord repro)", () => {
   it.each([10_000_000_000, 1_000_000_000])(
-    "fewest banks ograce and needs ≤ cheapest bases at price %s",
+    "fewest needs ≤ cheapest bases at price %s",
     (itemValue) => {
       const { ctx, prices } = suckerpunchCtx(itemValue);
       const cheap = planCompoundPath(ctx, "suckerpunch" as ItemKey, itemValue, 7, "costOptimal", {
@@ -120,17 +123,16 @@ describe("suckerpunch compound +7 fewest uses ograce (Discord repro)", () => {
       });
       expect(cheap).not.toBeNull();
       expect(fewest).not.toBeNull();
-      expect(fewest!.path.some((s) => (s.ograce ?? 0) > 0)).toBe(true);
 
       const cheapBases = expectedBases(cheap!, prices, itemValue);
       const fewestBases = expectedBases(fewest!, prices, itemValue);
       expect(fewestBases).toBeLessThanOrEqual(cheapBases + 1e-6);
-      // Discord ballpark with ograce (~1.94M); without was ~2.6M.
+      // Discord ballpark (~1.94M); the broken skip-ograce path was ~2.6M.
       expect(fewestBases).toBeLessThan(2_100_000);
     },
   );
 
-  it("allowOgrace false keeps fewest at zero ograce and more bases", () => {
+  it("allowOgrace false keeps fewest at zero ograce", () => {
     const itemValue = 10_000_000_000;
     const { ctx, prices } = suckerpunchCtx(itemValue);
     const withOg = planCompoundPath(ctx, "suckerpunch" as ItemKey, itemValue, 7, "bestOdds", {
@@ -142,8 +144,10 @@ describe("suckerpunch compound +7 fewest uses ograce (Discord repro)", () => {
     expect(withOg).not.toBeNull();
     expect(noOg).not.toBeNull();
     expect(noOg!.path.every((s) => (s.ograce ?? 0) === 0)).toBe(true);
-    expect(expectedBases(noOg!, prices, itemValue)).toBeGreaterThan(
+    // When chance is already capped, ograce does not reduce fewest bases.
+    expect(expectedBases(noOg!, prices, itemValue)).toBeCloseTo(
       expectedBases(withOg!, prices, itemValue),
+      4,
     );
   });
 });
