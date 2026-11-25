@@ -193,6 +193,12 @@ function offeringCost(prices: PriceTable, offering: OfferingChoice): number {
   return unitPrice(prices, offeringKeyFromGrade(offering));
 }
 
+function compoundScrollCost(prices: PriceTable, scrollGrade: number): number {
+  const key = COMPOUND_SCROLL_KEYS[scrollGrade];
+  if (!key) return 0;
+  return unitPrice(prices, key);
+}
+
 function primlingUnitCostFromPrices(prices: PriceTable): number {
   return unitPrice(prices, "offeringp");
 }
@@ -1092,6 +1098,102 @@ export function allowedUpgradeScrollGrades(
   return grades;
 }
 
+/** Compound scroll grades for a step: item grade, or one above (cap cscroll3). */
+export function allowedCompoundScrollGrades(itemGrade: number): number[] {
+  const max = Math.min(itemGrade + 1, 3);
+  const grades: number[] = [];
+  for (let g = itemGrade; g <= max; g++) grades.push(g);
+  return grades;
+}
+
+/** Apply sparse per-step overrides onto a compound path (recipe fields only). */
+export function mergeCompoundStepOverrides(
+  path: CompoundPathStep[],
+  overrides: Record<string, UpgradeStepOverride>,
+): CompoundPathStep[] {
+  if (!Object.keys(overrides).length) return path;
+  return path.map((s) => {
+    const o = overrides[upgradeStepOverrideKey(s.fromLevel, s.toLevel)];
+    if (!o) return s;
+    return {
+      ...s,
+      scrollGrade: o.scrollGrade ?? s.scrollGrade,
+      offering: o.offering !== undefined ? o.offering : s.offering,
+      ograce: o.ograce ?? s.ograce,
+    };
+  });
+}
+
+/**
+ * Recompute compound chance / grace / step EV after recipe overrides.
+ * Walks forward so grace and 3× destroy value cascade to later steps.
+ */
+export function recomputeCompoundPlan(args: {
+  ctx: PlannerContext;
+  itemName: ItemKey;
+  itemValue: number;
+  path: CompoundPathStep[];
+  allowOgrace?: boolean;
+  stacks?: StackTables;
+}): CompoundPathPlan | null {
+  const { ctx, itemName, itemValue } = args;
+  const def = ctx.lookup(itemName);
+  if (!def || !args.path.length) return null;
+
+  const allowOgrace = args.allowOgrace !== false;
+  const stacks =
+    args.stacks ?? (allowOgrace === false ? EMPTY_STACKS : computeStacksForPlanner(ctx));
+  const offerings = offeringChoices(ctx.toolkit);
+  const maxOgraceIdx = allowOgrace ? Math.min(MAX_OGRACE_STEPS, stacks.ograce.length - 1) : 0;
+
+  let grace = 0;
+  let parentCost = itemValue;
+  const out: CompoundPathStep[] = [];
+
+  for (const recipe of args.path) {
+    const { fromLevel } = recipe;
+    const itemGrade = getItemGrade(def, fromLevel);
+    const maxScroll = Math.min(itemGrade + 1, 3);
+    const scrollGrade = Math.min(Math.max(itemGrade, recipe.scrollGrade), maxScroll);
+    const offering = offerings.includes(recipe.offering) ? recipe.offering : null;
+    const ograce = allowOgrace ? Math.max(0, Math.min(recipe.ograce, maxOgraceIdx)) : 0;
+
+    const raw = getCompoundChance(
+      ctx.lookup,
+      { name: itemName, level: fromLevel, grace },
+      scrollGrade,
+      offering,
+      ctx.tables,
+      { ograce },
+    );
+    if (!(raw.chance > 0)) return null;
+
+    const sCost = compoundScrollCost(ctx.prices, scrollGrade);
+    const oCost = offeringCost(ctx.prices, offering);
+    if (!Number.isFinite(sCost) || !Number.isFinite(oCost)) return null;
+    const psCost = ograceUnitCost(stacks, ograce);
+    if (!Number.isFinite(psCost)) return null;
+
+    const attemptCost = 3 * parentCost + sCost + oCost;
+    const cost = psCost + attemptCost / raw.chance;
+    out.push({
+      fromLevel,
+      toLevel: fromLevel + 1,
+      scrollGrade,
+      offering,
+      ograce,
+      ograceCost: psCost,
+      chance: raw.chance,
+      graceAfter: raw.graceAfter,
+      stepExpectedCost: cost - parentCost,
+    });
+    grace = raw.graceAfter;
+    parentCost = cost;
+  }
+
+  return { path: out, totalExpectedCost: parentCost };
+}
+
 /** Cheapest upgrade path (Pareto + stack farm costs). */
 export function planUpgradePath(
   ctx: PlannerContext,
@@ -1195,12 +1297,6 @@ export function pickCompoundRoute(
     if (candidates[i].expCost < best.expCost) best = candidates[i];
   }
   return best;
-}
-
-function compoundScrollCost(prices: PriceTable, scrollGrade: number): number {
-  const key = COMPOUND_SCROLL_KEYS[scrollGrade];
-  if (!key) return 0;
-  return unitPrice(prices, key);
 }
 
 /** Compound Cheapest: Pareto over scroll/offering/ograce (no failstack/primstacking). */

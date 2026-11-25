@@ -25,6 +25,7 @@ import { ItemKey } from "typed-adventureland";
 import { abbreviateGold } from "../Shared/utils";
 
 import {
+  allowedCompoundScrollGrades,
   allowedUpgradeScrollGrades,
   formatAttempts,
   formatChancePct,
@@ -121,6 +122,8 @@ export function formatRecipeClipboard(
 
 /** Per-step recipe editors (pastebin-style table / cards). */
 export type StepRecipeEdit = {
+  /** Upgrade vs compound scroll keys / stack knobs. */
+  pathKind: "upgrade" | "compound";
   costModel: "cheapest" | "fewest";
   itemGradeAt: (level: number) => number;
   allowScroll4: boolean;
@@ -138,6 +141,7 @@ export type StepRecipeEdit = {
 };
 
 const UPGRADE_SCROLL_KEYS_SAFE = ["scroll0", "scroll1", "scroll2", "scroll3", "scroll4"];
+const COMPOUND_SCROLL_KEYS_SAFE = ["cscroll0", "cscroll1", "cscroll2", "cscroll3"];
 
 /** Wrap list index by delta; missing current → first on +1, last on -1. */
 function nextCycleIndex(length: number, currentIdx: number, delta: 1 | -1): number {
@@ -149,9 +153,13 @@ function nextCycleIndex(length: number, currentIdx: number, delta: 1 | -1): numb
 function cycleScrollGrade(step: PlanSummaryStep, edit: StepRecipeEdit, delta: 1 | -1): void {
   if (step.kind === "shiny" || step.kind === "acquire") return;
   const itemGrade = edit.itemGradeAt(step.fromLevel);
-  const grades = allowedUpgradeScrollGrades(itemGrade, edit.costModel, edit.allowScroll4);
+  const grades =
+    edit.pathKind === "compound"
+      ? allowedCompoundScrollGrades(itemGrade)
+      : allowedUpgradeScrollGrades(itemGrade, edit.costModel, edit.allowScroll4);
   if (!grades.length) return;
-  const cur = UPGRADE_SCROLL_KEYS_SAFE.indexOf(step.scrollKey);
+  const keys = edit.pathKind === "compound" ? COMPOUND_SCROLL_KEYS_SAFE : UPGRADE_SCROLL_KEYS_SAFE;
+  const cur = keys.indexOf(step.scrollKey);
   const idx = grades.indexOf(cur >= 0 ? cur : itemGrade);
   const next = grades[nextCycleIndex(grades.length, idx, delta)] ?? grades[0];
   edit.onPatch(step.fromLevel, step.toLevel, { scrollGrade: next });
@@ -419,7 +427,9 @@ export function StepPlanCards({
                     }
                   />
                 ) : null}
-                {stepEdit.costModel === "cheapest" && stepEdit.allowFailstack ? (
+                {stepEdit.pathKind === "upgrade" &&
+                stepEdit.costModel === "cheapest" &&
+                stepEdit.allowFailstack ? (
                   <TinyNum
                     label="Failstack"
                     value={s.failstack}
@@ -430,7 +440,8 @@ export function StepPlanCards({
                     }
                   />
                 ) : null}
-                {stepEdit.costModel === "cheapest" && stepEdit.allowOgrace ? (
+                {stepEdit.allowOgrace &&
+                (stepEdit.pathKind === "compound" || stepEdit.costModel === "cheapest") ? (
                   <TinyNum
                     label="Ograce"
                     value={s.ograce}
@@ -478,10 +489,14 @@ export function StepPlanTable({
     ? Boolean(stepEdit?.allowStatScrollGrace)
     : steps.some((s) => s.statScrollGrace);
   const showFail = editable
-    ? stepEdit?.costModel === "cheapest" && Boolean(stepEdit?.allowFailstack)
+    ? stepEdit?.pathKind === "upgrade" &&
+      stepEdit.costModel === "cheapest" &&
+      Boolean(stepEdit.allowFailstack)
     : steps.some((s) => s.failstack);
+  // Compounds bank ograce on both Cheapest and Fewest; upgrades only on Cheapest.
   const showPrimeStk = editable
-    ? stepEdit?.costModel === "cheapest" && Boolean(stepEdit?.allowOgrace)
+    ? Boolean(stepEdit?.allowOgrace) &&
+      (stepEdit?.pathKind === "compound" || stepEdit?.costModel === "cheapest")
     : steps.some((s) => s.ograce);
   const hasOverrides = Boolean(stepEdit && Object.keys(stepEdit.overrides).length);
 

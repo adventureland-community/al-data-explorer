@@ -3,7 +3,9 @@ import { GItem, ItemKey } from "typed-adventureland";
 import {
   expectedPlanShrineMs,
   formatShrineTime,
+  mergeCompoundStepOverrides,
   mergeUpgradeStepOverrides,
+  recomputeCompoundPlan,
   pickCompoundRoute,
   planCompoundPath,
   planUpgradePath,
@@ -626,5 +628,28 @@ describe("upgradePath", () => {
     expect(altGrade === step0.scrollGrade || recomputed!.steps[0].chance !== step0.chance).toBe(
       true,
     );
+  });
+
+  it("recomputeCompoundPlan applies offering override (Discord: raw-gold vs Primordial X)", () => {
+    const base = planCompoundPath(ctx(), "hpamulet", 3200, 3, "costOptimal", {
+      allowOgrace: false,
+    });
+    expect(base).not.toBeNull();
+    const last = base!.path[base!.path.length - 1];
+    const key = upgradeStepOverrideKey(last.fromLevel, last.toLevel);
+    // Force no offering on the last step (raw scroll path).
+    const merged = mergeCompoundStepOverrides(base!.path, {
+      [key]: { offering: null },
+    });
+    const recomputed = recomputeCompoundPlan({
+      ctx: ctx(),
+      itemName: "hpamulet",
+      itemValue: 3200,
+      path: merged,
+      allowOgrace: false,
+    });
+    expect(recomputed).not.toBeNull();
+    expect(recomputed!.path[recomputed!.path.length - 1].offering).toBeNull();
+    expect(Number.isFinite(recomputed!.totalExpectedCost)).toBe(true);
   });
 });

@@ -85,17 +85,37 @@ describe("upgradeChance", () => {
       g: 150000,
       grades: [4, 8, 10, 12],
     } as unknown as GItem;
+    // Pastebin seeds igrace (+1 for zero-grade) into item.grace — do not re-add inside chance.
     const { chance, chanceCap } = getUpgradeChance(
       lookup,
-      { name: "wingedboots" as ItemKey, level: 7, grace: 0 },
+      { name: "wingedboots" as ItemKey, level: 7, grace: 1 },
       2,
       1, // Primling
       undefined,
       { failstack: 18, useServerUgrace: true },
     );
     expect(chanceCap).toBeCloseTo(0.45, 6);
-    // igrace +1 (zero-grade item) + failstack 18 + server ugrace → cap.
+    // igrace +1 + failstack 18 + server ugrace → cap.
     expect(chance).toBeCloseTo(0.45, 6);
+  });
+
+  it("darkforge armor +5→+6 Primling + failstack 18 matches ~49% (Discord)", () => {
+    // vetto: calculator showed ~45.97% (igrace double-count); in-game ~49–50%.
+    ITEMS.xarmor = {
+      upgrade: true,
+      g: 7_200_000,
+      grades: [0, 0, 8, 10],
+    } as unknown as GItem;
+    // Path from +0 carries igrace (−2) as item.grace; chance must not subtract it again.
+    const { chance } = getUpgradeChance(
+      lookup,
+      { name: "xarmor" as ItemKey, level: 5, grace: -2 },
+      2,
+      1,
+      undefined,
+      { failstack: 18, useServerUgrace: true },
+    );
+    expect(chance).toBeCloseTo(0.4869, 3);
   });
 
   it("ograce increases compound chance", () => {

@@ -42,7 +42,9 @@ import {
   itemHasCraftRecipe,
   listShinyPolishOptions,
   marketSellMinPrice,
+  CompoundPathPlan,
   MaterialLine,
+  mergeCompoundStepOverrides,
   mergeUpgradeStepOverrides,
   minGreedEligibleLevel,
   OFFERING_KEYS,
@@ -55,6 +57,7 @@ import {
   PlanSummaryStep,
   POLISH_MATERIAL_KEYS,
   PriceTable,
+  recomputeCompoundPlan,
   recomputeUpgradePlan,
   scrollKeyForUpgrade,
   seedMissingPrices,
@@ -424,11 +427,26 @@ export function UpgradeCalculator() {
     );
   };
 
+  const withCompoundOverrides = (plan: CompoundPathPlan) => {
+    if (!ctx || !itemKey) return plan;
+    const merged = mergeCompoundStepOverrides(plan.path, stepOverrides);
+    return (
+      recomputeCompoundPlan({
+        ctx,
+        itemName: itemKey,
+        itemValue,
+        path: merged,
+        allowOgrace: params.ograce,
+      }) ?? plan
+    );
+  };
+
   const cheapestSummary = useMemo((): PlanSummary | null => {
     if (!cheapest) return null;
     let base: PlanSummary | null = null;
     if (params.mode === "compound" && "path" in cheapest) {
-      base = summarizeCompoundPlan(cheapest, prices, summarizeOpts);
+      const plan = withCompoundOverrides(cheapest);
+      base = summarizeCompoundPlan(plan, prices, summarizeOpts);
     } else if ("steps" in cheapest) {
       const plan = withUpgradeOverrides(cheapest, "cheapest");
       base = summarizeUpgradePlan(plan, prices, "upgrade", summarizeOpts);
@@ -441,6 +459,7 @@ export function UpgradeCalculator() {
     params.mode,
     params.target,
     params.luckySlot,
+    params.ograce,
     prices,
     shinyPolish,
     stepOverrides,
@@ -453,7 +472,8 @@ export function UpgradeCalculator() {
     if (!fewest) return null;
     let base: PlanSummary | null = null;
     if (params.mode === "compound" && "path" in fewest) {
-      base = summarizeCompoundPlan(fewest, prices, summarizeOpts);
+      const plan = withCompoundOverrides(fewest);
+      base = summarizeCompoundPlan(plan, prices, summarizeOpts);
     } else if ("steps" in fewest) {
       const plan = withUpgradeOverrides(fewest, "fewest");
       base = summarizeUpgradePlan(plan, prices, "upgrade", summarizeOpts);
@@ -466,6 +486,7 @@ export function UpgradeCalculator() {
     params.mode,
     params.target,
     params.luckySlot,
+    params.ograce,
     prices,
     shinyPolish,
     stepOverrides,
@@ -1506,23 +1527,28 @@ export function UpgradeCalculator() {
                       planEv: summary.totalExpectedCost,
                     })}
                     stepEdit={
-                      pathMode === "upgrade" && gItem
+                      (pathMode === "upgrade" || pathMode === "compound") && gItem
                         ? {
+                            pathKind: pathMode,
                             costModel: upgradeCostModel,
                             itemGradeAt: (level) => getItemGrade(gItem, level),
-                            allowScroll4: params.scroll4,
+                            allowScroll4: pathMode === "upgrade" && params.scroll4,
                             offerings: offeringList(params),
-                            allowPrimstacking: params.primstacking,
+                            allowPrimstacking: pathMode === "upgrade" && params.primstacking,
                             allowStatScrollGrace:
-                              params.statScrollGrace && itemAcceptsStatScroll(gItem),
-                            allowFailstack: params.failstack,
+                              pathMode === "upgrade" &&
+                              params.statScrollGrace &&
+                              itemAcceptsStatScroll(gItem),
+                            allowFailstack: pathMode === "upgrade" && params.failstack,
                             allowOgrace: params.ograce,
                             overrides: stepOverrides,
                             onPatch: patchStepOverride,
                             onReset: clearStepOverride,
                             onResetAll: () => clearStepOverrides(),
                             onCyclePolish:
-                              params.wantShiny && shinyPolishOptions.some((o) => !o.invalid)
+                              pathMode === "upgrade" &&
+                              params.wantShiny &&
+                              shinyPolishOptions.some((o) => !o.invalid)
                                 ? (delta) => {
                                     const valid = shinyPolishOptions.filter((o) => !o.invalid);
                                     if (!valid.length) return;

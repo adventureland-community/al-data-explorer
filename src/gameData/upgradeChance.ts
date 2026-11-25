@@ -138,18 +138,6 @@ function tableChance(
   return fallback[grade]?.[newLevel] ?? 0;
 }
 
-function itemIgrace(lookup: ItemLookup, name: ItemKey): number {
-  const def = lookup(name);
-  if (!def) return 0;
-  const { igrace } = def as GItem & { igrace?: number };
-  if (igrace != null) return igrace;
-  const zero = getItemGrade(def, 0);
-  if (!zero) return 1;
-  if (zero === 1) return -1;
-  if (zero === 2) return -2;
-  return 0;
-}
-
 function compoundIgrade(lookup: ItemLookup, item: ChanceItem): number {
   const level = item.level ?? 0;
   if (item.name in MANUAL_COMPOUND_IGRADE) return MANUAL_COMPOUND_IGRADE[item.name]!;
@@ -208,13 +196,9 @@ export function getUpgradeChance(
   let newGrace = grace;
   const { rawUgrace, rawServerUgrace, rawOgrace } = stackGraceBonus(stackOpts);
 
-  // Pastebin: min(cap, item_grace + ugrace) then + server ugrace + ograce outside the min.
-  grace = Math.max(
-    0,
-    Math.min(newLevel + 1, grace + itemIgrace(lookup, item.name) + rawUgrace) +
-      rawServerUgrace +
-      rawOgrace,
-  );
+  // Pastebin: igrace is seeded once into item.grace at +0 (planners), not re-added each roll.
+  // min(cap, item_grace + ugrace) then + server ugrace + ograce outside the min.
+  grace = Math.max(0, Math.min(newLevel + 1, grace + rawUgrace) + rawServerUgrace + rawOgrace);
   grace = (probability * grace) / newLevel + grace / 1000;
 
   if (scrollGrade > grade && newLevel <= 10) {
