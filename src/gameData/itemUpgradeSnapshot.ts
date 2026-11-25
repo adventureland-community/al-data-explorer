@@ -19,6 +19,7 @@ import {
   summarizeUpgradePlan,
   type PlanSummaryStep,
 } from "./upgradePath";
+import { oneshotPercent, sumAttempts } from "./upgradePathSummary";
 import {
   defaultPriceTable,
   marketSellMinPrice,
@@ -112,48 +113,6 @@ export function buildUpgradeCalcHref(args: {
   if (capped !== DEFAULT_TARGET[args.mode]) sp.set("target", String(capped));
   const q = sp.toString();
   return q ? `/upgrade?${q}` : "/upgrade";
-}
-
-function sumAttempts(steps: PlanSummaryStep[]): number {
-  let sum = 0;
-  for (const s of steps) {
-    if (s.kind === "acquire") continue;
-    const n =
-      s.consumeAttempts != null && Number.isFinite(s.consumeAttempts)
-        ? s.consumeAttempts
-        : s.attempts;
-    if (Number.isFinite(n)) sum += n;
-  }
-  return sum;
-}
-
-function oneshotPercent(
-  steps: PlanSummaryStep[],
-  mode: "upgrade" | "compound" = "upgrade",
-): number | null {
-  const recipe = steps.filter((s) => s.kind !== "acquire" && s.kind !== "shiny");
-  if (!recipe.length) return null;
-  const fanIn = mode === "compound" ? 3 : 1;
-  const n = recipe.length;
-  const treeCopies = new Array<number>(n);
-  treeCopies[n - 1] = 1;
-  for (let i = n - 2; i >= 0; i--) {
-    treeCopies[i] =
-      recipe[i + 1].scrollKey === "scroll4" ? treeCopies[i + 1] : fanIn * treeCopies[i + 1];
-  }
-  let product = 1;
-  for (let i = 0; i < n; i++) {
-    const s = recipe[i];
-    const p =
-      Number.isFinite(s.attempts) && s.attempts > 0
-        ? 1 / s.attempts
-        : Number.isFinite(s.chance) && s.chance > 0
-        ? s.chance
-        : 0;
-    if (!(p > 0)) return null;
-    product *= p ** treeCopies[i];
-  }
-  return product * 100;
 }
 
 function heaviestStep(steps: PlanSummaryStep[]): PlanSummaryStep | null {

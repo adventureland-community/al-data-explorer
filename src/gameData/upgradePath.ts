@@ -1493,6 +1493,8 @@ export type { MaterialLine, PlanSummaryStep } from "./upgradePathSummary";
 export {
   expectedBaseCopies,
   foldExpectedBaseCopies,
+  oneshotPercent,
+  sumAttempts,
   summarizeCompoundPlan,
   summarizeUpgradePlan,
 } from "./upgradePathSummary";

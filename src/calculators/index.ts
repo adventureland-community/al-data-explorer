@@ -125,6 +125,8 @@ export type { MaterialLine, PlanSummaryStep } from "../gameData/upgradePathSumma
 export {
   expectedBaseCopies,
   foldExpectedBaseCopies,
+  oneshotPercent,
+  sumAttempts,
   summarizeCompoundPlan,
   summarizeUpgradePlan,
 } from "../gameData/upgradePathSummary";
