@@ -554,7 +554,8 @@ export function UpgradeCalculator() {
   }, [summary, gItem, itemKey, params.mode]);
 
   const totalAttempts = summary ? sumAttempts(summary.steps) : 0;
-  const oneshotPct = summary ? oneshotPercent(summary.steps) : null;
+  const oneshotMode = params.mode === "compound" ? "compound" : "upgrade";
+  const oneshotPct = summary ? oneshotPercent(summary.steps, oneshotMode) : null;
   const bottleneck = summary ? heaviestStep(summary.steps) : null;
   const shrineMsTotal = summary
     ? summary.steps.reduce(
@@ -1395,7 +1396,9 @@ export function UpgradeCalculator() {
                       selected={params.strategy === "cheapest"}
                       total={cheapestTotal}
                       attempts={cheapestAttempts}
-                      oneshotPct={cheapestSummary ? oneshotPercent(cheapestSummary.steps) : null}
+                      oneshotPct={
+                        cheapestSummary ? oneshotPercent(cheapestSummary.steps, oneshotMode) : null
+                      }
                       badge={strategyCompareBadge(
                         "cheapest",
                         strategyGoldDelta,
@@ -1411,7 +1414,9 @@ export function UpgradeCalculator() {
                       selected={params.strategy === "fewest"}
                       total={fewestTotal}
                       attempts={fewestAttempts}
-                      oneshotPct={fewestSummary ? oneshotPercent(fewestSummary.steps) : null}
+                      oneshotPct={
+                        fewestSummary ? oneshotPercent(fewestSummary.steps, oneshotMode) : null
+                      }
                       badge={strategyCompareBadge(
                         "fewest",
                         strategyGoldDelta,

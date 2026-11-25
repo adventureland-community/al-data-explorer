@@ -26,6 +26,17 @@ import {
 } from "./upgradePrices";
 import { edgeBucketOdds } from "./upgradeSideEffects";
 
+/** Match upgradePath / pastebin: seed def.igrace into item.grace (server re-adds each roll). */
+function itemIgraceFromDef(def: GItem): number {
+  const { igrace } = def as GItem & { igrace?: number };
+  if (igrace != null) return igrace;
+  const zero = getItemGrade(def, 0);
+  if (!zero) return 1;
+  if (zero === 1) return -1;
+  if (zero === 2) return -2;
+  return 0;
+}
+
 /** Common vendor-friendly farm bases (any upgradeable item still works). */
 export const GREED_QUICK_PICKS: readonly ItemKey[] = [
   "sword",
@@ -129,7 +140,7 @@ export function planGreedFarm(input: GreedFarmInput): GreedFarmResult {
     const lookup = (name: ItemKey) => (name === input.itemKey ? input.gItem : undefined);
     const raw = getUpgradeChance(
       lookup,
-      { name: input.itemKey, level },
+      { name: input.itemKey, level, grace: itemIgraceFromDef(input.gItem) },
       scrollGrade,
       input.offering,
       input.tables,

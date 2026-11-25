@@ -31,32 +31,7 @@ export function offeringEnabled(
   return params.offeringx;
 }
 
-export function sumAttempts(steps: PlanSummaryStep[]): number {
-  let sum = 0;
-  for (const s of steps) {
-    if (s.kind === "acquire") continue;
-    if (Number.isFinite(s.attempts)) sum += s.attempts;
-  }
-  return sum;
-}
-
-export function oneshotPercent(steps: PlanSummaryStep[]): number | null {
-  const recipe = steps.filter((s) => s.kind !== "acquire" && s.kind !== "shiny");
-  if (!recipe.length) return null;
-  let product = 1;
-  for (const s of recipe) {
-    // Prefer attempts (EV rate, includes Lucky Slot) over game-visible chance.
-    const p =
-      Number.isFinite(s.attempts) && s.attempts > 0
-        ? 1 / s.attempts
-        : Number.isFinite(s.chance) && s.chance > 0
-        ? s.chance
-        : 0;
-    if (!(p > 0)) return null;
-    product *= p;
-  }
-  return product * 100;
-}
+export { oneshotPercent, sumAttempts } from "../gameData/upgradePathSummary";
 
 export function heaviestStep(steps: PlanSummaryStep[]): PlanSummaryStep | null {
   let best: PlanSummaryStep | null = null;

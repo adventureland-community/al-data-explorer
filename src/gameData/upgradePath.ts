@@ -813,9 +813,10 @@ export function planUpgradePathBestOdds(
   if (!def0) return null;
   const startLevel = options.startLevel ?? 0;
   const steps: UpgradePathStep[] = [];
-  // Mid-path (+from): unknown banked grace on a bought/found copy → start at 0.
-  // +0 starts: match Cheapest / pastebin seed (intrinsic igrace on the item state).
-  let grace = options.startGrace ?? (startLevel > 0 ? 0 : itemIgraceFromDef(def0));
+  // Intrinsic igrace is always on the item def (server re-adds it each roll; pastebin
+  // seeds it into item.grace). Unknown banked item.grace on a mid-path copy stays 0
+  // unless the caller passes startGrace.
+  let grace = options.startGrace ?? itemIgraceFromDef(def0);
   // Asset EV of the current item (includes base). Step spend is the incremental EV.
   let curValue = itemValue;
 
@@ -1492,6 +1493,8 @@ export type { MaterialLine, PlanSummaryStep } from "./upgradePathSummary";
 export {
   expectedBaseCopies,
   foldExpectedBaseCopies,
+  oneshotPercent,
+  sumAttempts,
   summarizeCompoundPlan,
   summarizeUpgradePlan,
 } from "./upgradePathSummary";

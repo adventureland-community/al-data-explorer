@@ -19,6 +19,7 @@ import {
   summarizeUpgradePlan,
   type PlanSummaryStep,
 } from "./upgradePath";
+import { oneshotPercent, sumAttempts } from "./upgradePathSummary";
 import {
   defaultPriceTable,
   marketSellMinPrice,
@@ -112,32 +113,6 @@ export function buildUpgradeCalcHref(args: {
   if (capped !== DEFAULT_TARGET[args.mode]) sp.set("target", String(capped));
   const q = sp.toString();
   return q ? `/upgrade?${q}` : "/upgrade";
-}
-
-function sumAttempts(steps: PlanSummaryStep[]): number {
-  let sum = 0;
-  for (const s of steps) {
-    if (s.kind === "acquire") continue;
-    if (Number.isFinite(s.attempts)) sum += s.attempts;
-  }
-  return sum;
-}
-
-function oneshotPercent(steps: PlanSummaryStep[]): number | null {
-  const recipe = steps.filter((s) => s.kind !== "acquire" && s.kind !== "shiny");
-  if (!recipe.length) return null;
-  let product = 1;
-  for (const s of recipe) {
-    const p =
-      Number.isFinite(s.attempts) && s.attempts > 0
-        ? 1 / s.attempts
-        : Number.isFinite(s.chance) && s.chance > 0
-        ? s.chance
-        : 0;
-    if (!(p > 0)) return null;
-    product *= p;
-  }
-  return product * 100;
 }
 
 function heaviestStep(steps: PlanSummaryStep[]): PlanSummaryStep | null {
@@ -466,7 +441,7 @@ export function buildItemUpgradeSnapshot(args: {
   const recipe = summary.steps.filter((s) => s.kind !== "acquire" && s.kind !== "shiny");
   const last = recipe.length ? recipe[recipe.length - 1] : null;
   const attempts = sumAttempts(summary.steps);
-  const oneshot = oneshotPercent(summary.steps);
+  const oneshot = oneshotPercent(summary.steps, mode);
   const heavy = heaviestStep(summary.steps);
   const planEv = summary.totalExpectedCost;
   const bottleneck =

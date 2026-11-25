@@ -73,6 +73,33 @@ describe("greedFarm", () => {
     expect(on.greedPerAttempt).toBeCloseTo(off.greedPerAttempt, 10);
   });
 
+  it("seeds intrinsic igrace into upgrade chance", () => {
+    // grades[0]=7 → High at +7; scroll1 + Primling keeps chance below the cap.
+    const withIgrace = fakeItem({ grades: [7, 9, 10, 12], g: 48000, igrace: 1 });
+    const without = fakeItem({ grades: [7, 9, 10, 12], g: 48000, igrace: 0 });
+    const seeded = planGreedFarm({
+      gItem: withIgrace,
+      itemKey: "helmet" as ItemKey,
+      level: 7,
+      scrollKey: "scroll1",
+      offering: 1,
+      itemUnit: 48000,
+      prices,
+    });
+    const bare = planGreedFarm({
+      gItem: without,
+      itemKey: "helmet" as ItemKey,
+      level: 7,
+      scrollKey: "scroll1",
+      offering: 1,
+      itemUnit: 48000,
+      prices,
+    });
+    expect(seeded.chance).toBeGreaterThan(0);
+    expect(seeded.chance).toBeLessThan(1);
+    expect(seeded.chance).toBeGreaterThan(bare.chance);
+  });
+
   it("prices gold per greed from attempt cost / P(greed)", () => {
     // grades[0]=0 → High at +0, so scroll grade must be ≥ 1
     const gItem = fakeItem({ grades: [0, 4, 10, 12], g: 48000 });

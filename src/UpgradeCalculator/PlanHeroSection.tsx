@@ -222,7 +222,11 @@ export function PlanHero({
               <Metric
                 label="One-shot"
                 value={oneshotPct == null ? "—" : `${oneshotPct.toFixed(2)}%`}
-                hint="Chance of clearing every step on the first try (no retries). Real runs retry each step."
+                hint={
+                  mode === "compound"
+                    ? "Chance the whole ×3 copy tree succeeds on the first try at every compound (no retries)."
+                    : "Chance of clearing every step on the first try (no retries). Real runs retry each step."
+                }
               />
               {shrineTime ? (
                 <Metric
