@@ -34,6 +34,11 @@ import {
   WorldLayout,
 } from "./types";
 import {
+  createWorldRenderer,
+  disposeWorldRenderer,
+  WEBGL_UNAVAILABLE_MESSAGE,
+} from "./createWorldRenderer";
+import {
   computeMapFocusDistance,
   computeWorldBounds,
   computeWorldFocusPose,
@@ -256,6 +261,7 @@ export function WorldCanvas({
   const monsterDefsRef = useRef(monsterDefs);
   monsterDefsRef.current = monsterDefs;
   const [tooltip, setTooltip] = useState<(OverlayTooltip & { x: number; y: number }) | null>(null);
+  const [webglError, setWebglError] = useState<string | null>(null);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -263,12 +269,15 @@ export function WorldCanvas({
       return undefined;
     }
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: false,
-      logarithmicDepthBuffer: true,
-      powerPreference: "high-performance",
-    });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = createWorldRenderer();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : WEBGL_UNAVAILABLE_MESSAGE;
+      setWebglError(message);
+      return undefined;
+    }
+    setWebglError(null);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor(0x101218, 1);
     renderer.domElement.style.position = "absolute";
@@ -526,7 +535,7 @@ export function WorldCanvas({
       renderer.domElement.removeEventListener("dblclick", onDoubleClick);
       navigation.dispose();
       disposeObject(threeScene);
-      renderer.dispose();
+      disposeWorldRenderer(renderer);
       if (renderer.domElement.parentElement === host) {
         host.removeChild(renderer.domElement);
       }
@@ -651,7 +660,38 @@ export function WorldCanvas({
         background: "#101218",
       }}
     >
-      {viewMode === "world" && <WorldMinimap ref={minimapRef} layout={scene} maps={maps} />}
+      {webglError && (
+        <div
+          role="alert"
+          data-testid="world-webgl-unavailable"
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            padding: 24,
+            textAlign: "center",
+            color: "#e8eaed",
+            zIndex: 4,
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 600 }}>3D map unavailable</div>
+          <div style={{ maxWidth: 420, fontSize: 14, lineHeight: 1.45, opacity: 0.85 }}>
+            {webglError}
+          </div>
+          <div style={{ maxWidth: 420, fontSize: 13, lineHeight: 1.4, opacity: 0.65 }}>
+            In Firefox: Settings → General → Performance → use recommended performance settings
+            (hardware acceleration), and confirm <code>webgl.disabled</code> is false in
+            about:config.
+          </div>
+        </div>
+      )}
+      {viewMode === "world" && !webglError && (
+        <WorldMinimap ref={minimapRef} layout={scene} maps={maps} />
+      )}
       {tooltip && (
         <div
           style={{
