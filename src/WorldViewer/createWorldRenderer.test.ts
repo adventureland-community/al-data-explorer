@@ -14,12 +14,28 @@ describe("createWorldGlSurface", () => {
     ).toBe(true);
   });
 
-  it("tries WebGL1 before WebGL2", () => {
-    expect(WORLD_GL_CONTEXT_TYPES[0]).toBe("webgl");
-    expect(WORLD_GL_CONTEXT_TYPES.includes("webgl2")).toBe(true);
+  it("probes WebGL2 before WebGL1", () => {
+    expect(WORLD_GL_CONTEXT_TYPES[0]).toBe("webgl2");
+    expect(WORLD_GL_CONTEXT_TYPES).toContain("webgl");
   });
 
-  it("walks attribute and type attempts until a context is returned", () => {
+  it("uses WebGL2 when the browser provides it", () => {
+    const tried: string[] = [];
+    const fakeContext = { drawArrays() {} } as unknown as WebGL2RenderingContext;
+    const surface = createWorldGlSurface(() => {
+      const canvas = document.createElement("canvas");
+      canvas.getContext = ((type: string) => {
+        tried.push(type);
+        return type === "webgl2" ? fakeContext : null;
+      }) as HTMLCanvasElement["getContext"];
+      return canvas;
+    });
+
+    expect(surface?.context).toBe(fakeContext);
+    expect(tried[0]).toBe("webgl2");
+  });
+
+  it("falls back to WebGL1 when WebGL2 is null", () => {
     const tried: Array<{ type: string; attrs: WebGLContextAttributes }> = [];
     const fakeContext = { drawArrays() {} } as unknown as WebGLRenderingContext;
     const surface = createWorldGlSurface(() => {
@@ -28,7 +44,7 @@ describe("createWorldGlSurface", () => {
         if (attrs) {
           tried.push({ type, attrs });
         }
-        if (type === "webgl" && tried.length >= 2) {
+        if (type === "webgl") {
           return fakeContext;
         }
         return null;
@@ -38,8 +54,8 @@ describe("createWorldGlSurface", () => {
 
     expect(surface).not.toBeNull();
     expect(surface?.context).toBe(fakeContext);
-    expect(tried[0]?.type).toBe("webgl");
-    expect(tried[0]?.attrs).toEqual(WORLD_GL_CONTEXT_ATTEMPTS[0]);
+    expect(tried[0]?.type).toBe("webgl2");
+    expect(tried.some((entry) => entry.type === "webgl")).toBe(true);
   });
 
   it("returns null when every attempt fails", () => {

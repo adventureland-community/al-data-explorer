@@ -5,8 +5,9 @@ import * as THREE from "three";
  *
  * Three.js throws "Error creating WebGL context with your selected attributes."
  * when a context exists only without our attrs, and plain "Error creating WebGL
- * context." when no context can be created at all (Firefox GPU blocklist,
- * webgl.disabled, Troubleshoot Mode, etc.). Soft attrs only help the first case.
+ * context." when no context can be created at all (GPU blocklist,
+ * webgl.disabled, Troubleshoot Mode, etc. — not a lack of Firefox WebGL support).
+ * Soft attrs only help the first case.
  *
  * Prefer `default` powerPreference first: `high-performance` is a dual-GPU hint
  * that does not unblock creation, and Firefox is more likely to later lose those
@@ -20,11 +21,14 @@ export const WORLD_GL_CONTEXT_ATTEMPTS: readonly WebGLContextAttributes[] = [
   { antialias: true, alpha: false, depth: true, powerPreference: "high-performance" },
 ];
 
-/** Context type order: WebGL1 first — Firefox often blocks WebGL2 while WebGL1 works. */
-export const WORLD_GL_CONTEXT_TYPES = ["webgl", "experimental-webgl", "webgl2"] as const;
+/**
+ * Probe highest capability first, then fall back.
+ * Firefox supports WebGL2; we only use WebGL1 when webgl2 getContext returns null.
+ */
+export const WORLD_GL_CONTEXT_TYPES = ["webgl2", "webgl", "experimental-webgl"] as const;
 
 export const WEBGL_UNAVAILABLE_MESSAGE =
-  "WebGL is unavailable in this browser. Showing a 2D map instead when possible.";
+  "Couldn't create a WebGL context on this device. Showing a 2D map instead when possible.";
 
 type GlContext = WebGLRenderingContext | WebGL2RenderingContext;
 
