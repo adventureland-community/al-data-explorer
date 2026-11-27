@@ -3,19 +3,48 @@ import {
   createWorldRenderer,
   WEBGL_UNAVAILABLE_MESSAGE,
   WORLD_GL_CONTEXT_ATTEMPTS,
+  WORLD_GL_CONTEXT_TYPES,
 } from "./createWorldRenderer";
 
 describe("createWorldGlSurface", () => {
-  it("walks attribute attempts until a context is returned", () => {
-    const tried: WebGLContextAttributes[] = [];
+  it("prefers default powerPreference before high-performance", () => {
+    expect(WORLD_GL_CONTEXT_ATTEMPTS[0]?.powerPreference).toBe("default");
+    expect(
+      WORLD_GL_CONTEXT_ATTEMPTS.some((attrs) => attrs.powerPreference === "high-performance"),
+    ).toBe(true);
+  });
+
+  it("probes WebGL2 before WebGL1", () => {
+    expect(WORLD_GL_CONTEXT_TYPES[0]).toBe("webgl2");
+    expect(WORLD_GL_CONTEXT_TYPES).toContain("webgl");
+  });
+
+  it("uses WebGL2 when the browser provides it", () => {
+    const tried: string[] = [];
+    const fakeContext = { drawArrays() {} } as unknown as WebGL2RenderingContext;
+    const surface = createWorldGlSurface(() => {
+      const canvas = document.createElement("canvas");
+      canvas.getContext = ((type: string) => {
+        tried.push(type);
+        return type === "webgl2" ? fakeContext : null;
+      }) as HTMLCanvasElement["getContext"];
+      return canvas;
+    });
+
+    expect(surface?.context).toBe(fakeContext);
+    expect(tried[0]).toBe("webgl2");
+  });
+
+  it("exhausts WebGL2 attr attempts before trying WebGL1", () => {
+    const tried: Array<{ type: string; attrs: WebGLContextAttributes }> = [];
     const fakeContext = { drawArrays() {} } as unknown as WebGLRenderingContext;
     const surface = createWorldGlSurface(() => {
       const canvas = document.createElement("canvas");
       canvas.getContext = ((type: string, attrs?: WebGLContextAttributes) => {
         if (attrs) {
-          tried.push(attrs);
+          tried.push({ type, attrs });
         }
-        if (type === "webgl" && tried.length >= 3) {
+        if (type === "webgl") {
           return fakeContext;
         }
         return null;
@@ -25,8 +54,10 @@ describe("createWorldGlSurface", () => {
 
     expect(surface).not.toBeNull();
     expect(surface?.context).toBe(fakeContext);
-    expect(tried.length).toBeGreaterThanOrEqual(3);
-    expect(tried[0]).toEqual(WORLD_GL_CONTEXT_ATTEMPTS[0]);
+    expect(tried[0]?.type).toBe("webgl2");
+    const firstWebgl1 = tried.findIndex((entry) => entry.type === "webgl");
+    expect(firstWebgl1).toBe(WORLD_GL_CONTEXT_ATTEMPTS.length);
+    expect(tried.slice(0, firstWebgl1).every((entry) => entry.type === "webgl2")).toBe(true);
   });
 
   it("returns null when every attempt fails", () => {
