@@ -38,6 +38,7 @@ import {
   disposeWorldRenderer,
   WEBGL_UNAVAILABLE_MESSAGE,
 } from "./createWorldRenderer";
+import { WorldMap2DFallback } from "./WorldMap2DFallback";
 import {
   computeMapFocusDistance,
   computeWorldBounds,
@@ -661,33 +662,12 @@ export function WorldCanvas({
       }}
     >
       {webglError && (
-        <div
-          role="alert"
-          data-testid="world-webgl-unavailable"
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            padding: 24,
-            textAlign: "center",
-            color: "#e8eaed",
-            zIndex: 4,
-          }}
-        >
-          <div style={{ fontSize: 18, fontWeight: 600 }}>3D map unavailable</div>
-          <div style={{ maxWidth: 420, fontSize: 14, lineHeight: 1.45, opacity: 0.85 }}>
-            {webglError}
-          </div>
-          <div style={{ maxWidth: 420, fontSize: 13, lineHeight: 1.4, opacity: 0.65 }}>
-            In Firefox: Settings → General → Performance → use recommended performance settings
-            (hardware acceleration), and confirm <code>webgl.disabled</code> is false in
-            about:config.
-          </div>
-        </div>
+        <WorldMap2DFallback
+          map={selectedMap ? maps[selectedMap] ?? null : null}
+          bake={selectedMap ? mapArt[selectedMap] ?? null : null}
+          focus={focus}
+          message={webglError}
+        />
       )}
       {viewMode === "world" && !webglError && (
         <WorldMinimap ref={minimapRef} layout={scene} maps={maps} />
