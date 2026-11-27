@@ -55,14 +55,15 @@ function readGlContext(
 }
 
 /**
- * Try several WebGL attribute / type sets on fresh canvases.
- * Returning null (instead of throwing) lets callers show a 2D fallback.
+ * Try context types outer, attribute sets inner.
+ * Exhaust WebGL2 with the full attr ladder before falling back to WebGL1.
+ * Returning null lets callers show a 2D fallback.
  */
 export function createWorldGlSurface(
   createCanvas: () => HTMLCanvasElement = () => document.createElement("canvas"),
 ): WorldGlSurface | null {
-  for (const attrs of WORLD_GL_CONTEXT_ATTEMPTS) {
-    for (const type of WORLD_GL_CONTEXT_TYPES) {
+  for (const type of WORLD_GL_CONTEXT_TYPES) {
+    for (const attrs of WORLD_GL_CONTEXT_ATTEMPTS) {
       // Fresh canvas per attempt: a failed getContext can still leave the element
       // unusable for a different context type on some Firefox builds.
       const canvas = createCanvas();

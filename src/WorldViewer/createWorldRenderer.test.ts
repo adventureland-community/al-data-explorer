@@ -35,7 +35,7 @@ describe("createWorldGlSurface", () => {
     expect(tried[0]).toBe("webgl2");
   });
 
-  it("falls back to WebGL1 when WebGL2 is null", () => {
+  it("exhausts WebGL2 attr attempts before trying WebGL1", () => {
     const tried: Array<{ type: string; attrs: WebGLContextAttributes }> = [];
     const fakeContext = { drawArrays() {} } as unknown as WebGLRenderingContext;
     const surface = createWorldGlSurface(() => {
@@ -55,7 +55,9 @@ describe("createWorldGlSurface", () => {
     expect(surface).not.toBeNull();
     expect(surface?.context).toBe(fakeContext);
     expect(tried[0]?.type).toBe("webgl2");
-    expect(tried.some((entry) => entry.type === "webgl")).toBe(true);
+    const firstWebgl1 = tried.findIndex((entry) => entry.type === "webgl");
+    expect(firstWebgl1).toBe(WORLD_GL_CONTEXT_ATTEMPTS.length);
+    expect(tried.slice(0, firstWebgl1).every((entry) => entry.type === "webgl2")).toBe(true);
   });
 
   it("returns null when every attempt fails", () => {
