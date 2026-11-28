@@ -1,6 +1,7 @@
 import { GGeometry, GMap, GNpc } from "typed-adventureland";
 import { packCountValue } from "./packSpriteSlots";
 import {
+  DoorTravel,
   MapBand,
   MapSource,
   NpcFeature,
@@ -641,4 +642,19 @@ export function spawnPoint(
     return null;
   }
   return { x: spawn.x, y: spawn.y };
+}
+
+export function doorTravel(maps: Record<string, ParsedMap>, door: ParsedDoor): DoorTravel | null {
+  const dest = spawnPoint(maps, door.toMap, door.destSpawn);
+  const destMap = maps[door.toMap];
+  if (!dest || !destMap) {
+    return null;
+  }
+  return {
+    toMap: door.toMap,
+    toX: dest.x,
+    toY: dest.y,
+    toName: destMap.name,
+    lock: door.lock,
+  };
 }

@@ -1,14 +1,18 @@
 import {
   createWorldGlSurface,
   createWorldRenderer,
+  formatWebGlUnavailableMessage,
+  probeWorldGlSurface,
   WEBGL_UNAVAILABLE_MESSAGE,
   WORLD_GL_CONTEXT_ATTEMPTS,
   WORLD_GL_CONTEXT_TYPES,
 } from "./createWorldRenderer";
+import { WEBGL_TROUBLESHOOTING_URL } from "./WorldWebGlUnavailable";
 
 describe("createWorldGlSurface", () => {
-  it("prefers default powerPreference before high-performance", () => {
-    expect(WORLD_GL_CONTEXT_ATTEMPTS[0]?.powerPreference).toBe("default");
+  it("starts with permissive attrs before powerPreference hints", () => {
+    expect(WORLD_GL_CONTEXT_ATTEMPTS[0]).toEqual({});
+    expect(WORLD_GL_CONTEXT_ATTEMPTS[1]).toEqual({ failIfMajorPerformanceCaveat: false });
     expect(
       WORLD_GL_CONTEXT_ATTEMPTS.some((attrs) => attrs.powerPreference === "high-performance"),
     ).toBe(true);
@@ -41,9 +45,7 @@ describe("createWorldGlSurface", () => {
     const surface = createWorldGlSurface(() => {
       const canvas = document.createElement("canvas");
       canvas.getContext = ((type: string, attrs?: WebGLContextAttributes) => {
-        if (attrs) {
-          tried.push({ type, attrs });
-        }
+        tried.push({ type, attrs: attrs ?? {} });
         if (type === "webgl") {
           return fakeContext;
         }
@@ -68,6 +70,27 @@ describe("createWorldGlSurface", () => {
     });
     expect(surface).toBeNull();
   });
+
+  it("surfaces webglcontextcreationerror statusMessage from the browser", () => {
+    const probe = probeWorldGlSurface(() => {
+      const canvas = document.createElement("canvas");
+      canvas.getContext = (() => {
+        const event = new Event("webglcontextcreationerror") as WebGLContextEvent;
+        Object.defineProperty(event, "statusMessage", {
+          value: "WebGL creation failed:\n* tryANGLE (FEATURE_FAILURE_EGL_NO_CONFIG)",
+        });
+        canvas.dispatchEvent(event);
+        return null;
+      }) as HTMLCanvasElement["getContext"];
+      return canvas;
+    });
+
+    expect(probe.surface).toBeNull();
+    expect(probe.creationError).toContain("FEATURE_FAILURE_EGL_NO_CONFIG");
+    expect(formatWebGlUnavailableMessage(probe.creationError)).toContain(
+      "FEATURE_FAILURE_EGL_NO_CONFIG",
+    );
+  });
 });
 
 describe("createWorldRenderer", () => {
@@ -79,5 +102,11 @@ describe("createWorldRenderer", () => {
     } finally {
       HTMLCanvasElement.prototype.getContext = original;
     }
+  });
+});
+
+describe("WebGL troubleshooting link", () => {
+  it("points at Khronos get.webgl.org/troubleshooting", () => {
+    expect(WEBGL_TROUBLESHOOTING_URL).toBe("https://get.webgl.org/troubleshooting");
   });
 });

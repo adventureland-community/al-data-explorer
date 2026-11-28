@@ -1,21 +1,21 @@
 import * as THREE from "three";
 
 /**
- * Context attribute ladder.
+ * Context attribute ladder — most permissive first.
  *
- * Three.js throws "Error creating WebGL context with your selected attributes."
- * when a context exists only without our attrs, and plain "Error creating WebGL
- * context." when no context can be created at all (GPU blocklist,
- * webgl.disabled, Troubleshoot Mode, etc. — not a lack of Firefox WebGL support).
- * Soft attrs only help the first case.
+ * Soft attrs only help when the browser can create *some* context but not with
+ * our preferred options. They cannot recover hard failures (GPU/ANGLE refuse,
+ * webgl.disabled, Troubleshoot Mode). Prefer `default` powerPreference:
+ * `high-performance` does not unblock creation.
  *
- * Prefer `default` powerPreference first: `high-performance` is a dual-GPU hint
- * that does not unblock creation, and Firefox is more likely to later lose those
- * contexts (WebGL spec).
+ * Capture `webglcontextcreationerror` for the real statusMessage (MDN). On total
+ * failure, the UI links to https://get.webgl.org/troubleshooting (Khronos).
  */
 export const WORLD_GL_CONTEXT_ATTEMPTS: readonly WebGLContextAttributes[] = [
-  { antialias: true, alpha: false, depth: true, powerPreference: "default" },
+  {},
+  { failIfMajorPerformanceCaveat: false },
   { antialias: false, alpha: false, depth: true, powerPreference: "default" },
+  { antialias: true, alpha: false, depth: true, powerPreference: "default" },
   { antialias: false, alpha: false, depth: true, powerPreference: "low-power" },
   { antialias: false, alpha: false, depth: true },
   { antialias: true, alpha: false, depth: true, powerPreference: "high-performance" },
@@ -27,8 +27,7 @@ export const WORLD_GL_CONTEXT_ATTEMPTS: readonly WebGLContextAttributes[] = [
  */
 export const WORLD_GL_CONTEXT_TYPES = ["webgl2", "webgl", "experimental-webgl"] as const;
 
-export const WEBGL_UNAVAILABLE_MESSAGE =
-  "Couldn't create a WebGL context on this device. Showing a 2D map instead when possible.";
+export const WEBGL_UNAVAILABLE_MESSAGE = "Couldn't create a WebGL context on this device.";
 
 type GlContext = WebGLRenderingContext | WebGL2RenderingContext;
 
@@ -38,57 +37,94 @@ export interface WorldGlSurface {
   attrs: WebGLContextAttributes;
 }
 
+export interface WorldGlProbeResult {
+  surface: WorldGlSurface | null;
+  /** Browser `webglcontextcreationerror` statusMessage, when fired. */
+  creationError: string | null;
+}
+
 function readGlContext(
   canvas: HTMLCanvasElement,
   type: typeof WORLD_GL_CONTEXT_TYPES[number],
   attrs: WebGLContextAttributes,
-): GlContext | null {
-  const context = canvas.getContext(type, attrs);
-  if (!context) {
-    return null;
+): { context: GlContext | null; creationError: string | null } {
+  let creationError: string | null = null;
+  const onError = (event: Event) => {
+    const status = (event as WebGLContextEvent).statusMessage;
+    if (typeof status === "string" && status.trim()) {
+      creationError = status.trim();
+    }
+  };
+  canvas.addEventListener("webglcontextcreationerror", onError);
+  try {
+    const context = canvas.getContext(type, attrs);
+    if (!context) {
+      return { context: null, creationError };
+    }
+    // experimental-webgl is typed as RenderingContext in DOM libs.
+    if ("drawArrays" in context) {
+      return { context, creationError: null };
+    }
+    return { context: null, creationError };
+  } finally {
+    canvas.removeEventListener("webglcontextcreationerror", onError);
   }
-  // experimental-webgl is typed as RenderingContext in DOM libs.
-  if ("drawArrays" in context) {
-    return context;
-  }
-  return null;
 }
 
 /**
  * Try context types outer, attribute sets inner.
  * Exhaust WebGL2 with the full attr ladder before falling back to WebGL1.
- * Returning null lets callers show a 2D fallback.
  */
-export function createWorldGlSurface(
+export function probeWorldGlSurface(
   createCanvas: () => HTMLCanvasElement = () => document.createElement("canvas"),
-): WorldGlSurface | null {
+): WorldGlProbeResult {
+  let creationError: string | null = null;
   for (const type of WORLD_GL_CONTEXT_TYPES) {
     for (const attrs of WORLD_GL_CONTEXT_ATTEMPTS) {
       // Fresh canvas per attempt: a failed getContext can still leave the element
       // unusable for a different context type on some Firefox builds.
       const canvas = createCanvas();
-      const context = readGlContext(canvas, type, attrs);
-      if (context) {
-        return { canvas, context, attrs };
+      const attempt = readGlContext(canvas, type, attrs);
+      if (attempt.creationError) {
+        creationError = attempt.creationError;
+      }
+      if (attempt.context) {
+        return {
+          surface: { canvas, context: attempt.context, attrs },
+          creationError: null,
+        };
       }
     }
   }
-  return null;
+  return { surface: null, creationError };
+}
+
+export function createWorldGlSurface(
+  createCanvas: () => HTMLCanvasElement = () => document.createElement("canvas"),
+): WorldGlSurface | null {
+  return probeWorldGlSurface(createCanvas).surface;
+}
+
+export function formatWebGlUnavailableMessage(creationError: string | null): string {
+  if (!creationError) {
+    return WEBGL_UNAVAILABLE_MESSAGE;
+  }
+  return `${WEBGL_UNAVAILABLE_MESSAGE} (${creationError})`;
 }
 
 /** Build a Three renderer, or throw when no WebGL context can be created. */
 export function createWorldRenderer(): THREE.WebGLRenderer {
-  const surface = createWorldGlSurface();
-  if (!surface) {
-    throw new Error(WEBGL_UNAVAILABLE_MESSAGE);
+  const probe = probeWorldGlSurface();
+  if (!probe.surface) {
+    throw new Error(formatWebGlUnavailableMessage(probe.creationError));
   }
   return new THREE.WebGLRenderer({
-    canvas: surface.canvas,
-    context: surface.context,
-    antialias: Boolean(surface.attrs.antialias),
+    canvas: probe.surface.canvas,
+    context: probe.surface.context,
+    antialias: Boolean(probe.surface.attrs.antialias),
     alpha: false,
     logarithmicDepthBuffer: true,
-    powerPreference: surface.attrs.powerPreference ?? "default",
+    powerPreference: probe.surface.attrs.powerPreference ?? "default",
   });
 }
 

@@ -19,7 +19,7 @@ import {
   setSelectedMap,
 } from "./createWorldScene";
 import { overlayPickColor, overlayTooltip, OverlayPick } from "./overlayPick";
-import { spawnPoint } from "./parseMaps";
+import { doorTravel } from "./parseMaps";
 import { MapArtBake } from "./renderMapCanvas";
 import { setHoveredOverlay } from "./sceneOverlays";
 import {
@@ -28,7 +28,6 @@ import {
   MapFocus,
   OverlayTooltip,
   OverlayVisibility,
-  ParsedDoor,
   ParsedMap,
   ViewerMode,
   WorldLayout,
@@ -38,7 +37,7 @@ import {
   disposeWorldRenderer,
   WEBGL_UNAVAILABLE_MESSAGE,
 } from "./createWorldRenderer";
-import { WorldMap2DFallback } from "./WorldMap2DFallback";
+import { WorldWebGlUnavailable } from "./WorldWebGlUnavailable";
 import {
   computeMapFocusDistance,
   computeWorldBounds,
@@ -112,21 +111,6 @@ function pickTargets(root: THREE.Object3D): THREE.Object3D[] {
     }
   });
   return targets;
-}
-
-function doorTravel(maps: Record<string, ParsedMap>, door: ParsedDoor): DoorTravel | null {
-  const dest = spawnPoint(maps, door.toMap, door.destSpawn);
-  const destMap = maps[door.toMap];
-  if (!dest || !destMap) {
-    return null;
-  }
-  return {
-    toMap: door.toMap,
-    toX: dest.x,
-    toY: dest.y,
-    toName: destMap.name,
-    lock: door.lock,
-  };
 }
 
 function hitFromPointer(
@@ -661,14 +645,7 @@ export function WorldCanvas({
         background: "#101218",
       }}
     >
-      {webglError && (
-        <WorldMap2DFallback
-          map={selectedMap ? maps[selectedMap] ?? null : null}
-          bake={selectedMap ? mapArt[selectedMap] ?? null : null}
-          focus={focus}
-          message={webglError}
-        />
-      )}
+      {webglError && <WorldWebGlUnavailable message={webglError} />}
       {viewMode === "world" && !webglError && (
         <WorldMinimap ref={minimapRef} layout={scene} maps={maps} />
       )}
